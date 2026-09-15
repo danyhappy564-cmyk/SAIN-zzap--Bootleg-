@@ -36,6 +36,7 @@ public class DoorOpener : BotComponentClassBase
             return false;
         }
         _interactionDoors[_interactionDoorIndex] = data;
+        RememberStamps(data);
         Interacting = true;
         ActiveDoor = data;
         InteractionType = interactionType;
@@ -155,6 +156,7 @@ public class DoorOpener : BotComponentClassBase
             for (int i = 0; i < _allDoors.Count; i++)
             {
                 DoorDataStruct door = _allDoors[i];
+                RestoreStamps(ref door);
                 door.ManualUpdate(botPosition);
                 if (door.InRangeToInteract(door.Door) && door.CanInteractByTime(time))
                 {
@@ -338,6 +340,50 @@ public class DoorOpener : BotComponentClassBase
 
     private static bool RecentlySelfOpened(in DoorDataStruct data)
         => Time.time - data.LastCloseTime < JUST_OPENED_GRACE;
+
+    // ...except the grace above could not actually work, and neither could
+    // DoorDataStruct.CanInteractByTime, because nothing kept the timestamps alive.
+    //
+    // DoorDataStruct is a STRUCT held in two Lists. InteractWithDoor stamps LastOpenTime
+    // / LastCloseTime / LastInteractTime on its `ref data`, and TryInteractWithDoor
+    // writes that back into _interactionDoors - but never into _allDoors. SearchForDoors
+    // then does _interactionDoors.Clear() and rebuilds the whole list out of _allDoors
+    // every DOOR_UPDATE_INTERVAL, so every stamp is thrown away within 0.5s. _allDoors
+    // itself is also rebuilt from scratch whenever the bot's voxel changes - which, at a
+    // doorway, is exactly when it is walking through.
+    //
+    // So RecentlySelfOpened read a LastCloseTime of 0 on essentially every call and
+    // answered "no, I did not just open this", and the bot went right back to closing
+    // the door it had opened a second ago. That is the open-close-open-close loop in the
+    // 2026-09-15 report ("the door opening and closing animation is what happens first,
+    // then it is stuck"), and it is why the 08-29 grace window never changed anything.
+    //
+    // Keep the three stamps here instead, keyed by the door link id, where neither list
+    // rebuild can reach them. One small dictionary per bot, entries the size of three
+    // floats, and it dies with the bot.
+    private readonly Dictionary<int, DoorStamps> _stamps = [];
+
+    private readonly struct DoorStamps(float interact, float open, float close)
+    {
+        internal readonly float Interact = interact;
+        internal readonly float Open = open;
+        internal readonly float Close = close;
+    }
+
+    private void RememberStamps(in DoorDataStruct data)
+    {
+        _stamps[data.Id] = new DoorStamps(data.LastInteractTime, data.LastOpenTime, data.LastCloseTime);
+    }
+
+    private void RestoreStamps(ref DoorDataStruct data)
+    {
+        if (!_stamps.TryGetValue(data.Id, out var stamps)) return;
+        // Only ever move them forward. A struct that still carries this tick's stamps
+        // must not be rolled back to an older remembered value.
+        if (stamps.Interact > data.LastInteractTime) data.LastInteractTime = stamps.Interact;
+        if (stamps.Open > data.LastOpenTime) data.LastOpenTime = stamps.Open;
+        if (stamps.Close > data.LastCloseTime) data.LastCloseTime = stamps.Close;
+    }
 
     private static bool IsDoorOpenable(Door door)
     {
