@@ -209,8 +209,9 @@ public class SelfActionDecisionClass : BotBase
             if (!_loggedReloadFault)
             {
                 _loggedReloadFault = true;
+                var role = botOwner?.Profile?.Info?.Settings?.Role;
                 Logger.LogError(
-                    $"[{Bot?.name}] BotReload.CanReload threw walking this bot's inventory - "
+                    $"[{Bot?.name}] [role {role}] BotReload.CanReload threw walking this bot's inventory - "
                     + $"skipping its reload check for {RELOAD_FAULT_BACKOFF}s at a time. This is "
                     + $"inside BSG's inventory code, not SAIN's; the bot's equipment does not "
                     + $"match the slot set it is enumerated with. Logged once per session. {error}");

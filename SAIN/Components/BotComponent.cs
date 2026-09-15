@@ -222,11 +222,48 @@ public class BotComponent : BotComponentBase, ISPlayer
         }
     }
 
+    // One bot class throwing used to end the whole loop - and, because ManualUpdate calls
+    // TickClassGroup four times in a row, everything after it for that bot as well. That is
+    // survivable on a stock install, where BSG's own combat layers are still there to fall
+    // back on. It is not survivable for bots whose vanilla combat layers have been removed
+    // in favour of SAIN (the Black Division / Wedge brains do exactly this, and say so:
+    // "SAIN layers added and vanilla combat layers excluded"). Those bots have nothing else
+    // driving them, so a throw anywhere in the chain leaves them standing still.
+    //
+    // That is the 2026-09-15 report - "when their first magazine runs out they do not
+    // reload, do not shoot, just stand there looking" - with an IndexOutOfRangeException
+    // coming out of the reload decision 2085 times in one raid.
+    //
+    // Isolate each class instead. A broken subsystem costs that subsystem, not the bot.
+    private static readonly HashSet<string> _reportedTickFaults = [];
+
     private static void TickClassGroup(List<IBotClass> List, float CurrentTime)
     {
         for (int i = 0; i < List.Count; i++)
         {
-            List[i]?.ManualUpdate();
+            var botClass = List[i];
+            if (botClass == null)
+            {
+                continue;
+            }
+
+            try
+            {
+                botClass.ManualUpdate();
+            }
+            catch (Exception error)
+            {
+                // Once per class type per session. These faults repeat every tick, and the
+                // point of the log is to name the subsystem, not to count the ticks.
+                string name = botClass.GetType().Name;
+                if (_reportedTickFaults.Add(name))
+                {
+                    Logger.LogError(
+                        $"SAIN bot class {name} threw during its tick - that class is skipped "
+                        + $"for this tick and the rest of the bot keeps running. Reported once "
+                        + $"per class per session. {error}");
+                }
+            }
         }
     }
 

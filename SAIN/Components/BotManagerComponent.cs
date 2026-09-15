@@ -101,12 +101,36 @@ public class BotManagerComponent : MonoBehaviour
         HashSet<BotComponent> BotsArray = BotSpawnController.SAINBots;
         foreach (BotComponent BotComponent in BotsArray)
         {
-            if (BotComponent != null)
+            if (BotComponent == null)
+            {
+                continue;
+            }
+
+            // Guard per bot, not per loop. An unguarded foreach means one bot that throws
+            // takes the tick away from every bot after it in the set - and a HashSet's
+            // order is stable enough that it is the same bots starved every frame, for the
+            // rest of the raid. The 2026-09-15 log had one fault repeating 2085 times in
+            // seven minutes, so whatever sat behind it in this set was effectively never
+            // ticked at all.
+            try
             {
                 BotComponent.ManualUpdate(currentTime, deltaTime);
             }
+            catch (Exception error)
+            {
+                if (_reportedBotFaults.Add(BotComponent.GetInstanceID()))
+                {
+                    Logger.LogError(
+                        $"SAIN bot '{BotComponent.name}' threw out of its tick - skipped for "
+                        + $"this frame so the other bots still update. Reported once per bot. "
+                        + $"{error}");
+                }
+            }
         }
     }
+
+    // Instance ids, so a bot is named once rather than once a frame.
+    private readonly HashSet<int> _reportedBotFaults = [];
 
     public void Dispose()
     {
