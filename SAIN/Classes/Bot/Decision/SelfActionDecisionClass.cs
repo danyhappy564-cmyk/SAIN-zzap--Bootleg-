@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using EFT;
 using EFT.InventoryLogic;
 using SAIN.Components;
@@ -156,25 +158,84 @@ public class SelfActionDecisionClass : BotBase
         return false;
     }
 
+    // How long to stop asking a bot whose inventory BSG cannot walk. Long enough that the
+    // cost is negligible, short enough that a bot which recovers (loots a mag, drops the
+    // bad item) starts reloading again within a few seconds.
+    private const float RELOAD_FAULT_BACKOFF = 10f;
+
+    private float _reloadCheckBlockedUntil;
+    private static bool _loggedReloadFault;
+
     private bool TryReload(BotOwner botOwner, BotReload reload)
     {
-        if (reload.CanReload(true, out var Magazine, out var list))
+        // 2026-09-15 raid log: 901 identical exceptions in seven minutes, roughly two a
+        // second, every one of them this exact stack:
+        //
+        //   IndexOutOfRangeException
+        //     InventoryController.GetAcceptableItemsNonAlloc<T>(EquipmentSlot[], ...)
+        //     InventoryController.GetReachableItemsOfTypeNonAlloc<T>
+        //     BotReload.GetMagazineForReload(Weapon)
+        //     BotReloadMagazine.CanReload(...)
+        //     SelfActionDecisionClass.TryReload            <- us
+        //     ... BotDecisionManager.ManualUpdate -> GameWorldUnityTickListener.Update
+        //
+        // The fault is inside BSG's own inventory walk over a bot whose equipment does not
+        // match the slot array it is enumerated with; nothing here or in any other loaded
+        // mod patches those methods. We cannot repair that inventory. What we control is
+        // that we ask again on the very next tick, forever, and throwing an exception with
+        // a full managed stack capture twice a second is not free - it lands on the main
+        // thread inside the world tick, which is where the raid's frame time comes from.
+        //
+        // So: when the check faults, stop asking that bot for a few seconds. The decision
+        // simply reads as "cannot reload right now", which is what a bot with no reachable
+        // magazine would have got anyway, and the log says it once instead of 901 times.
+        if (Time.time < _reloadCheckBlockedUntil)
         {
-            botOwner.ShootData.EndShoot();
-            reload.Reloading = true;
-            _lastReloadTime = Time.time;
-            if (Magazine != null)
-            {
-                reload.ReloadMagazine(Magazine);
-            }
-            else if (list != null && list.Count > 0)
-            {
-                reload.ReloadAmmo(list);
-            }
-            return true;
+            return false;
         }
 
-        return false;
+        Magazine magazine;
+        List<Ammo> list;
+        bool canReload;
+
+        try
+        {
+            canReload = reload.CanReload(true, out magazine, out list);
+        }
+        catch (Exception error)
+        {
+            _reloadCheckBlockedUntil = Time.time + RELOAD_FAULT_BACKOFF;
+
+            if (!_loggedReloadFault)
+            {
+                _loggedReloadFault = true;
+                Logger.LogError(
+                    $"[{Bot?.name}] BotReload.CanReload threw walking this bot's inventory - "
+                    + $"skipping its reload check for {RELOAD_FAULT_BACKOFF}s at a time. This is "
+                    + $"inside BSG's inventory code, not SAIN's; the bot's equipment does not "
+                    + $"match the slot set it is enumerated with. Logged once per session. {error}");
+            }
+
+            return false;
+        }
+
+        if (!canReload)
+        {
+            return false;
+        }
+
+        botOwner.ShootData.EndShoot();
+        reload.Reloading = true;
+        _lastReloadTime = Time.time;
+        if (magazine != null)
+        {
+            reload.ReloadMagazine(magazine);
+        }
+        else if (list != null && list.Count > 0)
+        {
+            reload.ReloadAmmo(list);
+        }
+        return true;
     }
 
     private static bool CheckReloadRatiosCanReload(

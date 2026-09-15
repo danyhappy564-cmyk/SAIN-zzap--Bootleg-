@@ -111,12 +111,39 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다 — 성�
 `PersonActiveClass.cs`, `PlayerSoundController.cs`, `CoverFinderComponent.cs`,
 `PlayerComponent.cs`.
 
+### 7. 리로드 판정이 매 틱 예외를 던지고 있었음 (2026-09-15)
+
+한 라이드(7분)에 **완전히 같은 예외가 901번**, 초당 두 번꼴로 나왔습니다:
+
+```
+IndexOutOfRangeException
+  InventoryController.GetAcceptableItemsNonAlloc<T>(EquipmentSlot[], ...)
+  InventoryController.GetReachableItemsOfTypeNonAlloc<T>
+  BotReload.GetMagazineForReload(Weapon)
+  BotReloadMagazine.CanReload(...)
+  SelfActionDecisionClass.TryReload            ← 여기서 부름
+  ... BotDecisionManager.ManualUpdate → GameWorldUnityTickListener.Update
+```
+
+터지는 곳은 **BSG 자기 인벤토리 순회 안쪽**입니다. 어떤 봇의 장비가 열거에 쓰이는 슬롯
+배열과 안 맞는 건데, 그 라이드에 로드된 어떤 모드도 저 메서드들을 패치하지 않습니다
+(Harmony 로그 전수 확인). 그 인벤토리는 우리가 고칠 수 없습니다.
+
+**우리가 통제하는 건 "그런데도 다음 틱에 또 물어본다"는 쪽입니다.** 예외를 던지는 건
+공짜가 아닙니다 — 관리 스택을 통째로 캡처하고, 그게 **월드 틱 안, 메인 스레드**에서
+초당 두 번씩 일어납니다. 라이드 프레임타임이 나오는 바로 그 자리입니다.
+
+그래서 판정이 터지면 **그 봇만 10초간 리로드 검사를 건너뜁니다.** 결정은 그냥 "지금
+리로드 못 함"으로 읽히는데, 이건 꺼낼 탄창이 없는 봇이 어차피 받았을 답입니다. 로그는
+901줄 대신 세션당 한 줄만 남습니다. 봇이 회복하면(탄창을 줍든, 문제 아이템을 버리든)
+몇 초 안에 다시 리로드합니다.
+
 ## 상태
 
 - 1번은 필드 리포트 기반으로 고쳤고 **재현이 사라진 것까지 확인**했습니다.
 - **4번은 확인이 틀렸습니다.** 코드는 들어갔지만 위 6번 때문에 실제로는 작동한 적이
   없습니다. 그때 증상이 줄어 보인 건 다른 이유였거나 우연입니다.
-- 2·3·6번은 논리적으로는 맞지만 **재테스트 대기** 상태입니다.
+- 2·3·6·7번은 논리적으로는 맞지만 **재테스트 대기** 상태입니다.
 
 ## 버전 / 호환
 
