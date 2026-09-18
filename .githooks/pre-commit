@@ -1,0 +1,20 @@
+#!/bin/bash
+# 커밋 직전에 항상 이 저장소의 git 작성자를 R_F로 강제한다.
+# 세션 도중 전역 git 설정이 임의로 Claude 계정으로 되돌아가는 사고가 실제로
+# 있었기 때문에(2026-09-18), 전역 설정을 신뢰하지 않고 매 커밋마다 로컬
+# 설정을 재확인/재설정한다.
+set -uo pipefail
+
+EXPECTED_NAME='R_F'
+EXPECTED_EMAIL='danyhappy564@gmail.com'
+
+CUR_NAME=$(git config user.name || echo "")
+CUR_EMAIL=$(git config user.email || echo "")
+
+if [ "$CUR_NAME" != "$EXPECTED_NAME" ] || [ "$CUR_EMAIL" != "$EXPECTED_EMAIL" ]; then
+  git config user.name "$EXPECTED_NAME"
+  git config user.email "$EXPECTED_EMAIL"
+  echo "pre-commit: git author를 $EXPECTED_NAME <$EXPECTED_EMAIL>로 재설정했습니다 (이전: $CUR_NAME <$CUR_EMAIL>)." >&2
+fi
+
+exit 0
