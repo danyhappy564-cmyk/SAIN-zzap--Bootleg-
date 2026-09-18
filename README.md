@@ -218,6 +218,46 @@ trace 로그에 `FastAccess item <id> for index Item4 not found` 도 찍혀 있�
 개에 항목 단위 가드가 없어서였습니다. 원인이 밖에 있든 안에 있든, **한 예외가 봇 전체를
 세우면 안 됩니다.** 7번 백오프도 같은 이유로 남깁니다(UIA를 고치면 한 번도 안 돕니다).
 
+### 10. 문 상호작용이 봇 대기(standby) 진입 시 영원히 안 풀리고 있었음 — 낑김과 클리핑 둘 다 이게 원인 (2026-09-18)
+
+재보고: **① 아직도 문에 낑김. 대신 플레이어가 가까이 오면 풀리고, 문을 뚫고 나오거나
+정상으로 돌아옴. ② 문을 닫았는데 몸이 그냥 통과해버림.**
+
+`TryInteractWithDoor`는 상호작용을 시작하며 문 콜라이더에
+`IgnoreInteractionCollision(collider, true)`를 걸어 둡니다(안 그러면 문을 여는 애니메이션
+중에 자기 몸이 문짝에 밀려납니다). 이걸 되돌리는 건 `DoorOpener.Clear()`인데, 이게 불리는
+유일한 지점은 `SelectDoor()`가 `_doorInteractionEndTime`이 지난 걸 **다음 틱에** 발견하는
+경우뿐입니다. `SelectDoor()`는 `BotPathData.InteractWithDoor()` 안에서만 불리고, 그건
+`SAINMoverClass.CheckTickPath()` 안에서만 불리고, `CheckTickPath()`는
+`SAINMoverClass.ManualUpdate()`에서 **`if (Bot.SAINLayersActive)` 블록 안에서만** 불립니다.
+
+`SAINActivationClass`는 플레이어가 멀어지거나(스탠바이 판정), 게임이 끝나거나, 활성 레이어가
+`None`이 되면 `SAINLayersActive`를 그 자리에서 `false`로 내리고 `Bot.Mover.Stop()`을
+부릅니다. 그런데 `SAINMoverClass.Stop()`은 경로를 그 자리에서 안 끝냅니다 —
+`_activePath.Cancel()`은 `CancelRequested` 플래그와 0.25초 뒤 시각만 세팅해 두고, 그 플래그를
+실제로 처리하는 `CanProceedWithPath()`는 `TickPath()` 안에서만 불립니다. `SAINLayersActive`가
+이미 꺼졌으니 `TickPath()`가 다시 안 불리고, **경로도 안 끝나고 `DoorOpener.Interacting`도
+콜라이더 무시도 그대로 얼어붙습니다.**
+
+봇이 문 상호작용 도중(`Interacting == true`) 이 타이밍에 걸리면:
+
+- 봇은 문틀에 겹친 채로 멈추고 그 문과의 충돌은 계속 꺼져 있습니다 → **낑김**(밀려나지도,
+  더 움직이지도 않음).
+- 플레이어가 다시 가까워져서 봇이 재활성화되면, 다음 `SelectDoor` 틱이 (한참 지난)
+  타임아웃을 보고 바로 `Clear()`를 불러 충돌을 되살립니다 — 봇이 문 메시에 겹쳐 있던
+  채로 물리가 갑자기 돌아오니 **밀려서 문을 뚫고 나오거나**, 운 좋으면 제자리로
+  밀려납니다.
+- 재활성화가 다시 안 일어나거나 그사이 문이 닫히면, 콜라이더 무시가 그대로 남아서
+  **몸이 닫힌 문을 그냥 통과**합니다.
+
+고친 방식: `DoorOpener`에 `CancelInteraction()`을 새로 추가했습니다(공개 메서드,
+`Interacting`일 때만 `Clear()` 호출). 이걸 `SAINActivationClass.SetActive(false)`와
+`ManualUpdate()`의 `wasActive && !activeNow` 분기 — 즉 `Bot.Mover.Stop()`을 부르는 바로 그
+자리 — 에서 같이 부릅니다. 봇이 대기 모드로 들어가는 바로 그 프레임에 문 충돌이 틱
+시스템과 무관하게 즉시 복구되므로, 얼어붙은 채로 남는 시간이 없습니다.
+
+건드린 파일: `SAIN/Classes/Bot/Doors/DoorOpener.cs`, `SAIN/Classes/Bot/SAINActivationClass.cs`.
+
 ## 상태
 
 - 1번은 필드 리포트 기반으로 고쳤고 **재현이 사라진 것까지 확인**했습니다.
@@ -226,7 +266,10 @@ trace 로그에 `FastAccess item <id> for index Item4 not found` 도 찍혀 있�
 - 2·3·6·7·8번은 논리적으로는 맞지만 **재테스트 대기** 상태입니다.
 - **9번은 이 레포의 수정이 아니라 원인 규명입니다.** 재장전 문제의 해결책은
   **UIA 2.1.3으로 내리는 것**이고, 7·8번은 그와 별개로 유지되는 안전망입니다.
-- ⚠️ **6·7·8번은 컴파일 검증이 안 됐습니다.** 작성 환경에 .NET SDK가 없습니다.
+- **10번도 재테스트 대기**입니다. 코드 흐름 추적으로 원인을 특정하고 고쳤지만, 아직
+  실제 레이드에서 "봇이 대기 모드로 빠졌다가 재활성화되는" 상황을 재현해서 확인하진
+  못했습니다.
+- ⚠️ **6·7·8·10번은 컴파일 검증이 안 됐습니다.** 작성 환경에 .NET SDK가 없습니다.
 
 ## 버전 / 호환
 

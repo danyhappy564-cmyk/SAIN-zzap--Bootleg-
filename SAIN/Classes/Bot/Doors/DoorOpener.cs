@@ -55,6 +55,30 @@ public class DoorOpener : BotComponentClassBase
         _nextDoorUpdateTime = 0f;
     }
 
+    /// <summary>
+    /// Releases an in-progress door interaction right now instead of waiting for the next
+    /// SelectDoor poll to notice _doorInteractionEndTime has passed. SelectDoor is only ever
+    /// called from BotPathData.InteractWithDoor, which is only reached while SAINMoverClass
+    /// keeps ticking the bot's active path - and that ticking stops the instant
+    /// SAINActivationClass deactivates the bot's SAIN layers (player walks out of range, game
+    /// ending, etc). If that happens mid-interaction, Interacting and the
+    /// IgnoreInteractionCollision(true) set in TryInteractWithDoor were previously left in
+    /// place indefinitely: the bot would sit wedged in the doorway with its own collision
+    /// against that door disabled until something eventually re-ticked its path, at which
+    /// point the stale timeout fired and collision snapped back on wherever the bot happened
+    /// to be standing - or, if nothing ever re-ticked it, the bot could walk straight through
+    /// the door the next time it was near it. Call this from anywhere that force-stops a bot's
+    /// movement independent of the path tick loop (SAINActivationClass.SetActive/ManualUpdate).
+    /// </summary>
+    public void CancelInteraction()
+    {
+        if (!Interacting)
+        {
+            return;
+        }
+        Clear();
+    }
+
     public DoorDataStruct GetActiveDoor()
     {
         if (_interactionDoors.Count > 0 && _interactionDoorIndex < _interactionDoors.Count)

@@ -65,6 +65,7 @@ public class SAINActivationClass(BotComponent botComponent) : BotComponentClassB
             ActiveLayer = ESAINLayer.None;
             SAINLayersActiveToggle.CheckToggle(false, time);
             Bot.Mover.Stop();
+            Bot.DoorOpener.CancelInteraction();
             Bot.AimDownSightsController.SetADS(false, true);
             CurrentAction = null;
         }
@@ -92,6 +93,7 @@ public class SAINActivationClass(BotComponent botComponent) : BotComponentClassB
         if (wasActive && !activeNow)
         {
             Bot.Mover.Stop();
+            Bot.DoorOpener.CancelInteraction();
             Bot.AimDownSightsController.SetADS(false, true);
             CurrentAction = null;
         }
