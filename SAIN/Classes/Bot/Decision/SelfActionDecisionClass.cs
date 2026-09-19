@@ -179,16 +179,21 @@ public class SelfActionDecisionClass : BotBase
         //     SelfActionDecisionClass.TryReload            <- us
         //     ... BotDecisionManager.ManualUpdate -> GameWorldUnityTickListener.Update
         //
-        // The fault is inside BSG's own inventory walk over a bot whose equipment does not
-        // match the slot array it is enumerated with; nothing here or in any other loaded
-        // mod patches those methods. We cannot repair that inventory. What we control is
-        // that we ask again on the very next tick, forever, and throwing an exception with
-        // a full managed stack capture twice a second is not free - it lands on the main
-        // thread inside the world tick, which is where the raid's frame time comes from.
+        // 2026-09-19 update: root cause found (see README section 9), and it was never
+        // BSG's inventory code or a mismatch in these bots' equipment. Use Items Anywhere
+        // 2.1.4's Plugin.cs.ExtendFastAccessSlots() writes to BSG's STATIC field
+        // Inventory.FastAccessSlots by merging into it instead of replacing it (2.1.3
+        // replaced; 2.1.4 unions), so the array only ever grows and every inventory in the
+        // game - players and bots alike - shares the same, ever-longer array. That's what
+        // GetReachableItemsOfTypeNonAlloc walks into at IL offset 0. Downgrading to UIA
+        // 2.1.3 makes this exception stop entirely; nothing here needed to change for it.
         //
-        // So: when the check faults, stop asking that bot for a few seconds. The decision
-        // simply reads as "cannot reload right now", which is what a bot with no reachable
-        // magazine would have got anyway, and the log says it once instead of 901 times.
+        // The backoff below stays regardless: a mod mutating a BSG static is not a one-off,
+        // and throwing an exception with a full managed stack capture twice a second is not
+        // free even when rare - it lands on the main thread inside the world tick, which is
+        // where the raid's frame time comes from. When the check faults, stop asking that
+        // bot for a few seconds; the decision simply reads as "cannot reload right now," and
+        // the log says it once instead of 901 times.
         if (Time.time < _reloadCheckBlockedUntil)
         {
             return false;
@@ -212,9 +217,11 @@ public class SelfActionDecisionClass : BotBase
                 var role = botOwner?.Profile?.Info?.Settings?.Role;
                 Logger.LogError(
                     $"[{Bot?.name}] [role {role}] BotReload.CanReload threw walking this bot's inventory - "
-                    + $"skipping its reload check for {RELOAD_FAULT_BACKOFF}s at a time. This is "
-                    + $"inside BSG's inventory code, not SAIN's; the bot's equipment does not "
-                    + $"match the slot set it is enumerated with. Logged once per session. {error}");
+                    + $"skipping its reload check for {RELOAD_FAULT_BACKOFF}s at a time. Root cause (as of "
+                    + $"2026-09-19): Use Items Anywhere 2.1.4 merges into BSG's static "
+                    + $"Inventory.FastAccessSlots instead of replacing it (README section 9) - downgrade to "
+                    + $"2.1.3, or suspect a different mod mutating that static if this recurs. "
+                    + $"Logged once per session. {error}");
             }
 
             return false;
