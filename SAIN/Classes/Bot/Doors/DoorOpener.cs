@@ -105,6 +105,13 @@ public class DoorOpener : BotComponentClassBase
         {
             return;
         }
+        // Confirms the SAINLayersActive-drops-mid-interaction window (see SAINActivationClass) is
+        // actually being hit in real play, and that this recovery path is the one that caught it -
+        // otherwise this exact case only shows up as an unexplained freecam-visible freeze/clip.
+        Logger.LogWarning(
+            $"[DoorOpener] [{Bot.name}] was mid-interaction with door [{ActiveDoor.Door?.Id}] when SAIN deactivated it - "
+                + "restoring door collision immediately instead of leaving it frozen until reactivation."
+        );
         Clear();
     }
 
