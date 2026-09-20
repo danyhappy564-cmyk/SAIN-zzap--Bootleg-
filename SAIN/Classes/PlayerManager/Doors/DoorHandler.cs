@@ -17,14 +17,12 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
     public DoorHandler(GameWorldComponent component)
         : base(component) { }
 
-    public void Init()
-    {
-        InitDoorFinalizeWatchdog();
-    }
+    public void Init() { }
 
     public void ManualUpdate(float currentTime, float deltaTime)
     {
         checkDoors();
+        EnsureDoorFinalizeWatchdogInitialized(currentTime);
         TickDoorFinalizeWatches(currentTime);
     }
 
@@ -174,14 +172,25 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
     /// subscribing to each door's own WorldInteractiveObject.OnDoorStateChanged (fired by the engine
     /// on every DoorState transition regardless of who caused it - the same mechanism ORBIT's
     /// DoorSystem uses for the identical problem). Doors, once placed in the level, don't get
-    /// created or destroyed mid-raid, so a one-time FindObjectsOfType at GameWorldComponent.Init
-    /// time (same point disableDoors() already trusts to see every door) is enough.
+    /// created or destroyed mid-raid, so a one-time FindObjectsOfType is enough - see
+    /// EnsureDoorFinalizeWatchdogInitialized() below for when that scan actually has to happen
+    /// (GameWorldComponent.Init() turned out to be too early, see the comment there).
     /// </summary>
     private const float DOOR_FINALIZE_WATCH_TIMEOUT = 3f;
+
+    // GameWorldComponent.Init() (where Init() above used to do this scan) runs as soon as the
+    // GameWorld object exists, before the map's scene content - including every Door - has finished
+    // loading, so a FindObjectsOfType<Door> there reliably finds 0 doors (confirmed via a field log:
+    // "Watching 0 doors" while a separate per-map door probe found 40+ real doors the same raid,
+    // several cycling through Interacting). findSpawnPointMarkers() below already works around the
+    // identical timing problem by retrying every tick until the scene is ready instead of scanning
+    // once too early - do the same here from ManualUpdate() instead of Init().
+    private const float DOOR_WATCH_INIT_TIMEOUT = 15f;
 
     private readonly Dictionary<int, PendingDoorWatch> _pendingDoorWatches = new();
     private readonly List<int> _resolvedDoorWatches = new();
     private Door[] _watchedDoors;
+    private float _doorWatchInitStartTime = -1f;
 
     private readonly struct PendingDoorWatch(Door door, EDoorState targetState, float requestedAt)
     {
@@ -190,9 +199,32 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
         internal readonly float RequestedAt = requestedAt;
     }
 
-    private void InitDoorFinalizeWatchdog()
+    private void EnsureDoorFinalizeWatchdogInitialized(float currentTime)
     {
-        _watchedDoors = UnityEngine.Object.FindObjectsOfType<Door>();
+        if (_watchedDoors != null)
+        {
+            return;
+        }
+        if (_doorWatchInitStartTime < 0f)
+        {
+            _doorWatchInitStartTime = currentTime;
+        }
+
+        Door[] doors = UnityEngine.Object.FindObjectsOfType<Door>();
+        if (doors.Length == 0)
+        {
+            if (currentTime - _doorWatchInitStartTime > DOOR_WATCH_INIT_TIMEOUT)
+            {
+                _watchedDoors = doors;
+                Logger.LogWarning(
+                    $"[DoorHandler] Still found 0 doors after {DOOR_WATCH_INIT_TIMEOUT:F0}s - giving up on the "
+                        + "stuck-Interacting watchdog for this raid (map may genuinely have none, or they never loaded)."
+                );
+            }
+            return;
+        }
+
+        _watchedDoors = doors;
         foreach (Door door in _watchedDoors)
         {
             if (door != null)
