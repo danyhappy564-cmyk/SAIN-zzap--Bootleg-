@@ -94,10 +94,29 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
         // right now") also covers the door this bot just opened, which sits on interaction
         // cooldown and would otherwise let sprint resume mid-swing the instant Clear() fires.
         bool doorsNearby = Bot.DoorOpener.DoorsNearby;
-        SetSprint(!doorsNearby && CurrentSprintStatus == EBotSprintStatus.Running);
         if (doorsNearby)
         {
+            // SetSprint() below only ever touched the character controller's *physical* sprint
+            // flag. WantToSprint is this path's own separate "I want to sprint" bookkeeping
+            // (RequestStartSprint/RequestEndSprint), and CheckSprintSteering - which decides
+            // whether to reset the bot's shoot/aim state this tick - reads WantToSprint and
+            // CurrentSprintStatus, never the physical flag. Killing only the physical sprint
+            // near a door left WantToSprint stuck true, so CheckSprintSteering kept seeing
+            // "still sprinting" and kept wiping the bot's shot/aim every tick even though it had
+            // already slowed to a walk - a bot could stand next to a player near a door and
+            // never fire (2026-09-20 field report). End the path's sprint intent too, not just
+            // its physical output.
+            if (WantToSprint)
+            {
+                RequestEndSprint(ESprintUrgency.None, "door nearby");
+            }
+            CurrentSprintStatus = GetSprintStatus(botPosition);
+            SetSprint(false);
             Bot.Mover.SetTargetMoveSpeed(DOOR_NEARBY_MOVE_SPEED);
+        }
+        else
+        {
+            SetSprint(CurrentSprintStatus == EBotSprintStatus.Running);
         }
 
         bool slowAtCorners =
