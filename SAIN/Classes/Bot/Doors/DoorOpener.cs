@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using EFT;
-using EFT.GlobalEvents;
 using EFT.Interactive;
 using SAIN.Components;
 using SAIN.Helpers;
@@ -69,7 +68,9 @@ public class DoorOpener : BotComponentClassBase
         InteractionType = interactionType;
         _doorInteractionEndTime = time + (IsDoorPullOpen(data, Bot.NavMeshPosition) ? 1.25f : 1f);
         Bot.Player.MovementContext.IgnoreInteractionCollision(data.Door.Collider, true);
-        StartDoorFinalizeWatch(data.Door, interactionType);
+        // The stuck-at-Interacting watchdog for this door lives in DoorHandler now (it watches
+        // every door on the map via WorldInteractiveObject.OnDoorStateChanged, not just the ones
+        // this bot personally opens) - see DoorHandler for why.
         return true;
     }
 
@@ -177,88 +178,11 @@ public class DoorOpener : BotComponentClassBase
 
     private int _interactionDoorIndex;
 
-    /// <summary>
-    /// BSG's door-open completion callback (Interacting -> Open, or -> Shut on close) is wired to
-    /// player-side animation events, which a bot never fires. A bot-driven Door.Interact +
-    /// Player.ExecuteInteraction can therefore leave the door's real EDoorState stuck at
-    /// Interacting forever, even though the leaf visually finished swinging. DoorDataStruct.
-    /// InRangeToInteract and RaycastToDoors only recognize Open/Shut (everything else, Interacting
-    /// included, is "not interactable"), so a door stuck at Interacting silently drops out of every
-    /// bot's door system - not just this one's, anyone's. (Same root cause ORBIT documents for the
-    /// identical Door.Interact/Player.ExecuteInteraction call chain - it's a property of that BSG
-    /// API, not something specific to either mod.) Watch every interaction we start and
-    /// force-finalize it if the engine never does.
-    ///
-    /// Static/shared across every bot's DoorOpener: a door a bot opened right before dying would
-    /// otherwise strand its watch entry in a DoorOpener instance nobody ticks anymore. Any bot's
-    /// poll can resolve any watch.
-    /// </summary>
-    private const float DOOR_FINALIZE_WATCH_TIMEOUT = 3f;
-
-    private static readonly Dictionary<int, PendingDoorWatch> _pendingDoorWatches = [];
-    private static readonly List<int> _resolvedDoorWatches = [];
-
-    private readonly struct PendingDoorWatch(Door door, EDoorState targetState, float requestedAt)
-    {
-        internal readonly Door Door = door;
-        internal readonly EDoorState TargetState = targetState;
-        internal readonly float RequestedAt = requestedAt;
-    }
-
-    private static void StartDoorFinalizeWatch(Door door, EInteractionType type)
-    {
-        if (door == null)
-        {
-            return;
-        }
-        EDoorState targetState = type == EInteractionType.Close ? EDoorState.Shut : EDoorState.Open;
-        _pendingDoorWatches[door.GetInstanceID()] = new PendingDoorWatch(door, targetState, Time.time);
-    }
-
-    private static void TickDoorFinalizeWatches(float time)
-    {
-        if (_pendingDoorWatches.Count == 0)
-        {
-            return;
-        }
-        _resolvedDoorWatches.Clear();
-        foreach (var kv in _pendingDoorWatches)
-        {
-            PendingDoorWatch watch = kv.Value;
-            if (watch.Door == null)
-            {
-                _resolvedDoorWatches.Add(kv.Key);
-                continue;
-            }
-            if (time - watch.RequestedAt < DOOR_FINALIZE_WATCH_TIMEOUT)
-            {
-                continue;
-            }
-            if (watch.Door.DoorState == EDoorState.Interacting)
-            {
-                watch.Door.DoorState = watch.TargetState;
-                watch.Door.CurrentAngle = watch.Door.GetAngle(watch.TargetState);
-                GlobalEventsController.CreateEvent<InteractiveObjectInteractionResultEvent>().Invoke(watch.Door, watch.TargetState);
-                Logger.LogWarning(
-                    $"[{watch.Door.Id}] never left EDoorState.Interacting {time - watch.RequestedAt:F1}s after a bot "
-                        + $"interaction - force-finalized to {watch.TargetState} (BSG's completion callback only fires "
-                        + "for player-driven animation events)"
-                );
-            }
-            _resolvedDoorWatches.Add(kv.Key);
-        }
-        for (int i = 0; i < _resolvedDoorWatches.Count; i++)
-        {
-            _pendingDoorWatches.Remove(_resolvedDoorWatches[i]);
-        }
-    }
-
     private void SearchForDoors(Vector3 botPosition, float time)
     {
         if (_nextDoorUpdateTime < time)
         {
             _nextDoorUpdateTime = time + DOOR_UPDATE_INTERVAL;
-            TickDoorFinalizeWatches(time);
             BotOwner.AIData.SetPosToVoxel(botPosition);
 
             var lastVoxel = CurrentVoxel;
