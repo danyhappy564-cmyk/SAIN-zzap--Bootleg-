@@ -258,6 +258,55 @@ trace 로그에 `FastAccess item <id> for index Item4 not found` 도 찍혀 있�
 
 건드린 파일: `SAIN/Classes/Bot/Doors/DoorOpener.cs`, `SAIN/Classes/Bot/SAINActivationClass.cs`.
 
+### 11. ORBIT(SAIN 기반 별도 봇 AI 모드)의 문 낑김 대응책 3개 이식 (2026-09-20)
+
+10번 이후에도 완화는 됐지만 낑김이 완전히는 안 없어진다는 재보고가 있었습니다. `ORBIT`(SAIN에
+의존하는 별도의 봇 AI 모드, `Orbit/Systems/MovementSystem.cs` · `DoorSystem.cs`)을 참고용으로
+클론해서 자체 문 처리 코드를 대조했습니다. ORBIT은 SAIN의 `DoorOpener`/`BotPathData`를 전혀
+안 쓰고 독자적으로 재구현했지만, 마지막 단계는 SAIN과 **동일한 BSG API 호출 체인**
+(`Door.Interact` → `Player.ExecuteInteraction`)입니다 — 그래서 ORBIT이 문서화한 문제 세 개가
+SAIN에도 그대로 적용될 수 있습니다.
+
+**① `Door.DoorState`가 `Interacting`에 영구 고착될 수 있음.** BSG의 문 상태 완료 콜백은
+플레이어 쪽 애니메이션 이벤트에 묶여 있는데, 봇은 그 이벤트를 안 쏩니다. 그래서 봇이 연(또는
+닫은) 문의 실제 `DoorState`가 `Open`/`Shut`으로 안 넘어가고 `Interacting`에 영원히 멈출 수
+있습니다. `DoorDataStruct.InRangeToInteract`와 `RaycastToDoors`는 `Open`/`Shut`만 인식하므로,
+이 상태에 걸린 문은 **그 봇에게도, 나중에 지나가는 다른 봇에게도** 문 시스템에서 영구
+제외됩니다. ORBIT의 `DoorWatch`를 본떠 3초 워치독(`DoorOpener.StartDoorFinalizeWatch` /
+`TickDoorFinalizeWatches`)을 추가했습니다 — 상호작용을 건 문이 3초 뒤에도 `Interacting`이면
+목표 상태로 강제 완결시킵니다. 봇마다 따로가 아니라 **static/공유** 워치독이라, 문을 연 봇이
+그 사이에 죽어도 다른 봇이 이어서 정리합니다.
+
+**② 러시/이동 액션이 문 앞에서도 스프린트를 재요청함.** `RushEnemyAction`/`MoveToEngageAction`
+같은 액션은 매 `Update()` 틱마다 속도를 풀스프린트로 되돌립니다 — 그리고 그 `Update()`는
+`BotPathData.TickPath()`보다 항상 먼저 돕니다(`SAINMoverClass.ManualUpdate`:
+`CurrentAction.UpdateMovement()` 다음에 `CheckTickPath()`). 문 앞 감속은 지금까지
+`SelectDoor`가 실제로 문을 "잡았을 때"만 걸렸는데, 그건 3m 반경 + 0.5초 폴링이라 스프린트
+속도로는 이미 문에 붙은 뒤에야 걸릴 수 있고, 무엇보다 **방금 자기가 연 문**은 상호작용
+쿨다운 중이라 이 조건에서 아예 빠집니다 — 스프린트가 제일 꺼져 있어야 할 순간에 꺼지지
+않는 거죠. `DoorOpener.DoorsNearby`(문 상태·상호작용 가능 여부와 무관하게 3m 안에 아무 문이나
+있으면 true)를 추가하고, `BotPathData.TickPath`에서 액션의 `Update()` 이후에 이걸로 스프린트를
+무조건 끄고 이동속도를 0.25배로 낮췄습니다(ORBIT `MovementSystem.HandleDoors`의 배율과
+동일 — 대조해서 그대로 씀).
+
+**③ 정지 감지가 3D 거리라 높이 흔들림에 오탐 가능.** `CheckStuck`은 "목표 코너까지 남은 거리"의
+변화량으로 정지 여부를 판단했는데, 이건 3D라서 코너의 Y(내비메시 고정값)와 봇의 Y(계단·웅크리기·
+문턱 단차로 흔들림)가 섞입니다. 봇의 XZ 위치가 진짜로 멈췄어도 Y 흔들림만으로 "움직이는 중"으로
+잘못 읽을 수 있습니다. ORBIT의 `SoftStuckRemediation`(`moveVector.y = 0f`)을 본떠, 코너까지의
+거리 대신 **봇 자신의 XZ 위치 변화**(`_lastCheckedBotPositionXZ`)를 직접 재도록 바꿨습니다.
+ORBIT은 속도에 비례한 임계값을 쓰는데, 그 계수(`3.5f / 2f`)가 SAIN의 속도 단위에서도 맞는지
+검증할 방법이 없어서 그대로 베끼지 않고, 기존 임계값(`0.01f`, 대략 0.1m)과 같은 자릿수인
+고정값(0.05m)으로 보수적으로 잡았습니다.
+
+**옮기지 않은 것**: ORBIT의 문 콜리전 전체 아키텍처(문 상태에 이벤트로 항상 동기화, 봇마다
+아니라 문마다 관리)와, 스윙 방향을 고려한 접근 로직 — 전자는 SAIN의 문 콜리전 관리 자체를
+다시 설계해야 해서 지금 남은 증상 크기에 비해 과합니다. 후자는 ORBIT에 대응하는 코드가 아예
+없습니다(설계가 다름 — ORBIT은 아예 전진을 얼려버림). ②를 넣고도 "문 열리며 봇이 벽으로
+튕기는" 증상이 남으면 그때 SAIN의 기존 백스텝 로직(문 열린 이전 코너로 물러나는 부분)을
+스윙 방향 인지형으로 고치는 걸 다음 단계로 남겨둡니다.
+
+건드린 파일: `SAIN/Classes/Bot/Doors/DoorOpener.cs`, `SAIN/Classes/Bot/Mover/BotPathData.cs`.
+
 ## 상태
 
 - 1번은 필드 리포트 기반으로 고쳤고 **재현이 사라진 것까지 확인**했습니다.
@@ -269,7 +318,11 @@ trace 로그에 `FastAccess item <id> for index Item4 not found` 도 찍혀 있�
 - **10번도 재테스트 대기**입니다. 코드 흐름 추적으로 원인을 특정하고 고쳤지만, 아직
   실제 레이드에서 "봇이 대기 모드로 빠졌다가 재활성화되는" 상황을 재현해서 확인하진
   못했습니다.
-- ⚠️ **6·7·8·10번은 컴파일 검증이 안 됐습니다.** 작성 환경에 .NET SDK가 없습니다.
+- **11번도 재테스트 대기**입니다. ORBIT 소스 대조와 코드 흐름 추적으로 세 가지 이식을
+  진행했지만, 실제 레이드에서 워치독이 발동하는지(로그 `never left EDoorState.Interacting`
+  확인), 스프린트 게이트가 튕김을 없애는지, XZ 정지 감지가 오탐 없이 도는지 셋 다 아직
+  미검증입니다.
+- ⚠️ **6·7·8·10·11번은 컴파일 검증이 안 됐습니다.** 작성 환경에 .NET SDK가 없습니다.
 
 ## 버전 / 호환
 
