@@ -82,7 +82,23 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
 #endif
 
         CurrentSprintStatus = GetSprintStatus(botPosition);
-        SetSprint(CurrentSprintStatus == EBotSprintStatus.Running);
+        // A door within range overrides whatever the active action (RushEnemyAction,
+        // MoveToEngageAction, etc.) requested: those actions set sprint/speed back to full every
+        // single Update() tick, and that Update() always runs before this TickPath() call
+        // (SAINMoverClass.ManualUpdate: CurrentAction.UpdateMovement() then CheckTickPath()), so
+        // this write lands last and sticks. Without it, a bot sprinting toward its goal could
+        // still be at full sprint speed the instant it reaches an unopened door - the throttled
+        // ~0.5s door poll and the 3m interaction radius don't leave much margin at sprint speed,
+        // and BotPathData.InteractWithDoor only kills sprint once SelectDoor has actually locked
+        // onto the door. Gating on raw proximity here (DoorsNearby, not "eligible to interact
+        // right now") also covers the door this bot just opened, which sits on interaction
+        // cooldown and would otherwise let sprint resume mid-swing the instant Clear() fires.
+        bool doorsNearby = Bot.DoorOpener.DoorsNearby;
+        SetSprint(!doorsNearby && CurrentSprintStatus == EBotSprintStatus.Running);
+        if (doorsNearby)
+        {
+            Bot.Mover.SetTargetMoveSpeed(DOOR_NEARBY_MOVE_SPEED);
+        }
 
         bool slowAtCorners =
             Bot.GoalEnemy != null && Bot.GoalEnemy.Events.OnSearch.Value && Bot.Info.PersonalitySettings.Search.SlowAtCorners;
@@ -284,7 +300,16 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
     private float _lastCheckStuckTime;
     private float _timeNotMoving;
     private float _doorBlockedSince = -1f;
-    private CornerMoveData _lastCheckedMoveData;
+
+    /// <summary>
+    /// Bot position (Y zeroed) at the last stuck check. CheckStuck uses the change here, not
+    /// CurrentCornerMoveData.SqrMagnitude, to decide "did the bot actually move" - the corner
+    /// distance is 3D and corner.Position.y is fixed by the navmesh, so height noise alone
+    /// (stepping, crouch toggling, a door's threshold lip) can shift it enough to look like
+    /// progress while the bot's XZ position is genuinely frozen. Matches ORBIT's
+    /// SoftStuckRemediation, which zeroes moveVector.y for the same reason.
+    /// </summary>
+    private Vector3 _lastCheckedBotPositionXZ;
     private float _unpauseTime;
     private float _pauseStartTime;
     private float _cancelTime;
@@ -417,7 +442,9 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
         _lastCheckStuckTime = -1f;
         _timeNotMoving = -1f;
         _doorBlockedSince = -1f;
-        _lastCheckedMoveData = new();
+        Vector3 resetPos = BotPosition();
+        resetPos.y = 0f;
+        _lastCheckedBotPositionXZ = resetPos;
         _unpauseTime = -1f;
         _pauseStartTime = -1f;
         _cancelTime = -1f;
@@ -484,6 +511,18 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
         return false;
     }
 
+    /// <summary>
+    /// Horizontal (XZ) distance a bot must cover between two 0.5s stuck-checks to count as
+    /// "moving". Deliberately small and flat rather than speed-scaled: this is a minimal port of
+    /// ORBIT's XZ-only stillness signal (SoftStuckRemediation.Update, MovementSystem.cs) without
+    /// its speed-adaptive threshold, whose exact scale (SpeedThreshold = 3.5f / 2f against
+    /// CharacterMovementSpeed) isn't independently verified for SAIN's speed units - copying an
+    /// uncalibrated magic number is exactly the kind of unverified-transfer mistake this project's
+    /// KB warns about. 0.05m keeps the same order of magnitude as the sqrt(0.01) ~= 0.1m tolerance
+    /// this replaces.
+    /// </summary>
+    private const float STUCK_XZ_MOVE_EPSILON_SQR = 0.05f * 0.05f;
+
     private bool CheckStuck(bool canTryVault, BotPathCorner activeCorner)
     {
         if (Time.time - _lastCheckStuckTime < 0.5f)
@@ -505,7 +544,10 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
                 return true;
             }
 
-            if (_lastCheckedMoveData.SqrMagnitude - currentMoveData.SqrMagnitude > 0.01f)
+            Vector3 currentPosXZ = BotPosition();
+            currentPosXZ.y = 0f;
+            float xzMovedSqr = (currentPosXZ - _lastCheckedBotPositionXZ).sqrMagnitude;
+            if (xzMovedSqr > STUCK_XZ_MOVE_EPSILON_SQR)
             {
                 _timeNotMoving = -1f;
                 _doorBlockedSince = -1f;
@@ -514,7 +556,7 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
             {
                 _timeNotMoving = Time.time;
             }
-            _lastCheckedMoveData = currentMoveData;
+            _lastCheckedBotPositionXZ = currentPosXZ;
             if (_timeNotMoving > 0f)
             {
                 if (CheckObjectInWay(BotPosition(), CurrentCornerMoveData.CornerDirectionFromBot, 1f, 0.2f, 1f, out RaycastHit blockingHit))
@@ -668,6 +710,14 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
     /// Angle from the direction a bot is looking to the direction of the corner, if the angle is greater than this, the bot is "turning" and stops sprinting.
     /// </summary>
     private const float SPRINT_CORNER_DIR_ANGLE_MAX = 45f;
+
+    /// <summary>
+    /// Move speed multiplier (0-1) applied whenever DoorOpener.DoorsNearby is true, regardless of
+    /// sprint being off already - a full-speed walk straight into an unopened door still carries
+    /// enough momentum to bounce off the swinging leaf. Matches ORBIT's MovementSystem.HandleDoors
+    /// gate (moveSpeedMult = 0.25f) for the same reason: cross-referenced, not independently tuned.
+    /// </summary>
+    private const float DOOR_NEARBY_MOVE_SPEED = 0.25f;
 
     private EBotSprintStatus GetSprintStatus(Vector3 botPosition)
     {
