@@ -322,7 +322,20 @@ ORBIT은 속도에 비례한 임계값을 쓰는데, 그 계수(`3.5f / 2f`)가 
   진행했지만, 실제 레이드에서 워치독이 발동하는지(로그 `never left EDoorState.Interacting`
   확인), 스프린트 게이트가 튕김을 없애는지, XZ 정지 감지가 오탐 없이 도는지 셋 다 아직
   미검증입니다.
-- ⚠️ **6·7·8·10·11번은 컴파일 검증이 안 됐습니다.** 작성 환경에 .NET SDK가 없습니다.
+- **컴파일 검증 (2026-09-20 갱신):** 작성 환경에 .NET SDK 8.0/10.0을 새로 설치했습니다.
+  서버 쪽(`SAINServerMod` + 공유 프로젝트)은 `dotnet build`가 **경고 13개, 에러
+  0개로 성공**했습니다 — 다만 6·7·8·10·11번이 건드린 파일은 전부 클라이언트
+  프로젝트(`SAIN.csproj`, netstandard2.1) 쪽이라 이 성공이 그 수정들을
+  검증해주진 않습니다. 클라 프로젝트는 `BepInEx.Core`/`UnityEngine.Modules`
+  패키지가 필요한데, 그 피드(`nuget.bepinex.dev`)가 이 환경 네트워크 정책상
+  차단돼 있어(403, 우회 금지 대상) 여전히 전체 컴파일은 못 합니다.
+  대신 11번이 건드린 두 파일은 Roslyn으로 **순수 구문 검증**(참조·타입
+  체크 없이 문법만)을 돌려 에러 없음을 확인했고, 새로 쓴 BSG API 멤버
+  (`Door.DoorState`/`CurrentAngle`/`GetAngle`의 setter, `GlobalEventsController.
+  CreateEvent`, `InteractiveObjectInteractionResultEvent.Invoke`)는 전부
+  `dnfile`로 실제 게임 어셈블리에서 `public`임을 개별 확인했습니다. **타입
+  체크/링크까지 끝난 완전한 컴파일 검증은 아직 아닙니다** — 로컬(실제 SPT
+  설치 환경)에서 최종 빌드 한 번은 필요합니다.
 
 ## 버전 / 호환
 
