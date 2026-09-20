@@ -307,6 +307,36 @@ ORBIT은 속도에 비례한 임계값을 쓰는데, 그 계수(`3.5f / 2f`)가 
 
 건드린 파일: `SAIN/Classes/Bot/Doors/DoorOpener.cs`, `SAIN/Classes/Bot/Mover/BotPathData.cs`.
 
+### 12. 11번 실전 로그 분석 — 워치독 범위가 너무 좁았고, 스프린트 차단이 사격까지 막고 있었음 (2026-09-20)
+
+11번을 실제로 돌린 라이드 로그(`LogOutput.log`)를 받아서 대조한 결과 두 가지 결함을 찾았습니다.
+
+**① 워치독이 대부분의 낑긴 문을 놓치고 있었음.** 로그에선 SAIN 워치독이 3번 정상 발동했지만(전부
+예외 없이 깨끗함), 이 맵을 만든 다른 모드의 독립적인 문 상태 진단 로그를 대조해보니 최소 두 개
+문이 각각 **12초, 24초 넘게** `Interacting`에 멈춰 있었는데도 SAIN 워치독은 침묵이었습니다.
+원인: 워치독을 `DoorOpener.TryInteractWithDoor`(SAIN 자신이 문을 여는 호출) 성공 시점에만 걸어서,
+**SAIN이 직접 연 문만** 감시했습니다. 근데 `SAINLayersActive`가 꺼지는 순간(10번 참고, `GoalEnemy`가
+없어질 때마다 일어남) 봇은 게임 기본 AI로 잠깐 넘어가고, **기본 AI가 여는 문도 SAIN이 여는 문과
+똑같이 `Interacting`에 영구 고착되는 문제를 겪습니다** — 근데 그 문들은 감시 목록에 아예 등록된
+적이 없었던 겁니다.
+
+고친 방식: 워치독을 `DoorOpener`(봇 하나당)에서 `DoorHandler`(레이드당 하나, 맵의 모든 문을
+`Init()` 시점에 `FindObjectsOfType<Door>()`로 이미 수집해두는 기존 클래스)로 옮겼습니다. 각 문의
+`WorldInteractiveObject.OnDoorStateChanged`(누가 상태를 바꾸든 엔진이 쏘는 이벤트)를 구독해서,
+**누가 열었는지와 무관하게** 맵의 모든 문을 지켜봅니다. ORBIT의 `DoorSystem`이 원래 쓰던 방식과
+같습니다 — 이번에 "우리가 연 문만 봐도 충분하다"고 범위를 좁혔던 게 실수였습니다.
+
+**② 문 근처 스프린트 차단이 사격까지 막고 있었음.** 11번의 스프린트 차단 코드는 "몸이 실제로
+뛰고 있는지"만 껐고, "이 경로가 뛰고 싶어함"이라는 별도의 의도 플래그는 안 껐습니다. 근데 매 틱
+조준/사격 상태를 초기화할지 결정하는 기존 코드(`CheckSprintSteering`)는 그 의도 플래그만 보고
+판단합니다 — 그래서 문 근처에서 실제로는 느리게 걷고 있어도 게임은 "얘 아직 전력질주 중"으로
+착각해서 계속 사격을 초기화했습니다. 봇이 문 앞에서 플레이어와 마주쳐도 총을 안 쏘고 달리기만
+하는 것처럼 보이는 증상으로 실전에서 확인됐습니다(사용자 필드 리포트). 물리적 스프린트뿐 아니라
+경로의 스프린트 의도(`RequestEndSprint`)도 같이 끄도록 고쳤습니다.
+
+건드린 파일: `SAIN/Classes/Bot/Doors/DoorOpener.cs`, `SAIN/Classes/PlayerManager/Doors/DoorHandler.cs`,
+`SAIN/Classes/Bot/Mover/BotPathData.cs`.
+
 ## 상태
 
 - 1번은 필드 리포트 기반으로 고쳤고 **재현이 사라진 것까지 확인**했습니다.
@@ -318,21 +348,26 @@ ORBIT은 속도에 비례한 임계값을 쓰는데, 그 계수(`3.5f / 2f`)가 
 - **10번도 재테스트 대기**입니다. 코드 흐름 추적으로 원인을 특정하고 고쳤지만, 아직
   실제 레이드에서 "봇이 대기 모드로 빠졌다가 재활성화되는" 상황을 재현해서 확인하진
   못했습니다.
-- **11번도 재테스트 대기**입니다. ORBIT 소스 대조와 코드 흐름 추적으로 세 가지 이식을
-  진행했지만, 실제 레이드에서 워치독이 발동하는지(로그 `never left EDoorState.Interacting`
-  확인), 스프린트 게이트가 튕김을 없애는지, XZ 정지 감지가 오탐 없이 도는지 셋 다 아직
-  미검증입니다.
+- **11번은 실전 로그로 절반 확인, 절반 결함으로 드러남.** 워치독 메커니즘 자체(3초 지나도
+  `Interacting`이면 강제 완결)는 로그에서 3번 정상 발동해 **작동은 확인**됐지만, 감시 범위가
+  "SAIN이 직접 연 문"으로 너무 좁아서 대부분의 낑긴 문을 놓쳤고, 스프린트 차단은 사격까지
+  같이 막는 부작용이 있었습니다. 둘 다 12번에서 고쳤습니다. XZ 정지 감지는 여전히 미검증.
+- **12번도 재테스트 대기**입니다. 로그 분석 기반으로 원인을 특정하고 고쳤지만, 다음 실전
+  로그에서 (a) `DoorHandler`가 찍는 워치독 로그가 더 넓은 범위(다른 문들)에서도 발동하는지,
+  (b) 문 근처에서 마주친 플레이어에게 정상적으로 사격하는지 확인이 필요합니다.
 - **컴파일 검증 (2026-09-20 갱신):** 작성 환경에 .NET SDK 8.0/10.0을 새로 설치했습니다.
   서버 쪽(`SAINServerMod` + 공유 프로젝트)은 `dotnet build`가 **경고 13개, 에러
-  0개로 성공**했습니다 — 다만 6·7·8·10·11번이 건드린 파일은 전부 클라이언트
+  0개로 성공**했습니다 — 다만 6·7·8·10·11·12번이 건드린 파일은 전부 클라이언트
   프로젝트(`SAIN.csproj`, netstandard2.1) 쪽이라 이 성공이 그 수정들을
   검증해주진 않습니다. 클라 프로젝트는 `BepInEx.Core`/`UnityEngine.Modules`
   패키지가 필요한데, 그 피드(`nuget.bepinex.dev`)가 이 환경 네트워크 정책상
   차단돼 있어(403, 우회 금지 대상) 여전히 전체 컴파일은 못 합니다.
-  대신 11번이 건드린 두 파일은 Roslyn으로 **순수 구문 검증**(참조·타입
+  대신 11·12번이 건드린 파일 전부(`DoorOpener.cs`, `BotPathData.cs`,
+  `DoorHandler.cs`) Roslyn으로 **순수 구문 검증**(참조·타입
   체크 없이 문법만)을 돌려 에러 없음을 확인했고, 새로 쓴 BSG API 멤버
   (`Door.DoorState`/`CurrentAngle`/`GetAngle`의 setter, `GlobalEventsController.
-  CreateEvent`, `InteractiveObjectInteractionResultEvent.Invoke`)는 전부
+  CreateEvent`, `InteractiveObjectInteractionResultEvent.Invoke`,
+  `WorldInteractiveObject.OnDoorStateChanged`의 add/remove)는 전부
   `dnfile`로 실제 게임 어셈블리에서 `public`임을 개별 확인했습니다. **타입
   체크/링크까지 끝난 완전한 컴파일 검증은 아직 아닙니다** — 로컬(실제 SPT
   설치 환경)에서 최종 빌드 한 번은 필요합니다.
