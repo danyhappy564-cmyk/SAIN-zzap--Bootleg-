@@ -103,27 +103,42 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     private const float BASE_NOTICE_CHANCE = 0.8f;
 
     /// <summary>
-    /// How long a gas-type canister (SmokeGrenade, not flagged as real smoke - see GetReaction)
-    /// still gets the normal Scatter/Push dodge after being thrown, before bots give up trying to
-    /// outrun something that lingers far longer than a frag and just accept it instead.
+    /// How long a CS gas canister still gets the normal Scatter/Push dodge after being thrown,
+    /// before bots give up trying to outrun something that lingers far longer than a frag and just
+    /// accept it instead.
     /// </summary>
     private const float GAS_DODGE_WINDOW = 4f;
 
     /// <summary>
-    /// Radius counted as "standing in the cloud" for the ApplyGasExposure effect below.
+    /// Radius counted as "standing in the cloud" for TickGasExposure below. Matches Manimal-CSGas's
+    /// own Plugin.GasMaxRadius default (Volumetric.MaxRadiusM = 8, "the clamp 1.0 applies to
+    /// volumetric throwables" per that mod's own comment) rather than a guess.
     /// </summary>
-    private const float GAS_EXPOSURE_RADIUS = 6f;
+    private const float GAS_EXPOSURE_RADIUS = 8f;
 
     /// <summary>
-    /// How long after being thrown a gas canister is still treated as actively affecting anyone
-    /// standing in it. Rough guess at how long the visible cloud lingers - not tied to the actual
-    /// canister object's lifetime the way the old Scatter/Push reaction was (that coupling is what
-    /// caused the stuck-forever bug this whole feature replaces).
+    /// How long after being thrown a CS gas canister is still treated as actively affecting anyone
+    /// standing in it. Matches the item's own EmitTime override (30) in Manimal-CSGas's
+    /// ServerModFiles/db/CustomItems/cs_gas_grenade.json, not a guess - and, critically, not tied to
+    /// the actual canister object's lifetime the way the old Scatter/Push reaction was (that
+    /// coupling is what caused the stuck-forever bug this whole feature replaces).
     /// </summary>
-    private const float GAS_EXPOSURE_WINDOW = 20f;
+    private const float GAS_EXPOSURE_WINDOW = 30f;
 
     private const float GAS_FLASH_REFRESH_INTERVAL = 1f;
     private const float GAS_FLASH_DURATION = 1.5f;
+
+    /// <summary>
+    /// BlackDiv-zzap--Bootleg-'s six custom WildSpawnType roles (WildSpawnTypeExtensions.BDTypeEnums
+    /// in that mod's source - blackDivLead/Assault/Breacher/Support, bossWedge, blackDivIb). Black
+    /// Division's concept mandates a full gas mask, so they neither dodge nor get the exposure
+    /// debuff from CS gas at all - everyone else still does. Hardcoded here rather than referencing
+    /// BlackDiv's assembly directly, since SAIN has no dependency on it and must keep working
+    /// without it installed.
+    /// </summary>
+    private static readonly HashSet<int> BLACK_DIVISION_ROLES = [848420, 848421, 848422, 848423, 848424, 848426];
+
+    private bool IsBlackDivision => BLACK_DIVISION_ROLES.Contains((int)Bot.Info.Profile.WildSpawnType);
 
     public GrenadeTrackerClass DangerGrenade { get; private set; }
     public Vector3? GrenadeDangerPoint
@@ -167,7 +182,7 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     private void TickGasExposure()
     {
         GrenadeTrackerClass danger = DangerGrenade;
-        if (danger?.Grenade is not SmokeGrenade || danger.Grenade.GrenadeSettings.CollisionSound == GrenadeSettings.CollisionSounds.smoke)
+        if (!IsCsGasGrenade(danger?.Grenade) || IsBlackDivision)
         {
             return;
         }
@@ -288,6 +303,18 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
         return Physics.Raycast(from, direction.normalized, distance, LayersMaskController.HighPolyWithTerrainMask);
     }
 
+    /// <summary>
+    /// Identifies Manimal-CSGas's canister as precisely as SAIN can from just the world Grenade
+    /// object it tracks (no TemplateId/Item reference reachable from there - see the long comment
+    /// on IsCsGasGrenade's only call sites for why). SmokeGrenade + not flagged as real smoke is, in
+    /// practice, unique to this specific item in the current modlist: vanilla smoke always reports
+    /// CollisionSound == smoke, and nothing else installed shares this combination.
+    /// </summary>
+    private static bool IsCsGasGrenade(Grenade grenade)
+    {
+        return grenade is SmokeGrenade && grenade.GrenadeSettings.CollisionSound != GrenadeSettings.CollisionSounds.smoke;
+    }
+
     private EGrenadeReaction GetReaction()
     {
         // Real smoke (CollisionSound == smoke) is never a threat - no reaction, ever.
@@ -296,20 +323,36 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             return EGrenadeReaction.None;
         }
 
-        // SmokeGrenade also covers anything built on the same base class but not flagged as real
-        // smoke - CS gas mods included, confirmed via a field log (2026-09-21): the canister's
-        // CollisionSound isn't "smoke" (it's a modded item), so it fell through as a live
-        // frag-type threat and, because it sits and keeps emitting far longer than a frag's
-        // near-instant destruction, bots got stuck re-triggering Scatter/Push against it for the
-        // rest of its lifetime - fleeing/going prone and not shooting the whole time. Give it the
-        // normal short dodge (2026-09-21 follow-up: an outright ignore made bots stand still and
-        // eat it instead) for a few seconds after the throw, then accept it - standing there
-        // dodging something that lingers for tens of seconds isn't realistic either. Actual
-        // exposure while standing in the cloud is handled separately by TickGasExposure/
-        // BotFlashedClass, bounded on its own terms and not tied to this reaction at all.
+        if (IsCsGasGrenade(DangerGrenade.Grenade))
+        {
+            // Black Division's concept mandates a full gas mask (BLACK_DIVISION_ROLES) - they don't
+            // even dodge, let alone get the exposure debuff in TickGasExposure.
+            if (IsBlackDivision)
+            {
+                return EGrenadeReaction.None;
+            }
+
+            // Confirmed via a field log (2026-09-21): the canister's CollisionSound isn't "smoke"
+            // (it's a modded item, not vanilla smoke), so it fell through as a live frag-type threat
+            // and, because it sits and keeps emitting far longer than a frag's near-instant
+            // destruction, bots got stuck re-triggering Scatter/Push against it for the rest of its
+            // lifetime - fleeing/going prone and not shooting the whole time. Give it the normal
+            // short dodge (2026-09-21 follow-up: an outright ignore made bots stand still and eat it
+            // instead) for a few seconds after the throw, then accept it - standing there dodging
+            // something that lingers for tens of seconds isn't realistic either. Actual exposure
+            // while standing in the cloud is handled separately by TickGasExposure/BotFlashedClass,
+            // bounded on its own terms and not tied to this reaction at all.
+            return DangerGrenade.TimeSinceThrown < GAS_DODGE_WINDOW ? EGrenadeReaction.Scatter : EGrenadeReaction.None;
+        }
+
+        // Any other SmokeGrenade-based item (a variant this modlist doesn't have yet, or real smoke
+        // that somehow isn't flagged smoke) - treat like real smoke, never a threat. Only
+        // IsCsGasGrenade's specific combination gets the dodge+exposure handling above by design;
+        // falling into the frag-panic path below for anything SmokeGrenade-based is exactly the bug
+        // class this whole feature exists to avoid.
         if (DangerGrenade.Grenade is SmokeGrenade)
         {
-            return DangerGrenade.TimeSinceThrown < GAS_DODGE_WINDOW ? EGrenadeReaction.Scatter : EGrenadeReaction.None;
+            return EGrenadeReaction.None;
         }
 
         float distance = (Bot.Position - (GrenadeDangerPoint ?? Bot.Position)).magnitude;
