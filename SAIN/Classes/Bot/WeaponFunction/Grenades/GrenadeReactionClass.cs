@@ -118,10 +118,10 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     /// <summary>
     /// Radius counted as "standing in the cloud" for TickGasExposure below. Started at Manimal-CSGas's
     /// own Plugin.GasMaxRadius default (8) but that read noticeably wider than the cloud felt in
-    /// practice (2026-09-21 field report), so trimmed down - retune this one constant if it still
-    /// feels off either way.
+    /// practice, so trimmed to 5, then to 4 on further field feedback (2026-09-21) - retune this one
+    /// constant if it still feels off either way.
     /// </summary>
-    private const float GAS_EXPOSURE_RADIUS = 5f;
+    private const float GAS_EXPOSURE_RADIUS = 4f;
 
     /// <summary>
     /// How long after being thrown a CS gas canister is still treated as actively affecting anyone
