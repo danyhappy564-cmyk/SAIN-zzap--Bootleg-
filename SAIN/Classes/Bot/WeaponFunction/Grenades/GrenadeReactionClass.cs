@@ -102,6 +102,29 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     /// </summary>
     private const float BASE_NOTICE_CHANCE = 0.8f;
 
+    /// <summary>
+    /// How long a gas-type canister (SmokeGrenade, not flagged as real smoke - see GetReaction)
+    /// still gets the normal Scatter/Push dodge after being thrown, before bots give up trying to
+    /// outrun something that lingers far longer than a frag and just accept it instead.
+    /// </summary>
+    private const float GAS_DODGE_WINDOW = 4f;
+
+    /// <summary>
+    /// Radius counted as "standing in the cloud" for the ApplyGasExposure effect below.
+    /// </summary>
+    private const float GAS_EXPOSURE_RADIUS = 6f;
+
+    /// <summary>
+    /// How long after being thrown a gas canister is still treated as actively affecting anyone
+    /// standing in it. Rough guess at how long the visible cloud lingers - not tied to the actual
+    /// canister object's lifetime the way the old Scatter/Push reaction was (that coupling is what
+    /// caused the stuck-forever bug this whole feature replaces).
+    /// </summary>
+    private const float GAS_EXPOSURE_WINDOW = 20f;
+
+    private const float GAS_FLASH_REFRESH_INTERVAL = 1f;
+    private const float GAS_FLASH_DURATION = 1.5f;
+
     public GrenadeTrackerClass DangerGrenade { get; private set; }
     public Vector3? GrenadeDangerPoint
     {
@@ -129,8 +152,42 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             tracker?.Update();
         }
         UpdateDangerGrenade();
+        TickGasExposure();
         base.ManualUpdate();
     }
+
+    /// <summary>
+    /// Standing inside an active gas canister's cloud degrades the bot the same way a flashbang
+    /// does (accuracy/vision/hearing, via the existing BotFlashedClass) instead of the old
+    /// approach of treating the canister as a live blast threat for its whole lifetime. This is
+    /// bounded by construction - ApplyFlash sets a hard end-time, so if the bot leaves the cloud
+    /// or GAS_EXPOSURE_WINDOW runs out, the effect simply stops getting refreshed and expires on
+    /// its own. No dependency on the canister object ever actually being destroyed.
+    /// </summary>
+    private void TickGasExposure()
+    {
+        GrenadeTrackerClass danger = DangerGrenade;
+        if (danger?.Grenade is not SmokeGrenade || danger.Grenade.GrenadeSettings.CollisionSound == GrenadeSettings.CollisionSounds.smoke)
+        {
+            return;
+        }
+        if (danger.TimeSinceThrown > GAS_EXPOSURE_WINDOW)
+        {
+            return;
+        }
+        if ((Bot.Position - danger.DangerPoint).sqrMagnitude > GAS_EXPOSURE_RADIUS * GAS_EXPOSURE_RADIUS)
+        {
+            return;
+        }
+        if (_nextGasFlashTime > Time.time)
+        {
+            return;
+        }
+        _nextGasFlashTime = Time.time + GAS_FLASH_REFRESH_INTERVAL;
+        Bot.Flashed.ApplyFlash(GAS_FLASH_DURATION, danger.DangerPoint);
+    }
+
+    private float _nextGasFlashTime;
 
     private void UpdateDangerGrenade()
     {
@@ -173,12 +230,13 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             return;
         }
 
-        EGrenadeReaction reaction = GetReaction();
-
-        if (reaction != EGrenadeReaction.None)
-        {
-            SetReaction(reaction, closestSqrDist);
-        }
+        // Always route through SetReaction, including a None result, even while DangerGrenade is
+        // unchanged - SetReaction already no-ops when the value hasn't actually changed, but the old
+        // "only call it for a non-None result" guard here meant a same-object transition INTO None
+        // (e.g. the gas dodge window in GetReaction expiring) never got applied and Reaction stayed
+        // stuck at whatever it was last set to. Found via the same stuck-reaction investigation that
+        // added the gas dodge window in the first place.
+        SetReaction(GetReaction(), closestSqrDist);
     }
 
     private void SetReaction(EGrenadeReaction reaction, float sqrDistance)
@@ -232,17 +290,26 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
 
     private EGrenadeReaction GetReaction()
     {
-        // SmokeGrenade covers vanilla smoke AND anything built on the same base class - CS gas mods
-        // included, confirmed via a field log (2026-09-21): a CS gas canister's CollisionSound isn't
-        // "smoke" (it's a modded item, not vanilla smoke), so only the sound check let it fall
-        // through as a live frag-type threat. Because the canister sits and keeps emitting far longer
-        // than a frag's near-instant destruction, bots got stuck re-triggering Scatter/Push against it
-        // for the rest of its lifetime instead of the few seconds a real grenade takes to resolve -
-        // fleeing/going prone and not shooting the whole time. The type check is the reliable one;
-        // CollisionSound stays as a fallback for whatever it was originally covering.
-        if (DangerGrenade.Grenade is SmokeGrenade || DangerGrenade.Grenade?.GrenadeSettings.CollisionSound == GrenadeSettings.CollisionSounds.smoke)
+        // Real smoke (CollisionSound == smoke) is never a threat - no reaction, ever.
+        if (DangerGrenade.Grenade?.GrenadeSettings.CollisionSound == GrenadeSettings.CollisionSounds.smoke)
         {
             return EGrenadeReaction.None;
+        }
+
+        // SmokeGrenade also covers anything built on the same base class but not flagged as real
+        // smoke - CS gas mods included, confirmed via a field log (2026-09-21): the canister's
+        // CollisionSound isn't "smoke" (it's a modded item), so it fell through as a live
+        // frag-type threat and, because it sits and keeps emitting far longer than a frag's
+        // near-instant destruction, bots got stuck re-triggering Scatter/Push against it for the
+        // rest of its lifetime - fleeing/going prone and not shooting the whole time. Give it the
+        // normal short dodge (2026-09-21 follow-up: an outright ignore made bots stand still and
+        // eat it instead) for a few seconds after the throw, then accept it - standing there
+        // dodging something that lingers for tens of seconds isn't realistic either. Actual
+        // exposure while standing in the cloud is handled separately by TickGasExposure/
+        // BotFlashedClass, bounded on its own terms and not tied to this reaction at all.
+        if (DangerGrenade.Grenade is SmokeGrenade)
+        {
+            return DangerGrenade.TimeSinceThrown < GAS_DODGE_WINDOW ? EGrenadeReaction.Scatter : EGrenadeReaction.None;
         }
 
         float distance = (Bot.Position - (GrenadeDangerPoint ?? Bot.Position)).magnitude;
