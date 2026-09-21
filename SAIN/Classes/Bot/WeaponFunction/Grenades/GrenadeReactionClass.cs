@@ -221,23 +221,36 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     /// bounded by construction - ApplyFlash sets a hard end-time, so if the bot leaves the cloud
     /// or GAS_EXPOSURE_WINDOW runs out, the effect simply stops getting refreshed and expires on
     /// its own. No dependency on the canister object ever actually being destroyed.
+    ///
+    /// Scans every tracked grenade (EnemyGrenadesList), not just DangerGrenade (the single "closest
+    /// current threat" slot the Scatter/Push reaction uses) - with several grenades in flight at
+    /// once, DangerGrenade keeps getting reassigned to whichever one is momentarily closest, which
+    /// starved this of a refresh whenever a nearer frag briefly took the slot and made the exposure
+    /// debuff flicker on and off despite the bot never actually leaving the gas (2026-09-21 field
+    /// report). Checking the whole list instead means a closer frag no longer interrupts it.
     /// </summary>
     private void TickGasExposure()
     {
-        GrenadeTrackerClass danger = DangerGrenade;
-        if (!IsCsGasGrenade(danger?.Grenade) || IsBlackDivision)
+        if (IsBlackDivision || _nextGasFlashTime > Time.time)
         {
             return;
         }
-        if (danger.TimeSinceThrown > GAS_EXPOSURE_WINDOW)
+        GrenadeTrackerClass danger = null;
+        foreach (var tracker in EnemyGrenadesList.Values)
         {
-            return;
+            if (
+                tracker == null
+                || !IsCsGasGrenade(tracker.Grenade)
+                || tracker.TimeSinceThrown > GAS_EXPOSURE_WINDOW
+                || (Bot.Position - tracker.DangerPoint).sqrMagnitude > GAS_EXPOSURE_RADIUS * GAS_EXPOSURE_RADIUS
+            )
+            {
+                continue;
+            }
+            danger = tracker;
+            break;
         }
-        if ((Bot.Position - danger.DangerPoint).sqrMagnitude > GAS_EXPOSURE_RADIUS * GAS_EXPOSURE_RADIUS)
-        {
-            return;
-        }
-        if (_nextGasFlashTime > Time.time)
+        if (danger == null)
         {
             return;
         }
@@ -313,6 +326,17 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     {
         return DangerGrenade != null && Reaction != EGrenadeReaction.None;
     }
+
+    /// <summary>
+    /// True when the currently tracked danger is CS gas rather than a real explosive. AvoidGrenadeAction
+    /// uses this to skip its "go prone, can't outrun the blast" fallback - that logic is timed off
+    /// EstimatedTimeRemaining's frag-tuned fuse constant, which reads 0 (i.e. "no time left") within a
+    /// few seconds of a CS gas canister landing since gas has no real fuse to count down. Without this
+    /// check, any bot within BLAST_URGENT_DISTANCE would drop prone almost immediately instead of
+    /// visibly scattering during its GAS_DODGE_WINDOW (2026-09-21 field report: looked like bots weren't
+    /// reacting to gas at all, when they were actually just flopping down in place).
+    /// </summary>
+    public bool DangerIsCsGas => IsCsGasGrenade(DangerGrenade?.Grenade);
 
     /// <summary>
     /// Seconds before the current danger grenade is expected to go off, or zero when there is none.

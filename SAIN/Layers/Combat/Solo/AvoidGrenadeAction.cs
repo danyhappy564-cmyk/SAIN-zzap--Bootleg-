@@ -65,8 +65,13 @@ internal class AvoidGrenadeAction(BotOwner bot) : BotAction(bot, "Avoid Grenade"
         float distanceToBlast = (Bot.Position - dangerPoint.Value).magnitude;
         bool blastIsImminent = distanceToBlast < BLAST_URGENT_DISTANCE;
 
+        // EstimatedTimeRemaining counts down a frag-tuned fuse constant (~3.5s) that has nothing to do
+        // with a CS gas canister, which has no real fuse to run out - it reads 0 within a few seconds
+        // of any gas throw, which made every bot within BLAST_URGENT_DISTANCE drop prone almost
+        // immediately instead of visibly scattering during its dodge window (2026-09-21 field report).
+        // Skip this fallback entirely for gas; there is no blast to fail to outrun.
         float metresStillNeeded = BLAST_URGENT_DISTANCE - distanceToBlast;
-        if (metresStillNeeded > 0f && reactions.EstimatedTimeRemaining * SPRINT_SPEED_ESTIMATE < metresStillNeeded)
+        if (!reactions.DangerIsCsGas && metresStillNeeded > 0f && reactions.EstimatedTimeRemaining * SPRINT_SPEED_ESTIMATE < metresStillNeeded)
         {
             Bot.Mover.Prone.SetProne(true);
             _destination = null;
