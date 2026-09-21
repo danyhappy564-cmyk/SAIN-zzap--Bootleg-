@@ -154,6 +154,13 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
 
         if (closest == null)
         {
+            // Confirms the avoid-grenade reaction actually clears once the grenade is gone, instead
+            // of leaving the bot stuck not-shooting/prone indefinitely - only logs when there was
+            // something to clear, so this stays silent on every ordinary tick with no grenade around.
+            if (DangerGrenade != null)
+            {
+                Logger.LogWarning($"[GrenadeReaction] [{Bot.name}] danger cleared after [{Reaction}] - resuming normal behavior.");
+            }
             DangerGrenade = null;
             Reaction = EGrenadeReaction.None;
             return;
@@ -181,12 +188,7 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             return;
         }
         Reaction = reaction;
-#if DEBUG
-        if (SAINPlugin.DebugMode)
-        {
-            Logger.LogDebug($"[{Bot.name}] grenade reaction [{reaction}] at [{Mathf.Sqrt(sqrDistance)}m]");
-        }
-#endif
+        Logger.LogWarning($"[GrenadeReaction] [{Bot.name}] reaction [{reaction}] at [{Mathf.Sqrt(sqrDistance)}m].");
     }
 
     public EGrenadeReaction Reaction { get; private set; }
@@ -403,6 +405,11 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             grenade.DestroyEvent -= RemoveGrenade;
             EnemyGrenadesList.Remove(grenade);
         }
+        // Confirms the tracker actually gets cleaned up when the grenade object is destroyed - if a
+        // bot's reaction never clears (2026-09-21 field report), the first thing to rule out is
+        // whether Grenade.DestroyEvent fires at all for an enemy-thrown grenade, or the tracker
+        // outlives the grenade and keeps feeding UpdateDangerGrenade() a stale DangerGrenade forever.
+        Logger.LogWarning($"[GrenadeReaction] [{Bot.name}] grenade removed from tracker, [{EnemyGrenadesList.Count}] remaining.");
     }
 
     private bool RollWillNotice()
