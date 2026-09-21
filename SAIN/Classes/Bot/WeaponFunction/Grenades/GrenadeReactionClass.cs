@@ -108,10 +108,12 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     /// accept it instead. Also how long TickGasExposure waits before its first application, so this
     /// is a straight tradeoff: shorter gets bots into the exposure debuff (and out of the way of
     /// Flashed preempting the dodge) sooner, but a dodge that's already succeeded by then just means
-    /// TickGasExposure's own radius check finds them clear and does nothing anyway. Trimmed from 4s
-    /// (2026-09-21 field feedback: 4s reads too long, most escapes finish well before it).
+    /// TickGasExposure's own radius check finds them clear and does nothing anyway. Went 4s -> 2s ->
+    /// 5s across same-day field feedback: 4s read too long at first, but 2s turned out too short once
+    /// tested - combat-layer-to-actually-fleeing takes longer in practice than expected, so a 2s
+    /// window mostly expired before the bot had physically started moving away.
     /// </summary>
-    private const float GAS_DODGE_WINDOW = 2f;
+    private const float GAS_DODGE_WINDOW = 5f;
 
     /// <summary>
     /// Radius counted as "standing in the cloud" for TickGasExposure below. Started at Manimal-CSGas's
