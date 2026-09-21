@@ -105,9 +105,13 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     /// <summary>
     /// How long a CS gas canister still gets the normal Scatter/Push dodge after being thrown,
     /// before bots give up trying to outrun something that lingers far longer than a frag and just
-    /// accept it instead.
+    /// accept it instead. Also how long TickGasExposure waits before its first application, so this
+    /// is a straight tradeoff: shorter gets bots into the exposure debuff (and out of the way of
+    /// Flashed preempting the dodge) sooner, but a dodge that's already succeeded by then just means
+    /// TickGasExposure's own radius check finds them clear and does nothing anyway. Trimmed from 4s
+    /// (2026-09-21 field feedback: 4s reads too long, most escapes finish well before it).
     /// </summary>
-    private const float GAS_DODGE_WINDOW = 4f;
+    private const float GAS_DODGE_WINDOW = 2f;
 
     /// <summary>
     /// Radius counted as "standing in the cloud" for TickGasExposure below. Started at Manimal-CSGas's
