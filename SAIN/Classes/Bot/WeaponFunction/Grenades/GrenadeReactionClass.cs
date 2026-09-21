@@ -251,7 +251,7 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     /// </summary>
     private void TickGasExposure()
     {
-        if (IsBlackDivision || _nextGasFlashTime > Time.time)
+        if (IsBlackDivision)
         {
             return;
         }
@@ -279,11 +279,26 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
         {
             return;
         }
-        _nextGasFlashTime = Time.time + GAS_FLASH_REFRESH_INTERVAL;
-        Bot.Flashed.ApplyFlash(GAS_FLASH_DURATION, danger.DangerPoint);
+        if (_nextGasFlashTime <= Time.time)
+        {
+            _nextGasFlashTime = Time.time + GAS_FLASH_REFRESH_INTERVAL;
+            Bot.Flashed.ApplyFlash(GAS_FLASH_DURATION, danger.DangerPoint);
+        }
+        if (_nextGasCoughTime <= Time.time)
+        {
+            _nextGasCoughTime = Time.time + GAS_COUGH_INTERVAL;
+            // Same trigger/mask combo Manimal-CSGas itself uses for the player's cough
+            // (OnBreath + a Dying mask selects the heaviest cough/wheeze voice bank) - bots never got
+            // this because that mod's exposure logic only ever touches Singleton<GameWorld>.Instance
+            // .MainPlayer, never AI. Bot.Talk.Say already rate-limits/dedupes internally; the interval
+            // here is just pacing so it doesn't try every tick.
+            Bot.Talk.Say(EPhraseTrigger.OnBreath, ETagStatus.Dying, false, false);
+        }
     }
 
+    private const float GAS_COUGH_INTERVAL = 3.5f;
     private float _nextGasFlashTime;
+    private float _nextGasCoughTime;
 
     private void UpdateDangerGrenade()
     {
