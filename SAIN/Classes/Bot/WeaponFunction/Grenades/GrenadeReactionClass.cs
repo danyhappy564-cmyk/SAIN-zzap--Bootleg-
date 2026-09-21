@@ -157,7 +157,43 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
         grenadeController.OnGrenadeCollision += GrenadeCollision;
         grenadeController.OnGrenadeThrown += EnemyGrenadeThrown;
         grenadeController.OnGrenadeDangerUpdated += GrenadeDangerUpdated;
+        CatchUpOnActiveGasGrenades(grenadeController);
         base.Init();
+    }
+
+    /// <summary>
+    /// A bot that spawns mid-raid (wave spawns, reinforcement calls, APBS-style continuous
+    /// spawning) never receives OnGrenadeThrown for a CS gas canister thrown before it existed -
+    /// that event fires exactly once, at the moment of the throw, to whichever bots already exist
+    /// then. Since a CS gas cloud lingers for up to GAS_EXPOSURE_WINDOW seconds (vs. a frag's
+    /// ~3.5s), a newly-spawned bot walking into an already-active cloud is a real, likely gap -
+    /// unlike a frag, which is long gone by the time reinforcements would matter. Runs once here at
+    /// Init, not per tick, so the cost is one scan of the map's currently-live grenades (typically
+    /// 0-5) per bot spawn, not a per-frame cost.
+    /// </summary>
+    private void CatchUpOnActiveGasGrenades(GrenadeController grenadeController)
+    {
+        foreach (Throwable throwable in grenadeController.ActiveGrenades.Keys)
+        {
+            if (
+                throwable is not Grenade grenade
+                || grenade.ProfileId == Bot.ProfileId
+                || !IsCsGasGrenade(grenade)
+                || EnemyGrenadesList.ContainsKey(grenade)
+            )
+            {
+                continue;
+            }
+            // No thrower/landing-distance gate here (unlike EnemyGrenadeThrown) - if it's still
+            // live and it's gas, just track it; ManualUpdate/UpdateDangerGrenade already ignore
+            // anything outside GRENADE_REACT_DISTANCE, so a tracker for a canister on the far side
+            // of the map is inert, not wrong.
+            EnemyGrenadesList.Add(
+                grenade,
+                new GrenadeTrackerClass(Bot, grenade, grenade.transform.position, GetReactionTime(), RollWillNotice())
+            );
+            grenade.DestroyEvent += RemoveGrenade;
+        }
     }
 
     public override void ManualUpdate()
