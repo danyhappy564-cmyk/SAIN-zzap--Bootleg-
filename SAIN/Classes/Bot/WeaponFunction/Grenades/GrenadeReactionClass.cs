@@ -232,7 +232,15 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
 
     private EGrenadeReaction GetReaction()
     {
-        if (DangerGrenade.Grenade?.GrenadeSettings.CollisionSound == GrenadeSettings.CollisionSounds.smoke)
+        // SmokeGrenade covers vanilla smoke AND anything built on the same base class - CS gas mods
+        // included, confirmed via a field log (2026-09-21): a CS gas canister's CollisionSound isn't
+        // "smoke" (it's a modded item, not vanilla smoke), so only the sound check let it fall
+        // through as a live frag-type threat. Because the canister sits and keeps emitting far longer
+        // than a frag's near-instant destruction, bots got stuck re-triggering Scatter/Push against it
+        // for the rest of its lifetime instead of the few seconds a real grenade takes to resolve -
+        // fleeing/going prone and not shooting the whole time. The type check is the reliable one;
+        // CollisionSound stays as a fallback for whatever it was originally covering.
+        if (DangerGrenade.Grenade is SmokeGrenade || DangerGrenade.Grenade?.GrenadeSettings.CollisionSound == GrenadeSettings.CollisionSounds.smoke)
         {
             return EGrenadeReaction.None;
         }
