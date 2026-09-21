@@ -110,11 +110,12 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     private const float GAS_DODGE_WINDOW = 4f;
 
     /// <summary>
-    /// Radius counted as "standing in the cloud" for TickGasExposure below. Matches Manimal-CSGas's
-    /// own Plugin.GasMaxRadius default (Volumetric.MaxRadiusM = 8, "the clamp 1.0 applies to
-    /// volumetric throwables" per that mod's own comment) rather than a guess.
+    /// Radius counted as "standing in the cloud" for TickGasExposure below. Started at Manimal-CSGas's
+    /// own Plugin.GasMaxRadius default (8) but that read noticeably wider than the cloud felt in
+    /// practice (2026-09-21 field report), so trimmed down - retune this one constant if it still
+    /// feels off either way.
     /// </summary>
-    private const float GAS_EXPOSURE_RADIUS = 8f;
+    private const float GAS_EXPOSURE_RADIUS = 5f;
 
     /// <summary>
     /// How long after being thrown a CS gas canister is still treated as actively affecting anyone
@@ -125,8 +126,21 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     /// </summary>
     private const float GAS_EXPOSURE_WINDOW = 30f;
 
-    private const float GAS_FLASH_REFRESH_INTERVAL = 1f;
-    private const float GAS_FLASH_DURATION = 1.5f;
+    /// <summary>
+    /// Longer duration + less frequent refresh than the original 1.5s/1s pair, on purpose: SAINFlashedLayer
+    /// (priority 85) outranks SAINAvoidThreatLayer (80), so the instant TickGasExposure applies a flash
+    /// it preempts whatever Scatter/Push dodge was mid-play - refreshing every second never gave the
+    /// dodge window a chance to run (2026-09-21 field report: "no time to dodge, flashed immediately").
+    /// TickGasExposure below now waits out GAS_DODGE_WINDOW before its first application for that reason.
+    /// The wider spacing here is separate: BotFlashedClass.ApplyFlash's blind effect is full-strength
+    /// until FlashbangSettings.RecoveryPoint (70%) of its duration, then eases off - the old 1s refresh
+    /// reset it before that point ever arrived, so exposure read as one flat unbroken blind the whole
+    /// time. A longer duration with refreshes spaced past the 70% mark lets that built-in ease-off
+    /// actually play out between hits instead, closer to a pulsing/fading feel without new intensity-
+    /// ramping code (a true smooth fade would need that; this reuses what BotFlashedClass already has).
+    /// </summary>
+    private const float GAS_FLASH_REFRESH_INTERVAL = 2f;
+    private const float GAS_FLASH_DURATION = 3f;
 
     /// <summary>
     /// BlackDiv-zzap--Bootleg-'s six custom WildSpawnType roles (WildSpawnTypeExtensions.BDTypeEnums
@@ -241,6 +255,11 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             if (
                 tracker == null
                 || !IsCsGasGrenade(tracker.Grenade)
+                // Wait out the dodge window before the first application - TickGasExposure would
+                // otherwise fire on the very first tick a canister lands, and since the Flashed layer
+                // outranks AvoidThreat, that preempts the Scatter/Push dodge before it gets to run at
+                // all (2026-09-21 field report).
+                || tracker.TimeSinceThrown < GAS_DODGE_WINDOW
                 || tracker.TimeSinceThrown > GAS_EXPOSURE_WINDOW
                 || (Bot.Position - tracker.DangerPoint).sqrMagnitude > GAS_EXPOSURE_RADIUS * GAS_EXPOSURE_RADIUS
             )
