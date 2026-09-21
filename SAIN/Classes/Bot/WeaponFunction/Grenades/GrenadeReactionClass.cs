@@ -173,6 +173,13 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     /// </summary>
     private void CatchUpOnActiveGasGrenades(GrenadeController grenadeController)
     {
+        // Everything this method tracks is CS gas by definition (see the IsCsGasGrenade filter
+        // below) - Black Division is fully immune to it, so there is nothing for them to catch up
+        // on here at all.
+        if (IsBlackDivision)
+        {
+            return;
+        }
         foreach (Throwable throwable in grenadeController.ActiveGrenades.Keys)
         {
             if (
@@ -519,6 +526,12 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     public void EnemyGrenadeThrown(Grenade grenade, Vector3 dangerPoint, string profileId)
     {
         if (Bot == null || profileId == Bot.ProfileId || !Bot.BotActive)
+        {
+            return;
+        }
+        // Black Division is fully immune to CS gas (gas mask) - never worth tracking it for them at
+        // all. Every other grenade type still gets tracked normally.
+        if (IsCsGasGrenade(grenade) && IsBlackDivision)
         {
             return;
         }
