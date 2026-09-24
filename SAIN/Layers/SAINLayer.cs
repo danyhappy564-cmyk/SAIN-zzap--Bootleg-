@@ -107,10 +107,16 @@ public abstract class SAINLayer : CustomLayer
             mover._prevPosLinkedTime = 0f;
             // Final insurance that the bot is set to the navmesh before we hand over the brain
             mover.SetPlayerToNavMesh(playerPosition);
+            OnSwitchedAway(newLayerName);
         }
 
         _currentLayerName = newLayerName;
     }
+
+    /// <summary>
+    /// Called when the brain switches from this layer to a different one.
+    /// </summary>
+    protected virtual void OnSwitchedAway(string newLayerName) { }
 
     private void SetLayer(bool active)
     {

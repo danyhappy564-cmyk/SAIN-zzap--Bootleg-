@@ -291,6 +291,7 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             _gasIntensity = Mathf.Max(0f, _gasIntensity - (dt / GAS_RAMP_OUT_TIME));
         }
         Bot.Flashed.SetGasIntensity(_gasIntensity);
+        LogGasTransitions(danger);
 
         if (danger == null)
         {
@@ -313,6 +314,7 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             else
             {
                 Bot.Flashed.ApplyFlash(GAS_FLASH_DURATION, danger.DangerPoint, false);
+                Logger.LogWarning($"[GasExposure] [{Bot.name}] blinded (Flashed layer) at intensity [{_gasIntensity:F2}].");
             }
         }
         if (_nextGasCoughTime <= Time.time)
@@ -343,6 +345,57 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     /// being kept active. With GAS_RAMP_IN_TIME = 4s this is ~1.4s of standing in the cloud.
     /// </summary>
     private const float GAS_LAYER_THRESHOLD = 0.35f;
+
+    /// <summary>
+    /// Diagnostic logging for field tests (2026-09-24: "bot seemed to snap out of the gas state when
+    /// shot at inside the smoke" - can't tell from observation alone whether the bot left the 4m
+    /// radius, the 30s window ran out while smoke was still visible, or another layer took over).
+    /// Transitions only, so a few lines per bot per canister.
+    /// </summary>
+    private void LogGasTransitions(GrenadeTrackerClass danger)
+    {
+        bool inGas = danger != null;
+        if (inGas && !_wasInGas)
+        {
+            Logger.LogWarning(
+                $"[GasExposure] [{Bot.name}] entered gas: [{(Bot.Position - danger.DangerPoint).magnitude:F1}m] from canister, "
+                    + $"[{danger.TimeSinceThrown:F1}s] after throw."
+            );
+        }
+        else if (!inGas && _wasInGas)
+        {
+            string reason;
+            if (_lastGasTracker == null || !EnemyGrenadesList.ContainsValue(_lastGasTracker))
+            {
+                reason = "canister no longer tracked";
+            }
+            else if (_lastGasTracker.TimeSinceThrown > GAS_EXPOSURE_WINDOW)
+            {
+                reason = $"exposure window ended ({GAS_EXPOSURE_WINDOW:F0}s after throw)";
+            }
+            else
+            {
+                reason = $"left radius - now [{(Bot.Position - _lastGasTracker.DangerPoint).magnitude:F1}m] from canister (radius {GAS_EXPOSURE_RADIUS:F0}m)";
+            }
+            Logger.LogWarning(
+                $"[GasExposure] [{Bot.name}] exited gas: {reason}. Intensity [{_gasIntensity:F2}], still Flashed [{Bot.Flashed.IsFlashed}]."
+            );
+        }
+        else if (!inGas && _gasIntensity <= 0f && _gasRecovering)
+        {
+            Logger.LogWarning($"[GasExposure] [{Bot.name}] fully recovered from gas.");
+        }
+        _gasRecovering = !inGas && _gasIntensity > 0f;
+        _wasInGas = inGas;
+        if (inGas)
+        {
+            _lastGasTracker = danger;
+        }
+    }
+
+    private bool _wasInGas;
+    private bool _gasRecovering;
+    private GrenadeTrackerClass _lastGasTracker;
 
     private const float GAS_MAX_TICK_DELTA = 0.5f;
     private float _gasIntensity;

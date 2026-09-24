@@ -27,6 +27,22 @@ internal class SAINFlashedLayer(BotOwner bot, int priority) : SAINLayer(bot, pri
         return active;
     }
 
+    /// <summary>
+    /// Diagnostic (2026-09-24 field report: gassed bots seemed to snap out of Flashed when shot at
+    /// inside the smoke). IsActive only ever checks IsFlashed, so if the brain leaves this layer while
+    /// the bot is still flashed, a higher-priority layer (possibly another mod's) took over - log which.
+    /// </summary>
+    protected override void OnSwitchedAway(string newLayerName)
+    {
+        if (Bot != null && Bot.Flashed.IsFlashed)
+        {
+            Logger.LogWarning(
+                $"[FlashedLayer] [{Bot.name}] left Flashed layer for [{newLayerName}] while still flashed "
+                    + $"([{Bot.Flashed.TimeRemaining:F1}s] left) - a higher-priority layer took over."
+            );
+        }
+    }
+
     public override bool IsCurrentActionEnding()
     {
         return false;

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using EFT;
 using EFT.Interactive;
 using SAIN.Components;
+using SAIN.Components.PlayerComponentSpace;
 using SAIN.Helpers;
 using UnityEngine;
 
@@ -177,11 +178,70 @@ public class DoorOpener : BotComponentClassBase
             currentDoor = ActiveDoor;
             return false;
         }
+        if (interactionType == EInteractionType.Close && DoorwayOccupied(data, time))
+        {
+            currentDoor = ActiveDoor;
+            return false;
+        }
         _interactionDoorIndex = index;
         _interactionDoors[index] = data;
         //bool value = TryInteractWithDoor(interactionType, time, ref data);
         currentDoor = data;
         return true;
+    }
+
+    /// <summary>
+    /// Anyone other than this bot (squadmate, other bot, player) standing within this distance of the
+    /// door's closed-position midpoint counts as "in the doorway".
+    /// </summary>
+    private const float DOORWAY_OCCUPIED_RADIUS = 1.5f;
+
+    private const float DOORWAY_OCCUPIED_LOG_INTERVAL = 3f;
+    private float _nextDoorwayOccupiedLogTime;
+
+    /// <summary>
+    /// 2026-09-24 field report: in a door-dense area, the first bot through a door turned back out
+    /// and shut it (RecentlySelfOpened's 6s grace had already run out) while the squadmate following
+    /// it was still in the doorway - the follower ended up wedged on the threshold and visibly
+    /// clipped through the closing leaf. Nothing checked whether anyone was standing in the way
+    /// before closing. Skip the close while the doorway is occupied; the bot re-evaluates next tick
+    /// and closes it normally once the doorway is clear. Only runs for a Close about to happen, so
+    /// the player scan is rare.
+    /// </summary>
+    private bool DoorwayOccupied(in DoorDataStruct data, float time)
+    {
+        var tracker = GameWorldComponent.Instance?.PlayerTracker;
+        if (tracker == null)
+        {
+            return false;
+        }
+        Vector3 doorway = data.Link.MidClose;
+        string myProfileId = Bot.ProfileId;
+        foreach (PlayerComponent player in tracker.AlivePlayerArray)
+        {
+            if (player == null || player.ProfileId == myProfileId)
+            {
+                continue;
+            }
+            Vector3 offset = player.Position - doorway;
+            if (Mathf.Abs(offset.y) > 2f)
+            {
+                continue;
+            }
+            offset.y = 0f;
+            if (offset.sqrMagnitude < DOORWAY_OCCUPIED_RADIUS * DOORWAY_OCCUPIED_RADIUS)
+            {
+                if (time >= _nextDoorwayOccupiedLogTime)
+                {
+                    _nextDoorwayOccupiedLogTime = time + DOORWAY_OCCUPIED_LOG_INTERVAL;
+                    Logger.LogWarning(
+                        $"[DoorOpener] [{Bot.name}] held off closing door [{data.Door?.Id}] - [{player.Player?.Profile?.Nickname}] is in the doorway."
+                    );
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     private void Clear()
@@ -396,9 +456,7 @@ public class DoorOpener : BotComponentClassBase
             if (index >= 0)
             {
                 data = doors[index];
-#if DEBUG
-                Logger.LogDebug($"[{data.Door.Id}] jammed with no directional door hit — opening closest in-range shut door as fallback");
-#endif
+                Logger.LogWarning($"[DoorOpener] [{data.Door.Id}] jammed with no directional door hit - opening closest in-range shut door as fallback");
                 interactionType = EInteractionType.Open;
                 return true;
             }
