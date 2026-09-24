@@ -133,8 +133,8 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     private const float GAS_EXIT_RADIUS = 6f;
 
     /// <summary>
-    /// How long after being thrown a CS gas canister is still treated as actively affecting anyone
-    /// standing in it. Matches the item's own EmitTime override (30) in Manimal-CSGas's
+    /// How long after being thrown a CS gas canister affects anyone standing in it at full strength
+    /// (it then fades out over GAS_FADE_TIME). Matches the item's own EmitTime override (30) in Manimal-CSGas's
     /// ServerModFiles/db/CustomItems/cs_gas_grenade.json, not a guess - and, critically, not tied to
     /// the actual canister object's lifetime the way the old Scatter/Push reaction was (that
     /// coupling is what caused the stuck-forever bug this whole feature replaces).
@@ -245,9 +245,9 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     /// penalty that builds up while exposed and fades after leaving (_gasIntensity, applied through
     /// BotFlashedClass.SetGasIntensity), and past GAS_LAYER_THRESHOLD also keeps the Flashed layer's
     /// blind behaviour running - instead of the old approach of treating the canister as a live blast
-    /// threat for its whole lifetime. Bounded by construction: once the bot leaves the cloud or
-    /// GAS_EXPOSURE_WINDOW runs out, intensity decays to 0 and the flash stops being refreshed. No
-    /// dependency on the canister object ever actually being destroyed.
+    /// threat for its whole lifetime. Bounded by construction: once the bot leaves the cloud or the
+    /// cloud has fully faded (GAS_EXPOSURE_WINDOW + GAS_FADE_TIME), intensity decays to 0 and the flash
+    /// stops being refreshed. No dependency on the canister object ever actually being destroyed.
     ///
     /// Scans every tracked grenade (EnemyGrenadesList), not just DangerGrenade (the single "closest
     /// current threat" slot the Scatter/Push reaction uses) - with several grenades in flight at
@@ -263,8 +263,9 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             return;
         }
         // Hysteresis: a bot already in the gas only counts as out once past GAS_EXIT_RADIUS.
-        float radius = _wasInGas ? GAS_EXIT_RADIUS : GAS_EXPOSURE_RADIUS;
+        float radius = _inGas ? GAS_EXIT_RADIUS : GAS_EXPOSURE_RADIUS;
         GrenadeTrackerClass danger = null;
+        float cloudStrength = 0f;
         foreach (var tracker in EnemyGrenadesList.Values)
         {
             if (
@@ -280,42 +281,45 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             {
                 continue;
             }
-            if (tracker.TimeSinceThrown > GAS_EXPOSURE_WINDOW)
+            // Strongest cloud the bot is standing in wins (a fresh canister next to a fading one).
+            float strength = GasCloudStrength(tracker.TimeSinceThrown);
+            if (strength > cloudStrength)
             {
-                LogLingeringGas(tracker);
-                continue;
+                cloudStrength = strength;
+                danger = tracker;
             }
-            danger = tracker;
-            break;
         }
+        _inGas = danger != null;
 
         // Exposure intensity ramps up while in the cloud and back down after leaving it, instead of
         // the flat on/off flashbang penalty this used to reuse - the stat penalty itself scales with
-        // it (BotFlashedClass.SetGasIntensity). Real elapsed time rather than a per-tick step, since
-        // this class doesn't tick every frame; clamped so a long gap (bot asleep, just woke) can't
-        // jump the whole ramp at once.
+        // it (BotFlashedClass.SetGasIntensity). It is capped by the cloud's own strength, which fades
+        // out after GAS_EXPOSURE_WINDOW, so a bot standing in a thinning cloud eases off with it
+        // instead of the effect cutting out at exactly 30s. Real elapsed time rather than a per-tick
+        // step, since this class doesn't tick every frame; clamped so a long gap (bot asleep, just
+        // woke) can't jump the whole ramp at once.
         float now = Time.time;
         float dt = _lastGasTickTime < 0f ? 0f : Mathf.Min(now - _lastGasTickTime, GAS_MAX_TICK_DELTA);
         _lastGasTickTime = now;
-        if (danger != null)
+        if (_gasIntensity < cloudStrength)
         {
-            _gasIntensity = Mathf.Min(1f, _gasIntensity + (dt / GAS_RAMP_IN_TIME));
+            _gasIntensity = Mathf.Min(cloudStrength, _gasIntensity + (dt / GAS_RAMP_IN_TIME));
         }
-        else if (_gasIntensity > 0f)
+        else if (_gasIntensity > cloudStrength)
         {
-            _gasIntensity = Mathf.Max(0f, _gasIntensity - (dt / GAS_RAMP_OUT_TIME));
+            _gasIntensity = Mathf.Max(cloudStrength, _gasIntensity - (dt / GAS_RAMP_OUT_TIME));
         }
         Bot.Flashed.SetGasIntensity(_gasIntensity);
-        LogGasTransitions(danger);
 
         if (danger == null)
         {
             return;
         }
-        // Flashed layer (Search/Track/BlindFire behaviour) only once the exposure has built up past
+        // Flashed layer (Search/Track/BlindFire behaviour) only while the exposure is at or above
         // GAS_LAYER_THRESHOLD, so a bot that only brushes the edge of the cloud doesn't flip straight
-        // into blind behaviour. applyModifiers: false - the fixed flashbang penalty would bypass the
-        // ramp above; the scaled gas penalty is the only stat change gas applies.
+        // into blind behaviour, and a fading cloud lets the bot out of it once it thins enough.
+        // applyModifiers: false - the fixed flashbang penalty would bypass the ramp above; the scaled
+        // gas penalty is the only stat change gas applies.
         if (_gasIntensity >= GAS_LAYER_THRESHOLD && _nextGasFlashTime <= now)
         {
             _nextGasFlashTime = now + GAS_FLASH_REFRESH_INTERVAL;
@@ -329,7 +333,6 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             else
             {
                 Bot.Flashed.ApplyFlash(GAS_FLASH_DURATION, danger.DangerPoint, false);
-                Logger.LogWarning($"[GasExposure] [{Bot.name}] blinded (Flashed layer) at intensity [{_gasIntensity:F2}].");
             }
         }
         if (_nextGasCoughTime <= Time.time)
@@ -343,6 +346,28 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             Bot.Talk.Say(EPhraseTrigger.OnBreath, ETagStatus.Dying, false, false);
         }
     }
+
+    /// <summary>
+    /// How strong a canister's cloud still is, 0-1: full strength up to GAS_EXPOSURE_WINDOW (the
+    /// canister's emit time), then fading linearly to nothing over GAS_FADE_TIME - the cloud keeps
+    /// hanging around and thins out after emission stops rather than vanishing (confirmed in game,
+    /// 2026-09-25). Before this, exposure simply stopped at 30s, while bots were often still standing
+    /// in visible smoke at full intensity.
+    /// </summary>
+    private static float GasCloudStrength(float timeSinceThrown)
+    {
+        if (timeSinceThrown <= GAS_EXPOSURE_WINDOW)
+        {
+            return 1f;
+        }
+        return Mathf.Clamp01(1f - ((timeSinceThrown - GAS_EXPOSURE_WINDOW) / GAS_FADE_TIME));
+    }
+
+    /// <summary>
+    /// Seconds after GAS_EXPOSURE_WINDOW over which the cloud's strength fades from full to nothing.
+    /// Starting value; retune if the effect outlasts (or ends before) the visible smoke.
+    /// </summary>
+    private const float GAS_FADE_TIME = 15f;
 
     private const float GAS_COUGH_INTERVAL = 3.5f;
 
@@ -361,81 +386,8 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     /// </summary>
     private const float GAS_LAYER_THRESHOLD = 0.35f;
 
-    /// <summary>
-    /// Diagnostic logging for field tests (2026-09-24: "bot seemed to snap out of the gas state when
-    /// shot at inside the smoke" - can't tell from observation alone whether the bot left the 4m
-    /// radius, the 30s window ran out while smoke was still visible, or another layer took over).
-    /// Transitions only, so a few lines per bot per canister.
-    /// </summary>
-    private void LogGasTransitions(GrenadeTrackerClass danger)
-    {
-        bool inGas = danger != null;
-        if (inGas && !_wasInGas)
-        {
-            Logger.LogWarning(
-                $"[GasExposure] [{Bot.name}] entered gas: [{(Bot.Position - danger.DangerPoint).magnitude:F1}m] from canister, "
-                    + $"[{danger.TimeSinceThrown:F1}s] after throw."
-            );
-        }
-        else if (!inGas && _wasInGas)
-        {
-            string reason;
-            if (_lastGasTracker == null || !EnemyGrenadesList.ContainsValue(_lastGasTracker))
-            {
-                reason = "canister no longer tracked";
-            }
-            else if (_lastGasTracker.TimeSinceThrown > GAS_EXPOSURE_WINDOW)
-            {
-                reason = $"exposure window ended ({GAS_EXPOSURE_WINDOW:F0}s after throw)";
-            }
-            else
-            {
-                reason = $"left radius - now [{(Bot.Position - _lastGasTracker.DangerPoint).magnitude:F1}m] from canister (exit radius {GAS_EXIT_RADIUS:F0}m)";
-            }
-            Logger.LogWarning(
-                $"[GasExposure] [{Bot.name}] exited gas: {reason}. Intensity [{_gasIntensity:F2}], still Flashed [{Bot.Flashed.IsFlashed}]."
-            );
-        }
-        else if (!inGas && _gasIntensity <= 0f && _gasRecovering)
-        {
-            Logger.LogWarning($"[GasExposure] [{Bot.name}] fully recovered from gas.");
-        }
-        _gasRecovering = !inGas && _gasIntensity > 0f;
-        _wasInGas = inGas;
-        if (inGas)
-        {
-            _lastGasTracker = danger;
-        }
-    }
-
-    /// <summary>
-    /// Diagnostic: the bot is inside the radius of a canister that is past GAS_EXPOSURE_WINDOW, so no
-    /// effect is applied even though the smoke may still be visible (one of the candidate causes of
-    /// "gassed bot seemed to snap out of it inside the smoke"). Logged once per canister per bot.
-    /// </summary>
-    private void LogLingeringGas(GrenadeTrackerClass tracker)
-    {
-        if (!_loggedLingeringGas.Add(tracker))
-        {
-            return;
-        }
-        if (_loggedLingeringGas.Count > 32)
-        {
-            _loggedLingeringGas.Clear();
-            _loggedLingeringGas.Add(tracker);
-        }
-        Logger.LogWarning(
-            $"[GasExposure] [{Bot.name}] inside the radius of a canister thrown [{tracker.TimeSinceThrown:F0}s] ago - past the "
-                + $"{GAS_EXPOSURE_WINDOW:F0}s exposure window, so no gas effect (smoke may still be visible)."
-        );
-    }
-
-    private readonly HashSet<GrenadeTrackerClass> _loggedLingeringGas = [];
-    private bool _wasInGas;
-    private bool _gasRecovering;
-    private GrenadeTrackerClass _lastGasTracker;
-
     private const float GAS_MAX_TICK_DELTA = 0.5f;
+    private bool _inGas;
     private float _gasIntensity;
     private float _lastGasTickTime = -1f;
     private float _nextGasFlashTime;
