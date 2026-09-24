@@ -59,6 +59,7 @@ public class SAINPlugin : BaseUnityPlugin
 
     public void Awake()
     {
+        LogBuildStamp();
         _patchManager = new(this, true);
 
         if (!PresetHandler.Init() || !EFTCoreSettings.Load())
@@ -73,6 +74,27 @@ public class SAINPlugin : BaseUnityPlugin
         BindConfigs();
         _patchManager.EnablePatches();
         BigBrainHandler.Init();
+    }
+
+    /// <summary>
+    /// Writes the loaded SAIN DLL's file timestamp to the log, so a field log can be matched to the
+    /// exact build that produced it (2026-09-24: a log was misjudged as coming from an older build
+    /// because nothing in it identified which DLL was actually loaded).
+    /// </summary>
+    private void LogBuildStamp()
+    {
+        try
+        {
+            string dllPath = typeof(SAINPlugin).Assembly.Location;
+            Logger.LogInfo(
+                $"[SAIN] Loaded DLL {System.IO.Path.GetFileName(dllPath)} built/modified at "
+                    + $"{System.IO.File.GetLastWriteTime(dllPath):yyyy-MM-dd HH:mm:ss} (local time)"
+            );
+        }
+        catch (System.Exception ex)
+        {
+            Logger.LogWarning($"[SAIN] Could not read DLL timestamp: {ex.Message}");
+        }
     }
 
     private void BindConfigs()

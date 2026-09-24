@@ -264,10 +264,14 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
                 // outranks AvoidThreat, that preempts the Scatter/Push dodge before it gets to run at
                 // all (2026-09-21 field report).
                 || tracker.TimeSinceThrown < GAS_DODGE_WINDOW
-                || tracker.TimeSinceThrown > GAS_EXPOSURE_WINDOW
                 || (Bot.Position - tracker.DangerPoint).sqrMagnitude > GAS_EXPOSURE_RADIUS * GAS_EXPOSURE_RADIUS
             )
             {
+                continue;
+            }
+            if (tracker.TimeSinceThrown > GAS_EXPOSURE_WINDOW)
+            {
+                LogLingeringGas(tracker);
                 continue;
             }
             danger = tracker;
@@ -393,6 +397,29 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
         }
     }
 
+    /// <summary>
+    /// Diagnostic: the bot is inside the radius of a canister that is past GAS_EXPOSURE_WINDOW, so no
+    /// effect is applied even though the smoke may still be visible (one of the candidate causes of
+    /// "gassed bot seemed to snap out of it inside the smoke"). Logged once per canister per bot.
+    /// </summary>
+    private void LogLingeringGas(GrenadeTrackerClass tracker)
+    {
+        if (!_loggedLingeringGas.Add(tracker))
+        {
+            return;
+        }
+        if (_loggedLingeringGas.Count > 32)
+        {
+            _loggedLingeringGas.Clear();
+            _loggedLingeringGas.Add(tracker);
+        }
+        Logger.LogWarning(
+            $"[GasExposure] [{Bot.name}] inside the radius of a canister thrown [{tracker.TimeSinceThrown:F0}s] ago - past the "
+                + $"{GAS_EXPOSURE_WINDOW:F0}s exposure window, so no gas effect (smoke may still be visible)."
+        );
+    }
+
+    private readonly HashSet<GrenadeTrackerClass> _loggedLingeringGas = [];
     private bool _wasInGas;
     private bool _gasRecovering;
     private GrenadeTrackerClass _lastGasTracker;
@@ -411,7 +438,7 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
 
         foreach (var tracker in EnemyGrenadesList.Values)
         {
-            if (tracker?.Grenade == null || !tracker.CanReact)
+            if (tracker?.Grenade == null || !tracker.CanReact || NeverReacts(tracker))
             {
                 continue;
             }
@@ -451,6 +478,26 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
         // stuck at whatever it was last set to. Found via the same stuck-reaction investigation that
         // added the gas dodge window in the first place.
         SetReaction(GetReaction(), closestSqrDist);
+    }
+
+    /// <summary>
+    /// Grenades GetReaction() would answer None for no matter what: plain smoke, and CS gas once its
+    /// dodge window has passed (or always, for Black Division). They used to still compete for the
+    /// DangerGrenade slot purely on distance, so a lingering old gas canister a couple of metres away
+    /// could take the slot from a freshly thrown grenade further out and silently cancel the dodge
+    /// for it - and two similar-distance canisters (one fresh, one old) made the reaction flip
+    /// Scatter/None several times a second (2026-09-24 field log: one bot flipped 5 times inside a
+    /// single 10s window). Gas exposure is handled by TickGasExposure scanning the whole list, not
+    /// through this slot, so skipping them here changes nothing there.
+    /// </summary>
+    private bool NeverReacts(GrenadeTrackerClass tracker)
+    {
+        if (IsCsGasGrenade(tracker.Grenade))
+        {
+            return IsBlackDivision || tracker.TimeSinceThrown >= GAS_DODGE_WINDOW;
+        }
+        return tracker.Grenade is SmokeGrenade
+            || tracker.Grenade.GrenadeSettings.CollisionSound == GrenadeSettings.CollisionSounds.smoke;
     }
 
     private void SetReaction(EGrenadeReaction reaction, float sqrDistance)
