@@ -36,17 +36,45 @@ public class BotFlashedClass : BotComponentClassBase
         get { return _blindFireTime < Time.time; }
     }
 
-    public void ApplyFlash(float baseTime, Vector3 position)
+    private float GetDuration(float baseTime)
     {
         var settings = Settings;
-
         float duration = baseTime * settings.DurationMultiplier * Bot.Info.FileSettings.Look.FlashDurationMulti;
         if (BotOwner.NightVision.UsingNow)
         {
             duration *= settings.NightVisionMultiplier;
         }
-        duration = Mathf.Min(duration, settings.MaxDuration);
+        return Mathf.Min(duration, settings.MaxDuration);
+    }
 
+    /// <summary>
+    /// Keeps an already-running flash going (continuous exposure, e.g. standing in CS gas) without
+    /// re-running ApplyFlash's one-shot "just got blinded" side effects. Calling ApplyFlash on a timer
+    /// instead reset the blind-fire delay every refresh (bot never fired while exposed), re-snapped
+    /// LastSeenEnemyPoint to the enemy's live position (blind bot tracking the player like ESP), and
+    /// re-added a group search point every refresh. Never shortens a longer flash already in effect.
+    /// </summary>
+    public void RefreshFlash(float baseTime)
+    {
+        float duration = GetDuration(baseTime);
+        if (duration <= 0f)
+        {
+            return;
+        }
+        float newEnd = Time.time + duration;
+        if (newEnd <= _flashEndTime)
+        {
+            return;
+        }
+        _flashEndTime = newEnd;
+        ApplyModifiers(duration, Settings.RecoveryPoint);
+    }
+
+    public void ApplyFlash(float baseTime, Vector3 position)
+    {
+        var settings = Settings;
+
+        float duration = GetDuration(baseTime);
         if (duration <= 0f)
         {
             return;

@@ -282,7 +282,17 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
         if (_nextGasFlashTime <= Time.time)
         {
             _nextGasFlashTime = Time.time + GAS_FLASH_REFRESH_INTERVAL;
-            Bot.Flashed.ApplyFlash(GAS_FLASH_DURATION, danger.DangerPoint);
+            // First exposure goes through ApplyFlash (remembers enemy spot, adds search point, arms
+            // blind-fire delay); while still flashed only extend the duration, otherwise the
+            // blind-fire timer resets every refresh and the bot never shoots back from inside the gas.
+            if (Bot.Flashed.IsFlashed)
+            {
+                Bot.Flashed.RefreshFlash(GAS_FLASH_DURATION);
+            }
+            else
+            {
+                Bot.Flashed.ApplyFlash(GAS_FLASH_DURATION, danger.DangerPoint);
+            }
         }
         if (_nextGasCoughTime <= Time.time)
         {
