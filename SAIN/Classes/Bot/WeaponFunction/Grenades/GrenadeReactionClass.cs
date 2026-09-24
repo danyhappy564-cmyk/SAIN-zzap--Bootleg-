@@ -138,12 +138,9 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     /// it preempts whatever Scatter/Push dodge was mid-play - refreshing every second never gave the
     /// dodge window a chance to run (2026-09-21 field report: "no time to dodge, flashed immediately").
     /// TickGasExposure below now waits out GAS_DODGE_WINDOW before its first application for that reason.
-    /// The wider spacing here is separate: BotFlashedClass.ApplyFlash's blind effect is full-strength
-    /// until FlashbangSettings.RecoveryPoint (70%) of its duration, then eases off - the old 1s refresh
-    /// reset it before that point ever arrived, so exposure read as one flat unbroken blind the whole
-    /// time. A longer duration with refreshes spaced past the 70% mark lets that built-in ease-off
-    /// actually play out between hits instead, closer to a pulsing/fading feel without new intensity-
-    /// ramping code (a true smooth fade would need that; this reuses what BotFlashedClass already has).
+    /// Since 2026-09-24 these only keep the Flashed state/layer alive (the stat penalty is the separate
+    /// intensity-ramped gas modifier, see GAS_RAMP_IN_TIME), so GAS_FLASH_DURATION is effectively how
+    /// long blind behaviour lingers after the bot steps out of the cloud.
     /// </summary>
     private const float GAS_FLASH_REFRESH_INTERVAL = 2f;
     private const float GAS_FLASH_DURATION = 3f;
@@ -235,12 +232,13 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     }
 
     /// <summary>
-    /// Standing inside an active gas canister's cloud degrades the bot the same way a flashbang
-    /// does (accuracy/vision/hearing, via the existing BotFlashedClass) instead of the old
-    /// approach of treating the canister as a live blast threat for its whole lifetime. This is
-    /// bounded by construction - ApplyFlash sets a hard end-time, so if the bot leaves the cloud
-    /// or GAS_EXPOSURE_WINDOW runs out, the effect simply stops getting refreshed and expires on
-    /// its own. No dependency on the canister object ever actually being destroyed.
+    /// Standing inside an active gas canister's cloud degrades the bot's accuracy/vision/hearing with a
+    /// penalty that builds up while exposed and fades after leaving (_gasIntensity, applied through
+    /// BotFlashedClass.SetGasIntensity), and past GAS_LAYER_THRESHOLD also keeps the Flashed layer's
+    /// blind behaviour running - instead of the old approach of treating the canister as a live blast
+    /// threat for its whole lifetime. Bounded by construction: once the bot leaves the cloud or
+    /// GAS_EXPOSURE_WINDOW runs out, intensity decays to 0 and the flash stops being refreshed. No
+    /// dependency on the canister object ever actually being destroyed.
     ///
     /// Scans every tracked grenade (EnemyGrenadesList), not just DangerGrenade (the single "closest
     /// current threat" slot the Scatter/Push reaction uses) - with several grenades in flight at
@@ -275,23 +273,46 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             danger = tracker;
             break;
         }
+
+        // Exposure intensity ramps up while in the cloud and back down after leaving it, instead of
+        // the flat on/off flashbang penalty this used to reuse - the stat penalty itself scales with
+        // it (BotFlashedClass.SetGasIntensity). Real elapsed time rather than a per-tick step, since
+        // this class doesn't tick every frame; clamped so a long gap (bot asleep, just woke) can't
+        // jump the whole ramp at once.
+        float now = Time.time;
+        float dt = _lastGasTickTime < 0f ? 0f : Mathf.Min(now - _lastGasTickTime, GAS_MAX_TICK_DELTA);
+        _lastGasTickTime = now;
+        if (danger != null)
+        {
+            _gasIntensity = Mathf.Min(1f, _gasIntensity + (dt / GAS_RAMP_IN_TIME));
+        }
+        else if (_gasIntensity > 0f)
+        {
+            _gasIntensity = Mathf.Max(0f, _gasIntensity - (dt / GAS_RAMP_OUT_TIME));
+        }
+        Bot.Flashed.SetGasIntensity(_gasIntensity);
+
         if (danger == null)
         {
             return;
         }
-        if (_nextGasFlashTime <= Time.time)
+        // Flashed layer (Search/Track/BlindFire behaviour) only once the exposure has built up past
+        // GAS_LAYER_THRESHOLD, so a bot that only brushes the edge of the cloud doesn't flip straight
+        // into blind behaviour. applyModifiers: false - the fixed flashbang penalty would bypass the
+        // ramp above; the scaled gas penalty is the only stat change gas applies.
+        if (_gasIntensity >= GAS_LAYER_THRESHOLD && _nextGasFlashTime <= now)
         {
-            _nextGasFlashTime = Time.time + GAS_FLASH_REFRESH_INTERVAL;
+            _nextGasFlashTime = now + GAS_FLASH_REFRESH_INTERVAL;
             // First exposure goes through ApplyFlash (remembers enemy spot, adds search point, arms
             // blind-fire delay); while still flashed only extend the duration, otherwise the
             // blind-fire timer resets every refresh and the bot never shoots back from inside the gas.
             if (Bot.Flashed.IsFlashed)
             {
-                Bot.Flashed.RefreshFlash(GAS_FLASH_DURATION);
+                Bot.Flashed.RefreshFlash(GAS_FLASH_DURATION, false);
             }
             else
             {
-                Bot.Flashed.ApplyFlash(GAS_FLASH_DURATION, danger.DangerPoint);
+                Bot.Flashed.ApplyFlash(GAS_FLASH_DURATION, danger.DangerPoint, false);
             }
         }
         if (_nextGasCoughTime <= Time.time)
@@ -307,6 +328,25 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     }
 
     private const float GAS_COUGH_INTERVAL = 3.5f;
+
+    /// <summary>
+    /// Exposure ramp (2026-09-24): seconds of continuous exposure to go from nothing to the full
+    /// flashbang-strength penalty, and seconds after leaving the cloud to recover from full back to
+    /// nothing. Recovery is deliberately slower than onset - eyes/lungs keep burning after stepping
+    /// out. Starting points, not field-tuned yet; retune these two if it builds or clears too fast.
+    /// </summary>
+    private const float GAS_RAMP_IN_TIME = 4f;
+    private const float GAS_RAMP_OUT_TIME = 8f;
+
+    /// <summary>
+    /// Exposure intensity at which the Flashed layer (blind Search/Track/BlindFire behaviour) starts
+    /// being kept active. With GAS_RAMP_IN_TIME = 4s this is ~1.4s of standing in the cloud.
+    /// </summary>
+    private const float GAS_LAYER_THRESHOLD = 0.35f;
+
+    private const float GAS_MAX_TICK_DELTA = 0.5f;
+    private float _gasIntensity;
+    private float _lastGasTickTime = -1f;
     private float _nextGasFlashTime;
     private float _nextGasCoughTime;
 

@@ -112,10 +112,12 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
             }
             CurrentSprintStatus = GetSprintStatus(botPosition);
             SetSprint(false);
-            Bot.Mover.SetTargetMoveSpeed(DOOR_NEARBY_MOVE_SPEED);
+            Bot.Mover.ApplyDoorSlow(DOOR_NEARBY_MOVE_SPEED);
         }
         else
         {
+            // Undo the door slowdown once clear of the door - see SAINMoverClass.ApplyDoorSlow.
+            Bot.Mover.ReleaseDoorSlow();
             SetSprint(CurrentSprintStatus == EBotSprintStatus.Running);
         }
 

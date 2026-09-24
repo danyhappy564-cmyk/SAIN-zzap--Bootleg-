@@ -53,8 +53,10 @@ public class BotFlashedClass : BotComponentClassBase
     /// instead reset the blind-fire delay every refresh (bot never fired while exposed), re-snapped
     /// LastSeenEnemyPoint to the enemy's live position (blind bot tracking the player like ESP), and
     /// re-added a group search point every refresh. Never shortens a longer flash already in effect.
+    /// applyModifiers: false keeps the Flashed state/layer running without the fixed flashbang stat
+    /// penalty - CS gas supplies its own intensity-scaled one through SetGasIntensity instead.
     /// </summary>
-    public void RefreshFlash(float baseTime)
+    public void RefreshFlash(float baseTime, bool applyModifiers = true)
     {
         float duration = GetDuration(baseTime);
         if (duration <= 0f)
@@ -67,10 +69,13 @@ public class BotFlashedClass : BotComponentClassBase
             return;
         }
         _flashEndTime = newEnd;
-        ApplyModifiers(duration, Settings.RecoveryPoint);
+        if (applyModifiers)
+        {
+            ApplyModifiers(duration, Settings.RecoveryPoint);
+        }
     }
 
-    public void ApplyFlash(float baseTime, Vector3 position)
+    public void ApplyFlash(float baseTime, Vector3 position, bool applyModifiers = true)
     {
         var settings = Settings;
 
@@ -87,7 +92,59 @@ public class BotFlashedClass : BotComponentClassBase
 
         _flashEndTime = Time.time + duration;
         _blindFireTime = Time.time + settings.BlindFireDelay;
-        ApplyModifiers(duration, settings.RecoveryPoint);
+        if (applyModifiers)
+        {
+            ApplyModifiers(duration, settings.RecoveryPoint);
+        }
+    }
+
+    /// <summary>
+    /// CS gas stat penalty, scaled by exposure intensity (0 = none, 1 = the same penalty a flashbang
+    /// applies at full strength), so it builds up gradually while a bot stands in the cloud and fades
+    /// out gradually after it leaves - GrenadeReactionClass.TickGasExposure owns the ramp itself.
+    /// Kept separate from the flashbang's own two-stage modifiers so a real flashbang on top of gas
+    /// stacks with it instead of one overwriting the other. TemporaryStatModifiers values are
+    /// multipliers where 1 means "no change" (see FlashLightDazzleClass's neutral new(1,1,1,1,1)), so
+    /// each value is interpolated between 1 and the flashbang value. Quantized to GAS_INTENSITY_STEPS
+    /// so a full ramp only rebuilds/re-applies the modifier set a handful of times instead of every tick.
+    /// Applied without a duration: it stays until the next step change, 0, or Dispose.
+    /// </summary>
+    public void SetGasIntensity(float intensity)
+    {
+        int step = Mathf.Clamp(Mathf.RoundToInt(intensity * GAS_INTENSITY_STEPS), 0, GAS_INTENSITY_STEPS);
+        if (step == _gasStep)
+        {
+            return;
+        }
+        _gasStep = step;
+        DismissGas();
+        if (step == 0)
+        {
+            return;
+        }
+        float t = step / (float)GAS_INTENSITY_STEPS;
+        var change = BotOwner.Settings.FileSettings.Change;
+        _gasModifiers = new TemporaryStatModifiers(
+            Mathf.Lerp(1f, change.FLASH_PRECICING, t),
+            Mathf.Lerp(1f, change.FLASH_ACCURATY, t),
+            Mathf.Lerp(1f, change.FLASH_GAIN_SIGHT, t),
+            Mathf.Lerp(1f, change.FLASH_SCATTERING, t),
+            Mathf.Lerp(1f, change.FLASH_SCATTERING, t),
+            Mathf.Lerp(1f, change.FLASH_VISION_DIST, t),
+            Mathf.Lerp(1f, change.FLASH_HEARING, t)
+        );
+        BotOwner.Settings.Current.Apply(_gasModifiers.Modifiers);
+    }
+
+    private const int GAS_INTENSITY_STEPS = 10;
+
+    private void DismissGas()
+    {
+        if (_gasModifiers != null)
+        {
+            BotOwner.Settings.Current.Dismiss(_gasModifiers.Modifiers);
+            _gasModifiers = null;
+        }
     }
 
     private void ApplyModifiers(float duration, float recoveryPoint)
@@ -130,7 +187,9 @@ public class BotFlashedClass : BotComponentClassBase
 
     public override void ManualUpdate()
     {
-        if (_firstStage != null && !IsFlashed)
+        // LastSeenEnemyPoint check too: a gas-driven flash (applyModifiers: false) never creates
+        // _firstStage, and would otherwise leave the remembered point set after the flash ends.
+        if (!IsFlashed && (_firstStage != null || LastSeenEnemyPoint != null))
         {
             Dismiss();
             LastSeenEnemyPoint = null;
@@ -141,6 +200,7 @@ public class BotFlashedClass : BotComponentClassBase
     public override void Dispose()
     {
         Dismiss();
+        DismissGas();
         base.Dispose();
     }
 
@@ -153,4 +213,6 @@ public class BotFlashedClass : BotComponentClassBase
     private float _blindFireTime;
     private TemporaryStatModifiers _firstStage;
     private TemporaryStatModifiers _secondStage;
+    private TemporaryStatModifiers _gasModifiers;
+    private int _gasStep;
 }

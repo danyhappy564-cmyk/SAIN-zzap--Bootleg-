@@ -519,6 +519,33 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
         PlayerComponent.CharacterController.SetTargetMoveSpeed(speed);
     }
 
+    /// <summary>
+    /// Door-proximity slowdown (BotPathData.TickPath). Tracked here, per bot, rather than on the path:
+    /// the mover swaps between two preallocated paths, so a per-path flag could be left set on the
+    /// inactive one. Only per-tick actions (Rush, MoveToEngage, Search...) re-set their speed every
+    /// Update(); SeekCoverAction sets 1f once in Start() and AvoidGrenadeAction only in Stop(), so
+    /// without an explicit release a bot that walked past a door kept crawling at the door speed
+    /// until its action ended (2026-09-24 code review). 1f on release matches every start-only
+    /// caller; per-tick actions that want something lower overwrite it again next Update().
+    /// </summary>
+    public void ApplyDoorSlow(float speed)
+    {
+        _doorSlowActive = true;
+        SetTargetMoveSpeed(speed);
+    }
+
+    public void ReleaseDoorSlow()
+    {
+        if (!_doorSlowActive)
+        {
+            return;
+        }
+        _doorSlowActive = false;
+        SetTargetMoveSpeed(1f);
+    }
+
+    private bool _doorSlowActive;
+
     public void Stop()
     {
         BotOwner?.Mover?.Stop();

@@ -82,7 +82,17 @@ public class DoorOpener : BotComponentClassBase
     public void ForceRecheck()
     {
         _nextDoorUpdateTime = 0f;
+        _jammedUntil = Time.time + JAMMED_FALLBACK_WINDOW;
     }
+
+    /// <summary>
+    /// How long after a ForceRecheck (i.e. BotPathData.CheckStuck just confirmed the bot is
+    /// physically wedged against a door) RaycastToDoors may use its closest-door proximity fallback.
+    /// Outside this window the fallback stays off - see the comment on that fallback for why.
+    /// </summary>
+    private const float JAMMED_FALLBACK_WINDOW = 1f;
+
+    private float _jammedUntil;
 
     /// <summary>
     /// Releases an in-progress door interaction right now instead of waiting for the next
@@ -161,7 +171,8 @@ public class DoorOpener : BotComponentClassBase
         Ray ray = new() { origin = botPosition + Vector3.up, direction = moveData.CornerDirectionFromBotNormal * RAY_LENGTH };
 
         DoorDataStruct data = ActiveDoor;
-        if (!RaycastToDoors(out interactionType, ref data, out int index, RAY_LENGTH, ray, _interactionDoors))
+        bool allowProximityFallback = _jammedUntil > time;
+        if (!RaycastToDoors(out interactionType, ref data, out int index, RAY_LENGTH, ray, _interactionDoors, allowProximityFallback))
         {
             currentDoor = ActiveDoor;
             return false;
@@ -258,7 +269,8 @@ public class DoorOpener : BotComponentClassBase
         out int index,
         float RAY_LENGTH,
         Ray ray,
-        List<DoorDataStruct> doors
+        List<DoorDataStruct> doors,
+        bool allowProximityFallback
     )
     {
         // Widened from 0.15f: a bot sprinting/retreating under combat steering smoothing doesn't always
@@ -358,26 +370,38 @@ public class DoorOpener : BotComponentClassBase
         // DoorOpener.SearchForDoors), so if a bot is jammed against a door but not squarely facing it
         // (typical while sprinting/retreating), just grab the nearest one instead of leaving it wedged
         // until its facing happens to line up.
+        //
+        // 2026-09-24 code review: this used to run on EVERY path tick whenever the directional casts
+        // missed - which is the normal case when simply walking down a hallway or through an already-
+        // open doorway, not just when jammed. So any door within 3m in any direction got picked: bots
+        // opened side doors they were only walking past, and closed open doors (opened by a player or
+        // a squadmate, so not covered by RecentlySelfOpened) they were in the middle of walking
+        // through - a follower shutting the door its leader just opened, then having to reopen it.
+        // Now only allowed while CheckStuck has actually confirmed the bot is wedged against a door
+        // (ForceRecheck -> JAMMED_FALLBACK_WINDOW), and only ever opens a shut door: a jammed bot
+        // needs a closed door out of its way, never an open one shut in front of it.
         index = -1;
-        var closestSqr = float.MaxValue;
-        for (var i = 0; i < doors.Count; i++)
+        if (allowProximityFallback)
         {
-            var candidate = doors[i];
-            if (!CanInteract(candidate.Link)) continue;
-            if (candidate.Door.DoorState != EDoorState.Shut && candidate.Door.DoorState != EDoorState.Open) continue;
-            if (candidate.Door.DoorState == EDoorState.Open && RecentlySelfOpened(candidate)) continue;
-            if (candidate.CurrentSqrMagnitude >= closestSqr) continue;
-            closestSqr = candidate.CurrentSqrMagnitude;
-            index = i;
-        }
-        if (index >= 0)
-        {
-            data = doors[index];
+            var closestSqr = float.MaxValue;
+            for (var i = 0; i < doors.Count; i++)
+            {
+                var candidate = doors[i];
+                if (!CanInteract(candidate.Link)) continue;
+                if (candidate.Door.DoorState != EDoorState.Shut) continue;
+                if (candidate.CurrentSqrMagnitude >= closestSqr) continue;
+                closestSqr = candidate.CurrentSqrMagnitude;
+                index = i;
+            }
+            if (index >= 0)
+            {
+                data = doors[index];
 #if DEBUG
-            Logger.LogDebug($"[{data.Door.Id}] no directional door hit — using closest in-range door as fallback");
+                Logger.LogDebug($"[{data.Door.Id}] jammed with no directional door hit — opening closest in-range shut door as fallback");
 #endif
-            interactionType = data.Door.DoorState == EDoorState.Open ? EInteractionType.Close : EInteractionType.Open;
-            return true;
+                interactionType = EInteractionType.Open;
+                return true;
+            }
         }
 
         interactionType = EInteractionType.Open; // Default to open if no doors found
