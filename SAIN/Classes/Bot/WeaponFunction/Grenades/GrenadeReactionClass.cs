@@ -124,6 +124,15 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     private const float GAS_EXPOSURE_RADIUS = 4f;
 
     /// <summary>
+    /// Once a bot counts as in the gas, it only counts as out again past this distance. With a single
+    /// radius the 2026-09-25 field log showed bots hovering right at the edge flipping in/out every
+    /// few seconds ("exited: now 4.0m" / "entered: 4.0m" pairs), each exit dropping the Flashed layer
+    /// 3s later and restarting the ramp - seen in game as the gas state "snapping off" mid-fight.
+    /// Still well inside Manimal-CSGas's own 8m max cloud radius.
+    /// </summary>
+    private const float GAS_EXIT_RADIUS = 6f;
+
+    /// <summary>
     /// How long after being thrown a CS gas canister is still treated as actively affecting anyone
     /// standing in it. Matches the item's own EmitTime override (30) in Manimal-CSGas's
     /// ServerModFiles/db/CustomItems/cs_gas_grenade.json, not a guess - and, critically, not tied to
@@ -253,6 +262,8 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
         {
             return;
         }
+        // Hysteresis: a bot already in the gas only counts as out once past GAS_EXIT_RADIUS.
+        float radius = _wasInGas ? GAS_EXIT_RADIUS : GAS_EXPOSURE_RADIUS;
         GrenadeTrackerClass danger = null;
         foreach (var tracker in EnemyGrenadesList.Values)
         {
@@ -264,7 +275,7 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
                 // outranks AvoidThreat, that preempts the Scatter/Push dodge before it gets to run at
                 // all (2026-09-21 field report).
                 || tracker.TimeSinceThrown < GAS_DODGE_WINDOW
-                || (Bot.Position - tracker.DangerPoint).sqrMagnitude > GAS_EXPOSURE_RADIUS * GAS_EXPOSURE_RADIUS
+                || (Bot.Position - tracker.DangerPoint).sqrMagnitude > radius * radius
             )
             {
                 continue;
@@ -379,7 +390,7 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             }
             else
             {
-                reason = $"left radius - now [{(Bot.Position - _lastGasTracker.DangerPoint).magnitude:F1}m] from canister (radius {GAS_EXPOSURE_RADIUS:F0}m)";
+                reason = $"left radius - now [{(Bot.Position - _lastGasTracker.DangerPoint).magnitude:F1}m] from canister (exit radius {GAS_EXIT_RADIUS:F0}m)";
             }
             Logger.LogWarning(
                 $"[GasExposure] [{Bot.name}] exited gas: {reason}. Intensity [{_gasIntensity:F2}], still Flashed [{Bot.Flashed.IsFlashed}]."
