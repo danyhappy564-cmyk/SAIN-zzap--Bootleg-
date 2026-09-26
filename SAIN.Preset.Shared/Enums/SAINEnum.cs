@@ -20,6 +20,7 @@ public enum ECombatDecision
     MeleeAttack,
     FightZombies,
     DebugNoDecision,
+    DoorTactic,
 }
 
 public enum ESelfActionType

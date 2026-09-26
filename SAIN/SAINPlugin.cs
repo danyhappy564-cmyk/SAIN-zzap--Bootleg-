@@ -107,6 +107,7 @@ public class SAINPlugin : BaseUnityPlugin
             new KeyboardShortcut(KeyCode.F6),
             "The keyboard shortcut that toggles editor"
         );
+        DoorTacticConfig.Bind(Config);
     }
 
     public static ConfigEntry<bool> OpenEditorButton { get; private set; }

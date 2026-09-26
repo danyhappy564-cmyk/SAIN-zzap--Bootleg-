@@ -18,6 +18,7 @@ using SAIN.SAINComponent.Classes.Info;
 using SAIN.SAINComponent.Classes.Memory;
 using SAIN.SAINComponent.Classes.Mover;
 using SAIN.SAINComponent.Classes.Sense;
+using SAIN.SAINComponent.Classes.Tactics;
 using SAIN.SAINComponent.Classes.Talk;
 using SAIN.SAINComponent.Classes.WeaponFunction;
 using UnityEngine;
@@ -122,6 +123,7 @@ public class BotComponent : BotComponentBase, ISPlayer
     public SAINBotMedicalClass Medical { get; private set; }
     public SAINActivationClass BotActivation { get; private set; }
     public DoorOpener DoorOpener { get; private set; }
+    public DoorTacticClass DoorTactic { get; private set; }
     public ManualShootClass ManualShoot { get; private set; }
     public BotFlashedClass Flashed { get; private set; }
     public CurrentTargetClass CurrentTarget { get; private set; }
@@ -320,6 +322,7 @@ public class BotComponent : BotComponentBase, ISPlayer
             AimDownSightsController = new AimDownSightsController(this);
             SpaceAwareness = new SAINBotSpaceAwareness(this);
             DoorOpener = new DoorOpener(this);
+            DoorTactic = new DoorTacticClass(this);
             Medical = new SAINBotMedicalClass(this);
             BotLight = new BotLightController(this);
             BackpackDropper = new BotBackpackDropClass(this);

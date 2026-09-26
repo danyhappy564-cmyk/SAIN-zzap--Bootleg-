@@ -52,6 +52,29 @@ public class DoorOpener : BotComponentClassBase
         }
     }
 
+    /// <summary>
+    /// Doors in the bot's current nav voxel, refreshed by SearchForDoors on the ~0.5s path poll.
+    /// Read-only view for DoorTacticClass.
+    /// </summary>
+    public IReadOnlyList<DoorDataStruct> AllDoors
+    {
+        get { return _allDoors; }
+    }
+
+    /// <summary>
+    /// Closes a door for a door tactic. Deliberately does not touch Interacting, the interaction
+    /// list or the collision-ignore flag: nothing in the tactic's path ticks is guaranteed to clear
+    /// them again, and a stuck Interacting flag is exactly the door-jam bug fixed earlier (README 10-13).
+    /// </summary>
+    public bool TryCloseDoorForTactic(DoorDataStruct data)
+    {
+        if (data.Door == null || data.Door.DoorState != EDoorState.Open)
+        {
+            return false;
+        }
+        return InteractWithDoor(ref data, EInteractionType.Close);
+    }
+
     public bool TryInteractWithDoor(EInteractionType interactionType, float time, DoorDataStruct data)
     {
         if (!InteractWithDoor(ref data, interactionType))

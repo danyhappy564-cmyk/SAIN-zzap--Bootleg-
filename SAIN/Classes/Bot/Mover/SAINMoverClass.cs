@@ -546,6 +546,12 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
 
     private bool _doorSlowActive;
 
+    /// <summary>
+    /// Set by DoorTacticAction only while crossing an open doorway for a jump peek, so the
+    /// door-proximity sprint block/slowdown in BotPathData.TickPath doesn't smother the peek.
+    /// </summary>
+    public bool IgnoreDoorSlow { get; set; }
+
     public void Stop()
     {
         BotOwner?.Mover?.Stop();

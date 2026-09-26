@@ -119,7 +119,24 @@ public class EnemyDecisionClass : BotBase
 #endif
             if (shallRush)
             {
+                if (Bot.DoorTactic.Active)
+                {
+                    Bot.DoorTactic.End("rushInstead");
+                }
                 result = ECombatDecision.RushEnemy;
+                return true;
+            }
+
+            bool doorTactic = Bot.DoorTactic.ShallUse(enemy, out reason);
+#if DEBUG
+            if (SAINPlugin.DebugMode)
+            {
+                DecisionReasons.AppendLine($"4b. Door Tactic: [{doorTactic}, {reason}]");
+            }
+#endif
+            if (doorTactic)
+            {
+                result = ECombatDecision.DoorTactic;
                 return true;
             }
 

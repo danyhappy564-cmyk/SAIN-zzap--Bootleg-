@@ -93,7 +93,7 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
         // onto the door. Gating on raw proximity here (DoorsNearby, not "eligible to interact
         // right now") also covers the door this bot just opened, which sits on interaction
         // cooldown and would otherwise let sprint resume mid-swing the instant Clear() fires.
-        bool doorsNearby = Bot.DoorOpener.DoorsNearby;
+        bool doorsNearby = Bot.DoorOpener.DoorsNearby && !Bot.Mover.IgnoreDoorSlow;
         if (doorsNearby)
         {
             // SetSprint() below only ever touched the character controller's *physical* sprint
