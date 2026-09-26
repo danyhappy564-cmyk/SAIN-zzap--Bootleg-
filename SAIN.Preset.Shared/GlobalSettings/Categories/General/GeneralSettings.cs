@@ -43,6 +43,11 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
     public DoorSettings Doors = new();
 
     [DataMember]
+    [Name("Door Tactics (zzap)")]
+    [Description("Skilled-player door tactics added by the zzap fork: jump peek, fake grenade/heal, room trap, door grenade, silent ambush.")]
+    public DoorTacticSettings DoorTactics = new();
+
+    [DataMember]
     public ExtractSettings Extract = new();
 
     [DataMember]
@@ -71,6 +76,7 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
         list.Add(AILimit);
         list.Add(Cover);
         list.Add(Doors);
+        list.Add(DoorTactics);
         list.Add(Extract);
         list.Add(Flashlight);
         list.Add(LootingBots);

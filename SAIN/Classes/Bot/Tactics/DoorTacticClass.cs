@@ -5,7 +5,8 @@ using EFT.Interactive;
 using EFT.InventoryLogic;
 using SAIN.Components;
 using SAIN.Models.Enums;
-using SAIN.Plugin;
+using SAIN.Preset.Shared.GlobalSettings;
+using SAIN.Preset.Shared.GlobalSettings.Categories.General;
 using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.Models.Preset.Personalities;
 using SAIN.SAINComponent.Classes.EnemyClasses;
@@ -29,7 +30,7 @@ namespace SAIN.SAINComponent.Classes.Tactics;
 ///
 /// Any time the enemy becomes visible SAIN's normal decisions (StandAndShoot first) take over and
 /// the tactic ends. Every start, step change and result is logged as [DoorTactic] when
-/// DoorTacticConfig.DiagnosticLogs is on.
+/// the F6 setting General > Door Tactics (zzap) > Diagnostic Logs is on.
 /// </summary>
 public class DoorTacticClass : BotComponentClassBase
 {
@@ -69,7 +70,6 @@ public class DoorTacticClass : BotComponentClassBase
     private const float PEEK_DEPTH = 1.0f;
     private const float PEEK_LOOK_TIME = 0.15f;
     private const float EMERGENCY_WINDOW_AFTER_FAKE = 2.5f;
-    private const float EMERGENCY_ENEMY_DIST = 10f;
     private const float EMERGENCY_MIN_RETREAT_TIME = 1.5f;
     private const float CLOSE_DEPTH = 0.9f;
     private const float ARRIVE_DIST = 0.6f;
@@ -146,7 +146,7 @@ public class DoorTacticClass : BotComponentClassBase
 
     private bool TryStart(Enemy enemy, out string reason)
     {
-        if (DoorTacticConfig.Enabled == null || !DoorTacticConfig.Enabled.Value)
+        if (!Settings.Enabled)
         {
             reason = "disabled";
             return false;
@@ -191,7 +191,7 @@ public class DoorTacticClass : BotComponentClassBase
             return false;
         }
 
-        float chance = Mathf.Clamp01(baseChance * DoorTacticConfig.ChanceMultiplier.Value);
+        float chance = Mathf.Clamp01(baseChance * Settings.ChanceMultiplier);
         if (Random.value > chance)
         {
             _doorCooldowns[geo.Data.Id] = time + DOOR_COOLDOWN_AFTER_ROLL_FAIL;
@@ -440,15 +440,15 @@ public class DoorTacticClass : BotComponentClassBase
             case EPersonality.GigaChad:
             case EPersonality.Chad:
                 // Shut door: opened first from the stack point beside the frame, out of the room's line of sight.
-                bool peekAllowed = DoorTacticConfig.JumpPeek.Value && peekPointOk;
-                bool trapAllowed = personality == EPersonality.GigaChad && DoorTacticConfig.RoomTrap.Value;
+                bool peekAllowed = Settings.JumpPeek && peekPointOk;
+                bool trapAllowed = personality == EPersonality.GigaChad && Settings.RoomTrap;
                 if (peekAllowed && (!trapAllowed || Random.value < 0.55f))
                 {
                     s.Plan = EPlan.Peek;
                     s.FirstStep = EStep.MoveToStack;
                     s.NeedsOpenForPeek = !doorOpen;
                     float fakeChance = personality == EPersonality.GigaChad ? 0.4f : 0.2f;
-                    s.WantFakeNade = DoorTacticConfig.FakeGrenade.Value && haveNade && Random.value < fakeChance;
+                    s.WantFakeNade = Settings.FakeGrenade && haveNade && Random.value < fakeChance;
                     s.WantFakeHeal = !s.WantFakeNade && CanFakeHeal() && Random.value < fakeChance;
                     s.HoldTime = Random.Range(3f, 6f);
                     s.HoldPose = 0.8f;
@@ -459,7 +459,7 @@ public class DoorTacticClass : BotComponentClassBase
                     s.HoldTime = Random.Range(20f, 40f);
                     s.HoldPose = 0.7f;
                     s.WantFakeHeal = CanFakeHeal() && Random.value < 0.3f;
-                    if (DoorTacticConfig.DoorGrenade.Value && FindLongFuseGrenade() != null && Random.value < 0.5f && FindFarHold(geo, out s.FarHold))
+                    if (Settings.DoorGrenade && FindLongFuseGrenade() != null && Random.value < 0.5f && FindFarHold(geo, out s.FarHold))
                     {
                         s.HasFarHold = true;
                         s.WantDoorNade = true;
@@ -478,7 +478,7 @@ public class DoorTacticClass : BotComponentClassBase
                 break;
 
             case EPersonality.SnappingTurtle:
-                if (!DoorTacticConfig.RoomTrap.Value)
+                if (!Settings.RoomTrap)
                 {
                     reason = "roomTrapDisabled";
                     return null;
@@ -489,7 +489,7 @@ public class DoorTacticClass : BotComponentClassBase
                 break;
 
             case EPersonality.Rat:
-                if (!DoorTacticConfig.RoomTrap.Value)
+                if (!Settings.RoomTrap)
                 {
                     reason = "roomTrapDisabled";
                     return null;
@@ -880,7 +880,7 @@ public class DoorTacticClass : BotComponentClassBase
     /// </summary>
     private bool CanFakeHeal()
     {
-        if (DoorTacticConfig.FakeHeal == null || !DoorTacticConfig.FakeHeal.Value)
+        if (!Settings.FakeHeal)
         {
             return false;
         }
@@ -971,7 +971,7 @@ public class DoorTacticClass : BotComponentClassBase
         {
             return null;
         }
-        float minFuse = DoorTacticConfig.DoorGrenadeMinFuse.Value;
+        float minFuse = Settings.DoorGrenadeMinFuse;
         ThrowWeap best = null;
         foreach (var item in inventory.GetPlayerItems(EPlayerItems.Equipment))
         {
@@ -1001,7 +1001,7 @@ public class DoorTacticClass : BotComponentClassBase
         ThrowWeap longFuse = FindLongFuseGrenade();
         if (longFuse == null)
         {
-            Log($"{Who()} door grenade skipped: no frag with fuse >= {DoorTacticConfig.DoorGrenadeMinFuse.Value:0.0}s");
+            Log($"{Who()} door grenade skipped: no frag with fuse >= {Settings.DoorGrenadeMinFuse:0.0}s");
             return false;
         }
         grenades.SetThrowParams(longFuse);
@@ -1056,7 +1056,7 @@ public class DoorTacticClass : BotComponentClassBase
             return false;
         }
         Vector3? known = enemy.KnownPlaces.LastKnownPosition;
-        bool close = known != null && HorizontalDistance(known.Value, Bot.Position) < EMERGENCY_ENEMY_DIST;
+        bool close = known != null && HorizontalDistance(known.Value, Bot.Position) < Settings.EmergencyRetreatDistance;
         bool coming = enemy.IsVisible || enemy.TimeSinceLastKnownUpdated < 1.5f;
         if (!close || !coming)
         {
@@ -1155,7 +1155,15 @@ public class DoorTacticClass : BotComponentClassBase
         base.Dispose();
     }
 
-    // ---------------------------------------------------------------- logging
+    // ---------------------------------------------------------------- settings / logging
+
+    /// <summary>
+    /// F6 editor: Global Settings > General > Door Tactics (zzap). Read live so edits apply immediately.
+    /// </summary>
+    private static DoorTacticSettings Settings
+    {
+        get { return GlobalSettingsClass.Instance.General.DoorTactics; }
+    }
 
     private string Who()
     {
@@ -1164,7 +1172,7 @@ public class DoorTacticClass : BotComponentClassBase
 
     private static void Log(string message)
     {
-        if (DoorTacticConfig.DiagnosticLogs != null && DoorTacticConfig.DiagnosticLogs.Value)
+        if (Settings.DiagnosticLogs)
         {
             Logger.LogWarning(message);
         }
@@ -1172,7 +1180,7 @@ public class DoorTacticClass : BotComponentClassBase
 
     private void LogVerbose(string reason)
     {
-        if (DoorTacticConfig.VerboseLogs == null || !DoorTacticConfig.VerboseLogs.Value)
+        if (!Settings.VerboseLogs)
         {
             return;
         }
