@@ -48,6 +48,11 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
     public DoorTacticSettings DoorTactics = new();
 
     [DataMember]
+    [Name("Freeze Ambush (zzap)")]
+    [Description("When a Freeze personality hears an enemy close by before any fight, it holds still and ambushes. These limits were hardcoded before.")]
+    public FreezeAmbushSettings FreezeAmbush = new();
+
+    [DataMember]
     public ExtractSettings Extract = new();
 
     [DataMember]
@@ -77,6 +82,7 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
         list.Add(Cover);
         list.Add(Doors);
         list.Add(DoorTactics);
+        list.Add(FreezeAmbush);
         list.Add(Extract);
         list.Add(Flashlight);
         list.Add(LootingBots);

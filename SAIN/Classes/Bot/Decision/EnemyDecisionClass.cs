@@ -17,9 +17,6 @@ public class EnemyDecisionClass : BotBase
     private static readonly float RushEnemyMaxPathDistance = 10f;
     private static readonly float RushEnemyMaxPathDistanceSprint = 20f;
     private static readonly float RushEnemyLowAmmoRatio = 0.5f;
-    private const float FREEZE_MAX_DISTANCE = 70;
-    private const float FREEZE_MIN_TIMESINCESEEN = 240f;
-    private const float FREEZE_MAX_TIMESINCEHEARD = 80f;
     private const float MOVE_TO_ENGAGE_MAX_TIME_SINCE_KNOWN = 60f;
 
     public SearchReasonsStruct DebugSearchReasons { get; private set; }
@@ -249,6 +246,8 @@ public class EnemyDecisionClass : BotBase
 
     private bool shallFreezeAndWait(Enemy enemy, out string reason)
     {
+        // zzap: limits come from F6 General > Freeze Ambush (zzap); SAIN had them hardcoded (70m, indoors only, 240s, 80s, 10-120s).
+        var freeze = GlobalSettings.General.FreezeAmbush;
         if (Bot.Info.PersonalitySettings.Search.HeardFromPeaceBehavior != EHeardFromPeaceBehavior.Freeze)
         {
             reason = "wontFreeze";
@@ -259,22 +258,22 @@ public class EnemyDecisionClass : BotBase
             reason = "notHeardFromPeace";
             return false;
         }
-        if (!Bot.Memory.Location.IsIndoors)
+        if (!freeze.AllowOutdoors && !Bot.Memory.Location.IsIndoors)
         {
             reason = "outside";
             return false;
         }
-        if (enemy.Seen && enemy.TimeSinceSeen < FREEZE_MIN_TIMESINCESEEN)
+        if (enemy.Seen && enemy.TimeSinceSeen < freeze.MinTimeSinceSeen)
         {
             reason = "seenRecent";
             return false;
         }
-        if (enemy.TimeSinceLastKnownUpdated > FREEZE_MAX_TIMESINCEHEARD)
+        if (enemy.TimeSinceLastKnownUpdated > freeze.MaxTimeSinceHeard)
         {
             reason = "haventHeard";
             return false;
         }
-        if (enemy.KnownPlaces.BotDistanceFromLastKnown > FREEZE_MAX_DISTANCE)
+        if (enemy.KnownPlaces.BotDistanceFromLastKnown > freeze.MaxDistance)
         {
             reason = "tooFar";
             return false;
@@ -282,13 +281,27 @@ public class EnemyDecisionClass : BotBase
 
         if (Bot.Decision.CurrentCombatDecision != ECombatDecision.Freeze)
         {
-            float timeToFreeze = UnityEngine.Random.Range(10f, 120f) / Bot.Info.AggressionMultiplier;
+            float min = freeze.MinDuration;
+            float max = Mathf.Max(freeze.MaxDuration, min);
+            float timeToFreeze = UnityEngine.Random.Range(min, max) / Bot.Info.AggressionMultiplier;
             FrozenDuration = timeToFreeze;
             TimeToUnfreeze = Time.time + timeToFreeze;
+            if (freeze.DiagnosticLogs)
+            {
+                Logger.LogWarning(
+                    $"[Freeze] [{Bot.name}] [{Bot.Info.Personality}] START ambush {timeToFreeze:0}s "
+                        + $"enemyDist={enemy.KnownPlaces.BotDistanceFromLastKnown:0}m indoors={Bot.Memory.Location.IsIndoors} "
+                        + $"heard={enemy.TimeSinceLastKnownUpdated:0.0}s ago corner={(enemy.VisiblePathPoint != null ? "yes" : "no")}"
+                );
+            }
         }
 
         if (TimeToUnfreeze < Time.time)
         {
+            if (freeze.DiagnosticLogs && Bot.Decision.CurrentCombatDecision == ECombatDecision.Freeze)
+            {
+                Logger.LogWarning($"[Freeze] [{Bot.name}] [{Bot.Info.Personality}] END ambush: time up after {FrozenDuration:0}s");
+            }
             reason = "frozenTooLong";
             return false;
         }

@@ -31,6 +31,14 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다 — 성�
 (2026-09-19 규칙 추가 이전 항목은 소급 기입하지 않습니다 — 그 이전 내용은
 아래 "고친 것" 절의 번호별 섹션 참고.)
 
+- 2026-09-27 08:53 — F6 설정 확장 2가지.
+  1. **성격별 확률을 F6에서 조절**: GigaChad/Chad/SnappingTurtle/Rat 시작 확률, GigaChad 피킹 vs 가두기 비율,
+     페이크 속임수 확률(GigaChad/Chad), 가두기 중 페이크 치료 확률, 문 앞 수류탄 확률. (General → Door Tactics (zzap))
+  2. **존버 매복(SAIN Freeze) 조건을 F6에서 조절 + 코너 겨누기**: SAIN 원작에서 코드에 박혀 있던 조건
+     (적 70m 이내, 실내만, 240초 동안 못 봤음, 80초 안에 들음, 10~120초 대기)을 General → **Freeze Ambush (zzap)**
+     으로 뺐습니다. 기본값은 원작과 같되 **거리만 70m → 45m**("적이 정말 근처라고 판단할 때만" 매복). 그리고 매복
+     중 원작처럼 아무 데나 보는 대신 **적이 돌아 나올 코너(적까지 가는 길에서 마지막으로 보이는 지점)를 겨누도록**
+     바꿨습니다(끌 수 있음). 매복 시작/종료는 `[Freeze]` 로그로 남습니다.
 - 2026-09-27 08:47 — 문 전술 설정을 **F12(BepInEx)에서 F6(SAIN 에디터)으로 옮김**: Global Settings → General →
   `Door Tactics (zzap)`. 긴급 후퇴 거리(기본 10m)도 여기서 조절 가능하게 추가. SAIN 프리셋 값이라 프리셋마다 따로 저장됨.
 - 2026-09-27 08:44 — 문 전술 3가지를 실제 플레이 방식에 맞게 수정(사용자 피드백, 코드 커밋 `dda6ab6`).
@@ -641,6 +649,26 @@ SAIN 프리셋 값이라 **프리셋마다 따로 저장**되고, 이 기능이 
   어떤 수류탄(신관 몇 초)을 골랐는지 확인할 수 있습니다.
 - `close door …: interact=FAILED`, `door grenade …: no valid arc`, `WARNING could not put the fake grenade away`
   는 문제 신호입니다. 이 줄이 보이면 로그를 주세요.
+
+**성격별 확률 (같은 화면, 퍼센트):** GigaChad Chance 60, Chad Chance 35, SnappingTurtle Chance 60, Rat Chance 50,
+GigaChad Peek vs Trap 55(둘 다 가능할 때 피킹을 고를 확률), GigaChad/Chad Fake Trick Chance 40/20, GigaChad Trap Fake Heal
+Chance 30, GigaChad Door Grenade Chance 50. 최종 확률 = 성격 확률 × Chance Multiplier.
+
+**존버 매복 (F6 → Global Settings → General → `Freeze Ambush (zzap)`):** SAIN의 "Freeze"는 Heard From Peace Behavior가
+Freeze인 성격(이 포크 프리셋 기준 Rat, SnappingTurtle, Chad, GigaChad)이 **교전 전에 가까운 적 소리를 들으면 그 자리에서
+엄폐 자세로 멈춰 기다리는** 동작입니다. 조건과 원작 값:
+
+| 설정 | 기본값 | SAIN 원작 |
+|---|---|---|
+| Max Enemy Distance (적이 이 거리 안일 때만) | 45m | 70m |
+| Freeze Outdoors (야외에서도 매복) | 꺼짐 | 꺼짐(실내만) |
+| Min / Max Freeze Time (대기 시간, ÷ 성격 공격성) | 10 / 120초 | 10 / 120초 |
+| Not Seen For (이 시간 동안 적을 못 봤을 때만) | 240초 | 240초 |
+| Heard Within (이 시간 안에 소리를 들었을 때만) | 80초 | 80초 |
+| Watch Approach Corner (적이 돌아 나올 코너 겨누기) | 켜짐 | 없음 |
+
+야외 매복을 켜면 봇이 서 있던 자리에서 그대로 멈추기 때문에 트인 곳에서 멈출 수 있습니다.
+로그: `[Freeze] … START ambush 45s enemyDist=23m indoors=True heard=2.1s ago corner=yes` / `END ambush: time up`.
 
 **못 한 것 / 한계:**
 - **복도 T자 교차로에서 뛰어서 옆을 보고 수류탄** 은 이번에 넣지 않았습니다(문이 있는 경우만). SAIN 원래 기능으로

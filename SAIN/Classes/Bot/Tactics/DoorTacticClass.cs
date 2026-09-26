@@ -226,13 +226,13 @@ public class DoorTacticClass : BotComponentClassBase
         switch (personality)
         {
             case EPersonality.GigaChad:
-                return 0.6f;
+                return Settings.GigaChadChance / 100f;
             case EPersonality.Chad:
-                return 0.35f;
+                return Settings.ChadChance / 100f;
             case EPersonality.SnappingTurtle:
-                return 0.6f;
+                return Settings.SnappingTurtleChance / 100f;
             case EPersonality.Rat:
-                return 0.5f;
+                return Settings.RatChance / 100f;
             default:
                 return 0f;
         }
@@ -442,12 +442,12 @@ public class DoorTacticClass : BotComponentClassBase
                 // Shut door: opened first from the stack point beside the frame, out of the room's line of sight.
                 bool peekAllowed = Settings.JumpPeek && peekPointOk;
                 bool trapAllowed = personality == EPersonality.GigaChad && Settings.RoomTrap;
-                if (peekAllowed && (!trapAllowed || Random.value < 0.55f))
+                if (peekAllowed && (!trapAllowed || Random.value < Settings.GigaChadPeekChance / 100f))
                 {
                     s.Plan = EPlan.Peek;
                     s.FirstStep = EStep.MoveToStack;
                     s.NeedsOpenForPeek = !doorOpen;
-                    float fakeChance = personality == EPersonality.GigaChad ? 0.4f : 0.2f;
+                    float fakeChance = (personality == EPersonality.GigaChad ? Settings.GigaChadFakeTrickChance : Settings.ChadFakeTrickChance) / 100f;
                     s.WantFakeNade = Settings.FakeGrenade && haveNade && Random.value < fakeChance;
                     s.WantFakeHeal = !s.WantFakeNade && CanFakeHeal() && Random.value < fakeChance;
                     s.HoldTime = Random.Range(3f, 6f);
@@ -458,8 +458,8 @@ public class DoorTacticClass : BotComponentClassBase
                     BuildTrap(s, geo, doorOpen, canTaunt);
                     s.HoldTime = Random.Range(20f, 40f);
                     s.HoldPose = 0.7f;
-                    s.WantFakeHeal = CanFakeHeal() && Random.value < 0.3f;
-                    if (Settings.DoorGrenade && FindLongFuseGrenade() != null && Random.value < 0.5f && FindFarHold(geo, out s.FarHold))
+                    s.WantFakeHeal = CanFakeHeal() && Random.value < Settings.GigaChadTrapFakeHealChance / 100f;
+                    if (Settings.DoorGrenade && FindLongFuseGrenade() != null && Random.value < Settings.DoorGrenadeChance / 100f && FindFarHold(geo, out s.FarHold))
                     {
                         s.HasFarHold = true;
                         s.WantDoorNade = true;

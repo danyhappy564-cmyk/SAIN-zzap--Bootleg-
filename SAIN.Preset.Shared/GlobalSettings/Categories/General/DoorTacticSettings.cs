@@ -53,6 +53,60 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float EmergencyRetreatDistance = 10f;
 
     [DataMember]
+    [Name("GigaChad Chance")]
+    [Description("Percent. Chance a GigaChad (skilled player) uses a door tactic when one is possible.")]
+    [MinMax(0f, 100f, 1f)]
+    public float GigaChadChance = 60f;
+
+    [DataMember]
+    [Name("Chad Chance")]
+    [Description("Percent. Chance a Chad (aggressive) uses a jump peek when one is possible.")]
+    [MinMax(0f, 100f, 1f)]
+    public float ChadChance = 35f;
+
+    [DataMember]
+    [Name("SnappingTurtle Chance")]
+    [Description("Percent. Chance a SnappingTurtle (camper) traps the room: closes the door and holds it.")]
+    [MinMax(0f, 100f, 1f)]
+    public float SnappingTurtleChance = 60f;
+
+    [DataMember]
+    [Name("Rat Chance")]
+    [Description("Percent. Chance a Rat waits silently beside the door for the enemy to come out.")]
+    [MinMax(0f, 100f, 1f)]
+    public float RatChance = 50f;
+
+    [DataMember]
+    [Name("GigaChad Peek vs Trap")]
+    [Description("Percent. When a GigaChad could either jump peek or trap the room, chance it picks the jump peek.")]
+    [MinMax(0f, 100f, 1f)]
+    public float GigaChadPeekChance = 55f;
+
+    [DataMember]
+    [Name("GigaChad Fake Trick Chance")]
+    [Description("Percent. After a GigaChad jump peek: chance of a fake grenade (or a fake heal if hurt and no grenade trick).")]
+    [MinMax(0f, 100f, 1f)]
+    public float GigaChadFakeTrickChance = 40f;
+
+    [DataMember]
+    [Name("Chad Fake Trick Chance")]
+    [Description("Percent. After a Chad jump peek: chance of a fake grenade (or a fake heal if hurt and no grenade trick).")]
+    [MinMax(0f, 100f, 1f)]
+    public float ChadFakeTrickChance = 20f;
+
+    [DataMember]
+    [Name("GigaChad Trap Fake Heal Chance")]
+    [Description("Percent. While a GigaChad holds a trapped room, chance of a fake heal (only when actually hurt).")]
+    [MinMax(0f, 100f, 1f)]
+    public float GigaChadTrapFakeHealChance = 30f;
+
+    [DataMember]
+    [Name("GigaChad Door Grenade Chance")]
+    [Description("Percent. After a GigaChad traps a room, chance it backs off and throws a long fuse grenade at the door.")]
+    [MinMax(0f, 100f, 1f)]
+    public float DoorGrenadeChance = 50f;
+
+    [DataMember]
     [Name("Chance Multiplier")]
     [Description("Multiplies every personality's chance to start a door tactic. Raise it to see tactics more often while testing.")]
     [MinMax(0f, 3f, 10f)]
