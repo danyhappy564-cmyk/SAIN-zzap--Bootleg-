@@ -7,6 +7,7 @@ using SAIN.Preset.Shared.GlobalSettings.Categories.General;
 using SAIN.Preset.Shared.Models.Enums;
 using SAIN.SAINComponent.Classes.EnemyClasses;
 using SAIN.SAINComponent.Classes.Search;
+using SAIN.SAINComponent.Classes.Tactics;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -286,6 +287,7 @@ public class EnemyDecisionClass : BotBase
             float timeToFreeze = UnityEngine.Random.Range(min, max) / Bot.Info.AggressionMultiplier;
             FrozenDuration = timeToFreeze;
             TimeToUnfreeze = Time.time + timeToFreeze;
+            TacticDiagnostics.Count($"freeze.start.{Bot.Info.Personality}.{(Bot.Memory.Location.IsIndoors ? "indoors" : "outdoors")}");
             if (freeze.DiagnosticLogs)
             {
                 Logger.LogWarning(
@@ -298,10 +300,6 @@ public class EnemyDecisionClass : BotBase
 
         if (TimeToUnfreeze < Time.time)
         {
-            if (freeze.DiagnosticLogs && Bot.Decision.CurrentCombatDecision == ECombatDecision.Freeze)
-            {
-                Logger.LogWarning($"[Freeze] [{Bot.name}] [{Bot.Info.Personality}] END ambush: time up after {FrozenDuration:0}s");
-            }
             reason = "frozenTooLong";
             return false;
         }

@@ -31,6 +31,11 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다 — 성�
 (2026-09-19 규칙 추가 이전 항목은 소급 기입하지 않습니다 — 그 이전 내용은
 아래 "고친 것" 절의 번호별 섹션 참고.)
 
+- 2026-09-27 08:55 — **동작 확인용 진단 로그 보강.** ① 레이드 시작 때 실제로 적용된 F6 설정값 전체를 `[Tactics] SETTINGS`로 출력
+  (F6에서 바꾼 값이 먹었는지 확인용), ② 5분마다(그리고 다음 레이드 시작 때 이전 레이드 최종) 문 전술·매복이 몇 번 시작되고
+  어떻게 끝났는지 집계한 `[Tactics] SUMMARY`, ③ 존버 매복이 **어떻게 끝났는지**(적 발견/시간 끝/다른 판단) `[Freeze] END`와
+  **코너를 실제로 겨눴는지** `[Freeze] watching approach corner …`, ④ 긴급 후퇴 종료 로그, ⑤ SAIN 디버그 오버레이에
+  문 전술 계획/단계 표시. 확인 방법은 아래 14번 "로그로 확인하는 법".
 - 2026-09-27 08:53 — F6 설정 확장 2가지.
   1. **성격별 확률을 F6에서 조절**: GigaChad/Chad/SnappingTurtle/Rat 시작 확률, GigaChad 피킹 vs 가두기 비율,
      페이크 속임수 확률(GigaChad/Chad), 가두기 중 페이크 치료 확률, 문 앞 수류탄 확률. (General → Door Tactics (zzap))
@@ -669,6 +674,25 @@ Freeze인 성격(이 포크 프리셋 기준 Rat, SnappingTurtle, Chad, GigaChad
 
 야외 매복을 켜면 봇이 서 있던 자리에서 그대로 멈추기 때문에 트인 곳에서 멈출 수 있습니다.
 로그: `[Freeze] … START ambush 45s enemyDist=23m indoors=True heard=2.1s ago corner=yes` / `END ambush: time up`.
+
+**로그로 확인하는 법 (체크리스트)** — `BepInEx/LogOutput.log`에서 검색:
+1. `[Tactics] SETTINGS` — 레이드마다 2줄. F6에서 바꾼 값(확률, 거리 등)이 여기 그대로 찍혀 있으면 설정이 적용된 것. 이 줄이
+   아예 없으면 새 DLL이 안 깔렸거나 두 Diagnostic Logs가 모두 꺼져 있는 것.
+2. `[Tactics] SUMMARY` — 5분마다, 그리고 다음 레이드 시작 때 이전 레이드 최종 집계. 항목 뜻:
+   - `door.start.<성격>.<Peek|Trap|Ambush>` 문 전술 시작 수 / `door.rollFailed.<성격>` 확률에서 떨어진 수
+   - `door.end.<계획>.<결과>` 끝난 방식 (`enemySpotted` 적 발견, `holdTimeout` 끝까지 대기, `noPath`/`moveTimeout` 이동 실패,
+     `emergencyRetreat` 긴급 후퇴, `doorDidNotOpen` 문 못 엶, `interrupted` 다른 판단)
+   - `door.jumpOut` / `door.jumpBack` 앞버니·뒷버니 실제 점프 수 (0이면 점프가 안 되는 것)
+   - `door.closeOk` / `door.closeFailed`, `door.stateAfterClose.<상태>` (Shut이어야 정상)
+   - `door.nadeThrown` / `door.nadeNoArc`, `fakeNade.drawn` / `fakeNade.putAway` / `fakeNade.putAwayRefused`,
+     `fakeHeal.started` / `fakeHeal.failedToStart`, `emergencyRetreat.start`
+   - `freeze.start.<성격>.<indoors|outdoors>`, `freeze.end.<enemySpotted|timeUp|interrupted>`,
+     `freeze.cornerWatch`(코너 겨눔) / `freeze.defaultLook`(코너 못 찾음)
+3. 개별 사건: `[DoorTactic]`(문 전술 한 건씩), `[Freeze]`(매복 한 건씩: START → watching corner → END).
+4. SAIN 디버그 모드 오버레이: 문 전술 중인 봇에 `Door Tactic: plan=… step=… look=…` 표시.
+
+**문제 신호:** `closeFailed`, `stateAfterClose`가 Shut이 아님, `nadeNoArc`만 있고 `nadeThrown`이 없음, `putAwayRefused`,
+`jumpOut=0`인데 `door.start.*.Peek`는 있음, `door.end.*.noPath`/`moveTimeout`가 많음. 이런 게 보이면 로그를 주세요.
 
 **못 한 것 / 한계:**
 - **복도 T자 교차로에서 뛰어서 옆을 보고 수류탄** 은 이번에 넣지 않았습니다(문이 있는 경우만). SAIN 원래 기능으로

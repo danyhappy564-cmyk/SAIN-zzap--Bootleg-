@@ -85,6 +85,7 @@ public class DoorTacticClass : BotComponentClassBase
         : base(bot)
     {
         CanEverTick = false;
+        TacticDiagnostics.OnBotCreated();
     }
 
     public bool Active
@@ -197,6 +198,7 @@ public class DoorTacticClass : BotComponentClassBase
             _doorCooldowns[geo.Data.Id] = time + DOOR_COOLDOWN_AFTER_ROLL_FAIL;
             _nextAllowedTime = time + GLOBAL_COOLDOWN;
             reason = $"rollFailed({chance:0.00})";
+            TacticDiagnostics.Count($"door.rollFailed.{personality}");
             Log($"{Who()} skipped door {geo.Data.Id}: chance roll failed ({chance:0.00}), door cooldown {DOOR_COOLDOWN_AFTER_ROLL_FAIL}s");
             return false;
         }
@@ -207,10 +209,12 @@ public class DoorTacticClass : BotComponentClassBase
             _doorCooldowns[geo.Data.Id] = time + DOOR_COOLDOWN_AFTER_ROLL_FAIL;
             _nextAllowedTime = time + GLOBAL_COOLDOWN;
             Log($"{Who()} could not plan at door {geo.Data.Id}: {reason}");
+            TacticDiagnostics.Count($"door.planFailed.{reason}");
             return false;
         }
 
         _session = session;
+        TacticDiagnostics.Count($"door.start.{personality}.{session.Plan}");
         Log(
             $"{Who()} START plan={session.Plan} door={geo.Data.Id} doorState={geo.Data.Door.DoorState} "
                 + $"botDist={geo.BotDistance:0.0}m enemyDepth={geo.EnemyDepth:0.0}m sinceKnown={enemy.TimeSinceLastKnownUpdated:0.0}s "
@@ -617,6 +621,7 @@ public class DoorTacticClass : BotComponentClassBase
                     s.Jumped = Bot.Mover.TryJump();
                     if (s.Jumped)
                     {
+                        TacticDiagnostics.Count("door.jumpOut");
                         Log($"{Who()} jump peek OUT at door {s.Door.Id}");
                     }
                 }
@@ -639,6 +644,7 @@ public class DoorTacticClass : BotComponentClassBase
                     s.JumpedBack = Bot.Mover.TryJump();
                     if (s.JumpedBack)
                     {
+                        TacticDiagnostics.Count("door.jumpBack");
                         Log($"{Who()} jump peek BACK at door {s.Door.Id}");
                     }
                 }
@@ -719,11 +725,13 @@ public class DoorTacticClass : BotComponentClassBase
                     Bot.Mover.Stop();
                     bool ok = Bot.DoorOpener.TryCloseDoorForTactic(s.Door);
                     Log($"{Who()} close door {s.Door.Id}: interact={(ok ? "ok" : "FAILED")}");
+                    TacticDiagnostics.Count(ok ? "door.closeOk" : "door.closeFailed");
                     break;
                 }
                 if (stepTime > 1.2f)
                 {
                     Log($"{Who()} door {s.Door.Id} state after close attempt: {s.Door.Door?.DoorState}");
+                    TacticDiagnostics.Count($"door.stateAfterClose.{s.Door.Door?.DoorState}");
                     if (s.WantTaunt)
                     {
                         bool said = Bot.Talk.Say(EPhraseTrigger.OnFight, ETagStatus.Combat, false)
@@ -757,6 +765,7 @@ public class DoorTacticClass : BotComponentClassBase
                     s.NadeThrown = true;
                     bool thrown = TryThrowAtDoor(s);
                     Log($"{Who()} door grenade at door {s.Door.Id}: {(thrown ? "THROWN" : "no valid arc")}");
+                    TacticDiagnostics.Count(thrown ? "door.nadeThrown" : "door.nadeNoArc");
                     if (!thrown)
                     {
                         SetStep(EStep.Hold, "nadeNoArc");
@@ -777,6 +786,7 @@ public class DoorTacticClass : BotComponentClassBase
                 if (now != s.DoorStateAtHoldStart)
                 {
                     Log($"{Who()} door {s.Door.Id} changed {s.DoorStateAtHoldStart} -> {now} while holding");
+                    TacticDiagnostics.Count($"door.changedWhileHolding.{now}");
                     s.DoorStateAtHoldStart = now;
                 }
                 if (stepTime > s.HoldTime)
@@ -842,6 +852,7 @@ public class DoorTacticClass : BotComponentClassBase
         Callback<IGrenadeController> callback = result =>
         {
             Log($"{Who()} fake grenade drawn: {(result.Value != null ? "in hands" : "FAILED")}");
+            TacticDiagnostics.Count(result.Value != null ? "fakeNade.drawn" : "fakeNade.drawFailed");
         };
         Player.SetInHands(nade, callback);
         _emergencyWindowUntil = Time.time + 1.3f + EMERGENCY_WINDOW_AFTER_FAKE;
@@ -868,6 +879,7 @@ public class DoorTacticClass : BotComponentClassBase
             _nextHolsterAttempt = Time.time + 0.5f;
             bool ok = weaponManager.Selector.TakePrevWeapon();
             Log($"{Who()} fake grenade put away: TakePrevWeapon={ok}");
+            TacticDiagnostics.Count(ok ? "fakeNade.putAway" : "fakeNade.putAwayRefused");
         }
         return false;
     }
@@ -905,6 +917,7 @@ public class DoorTacticClass : BotComponentClassBase
             _emergencyWindowUntil = Time.time + 1.5f + EMERGENCY_WINDOW_AFTER_FAKE;
         }
         Log($"{Who()} fake heal start: {(_fakeHealRunning ? "healing (will cancel)" : "FAILED to start")}");
+        TacticDiagnostics.Count(_fakeHealRunning ? "fakeHeal.started" : "fakeHeal.failedToStart");
         return _fakeHealRunning;
     }
 
@@ -1049,6 +1062,7 @@ public class DoorTacticClass : BotComponentClassBase
                 return true;
             }
             _retreatUntil = 0f;
+            Log($"{Who()} emergency retreat over: gun ready={WeaponReady()}, back to normal SAIN decisions");
         }
         if (_emergencyWindowUntil < time || enemy == null || WeaponReady())
         {
@@ -1069,6 +1083,7 @@ public class DoorTacticClass : BotComponentClassBase
             $"{Who()} EMERGENCY RETREAT: enemy {(enemy.IsVisible ? "visible" : "heard")} at "
                 + $"{HorizontalDistance(known.Value, Bot.Position):0.0}m while gun not ready (hands={Player.HandsController?.GetType().Name})"
         );
+        TacticDiagnostics.Count("emergencyRetreat.start");
         CancelFakeHeal("emergencyRetreat");
         ForceRestoreWeapon();
         End("emergencyRetreat");
@@ -1137,6 +1152,8 @@ public class DoorTacticClass : BotComponentClassBase
         _session = null;
         Bot.Mover.IgnoreDoorSlow = false;
         CancelFakeHeal("sessionEnd");
+        string resultKey = result.Contains("(") ? result.Substring(0, result.IndexOf('(')) : result.Split(':')[0];
+        TacticDiagnostics.Count($"door.end.{s.Plan}.{resultKey}");
         float time = Time.time;
         _doorCooldowns[s.Door.Id] = time + DOOR_COOLDOWN_AFTER_SESSION;
         _nextAllowedTime = time + GLOBAL_COOLDOWN;

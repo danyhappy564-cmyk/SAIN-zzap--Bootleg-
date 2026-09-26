@@ -1,0 +1,126 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using Comfort.Common;
+using EFT;
+using SAIN.Preset.Shared.GlobalSettings;
+using UnityEngine;
+
+namespace SAIN.SAINComponent.Classes.Tactics;
+
+/// <summary>
+/// Raid-level diagnostics for the zzap door tactics and freeze ambush, so a single LogOutput.log shows
+/// (1) which F6 values were actually loaded, (2) how often each thing started and how it ended.
+///   [Tactics] SETTINGS ...   once per raid, when the first SAIN bot of that raid is created
+///   [Tactics] SUMMARY ...    every 5 minutes of raid time while something happened
+/// Counters are only written when either Diagnostic Logs toggle is on.
+/// </summary>
+internal static class TacticDiagnostics
+{
+    private const float SUMMARY_INTERVAL = 300f;
+
+    private static readonly Dictionary<string, int> _counts = new();
+    private static GameWorld _raid;
+    private static float _raidStartTime;
+    private static float _nextSummaryTime;
+    private static bool _changedSinceSummary;
+
+    private static bool Enabled
+    {
+        get
+        {
+            var general = GlobalSettingsClass.Instance?.General;
+            return general != null && (general.DoorTactics.DiagnosticLogs || general.FreezeAmbush.DiagnosticLogs);
+        }
+    }
+
+    /// <summary>
+    /// Called when a bot's DoorTacticClass is created. The first call in a new raid logs the settings snapshot.
+    /// </summary>
+    public static void OnBotCreated()
+    {
+        CheckNewRaid();
+    }
+
+    public static void Count(string key)
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+        CheckNewRaid();
+        _counts.TryGetValue(key, out int value);
+        _counts[key] = value + 1;
+        _changedSinceSummary = true;
+        TrySummary();
+    }
+
+    private static void CheckNewRaid()
+    {
+        GameWorld world = Singleton<GameWorld>.Instance;
+        if (world == null || ReferenceEquals(world, _raid))
+        {
+            return;
+        }
+        if (_raid != null && _changedSinceSummary)
+        {
+            LogSummary("previous raid, final");
+        }
+        _raid = world;
+        _counts.Clear();
+        _raidStartTime = Time.time;
+        _nextSummaryTime = Time.time + SUMMARY_INTERVAL;
+        _changedSinceSummary = false;
+        if (Enabled)
+        {
+            LogSettings();
+        }
+    }
+
+    private static void TrySummary()
+    {
+        if (Time.time < _nextSummaryTime)
+        {
+            return;
+        }
+        _nextSummaryTime = Time.time + SUMMARY_INTERVAL;
+        if (_changedSinceSummary)
+        {
+            LogSummary($"raid time {(Time.time - _raidStartTime) / 60f:0} min");
+            _changedSinceSummary = false;
+        }
+    }
+
+    private static void LogSummary(string when)
+    {
+        var sb = new StringBuilder($"[Tactics] SUMMARY ({when}): ");
+        if (_counts.Count == 0)
+        {
+            sb.Append("nothing happened");
+        }
+        else
+        {
+            sb.Append(string.Join(", ", _counts.OrderBy(x => x.Key).Select(x => $"{x.Key}={x.Value}")));
+        }
+        Logger.LogWarning(sb.ToString());
+    }
+
+    private static void LogSettings()
+    {
+        var general = GlobalSettingsClass.Instance.General;
+        var d = general.DoorTactics;
+        var f = general.FreezeAmbush;
+        Logger.LogWarning(
+            $"[Tactics] SETTINGS DoorTactics: enabled={d.Enabled} jumpPeek={d.JumpPeek} fakeNade={d.FakeGrenade} fakeHeal={d.FakeHeal} "
+                + $"roomTrap={d.RoomTrap} doorNade={d.DoorGrenade} minFuse={d.DoorGrenadeMinFuse:0.0}s retreatDist={d.EmergencyRetreatDistance:0}m "
+                + $"chance%: giga={d.GigaChadChance:0} chad={d.ChadChance:0} turtle={d.SnappingTurtleChance:0} rat={d.RatChance:0} "
+                + $"peekVsTrap={d.GigaChadPeekChance:0} trickGiga={d.GigaChadFakeTrickChance:0} trickChad={d.ChadFakeTrickChance:0} "
+                + $"trapHeal={d.GigaChadTrapFakeHealChance:0} doorNadeChance={d.DoorGrenadeChance:0} x{d.ChanceMultiplier:0.0} "
+                + $"logs={d.DiagnosticLogs}/{d.VerboseLogs}"
+        );
+        Logger.LogWarning(
+            $"[Tactics] SETTINGS FreezeAmbush: maxDist={f.MaxDistance:0}m outdoors={f.AllowOutdoors} time={f.MinDuration:0}-{f.MaxDuration:0}s "
+                + $"notSeenFor={f.MinTimeSinceSeen:0}s heardWithin={f.MaxTimeSinceHeard:0}s watchCorner={f.WatchApproachCorner} logs={f.DiagnosticLogs}"
+        );
+    }
+}
