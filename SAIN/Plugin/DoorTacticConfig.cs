@@ -11,6 +11,7 @@ internal static class DoorTacticConfig
     public static ConfigEntry<bool> Enabled { get; private set; }
     public static ConfigEntry<bool> JumpPeek { get; private set; }
     public static ConfigEntry<bool> FakeGrenade { get; private set; }
+    public static ConfigEntry<bool> FakeHeal { get; private set; }
     public static ConfigEntry<bool> RoomTrap { get; private set; }
     public static ConfigEntry<bool> DoorGrenade { get; private set; }
     public static ConfigEntry<float> ChanceMultiplier { get; private set; }
@@ -32,6 +33,12 @@ internal static class DoorTacticConfig
             "Fake Grenade",
             true,
             "GigaChad/Chad: after a peek, draw a grenade (the draw is audible) and put it away again, then hold the doorway."
+        );
+        FakeHeal = config.Bind(
+            category,
+            "Fake Heal",
+            true,
+            "GigaChad/Chad, only when actually hurt: start a heal (audible) next to the door and cancel it after ~1.5s to bait a push."
         );
         RoomTrap = config.Bind(
             category,

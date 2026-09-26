@@ -48,6 +48,8 @@ public class DoorTacticClass : BotComponentClassBase
         PeekBack,
         FakeNadeDraw,
         FakeNadeHolster,
+        FakeHealStart,
+        FakeHealCancel,
         MoveToClose,
         CloseDoor,
         MoveToFarHold,
@@ -206,7 +208,7 @@ public class DoorTacticClass : BotComponentClassBase
         Log(
             $"{Who()} START plan={session.Plan} door={geo.Data.Id} doorState={geo.Data.Door.DoorState} "
                 + $"botDist={geo.BotDistance:0.0}m enemyDepth={geo.EnemyDepth:0.0}m sinceKnown={enemy.TimeSinceLastKnownUpdated:0.0}s "
-                + $"fakeNade={session.WantFakeNade} doorNade={session.WantDoorNade} taunt={session.WantTaunt} hold={session.HoldTime:0}s"
+                + $"fakeNade={session.WantFakeNade} fakeHeal={session.WantFakeHeal} doorNade={session.WantDoorNade} taunt={session.WantTaunt} hold={session.HoldTime:0}s"
         );
         SetStep(session.FirstStep, "start");
         reason = $"start:{session.Plan}";
@@ -363,6 +365,8 @@ public class DoorTacticClass : BotComponentClassBase
         public Vector3 FarHold;
         public bool HasFarHold;
         public bool WantFakeNade;
+        public bool WantFakeHeal;
+        public bool FakeHealStarted;
         public bool WantDoorNade;
         public bool WantTaunt;
         public bool NeedsClose;
@@ -434,6 +438,7 @@ public class DoorTacticClass : BotComponentClassBase
                     s.FirstStep = EStep.MoveToStack;
                     float fakeChance = personality == EPersonality.GigaChad ? 0.4f : 0.2f;
                     s.WantFakeNade = DoorTacticConfig.FakeGrenade.Value && haveNade && Random.value < fakeChance;
+                    s.WantFakeHeal = !s.WantFakeNade && CanFakeHeal() && Random.value < fakeChance;
                     s.HoldTime = Random.Range(3f, 6f);
                     s.HoldPose = 0.8f;
                 }
@@ -442,6 +447,7 @@ public class DoorTacticClass : BotComponentClassBase
                     BuildTrap(s, geo, doorOpen, canTaunt);
                     s.HoldTime = Random.Range(20f, 40f);
                     s.HoldPose = 0.7f;
+                    s.WantFakeHeal = CanFakeHeal() && Random.value < 0.3f;
                     if (DoorTacticConfig.DoorGrenade.Value && haveNade && Random.value < 0.5f && FindFarHold(geo, out s.FarHold))
                     {
                         s.HasFarHold = true;
@@ -557,7 +563,7 @@ public class DoorTacticClass : BotComponentClassBase
                     }
                     else
                     {
-                        SetStep(EStep.Hold, "atStack");
+                        SetStep(s.WantFakeHeal ? EStep.FakeHealStart : EStep.Hold, "atStack");
                     }
                 }
                 break;
@@ -590,7 +596,7 @@ public class DoorTacticClass : BotComponentClassBase
                 if (MoveStep(s, s.Stack, false, stepTime))
                 {
                     Bot.Mover.IgnoreDoorSlow = false;
-                    SetStep(s.WantFakeNade ? EStep.FakeNadeDraw : EStep.Hold, "backAtStack");
+                    SetStep(s.WantFakeNade ? EStep.FakeNadeDraw : s.WantFakeHeal ? EStep.FakeHealStart : EStep.Hold, "backAtStack");
                 }
                 break;
 
@@ -622,6 +628,30 @@ public class DoorTacticClass : BotComponentClassBase
                     Log($"{Who()} WARNING could not put the fake grenade away within 3s, continuing");
                     SetStep(EStep.Hold, "fakeNadeHolsterTimeout");
                 }
+                break;
+
+            case EStep.FakeHealStart:
+                s.LookTarget = s.InsidePoint;
+                if (!s.FakeHealStarted)
+                {
+                    s.FakeHealStarted = true;
+                    Bot.Mover.Stop();
+                    if (!StartFakeHeal())
+                    {
+                        SetStep(EStep.Hold, "fakeHealStartFailed");
+                    }
+                    break;
+                }
+                if (stepTime > 1.5f)
+                {
+                    SetStep(EStep.FakeHealCancel, "fakeHealShown");
+                }
+                break;
+
+            case EStep.FakeHealCancel:
+                s.LookTarget = s.InsidePoint;
+                CancelFakeHeal("done");
+                SetStep(EStep.Hold, "fakeHealCancelled");
                 break;
 
             case EStep.MoveToClose:
@@ -795,6 +825,52 @@ public class DoorTacticClass : BotComponentClassBase
     private float _nextHolsterAttempt;
 
     /// <summary>
+    /// A heal can only be started when a body part is actually damaged (EFT refuses otherwise),
+    /// so the fake heal is only planned for hurt bots - the same situation a player uses it in.
+    /// </summary>
+    private bool CanFakeHeal()
+    {
+        if (DoorTacticConfig.FakeHeal == null || !DoorTacticConfig.FakeHeal.Value)
+        {
+            return false;
+        }
+        var firstAid = BotOwner.Medecine?.FirstAid;
+        return firstAid != null && !firstAid.Using && firstAid.Have2Do;
+    }
+
+    private bool _fakeHealRunning;
+
+    private bool StartFakeHeal()
+    {
+        var firstAid = BotOwner.Medecine?.FirstAid;
+        if (firstAid == null || firstAid.Using || !firstAid.Have2Do)
+        {
+            Log($"{Who()} fake heal skipped: nothing to heal or already healing");
+            return false;
+        }
+        firstAid.TryApplyToCurrentPart();
+        _fakeHealRunning = firstAid.Using;
+        Log($"{Who()} fake heal start: {(_fakeHealRunning ? "healing (will cancel)" : "FAILED to start")}");
+        return _fakeHealRunning;
+    }
+
+    private void CancelFakeHeal(string why)
+    {
+        if (!_fakeHealRunning)
+        {
+            return;
+        }
+        _fakeHealRunning = false;
+        var firstAid = BotOwner.Medecine?.FirstAid;
+        if (firstAid != null && firstAid.Using)
+        {
+            // BSG's own cancel: TakePrevWeapon + heal cooldown.
+            firstAid.StopUse();
+            Log($"{Who()} fake heal cancelled ({why})");
+        }
+    }
+
+    /// <summary>
     /// Used when the tactic is interrupted (usually because the enemy just appeared) so the bot
     /// never starts a firefight with a fake grenade still in its hands. Mirrors what
     /// BotGrenadeController.EndAll does after a real throw: TakePrevWeapon, and if that is refused
@@ -881,6 +957,7 @@ public class DoorTacticClass : BotComponentClassBase
         {
             return;
         }
+        CancelFakeHeal("interrupted");
         ForceRestoreWeapon();
         ECombatDecision next = Bot.Decision.CurrentCombatDecision;
         string why = next == ECombatDecision.StandAndShoot ? "enemySpotted(StandAndShoot)" : $"interrupted({next})";
@@ -896,12 +973,13 @@ public class DoorTacticClass : BotComponentClassBase
         }
         _session = null;
         Bot.Mover.IgnoreDoorSlow = false;
+        CancelFakeHeal("sessionEnd");
         float time = Time.time;
         _doorCooldowns[s.Door.Id] = time + DOOR_COOLDOWN_AFTER_SESSION;
         _nextAllowedTime = time + GLOBAL_COOLDOWN;
         Log(
             $"{Who()} END plan={s.Plan} lastStep={s.Step} result={result} duration={time - s.StartTime:0.0}s "
-                + $"jumped={s.Jumped} fakeNade={s.FakeNadeDrawn} nadeThrown={s.NadeThrown} enemyVisibleNow={s.Enemy?.IsVisible}"
+                + $"jumped={s.Jumped} fakeNade={s.FakeNadeDrawn} fakeHeal={s.FakeHealStarted} nadeThrown={s.NadeThrown} enemyVisibleNow={s.Enemy?.IsVisible}"
         );
     }
 
