@@ -71,6 +71,12 @@ public class EnemyDecisionClass : BotBase
         }
 #endif
 
+        if (Bot.DoorTactic.ShallEmergencyRetreat(enemy, out reason))
+        {
+            result = ECombatDecision.Retreat;
+            return true;
+        }
+
         bool canTakeAggressiveAction = CanBeAggressive(ref reason);
 #if DEBUG
         if (SAINPlugin.DebugMode)

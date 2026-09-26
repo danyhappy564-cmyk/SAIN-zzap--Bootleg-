@@ -75,6 +75,18 @@ public class DoorOpener : BotComponentClassBase
         return InteractWithDoor(ref data, EInteractionType.Close);
     }
 
+    /// <summary>
+    /// Opens a shut door for a door tactic (jump peek), same no-tracking rules as TryCloseDoorForTactic.
+    /// </summary>
+    public bool TryOpenDoorForTactic(DoorDataStruct data)
+    {
+        if (data.Door == null || data.Door.DoorState != EDoorState.Shut)
+        {
+            return false;
+        }
+        return InteractWithDoor(ref data, EInteractionType.Open);
+    }
+
     public bool TryInteractWithDoor(EInteractionType interactionType, float time, DoorDataStruct data)
     {
         if (!InteractWithDoor(ref data, interactionType))

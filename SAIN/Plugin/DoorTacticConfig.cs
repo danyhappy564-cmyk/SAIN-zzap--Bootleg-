@@ -14,6 +14,7 @@ internal static class DoorTacticConfig
     public static ConfigEntry<bool> FakeHeal { get; private set; }
     public static ConfigEntry<bool> RoomTrap { get; private set; }
     public static ConfigEntry<bool> DoorGrenade { get; private set; }
+    public static ConfigEntry<float> DoorGrenadeMinFuse { get; private set; }
     public static ConfigEntry<float> ChanceMultiplier { get; private set; }
     public static ConfigEntry<bool> DiagnosticLogs { get; private set; }
     public static ConfigEntry<bool> VerboseLogs { get; private set; }
@@ -26,13 +27,13 @@ internal static class DoorTacticConfig
             category,
             "Jump Peek",
             true,
-            "GigaChad/Chad: stack beside an open doorway, jump across it to look into the room, then step back."
+            "GigaChad/Chad: from the corridor, bunny hop out in front of the doorway, snap a look into the room and bunny hop straight back. A shut door is opened first from beside the frame."
         );
         FakeGrenade = config.Bind(
             category,
             "Fake Grenade",
             true,
-            "GigaChad/Chad: after a peek, draw a grenade (the draw is audible) and put it away again, then hold the doorway."
+            "GigaChad/Chad: after a peek, draw a grenade (the draw is audible) and put it away again, then hold the doorway. If the enemy rushes out before the gun is back up, the bot retreats to cover instead."
         );
         FakeHeal = config.Bind(
             category,
@@ -51,6 +52,15 @@ internal static class DoorTacticConfig
             "Door Grenade",
             true,
             "GigaChad: after closing the door, back off and throw a grenade at the door so it goes off when the enemy comes out."
+        );
+        DoorGrenadeMinFuse = config.Bind(
+            category,
+            "Door Grenade Min Fuse (s)",
+            4.5f,
+            new ConfigDescription(
+                "Only frag grenades with at least this fuse time are used for the door grenade (M67-type). Impact grenades are never used.",
+                new AcceptableValueRange<float>(3f, 8f)
+            )
         );
         ChanceMultiplier = config.Bind(
             category,

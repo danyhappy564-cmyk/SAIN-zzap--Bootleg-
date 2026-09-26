@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Comfort.Common;
 using EFT;
 using EFT.Interactive;
+using EFT.InventoryLogic;
 using SAIN.Components;
 using SAIN.Models.Enums;
 using SAIN.Plugin;
@@ -44,6 +45,7 @@ public class DoorTacticClass : BotComponentClassBase
     {
         None,
         MoveToStack,
+        OpenDoorFromSide,
         PeekOut,
         PeekBack,
         FakeNadeDraw,
@@ -64,7 +66,11 @@ public class DoorTacticClass : BotComponentClassBase
     private const float MAX_TIME_SINCE_KNOWN = 25f;
     private const float STACK_DEPTH = 0.9f;
     private const float STACK_SIDE_GAP = 0.7f;
-    private const float PEEK_DEPTH = 0.8f;
+    private const float PEEK_DEPTH = 1.0f;
+    private const float PEEK_LOOK_TIME = 0.15f;
+    private const float EMERGENCY_WINDOW_AFTER_FAKE = 2.5f;
+    private const float EMERGENCY_ENEMY_DIST = 10f;
+    private const float EMERGENCY_MIN_RETREAT_TIME = 1.5f;
     private const float CLOSE_DEPTH = 0.9f;
     private const float ARRIVE_DIST = 0.6f;
     private const float MOVE_STEP_TIMEOUT = 7f;
@@ -378,6 +384,9 @@ public class DoorTacticClass : BotComponentClassBase
         public float StepStartTime;
         public float NextMoveOrderTime;
         public bool Jumped;
+        public bool JumpedBack;
+        public bool OpenAttempted;
+        public bool NeedsOpenForPeek;
         public bool FakeNadeDrawn;
         public bool CloseAttempted;
         public bool NadeThrown;
@@ -430,12 +439,14 @@ public class DoorTacticClass : BotComponentClassBase
         {
             case EPersonality.GigaChad:
             case EPersonality.Chad:
-                bool peekAllowed = DoorTacticConfig.JumpPeek.Value && doorOpen && peekPointOk;
+                // Shut door: opened first from the stack point beside the frame, out of the room's line of sight.
+                bool peekAllowed = DoorTacticConfig.JumpPeek.Value && peekPointOk;
                 bool trapAllowed = personality == EPersonality.GigaChad && DoorTacticConfig.RoomTrap.Value;
                 if (peekAllowed && (!trapAllowed || Random.value < 0.55f))
                 {
                     s.Plan = EPlan.Peek;
                     s.FirstStep = EStep.MoveToStack;
+                    s.NeedsOpenForPeek = !doorOpen;
                     float fakeChance = personality == EPersonality.GigaChad ? 0.4f : 0.2f;
                     s.WantFakeNade = DoorTacticConfig.FakeGrenade.Value && haveNade && Random.value < fakeChance;
                     s.WantFakeHeal = !s.WantFakeNade && CanFakeHeal() && Random.value < fakeChance;
@@ -448,7 +459,7 @@ public class DoorTacticClass : BotComponentClassBase
                     s.HoldTime = Random.Range(20f, 40f);
                     s.HoldPose = 0.7f;
                     s.WantFakeHeal = CanFakeHeal() && Random.value < 0.3f;
-                    if (DoorTacticConfig.DoorGrenade.Value && haveNade && Random.value < 0.5f && FindFarHold(geo, out s.FarHold))
+                    if (DoorTacticConfig.DoorGrenade.Value && FindLongFuseGrenade() != null && Random.value < 0.5f && FindFarHold(geo, out s.FarHold))
                     {
                         s.HasFarHold = true;
                         s.WantDoorNade = true;
@@ -461,7 +472,7 @@ public class DoorTacticClass : BotComponentClassBase
                 }
                 else
                 {
-                    reason = doorOpen ? "tacticsDisabledForPersonality" : "doorShutNoPeek";
+                    reason = "tacticsDisabledForPersonality";
                     return null;
                 }
                 break;
@@ -559,7 +570,7 @@ public class DoorTacticClass : BotComponentClassBase
                 {
                     if (s.Plan == EPlan.Peek)
                     {
-                        SetStep(EStep.PeekOut, "atStack");
+                        SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : EStep.PeekOut, "atStack");
                     }
                     else
                     {
@@ -568,32 +579,70 @@ public class DoorTacticClass : BotComponentClassBase
                 }
                 break;
 
+            case EStep.OpenDoorFromSide:
+                // Opened from beside the frame so whoever is inside can't see the bot through the gap.
+                s.LookTarget = s.InsidePoint;
+                if (!s.OpenAttempted)
+                {
+                    s.OpenAttempted = true;
+                    Bot.Mover.Stop();
+                    bool ok = Bot.DoorOpener.TryOpenDoorForTactic(s.Door);
+                    Log($"{Who()} open door {s.Door.Id} from the side: interact={(ok ? "ok" : "FAILED")}");
+                    if (!ok)
+                    {
+                        End("doorOpenFailed");
+                    }
+                    break;
+                }
+                if (stepTime > 1.1f)
+                {
+                    EDoorState state = s.Door.Door != null ? s.Door.Door.DoorState : EDoorState.None;
+                    if (state != EDoorState.Open)
+                    {
+                        Log($"{Who()} door {s.Door.Id} still {state} after opening, giving up");
+                        End("doorDidNotOpen");
+                        break;
+                    }
+                    SetStep(EStep.PeekOut, "doorOpened");
+                }
+                break;
+
             case EStep.PeekOut:
+                // Corridor-side bunny hop: sprint-jump out in front of the doorway (never into the room),
+                // head snapped sideways into the room the whole time.
                 Bot.Mover.IgnoreDoorSlow = true;
                 s.LookTarget = s.InsidePoint;
-                if (!s.Jumped && HorizontalDistance(Bot.Position, s.PeekPoint) < 1.3f)
+                if (!s.Jumped)
                 {
                     s.Jumped = Bot.Mover.TryJump();
                     if (s.Jumped)
                     {
-                        Log($"{Who()} jump peek at door {s.Door.Id}");
+                        Log($"{Who()} jump peek OUT at door {s.Door.Id}");
                     }
                 }
                 if (MoveStep(s, s.PeekPoint, true, stepTime))
                 {
-                    SetStep(EStep.PeekBack, "peekedInside");
+                    SetStep(EStep.PeekBack, "inFrontOfDoor");
                 }
                 break;
 
             case EStep.PeekBack:
+                // Quick look, then bunny hop straight back to the stack point while still facing the room.
                 Bot.Mover.IgnoreDoorSlow = true;
                 s.LookTarget = s.InsidePoint;
-                if (stepTime < 0.35f)
+                if (stepTime < PEEK_LOOK_TIME)
                 {
-                    Bot.Mover.Stop();
                     break;
                 }
-                if (MoveStep(s, s.Stack, false, stepTime))
+                if (!s.JumpedBack)
+                {
+                    s.JumpedBack = Bot.Mover.TryJump();
+                    if (s.JumpedBack)
+                    {
+                        Log($"{Who()} jump peek BACK at door {s.Door.Id}");
+                    }
+                }
+                if (MoveStep(s, s.Stack, true, stepTime))
                 {
                     Bot.Mover.IgnoreDoorSlow = false;
                     SetStep(s.WantFakeNade ? EStep.FakeNadeDraw : s.WantFakeHeal ? EStep.FakeHealStart : EStep.Hold, "backAtStack");
@@ -795,6 +844,7 @@ public class DoorTacticClass : BotComponentClassBase
             Log($"{Who()} fake grenade drawn: {(result.Value != null ? "in hands" : "FAILED")}");
         };
         Player.SetInHands(nade, callback);
+        _emergencyWindowUntil = Time.time + 1.3f + EMERGENCY_WINDOW_AFTER_FAKE;
         return true;
     }
 
@@ -850,6 +900,10 @@ public class DoorTacticClass : BotComponentClassBase
         }
         firstAid.TryApplyToCurrentPart();
         _fakeHealRunning = firstAid.Using;
+        if (_fakeHealRunning)
+        {
+            _emergencyWindowUntil = Time.time + 1.5f + EMERGENCY_WINDOW_AFTER_FAKE;
+        }
         Log($"{Who()} fake heal start: {(_fakeHealRunning ? "healing (will cancel)" : "FAILED to start")}");
         return _fakeHealRunning;
     }
@@ -905,6 +959,38 @@ public class DoorTacticClass : BotComponentClassBase
         }
     }
 
+    /// <summary>
+    /// Door grenades must have a long fuse (M67-type) so the bot is well clear and the enemy has time
+    /// to open the door onto it. Impact grenades (VOG etc.) and anything under the F12 minimum fuse
+    /// are never used for this.
+    /// </summary>
+    private ThrowWeap FindLongFuseGrenade()
+    {
+        var inventory = Player?.InventoryController?.Inventory;
+        if (inventory == null)
+        {
+            return null;
+        }
+        float minFuse = DoorTacticConfig.DoorGrenadeMinFuse.Value;
+        ThrowWeap best = null;
+        foreach (var item in inventory.GetPlayerItems(EPlayerItems.Equipment))
+        {
+            if (item is not ThrowWeap nade || nade.ThrowType != ThrowWeapType.frag_grenade)
+            {
+                continue;
+            }
+            if (nade.MinTimeToContactExplode >= 0f || nade.GetExplDelay < minFuse)
+            {
+                continue;
+            }
+            if (best == null || nade.GetExplDelay > best.GetExplDelay)
+            {
+                best = nade;
+            }
+        }
+        return best;
+    }
+
     private bool TryThrowAtDoor(Session s)
     {
         var grenades = BotOwner.WeaponManager?.Grenades;
@@ -912,6 +998,14 @@ public class DoorTacticClass : BotComponentClassBase
         {
             return false;
         }
+        ThrowWeap longFuse = FindLongFuseGrenade();
+        if (longFuse == null)
+        {
+            Log($"{Who()} door grenade skipped: no frag with fuse >= {DoorTacticConfig.DoorGrenadeMinFuse.Value:0.0}s");
+            return false;
+        }
+        grenades.SetThrowParams(longFuse);
+        Log($"{Who()} door grenade picked {longFuse.ShortName.Localized()} fuse={longFuse.GetExplDelay:0.0}s");
         Vector3 target = s.Center + (Bot.Position - s.Center).normalized * 0.6f;
         target.y = s.Center.y + 0.25f;
         Vector3 from = Bot.Transform.WeaponData.WeaponRoot;
@@ -919,12 +1013,81 @@ public class DoorTacticClass : BotComponentClassBase
         foreach (AIGreandeAng angle in angles)
         {
             AIGreanageThrowData data = AIGrenadeHelper.CanThrowGrenade2(from, target, grenades.MaxPower * 0.9f, angle, -1f, 0.66f);
-            if (data.CanThrow && grenades.SetThrowData(data))
+            if (data.CanThrow)
             {
-                return grenades.DoThrow();
+                // No GrenadeType: DoThrow would otherwise swap to the first frag in the rig (CheckGrenadeWithType).
+                data.GrenadeType = null;
+                grenades.SetThrowParams(longFuse);
+                if (grenades.SetThrowData(data))
+                {
+                    return grenades.DoThrow();
+                }
             }
         }
         return false;
+    }
+
+    // ---------------------------------------------------------------- emergency retreat
+
+    private float _emergencyWindowUntil;
+    private float _retreatUntil;
+
+    /// <summary>
+    /// Checked by EnemyDecisionClass before anything else (right after the ammo check). Right after a
+    /// fake grenade/heal the bot's gun isn't up; if the enemy takes the bait and comes at the bot faster
+    /// than it can shoot, run back to cover (SAIN Retreat) and re-take the fight from there. If the gun
+    /// is already up this returns false and SAIN's normal StandAndShoot takes the shot.
+    /// </summary>
+    public bool ShallEmergencyRetreat(Enemy enemy, out string reason)
+    {
+        float time = Time.time;
+        if (_retreatUntil > time)
+        {
+            if (!WeaponReady() || time < _retreatUntil - (3f - EMERGENCY_MIN_RETREAT_TIME))
+            {
+                reason = "emergencyRetreatActive";
+                return true;
+            }
+            _retreatUntil = 0f;
+        }
+        if (_emergencyWindowUntil < time || enemy == null || WeaponReady())
+        {
+            reason = string.Empty;
+            return false;
+        }
+        Vector3? known = enemy.KnownPlaces.LastKnownPosition;
+        bool close = known != null && HorizontalDistance(known.Value, Bot.Position) < EMERGENCY_ENEMY_DIST;
+        bool coming = enemy.IsVisible || enemy.TimeSinceLastKnownUpdated < 1.5f;
+        if (!close || !coming)
+        {
+            reason = string.Empty;
+            return false;
+        }
+        _emergencyWindowUntil = 0f;
+        _retreatUntil = time + 3f;
+        Log(
+            $"{Who()} EMERGENCY RETREAT: enemy {(enemy.IsVisible ? "visible" : "heard")} at "
+                + $"{HorizontalDistance(known.Value, Bot.Position):0.0}m while gun not ready (hands={Player.HandsController?.GetType().Name})"
+        );
+        CancelFakeHeal("emergencyRetreat");
+        ForceRestoreWeapon();
+        End("emergencyRetreat");
+        reason = "emergencyRetreatStart";
+        return true;
+    }
+
+    private bool WeaponReady()
+    {
+        var weaponManager = BotOwner.WeaponManager;
+        if (weaponManager == null)
+        {
+            return false;
+        }
+        if (Player.HandsController is IGrenadeController || Player.HandsController is IMedsController)
+        {
+            return false;
+        }
+        return !weaponManager.Selector.IsChanging;
     }
 
     // ---------------------------------------------------------------- lifecycle
@@ -953,12 +1116,12 @@ public class DoorTacticClass : BotComponentClassBase
     public void OnActionStopped()
     {
         Bot.Mover.IgnoreDoorSlow = false;
+        CancelFakeHeal("interrupted");
+        ForceRestoreWeapon();
         if (_session == null)
         {
             return;
         }
-        CancelFakeHeal("interrupted");
-        ForceRestoreWeapon();
         ECombatDecision next = Bot.Decision.CurrentCombatDecision;
         string why = next == ECombatDecision.StandAndShoot ? "enemySpotted(StandAndShoot)" : $"interrupted({next})";
         End(why);
