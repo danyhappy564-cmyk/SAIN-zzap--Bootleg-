@@ -104,6 +104,11 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
         {
             return false;
         }
+        if (Bot.DoorTactic != null && Bot.DoorTactic.RecentFakeGrenade)
+        {
+            reason = "afterFakeGrenade";
+            return false;
+        }
         if (!CanThrowAtEnemy(enemy, out reason))
         {
             return false;

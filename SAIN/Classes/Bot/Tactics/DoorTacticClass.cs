@@ -89,7 +89,7 @@ public class DoorTacticClass : BotComponentClassBase
     private const float MAX_TIME_SINCE_KNOWN = 25f;
     private const float STACK_DEPTH = 0.9f;
     private const float STACK_SIDE_GAP = 0.7f;
-    private const float PEEK_DEPTH = 1.0f;
+    private const float PEEK_DEPTH = 1.25f;
     private const float PEEK_LOOK_TIME = 0.15f;
     private const float EMERGENCY_WINDOW_AFTER_FAKE = 2.5f;
     private const float FAKE_NADE_SHOW_TIME = 0.7f;
@@ -1517,7 +1517,12 @@ public class DoorTacticClass : BotComponentClassBase
             {
                 TacticDiagnostics.Count("door.jumpLeafTooClose");
             }
-            bool jumpOk = leafClear && JumpSafe(s.PeekPoint);
+            bool laneClear = JumpLaneClear(s.Stack, s.PeekPoint);
+            if (!laneClear)
+            {
+                TacticDiagnostics.Count("door.jumpFrameInTheWay");
+            }
+            bool jumpOk = leafClear && laneClear && JumpSafe(s.PeekPoint);
             bool runByOk = FindRunByPoint(s);
             bool rollRunBy = Random.value * 100f < Settings.RunByChance;
             // 1 = jump peek, 2 = run-by, 3 = plain step out (neither is safe here).
@@ -1533,6 +1538,23 @@ public class DoorTacticClass : BotComponentClassBase
             }
         }
         return s.PeekStyle == 2 ? EStep.RunByAcross : EStep.PeekOut;
+    }
+
+    /// <summary>
+    /// A jumping body (0.35m radius, chest height) from the stack to the peek point must not clip the door frame -
+    /// the field test showed the hop catching the frame corner.
+    /// </summary>
+    private static bool JumpLaneClear(Vector3 from, Vector3 to)
+    {
+        Vector3 a = from + Vector3.up * 1.1f;
+        Vector3 b = to + Vector3.up * 1.1f;
+        Vector3 dir = b - a;
+        float len = dir.magnitude;
+        if (len < 0.05f)
+        {
+            return true;
+        }
+        return !Physics.SphereCast(a, 0.35f, dir / len, out _, len, LayersMaskController.HighPolyWithTerrainMask);
     }
 
     /// <summary>
@@ -1738,9 +1760,21 @@ public class DoorTacticClass : BotComponentClassBase
             Log($"{Who()} fake grenade skipped: CheckGrenade found none");
             return false;
         }
+        _fakeDrawPending = true;
+        _fakeDrawPendingUntil = Time.time + 2.5f;
+        _lastFakeNadeTime = Time.time;
         Callback<IGrenadeController> callback = result =>
         {
+            _fakeDrawPending = false;
             Log($"{Who()} fake grenade drawn: {(result.Value != null ? "in hands" : "FAILED")}");
+            bool stillFaking = _session != null && (_session.Step == EStep.FakeNadeDraw || _session.Step == EStep.FakeNadeHolster);
+            if (result.Value != null && !stillFaking)
+            {
+                // The tactic ended while the draw was still playing: don't leave a live grenade in hand.
+                bool ok = BotOwner.WeaponManager?.Selector?.TakePrevWeapon() == true;
+                Log($"{Who()} fake grenade landed after the tactic ended -> put away now: TakePrevWeapon={ok}");
+                TacticDiagnostics.Count("fakeNade.lateDrawPutAway");
+            }
             TacticDiagnostics.Count(result.Value != null ? "fakeNade.drawn" : "fakeNade.drawFailed");
         };
         Player.SetInHands(nade, callback);
@@ -1754,6 +1788,13 @@ public class DoorTacticClass : BotComponentClassBase
     /// </summary>
     private bool RestoreWeaponIfHoldingGrenade()
     {
+        // Field log: the holster step ran while the draw animation was still in progress (hands not a grenade yet),
+        // "succeeded" at once, then the draw finished and the bot stood 5s with a live grenade in hand - and SAIN's
+        // normal throw logic threw it at the player who rushed in. Wait until the draw has landed (callback) first.
+        if (_fakeDrawPending && Time.time < _fakeDrawPendingUntil)
+        {
+            return false;
+        }
         if (Player.HandsController is not IGrenadeController)
         {
             return true;
@@ -1774,6 +1815,18 @@ public class DoorTacticClass : BotComponentClassBase
     }
 
     private float _nextHolsterAttempt;
+    private bool _fakeDrawPending;
+    private float _fakeDrawPendingUntil;
+    private float _lastFakeNadeTime = -100f;
+
+    /// <summary>
+    /// The fake grenade is a bluff: for a few seconds after it, SAIN's normal grenade logic must not turn it into
+    /// a real throw at whoever reacts to the sound (GrenadeThrowDecider checks this).
+    /// </summary>
+    public bool RecentFakeGrenade
+    {
+        get { return Time.time - _lastFakeNadeTime < 8f; }
+    }
 
     /// <summary>
     /// A heal can only be started when a body part is actually damaged (EFT refuses otherwise),
