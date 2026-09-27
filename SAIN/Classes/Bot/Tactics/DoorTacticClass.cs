@@ -75,6 +75,8 @@ public class DoorTacticClass : BotComponentClassBase
         PostBlastListen,
         FakeRetreatRun,
         FakeRetreatSneakBack,
+        StepPeekOut,
+        StepPeekBack,
     }
 
     private const float MAX_BOT_DOOR_DIST = 8f;
@@ -583,6 +585,10 @@ public class DoorTacticClass : BotComponentClassBase
         public bool FakeNadeDrawn;
         public bool CloseAttempted;
         public bool NadeThrown;
+        public int StepPeeksLeft;
+        public Vector3 StepPoint;
+        public bool StepCrouch;
+        public float StepHoldTime;
         public float ProgressCheckTime;
         public Vector3 ProgressCheckPos;
         public int NadeCount;
@@ -978,7 +984,49 @@ public class DoorTacticClass : BotComponentClassBase
                 if (MoveStep(s, s.Stack, true, stepTime))
                 {
                     Bot.Mover.IgnoreDoorSlow = false;
+                    if (s.StepPeeksLeft == 0 && Settings.StepPeek && TryPrepareStepPeeks(s))
+                    {
+                        SetStep(EStep.StepPeekOut, "backAtStackStepPeeks");
+                        break;
+                    }
                     SetStep(s.WantFakeNade ? EStep.FakeNadeDraw : s.WantFakeHeal ? EStep.FakeHealStart : EStep.Hold, "backAtStack");
+                }
+                break;
+
+            case EStep.StepPeekOut:
+                // Reference clip 4 (7-12s): at the frame, short A/D taps into the doorway line and back, gun on the room,
+                // alternating stance and which corner of the room is checked.
+                Bot.Mover.IgnoreDoorSlow = true;
+                Bot.Mover.SetTargetPose(s.StepCrouch ? 0.6f : 1f);
+                s.LookTarget = s.InsidePoint + geoAxisOffset(s);
+                if (MoveStep(s, s.StepPoint, false, stepTime) || stepTime > 0.45f)
+                {
+                    if (stepTime > s.StepHoldTime)
+                    {
+                        SetStep(EStep.StepPeekBack, "stepOut");
+                    }
+                }
+                break;
+
+            case EStep.StepPeekBack:
+                Bot.Mover.IgnoreDoorSlow = true;
+                s.LookTarget = s.InsidePoint;
+                if (MoveStep(s, s.Stack, false, stepTime) || stepTime > 0.45f)
+                {
+                    s.StepPeeksLeft--;
+                    TacticDiagnostics.Count("door.stepPeek");
+                    if (s.StepPeeksLeft > 0)
+                    {
+                        s.StepCrouch = !s.StepCrouch;
+                        s.StepHoldTime = Random.Range(0.15f, 0.3f);
+                        SetStep(EStep.StepPeekOut, "stepAgain");
+                    }
+                    else
+                    {
+                        Bot.Mover.IgnoreDoorSlow = false;
+                        Bot.Mover.SetTargetPose(1f);
+                        SetStep(s.WantFakeNade ? EStep.FakeNadeDraw : s.WantFakeHeal ? EStep.FakeHealStart : EStep.Hold, "stepPeeksDone");
+                    }
                 }
                 break;
 
@@ -1411,6 +1459,39 @@ public class DoorTacticClass : BotComponentClassBase
     private float _peekShotUntil;
     private float _pullBackUntil;
     private bool _pullBackLogged;
+
+    /// <summary>
+    /// 2-3 short steps from the stack toward the doorway line (40-55% of the way to the peek point), 0.15-0.3s out each.
+    /// </summary>
+    private bool TryPrepareStepPeeks(Session s)
+    {
+        if (!s.PeekPointOk || s.Door.Door == null || s.Door.Door.DoorState != EDoorState.Open)
+        {
+            return false;
+        }
+        Vector3 toward = s.PeekPoint - s.Stack;
+        foreach (float f in new[] { 0.5f, 0.4f, 0.55f })
+        {
+            if (NavMesh.SamplePosition(s.Stack + toward * f, out NavMeshHit hit, 0.4f, -1))
+            {
+                s.StepPoint = hit.position;
+                s.StepPeeksLeft = Random.Range(2, 4);
+                s.StepCrouch = Random.value < 0.5f;
+                s.StepHoldTime = Random.Range(0.15f, 0.3f);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Alternate which side of the room the step peeks check (left/right of the room point along the door axis).
+    /// </summary>
+    private static Vector3 geoAxisOffset(Session s)
+    {
+        Vector3 side = Vector3.Cross(Vector3.up, s.BotSide).normalized;
+        return side * (s.StepPeeksLeft % 2 == 0 ? 1.5f : -1.5f);
+    }
 
     private bool MoveStep(Session s, Vector3 target, bool sprint, float stepTime)
     {

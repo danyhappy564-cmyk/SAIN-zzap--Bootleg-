@@ -204,6 +204,11 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float ChanceMultiplier = 1f;
 
     [DataMember]
+    [Name("Step Peeks After Jump Peek")]
+    [Description("After the jump peek, 2-3 quick short steps into the doorway line and back (diamond-step style), alternating stance and the corner of the room being checked, before holding. Only when the door is open.")]
+    public bool StepPeek = true;
+
+    [DataMember]
     [Name("Bots Close Open Doors In Their Way")]
     [Description("Vanilla SAIN closes any open door its path runs into (6s grace for doors it just opened). With a door that opens toward the bot that means: open, walk into the leaf, jitter/spin, close it, open it again... and bots closing open doors all over the map. Off (default): bots only open shut doors while moving; tactics still close doors on purpose.")]
     public bool AutoCloseDoors = false;
