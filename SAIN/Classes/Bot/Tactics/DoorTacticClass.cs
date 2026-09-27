@@ -94,13 +94,14 @@ public class DoorTacticClass : BotComponentClassBase
     private const float EMERGENCY_MIN_RETREAT_TIME = 1.5f;
     private const float CLOSE_DEPTH = 0.9f;
     private const float ARRIVE_DIST = 0.6f;
-    private const float MOVE_STEP_TIMEOUT = 7f;
+    private const float MOVE_STEP_TIMEOUT = 12f;
     private const float SESSION_MAX_TIME = 150f;
     private const float FAR_HOLD_MIN_DIST = 6f;
     private const float FAR_HOLD_MAX_PATH = 14f;
     private const float DOOR_COOLDOWN_AFTER_SESSION = 60f;
     private const float DOOR_COOLDOWN_AFTER_ROLL_FAIL = 25f;
     private const float GLOBAL_COOLDOWN = 8f;
+    private const float FAIL_COOLDOWN = 30f;
     private const float VERBOSE_LOG_INTERVAL = 10f;
 
     public DoorTacticClass(BotComponent bot)
@@ -1365,8 +1366,9 @@ public class DoorTacticClass : BotComponentClassBase
         }
         if (!sprint)
         {
-            float speed = s.Step == EStep.FakeRetreatSneakBack ? 0.25f
-                : s.Plan == EPlan.Peek || s.Plan == EPlan.Overwatch ? 0.7f : 0.45f;
+            // Approach at 0.75: at 0.45 a bot needed ~13s for an 8m approach and timed out at the door (second raid
+            // test: 5 trap / 2 peek moveTimeouts, one bot restarting on door after door while walking slowly).
+            float speed = s.Step == EStep.FakeRetreatSneakBack ? 0.25f : 0.75f;
             Bot.Mover.SetTargetMoveSpeed(speed);
         }
         return false;
@@ -2515,6 +2517,11 @@ public class DoorTacticClass : BotComponentClassBase
         }
         _doorCooldowns[s.Door.Id] = time + DOOR_COOLDOWN_AFTER_SESSION;
         _nextAllowedTime = time + GLOBAL_COOLDOWN;
+        if (resultKey == "moveTimeout" || resultKey == "noPath" || resultKey == "doorDidNotOpen" || resultKey == "doorOpenFailed")
+        {
+            // Failed to even get going: don't chain straight into the next door (one bot started 8 sessions in a row).
+            _nextAllowedTime = time + FAIL_COOLDOWN;
+        }
         if (!s.IsSupport && Settings.ResumeAfterThirdParty && IsThirdPartyResult(result) && s.Enemy != null)
         {
             // Come back to this door once the third party is dealt with: short cooldown, no re-roll.

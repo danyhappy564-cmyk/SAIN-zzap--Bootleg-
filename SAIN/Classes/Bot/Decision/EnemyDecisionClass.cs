@@ -83,7 +83,7 @@ public class EnemyDecisionClass : BotBase
             return true;
         }
 
-        if (Bot.Reposition.ShallUse(enemy, out reason))
+        if (Bot.Reposition.ShallUse(enemy, knownEnemies, out reason))
         {
             result = ECombatDecision.Reposition;
             return true;

@@ -337,11 +337,27 @@ public class RepositionClass : BotComponentClassBase
     /// <summary>
     /// Called from EnemyDecisionClass right before the shoot check.
     /// </summary>
-    public bool ShallUse(Enemy enemy, out string reason)
+    public bool ShallUse(Enemy enemy, EnemyList knownEnemies, out string reason)
     {
         Session s = _session;
+        bool otherVisible = OtherEnemyVisible(enemy, knownEnemies);
         if (s != null)
         {
+            // This check runs BEFORE SAIN's shoot decision, so it must never hold a bot that has something to
+            // shoot or is being shot (second raid test: bots stood still in a hold and died / ignored the player).
+            if (otherVisible)
+            {
+                End("otherEnemyVisible");
+                reason = "otherEnemyVisible";
+                return false;
+            }
+            bool movingAway = (s.Mode == EMode.Relocate || s.Mode == EMode.Disengage) && s.Phase == EPhase.Move;
+            if (BotOwner.Memory.IsUnderFire && !movingAway)
+            {
+                End("underFire");
+                reason = "underFire";
+                return false;
+            }
             if (enemy == null || enemy.EnemyProfileId != s.EnemyId)
             {
                 End("goalEnemyChanged");
@@ -381,7 +397,7 @@ public class RepositionClass : BotComponentClassBase
             reason = "disabledOrCooldown";
             return false;
         }
-        if (enemy == null || enemy.IsVisible || Bot.DoorTactic.Active || Bot.SquadCombat.Active)
+        if (enemy == null || enemy.IsVisible || otherVisible || BotOwner.Memory.IsUnderFire || Bot.DoorTactic.Active || Bot.SquadCombat.Active)
         {
             reason = "visibleOrOtherTactic";
             return false;
@@ -405,6 +421,22 @@ public class RepositionClass : BotComponentClassBase
             || TryStartCoverTrick(enemy, enemyPos, enemyDist, out reason))
         {
             return true;
+        }
+        return false;
+    }
+
+    private static bool OtherEnemyVisible(Enemy goal, EnemyList knownEnemies)
+    {
+        if (knownEnemies == null)
+        {
+            return false;
+        }
+        foreach (Enemy e in knownEnemies)
+        {
+            if (e != null && e != goal && e.IsVisible)
+            {
+                return true;
+            }
         }
         return false;
     }
