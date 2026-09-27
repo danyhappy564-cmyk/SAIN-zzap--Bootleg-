@@ -132,7 +132,7 @@ internal static class TacticDiagnostics
         );
         var r = general.Reposition;
         Logger.LogWarning(
-            $"[Tactics] SETTINGS Reposition: enabled={r.Enabled} fuse={r.FuseSelection}(<{r.ShortFuseDistance:0}m short) flank={r.NadeFlank}/{r.NadeFlankChance:0}% "
+            $"[Tactics] SETTINGS Reposition: TESTMODE={r.TestMode} enabled={r.Enabled} fuse={r.FuseSelection}(<{r.ShortFuseDistance:0}m short) flank={r.NadeFlank}/{r.NadeFlankChance:0}% "
                 + $"relocate={r.Relocate}/{r.RelocateChance:0}% disengage={r.Disengage}/{r.DisengageChance:0}%(>{r.DisengageMinDistance:0}m) "
                 + $"bait={r.BaitPeek}/{r.BaitPeekChance:0}% fakeReload={r.FakeReload}/{r.FakeReloadChance:0}% ghost={r.GhostFlank}/{r.GhostFlankChance:0}% pmcOnly={r.PmcOnly} logs={r.DiagnosticLogs}"
         );

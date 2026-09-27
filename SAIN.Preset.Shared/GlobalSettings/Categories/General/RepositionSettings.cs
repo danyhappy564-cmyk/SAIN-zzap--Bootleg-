@@ -100,6 +100,11 @@ public class RepositionSettings : SAINSettingsBase<RepositionSettings>, ISAINSet
     public float GhostFlankChance = 25f;
 
     [DataMember]
+    [Name("TEST MODE: Always Reposition")]
+    [Description("For testing only. Every chance above counts as 100%, bait peeks are allowed for every personality and the cover tricks are rolled every 8s instead of 20s. Conditions (indoors/outdoors, in cover, distances) still apply. Turn it off for normal play.")]
+    public bool TestMode = false;
+
+    [DataMember]
     [Name("PMC Only")]
     [Description("Apply only to PMCs. Scavs keep vanilla behaviour.")]
     public bool PmcOnly = true;

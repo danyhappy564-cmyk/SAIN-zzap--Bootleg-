@@ -215,7 +215,7 @@ public class RepositionClass : BotComponentClassBase
         {
             return;
         }
-        if (Random.value * 100f >= Settings.NadeFlankChance)
+        if (!Roll(Settings.NadeFlankChance))
         {
             TacticDiagnostics.Count("repo.rollFailed.NadeFlank");
             return;
@@ -231,6 +231,14 @@ public class RepositionClass : BotComponentClassBase
         _expectOwnNadeUntil = Time.time + 4f;
         _expectFuse = fuse > 0f ? fuse : 4f;
         Start(EMode.NadeFlank, enemy, point, enemyPos + Vector3.up * 1.3f, EPhase.WaitThrow, "own frag thrown indoors, flank as it goes off");
+    }
+
+    /// <summary>
+    /// Percent roll; F6 TEST MODE makes every roll succeed.
+    /// </summary>
+    private static bool Roll(float chancePercent)
+    {
+        return Settings.TestMode || Random.value * 100f < chancePercent;
     }
 
     private ThrowWeap PickFrag(bool shortest)
@@ -415,7 +423,7 @@ public class RepositionClass : BotComponentClassBase
             reason = "disengageTooClose";
             return false;
         }
-        if (Random.value * 100f >= Settings.DisengageChance)
+        if (!Roll(Settings.DisengageChance))
         {
             TacticDiagnostics.Count("repo.rollFailed.Disengage");
             return false;
@@ -448,7 +456,7 @@ public class RepositionClass : BotComponentClassBase
             return false;
         }
         _relocateRolled.Add(id);
-        if (Random.value * 100f >= Settings.RelocateChance)
+        if (!Roll(Settings.RelocateChance))
         {
             TacticDiagnostics.Count("repo.rollFailed.Relocate");
             return false;
@@ -482,7 +490,7 @@ public class RepositionClass : BotComponentClassBase
         {
             return false;
         }
-        _nextBaitRoll = Time.time + BAIT_ROLL_INTERVAL;
+        _nextBaitRoll = Time.time + (Settings.TestMode ? 8f : BAIT_ROLL_INTERVAL);
         int first = Random.Range(0, 3);
         for (int k = 0; k < 3; k++)
         {
@@ -516,11 +524,11 @@ public class RepositionClass : BotComponentClassBase
     private bool TryStartBait(Enemy enemy, Vector3 enemyPos, out string reason)
     {
         reason = "noBait";
-        if (!Settings.BaitPeek || !Bot.Info.PersonalitySettings.Rush.CanRushEnemyReloadHeal)
+        if (!Settings.BaitPeek || (!Settings.TestMode && !Bot.Info.PersonalitySettings.Rush.CanRushEnemyReloadHeal))
         {
             return false;
         }
-        if (Random.value * 100f >= Settings.BaitPeekChance)
+        if (!Roll(Settings.BaitPeekChance))
         {
             TacticDiagnostics.Count("repo.rollFailed.BaitPeek");
             return false;
@@ -545,7 +553,7 @@ public class RepositionClass : BotComponentClassBase
         {
             return false;
         }
-        if (Random.value * 100f >= Settings.FakeReloadChance)
+        if (!Roll(Settings.FakeReloadChance))
         {
             TacticDiagnostics.Count("repo.rollFailed.FakeReload");
             return false;
@@ -578,7 +586,7 @@ public class RepositionClass : BotComponentClassBase
         {
             return false;
         }
-        if (Random.value * 100f >= Settings.GhostFlankChance)
+        if (!Roll(Settings.GhostFlankChance))
         {
             TacticDiagnostics.Count("repo.rollFailed.GhostFlank");
             return false;
