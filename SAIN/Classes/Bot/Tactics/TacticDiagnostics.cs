@@ -130,5 +130,9 @@ internal static class TacticDiagnostics
                 + $"cover={q.CoverTeammate} coverDist={q.CoverMaxDistance:0}m trade={q.Trade} tradeWindow={q.TradeWindow:0}s "
                 + $"maxEnemyDist={q.MaxEnemyDistance:0}m pmcCallouts={q.PmcSquadVoiceCallouts} logs={q.DiagnosticLogs}"
         );
+        var c = general.CloseCombat;
+        Logger.LogWarning(
+            $"[Tactics] SETTINGS CloseCombat: noBackTurning={c.NoBackTurning} dist={c.Distance:0}m seenWithin={c.SeenWithin:0.0}s pmcOnly={c.PmcOnly}"
+        );
     }
 }

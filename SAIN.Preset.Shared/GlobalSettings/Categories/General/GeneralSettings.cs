@@ -58,6 +58,11 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
     public SquadCombatSettings SquadCombat = new();
 
     [DataMember]
+    [Name("Close Combat (zzap)")]
+    [Description("Close-range standoff: don't sprint away showing the back to an enemy that was just seen nearby.")]
+    public CloseCombatSettings CloseCombat = new();
+
+    [DataMember]
     public ExtractSettings Extract = new();
 
     [DataMember]
@@ -89,6 +94,7 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
         list.Add(DoorTactics);
         list.Add(FreezeAmbush);
         list.Add(SquadCombat);
+        list.Add(CloseCombat);
         list.Add(Extract);
         list.Add(Flashlight);
         list.Add(LootingBots);

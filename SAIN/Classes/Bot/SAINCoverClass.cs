@@ -138,6 +138,11 @@ public class SAINCoverClass : BotComponentClassBase
             reason = "noEnemy";
             return false;
         }
+        if (NoBackTurning(enemy))
+        {
+            reason = "closeEnemyNoBackTurn";
+            return false;
+        }
         if (Bot.Decision.CurrentSelfDecision != ESelfActionType.None)
         {
             reason = "doing self operation";
@@ -171,6 +176,40 @@ public class SAINCoverClass : BotComponentClassBase
 
         reason = "dontRunYet";
         return false;
+    }
+
+    private bool _noBackTurnActive;
+
+    /// <summary>
+    /// zzap: an enemy close by and seen just now -> walk to cover facing it instead of sprinting with the back
+    /// turned (F6 General > Close Combat (zzap)).
+    /// </summary>
+    private bool NoBackTurning(Enemy enemy)
+    {
+        var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
+        bool active = settings != null
+            && settings.NoBackTurning
+            && (!settings.PmcOnly || Bot.Info.Profile.IsPMC)
+            && enemy.Seen
+            && (enemy.IsVisible || enemy.TimeSinceSeen < settings.SeenWithin)
+            && enemy.KnownPlaces.LastKnownPosition is Vector3 known
+            && (known - Bot.Position).magnitude < settings.Distance;
+        if (active != _noBackTurnActive)
+        {
+            _noBackTurnActive = active;
+            if (active)
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("close.walkFacingEnemy");
+                if (GlobalSettingsClass.Instance.General.SquadCombat.DiagnosticLogs)
+                {
+                    Logger.LogWarning(
+                        $"[CloseCombat] [{Bot.name}] [{Bot.Info.Personality}] enemy close ({(enemy.KnownPlaces.LastKnownPosition.Value - Bot.Position).magnitude:0}m, "
+                            + $"seen {(enemy.IsVisible ? "now" : $"{enemy.TimeSinceSeen:0.0}s ago")}) -> walk to cover facing it, no sprint (self={Bot.Decision.CurrentSelfDecision})"
+                    );
+                }
+            }
+        }
+        return active;
     }
 
     public bool SprintingToCover
