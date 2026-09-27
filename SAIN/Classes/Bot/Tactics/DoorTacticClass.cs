@@ -40,12 +40,15 @@ public class DoorTacticClass : BotComponentClassBase
         Peek,
         Trap,
         Ambush,
+        Overwatch,
+        RearGuard,
     }
 
     public enum EStep
     {
         None,
         MoveToStack,
+        MoveToOverwatch,
         OpenDoorFromSide,
         PeekOut,
         PeekBack,
@@ -138,12 +141,25 @@ public class DoorTacticClass : BotComponentClassBase
             return true;
         }
 
+        if (TryStartSupportRole(enemy, out reason))
+        {
+            return true;
+        }
+
         if (!TryStart(enemy, out reason))
         {
             LogVerbose(reason);
             return false;
         }
         return true;
+    }
+
+    /// <summary>
+    /// Door id of the tactic this bot is leading, or -1. Read by squad support bots every tick.
+    /// </summary>
+    public int LeadingDoorId
+    {
+        get { return _session != null && !_session.IsSupport ? _session.Door.Id : -1; }
     }
 
     private bool TryStart(Enemy enemy, out string reason)
@@ -199,7 +215,7 @@ public class DoorTacticClass : BotComponentClassBase
             TacticDiagnostics.Count("door.skipClaimedBySomeoneElse");
             return false;
         }
-        if (Settings.SquadChecks && SquadOrFlankProblem(geo.Center, geo.BotSide, enemy, out string squadReason))
+        if (Settings.SquadChecks && SquadOrFlankProblem(geo.Center, geo.BotSide, enemy, out string squadReason, false, null))
         {
             reason = squadReason;
             return false;
@@ -235,6 +251,10 @@ public class DoorTacticClass : BotComponentClassBase
                 + $"fakeNade={session.WantFakeNade} fakeHeal={session.WantFakeHeal} doorNade={session.WantDoorNade} taunt={session.WantTaunt} hold={session.HoldTime:0}s"
         );
         SetStep(session.FirstStep, "start");
+        if (Settings.SquadRoles)
+        {
+            AssignSquadRoles(session, geo);
+        }
         reason = $"start:{session.Plan}";
         return true;
     }
@@ -411,6 +431,12 @@ public class DoorTacticClass : BotComponentClassBase
         public bool NadeThrown;
         public EDoorState DoorStateAtHoldStart;
         public Vector3? LookTarget;
+        public Vector3? HoldLook;
+        public bool IsSupport;
+        public BotComponent Leader;
+        public Vector3 OverwatchPoint;
+        public float LeaderGoneTime = -1f;
+        public readonly HashSet<string> SupportIds = new();
     }
 
     private Session BuildSession(EPersonality personality, Enemy enemy, DoorGeometry geo, out string reason)
@@ -578,10 +604,15 @@ public class DoorTacticClass : BotComponentClassBase
         float time = Time.time;
         float stepTime = time - s.StepStartTime;
 
+        if (s.IsSupport && !LeaderStillOnDoor(s, time))
+        {
+            return;
+        }
+
         if (Settings.SquadChecks && _nextSquadCheckTime < time)
         {
             _nextSquadCheckTime = time + 0.5f;
-            if (SquadOrFlankProblem(s.Center, s.BotSide, s.Enemy, out string squadReason))
+            if (SquadOrFlankProblem(s.Center, s.BotSide, s.Enemy, out string squadReason, s.IsSupport, s.SupportIds))
             {
                 Log($"{Who()} abort at step {s.Step}: {squadReason}");
                 TacticDiagnostics.Count($"door.abort.{squadReason.Split('(')[0]}");
@@ -837,8 +868,16 @@ public class DoorTacticClass : BotComponentClassBase
                 }
                 break;
 
-            case EStep.Hold:
+            case EStep.MoveToOverwatch:
                 s.LookTarget = s.Center + Vector3.up * 1.2f;
+                if (MoveStep(s, s.OverwatchPoint, false, stepTime))
+                {
+                    SetStep(EStep.Hold, "atOverwatch");
+                }
+                break;
+
+            case EStep.Hold:
+                s.LookTarget = s.HoldLook ?? s.Center + Vector3.up * 1.2f;
                 Bot.Mover.Stop();
                 Bot.Mover.SetTargetPose(s.HoldPose);
                 EDoorState now = s.Door.Door != null ? s.Door.Door.DoorState : EDoorState.None;
@@ -881,7 +920,7 @@ public class DoorTacticClass : BotComponentClassBase
         }
         if (!sprint)
         {
-            Bot.Mover.SetTargetMoveSpeed(s.Plan == EPlan.Peek ? 0.7f : 0.45f);
+            Bot.Mover.SetTargetMoveSpeed(s.Plan == EPlan.Peek || s.Plan == EPlan.Overwatch ? 0.7f : 0.45f);
         }
         return false;
     }
@@ -1191,14 +1230,25 @@ public class DoorTacticClass : BotComponentClassBase
     ///  - a teammate is right at the door, i.e. pushing through it anyway,
     ///  - another known enemy is on OUR side of the door (someone flanking while we stare at the door).
     /// </summary>
-    private bool SquadOrFlankProblem(Vector3 doorCenter, Vector3 botSide, Enemy goalEnemy, out string reason)
+    private bool SquadOrFlankProblem(
+        Vector3 doorCenter,
+        Vector3 botSide,
+        Enemy goalEnemy,
+        out string reason,
+        bool flankOnly,
+        HashSet<string> ignoreMates
+    )
     {
-        var members = Bot.Squad.Members;
+        var members = flankOnly ? null : Bot.Squad.Members;
         if (members != null)
         {
             foreach (var member in members.Values)
             {
                 if (member == null || ReferenceEquals(member, Bot) || member.IsDead)
+                {
+                    continue;
+                }
+                if (ignoreMates != null && ignoreMates.Contains(member.ProfileId))
                 {
                     continue;
                 }
@@ -1268,6 +1318,242 @@ public class DoorTacticClass : BotComponentClassBase
             }
         }
         return false;
+    }
+
+    // ---------------------------------------------------------------- squad roles
+
+    private sealed class RoleAssignment
+    {
+        public EPlan Role;
+        public BotComponent Leader;
+        public string EnemyProfileId;
+        public DoorDataStruct Door;
+        public Vector3 Center;
+        public Vector3 BotSide;
+        public Vector3 Point;
+        public Vector3 Look;
+        public float Until;
+    }
+
+    private RoleAssignment _pendingRole;
+
+    /// <summary>
+    /// Leader side: the nearest teammate who knows the same enemy gets Overwatch (cross angle on the
+    /// door from the other edge, 5.5-7m back so a door grenade doesn't get cancelled), the next one
+    /// gets Rear Guard (holds where it is and watches away from the door). Assignments expire in 3s if
+    /// the teammate's own decision loop doesn't pick them up.
+    /// </summary>
+    private void AssignSquadRoles(Session leader, DoorGeometry geo)
+    {
+        var members = Bot.Squad.Members;
+        if (members == null || members.Count <= 1)
+        {
+            TacticDiagnostics.Count("door.role.solo");
+            return;
+        }
+        string enemyId = leader.Enemy.EnemyProfileId;
+        var candidates = new List<BotComponent>();
+        foreach (var member in members.Values)
+        {
+            if (member == null || ReferenceEquals(member, Bot) || member.IsDead || member.DoorTactic == null)
+            {
+                continue;
+            }
+            if (member.DoorTactic.Active)
+            {
+                continue;
+            }
+            Enemy theirs = member.GoalEnemy;
+            if (theirs == null || theirs.EnemyProfileId != enemyId || theirs.IsVisible)
+            {
+                continue;
+            }
+            Vector3 toMate = member.Position - geo.Center;
+            toMate.y = 0f;
+            if (toMate.magnitude > Settings.SquadRoleMaxDistance || Vector3.Dot(toMate, geo.BotSide) < 0f)
+            {
+                continue;
+            }
+            candidates.Add(member);
+        }
+        if (candidates.Count == 0)
+        {
+            Log($"{Who()} squad roles: no teammate near the door who knows this enemy");
+            TacticDiagnostics.Count("door.role.noMateAvailable");
+            return;
+        }
+        candidates.Sort((a, b) => HorizontalDistance(a.Position, geo.Center).CompareTo(HorizontalDistance(b.Position, geo.Center)));
+
+        string overwatchName = "none";
+        string rearName = "none";
+        int index = 0;
+        if (FindOverwatchPoint(geo, out Vector3 overwatch))
+        {
+            BotComponent mate = candidates[index++];
+            mate.DoorTactic.ReceiveRole(
+                new RoleAssignment
+                {
+                    Role = EPlan.Overwatch,
+                    Leader = Bot,
+                    EnemyProfileId = enemyId,
+                    Door = geo.Data,
+                    Center = geo.Center,
+                    BotSide = geo.BotSide,
+                    Point = overwatch,
+                    Look = geo.Center + Vector3.up * 1.2f,
+                    Until = Time.time + 3f,
+                }
+            );
+            leader.SupportIds.Add(mate.ProfileId);
+            overwatchName = mate.name;
+            TacticDiagnostics.Count("door.role.overwatchAssigned");
+        }
+        else
+        {
+            TacticDiagnostics.Count("door.role.noOverwatchPoint");
+        }
+        if (index < candidates.Count)
+        {
+            BotComponent mate = candidates[index];
+            Vector3 away = mate.Position - geo.Center;
+            away.y = 0f;
+            away = away.sqrMagnitude > 0.01f ? away.normalized : geo.BotSide;
+            mate.DoorTactic.ReceiveRole(
+                new RoleAssignment
+                {
+                    Role = EPlan.RearGuard,
+                    Leader = Bot,
+                    EnemyProfileId = enemyId,
+                    Door = geo.Data,
+                    Center = geo.Center,
+                    BotSide = geo.BotSide,
+                    Point = mate.Position,
+                    Look = mate.Position + away * 10f + Vector3.up * 1.3f,
+                    Until = Time.time + 3f,
+                }
+            );
+            leader.SupportIds.Add(mate.ProfileId);
+            rearName = mate.name;
+            TacticDiagnostics.Count("door.role.rearGuardAssigned");
+        }
+        Log($"{Who()} squad roles for door {geo.Data.Id}: overwatch={overwatchName} rearGuard={rearName} (candidates={candidates.Count})");
+    }
+
+    private bool FindOverwatchPoint(DoorGeometry geo, out Vector3 result)
+    {
+        // Opposite edge of the frame from the leader's stack, back far enough for a cross angle and to
+        // stay out of the door grenade's teammate radius.
+        float side = -Mathf.Sign(Vector3.Dot(Bot.Position - geo.Center, geo.Axis));
+        if (side == 0f)
+        {
+            side = -1f;
+        }
+        float[] depths = [7f, 6.5f, 6f, 5.5f];
+        float[] laterals = [geo.HalfWidth + 1.5f, geo.HalfWidth + 0.8f, 0f];
+        foreach (float depth in depths)
+        {
+            foreach (float lateral in laterals)
+            {
+                Vector3 raw = geo.Center + geo.BotSide * depth + geo.Axis * side * lateral;
+                if (SampleOnBotSide(raw, geo, out Vector3 point) && Bot.Mover.CanGoToPoint(point, out _, true))
+                {
+                    result = point;
+                    return true;
+                }
+            }
+        }
+        result = default;
+        return false;
+    }
+
+    private void ReceiveRole(RoleAssignment role)
+    {
+        _pendingRole = role;
+    }
+
+    /// <summary>
+    /// Support side: picked up from ShallUse on this bot's own decision tick.
+    /// </summary>
+    private bool TryStartSupportRole(Enemy enemy, out string reason)
+    {
+        RoleAssignment role = _pendingRole;
+        reason = string.Empty;
+        if (role == null)
+        {
+            return false;
+        }
+        _pendingRole = null;
+        if (!Settings.Enabled || !Settings.SquadRoles)
+        {
+            reason = "rolesDisabled";
+            return false;
+        }
+        if (role.Until < Time.time || role.Leader == null || role.Leader.IsDead || role.Leader.DoorTactic.LeadingDoorId != role.Door.Id)
+        {
+            reason = "roleExpired";
+            TacticDiagnostics.Count("door.role.expiredBeforeStart");
+            return false;
+        }
+        if (enemy == null || enemy.EnemyProfileId != role.EnemyProfileId || enemy.IsVisible)
+        {
+            reason = "roleEnemyMismatch";
+            TacticDiagnostics.Count("door.role.enemyMismatch");
+            return false;
+        }
+        var s = new Session
+        {
+            Plan = role.Role,
+            Enemy = enemy,
+            Door = role.Door,
+            Center = role.Center,
+            BotSide = role.BotSide,
+            InsidePoint = role.Center - role.BotSide * 1.5f + Vector3.up * 1.2f,
+            OverwatchPoint = role.Point,
+            HoldLook = role.Look,
+            HoldTime = SESSION_MAX_TIME,
+            HoldPose = role.Role == EPlan.Overwatch ? 0.6f : 0.8f,
+            IsSupport = true,
+            Leader = role.Leader,
+            StartTime = Time.time,
+            FirstStep = role.Role == EPlan.Overwatch ? EStep.MoveToOverwatch : EStep.Hold,
+        };
+        _session = s;
+        TacticDiagnostics.Count($"door.role.start.{role.Role}");
+        Log(
+            $"{Who()} START plan={role.Role} for leader {role.Leader.name} door={role.Door.Id} "
+                + $"point={HorizontalDistance(role.Point, role.Center):0.0}m from door"
+        );
+        SetStep(s.FirstStep, "squadRole");
+        reason = $"support:{role.Role}";
+        return true;
+    }
+
+    /// <summary>
+    /// Support bots end shortly after the leader stops working the door (done, dead, or switched).
+    /// </summary>
+    private bool LeaderStillOnDoor(Session s, float time)
+    {
+        BotComponent leader = s.Leader;
+        if (leader == null || leader.IsDead)
+        {
+            End("leaderGone");
+            return false;
+        }
+        if (leader.DoorTactic.LeadingDoorId == s.Door.Id)
+        {
+            s.LeaderGoneTime = -1f;
+            return true;
+        }
+        if (s.LeaderGoneTime < 0f)
+        {
+            s.LeaderGoneTime = time;
+        }
+        if (time - s.LeaderGoneTime > 2f)
+        {
+            End("leaderDone");
+            return false;
+        }
+        return true;
     }
 
     // ---------------------------------------------------------------- listening

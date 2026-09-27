@@ -31,6 +31,11 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다 — 성�
 (2026-09-19 규칙 추가 이전 항목은 소급 기입하지 않습니다 — 그 이전 내용은
 아래 "고친 것" 절의 번호별 섹션 참고.)
 
+- 2026-09-27 09:17 — **분대 역할 분담 추가.** 봇이 문 전술을 시작하면, 같은 적을 알고 있고 문에서 20m 안(문 이쪽 편)에 있는 팀원 중
+  가장 가까운 한 명이 **오버워치**(문틀 반대쪽 모서리 5.5~7m 뒤에서 문을 교차 각도로 겨눔 — 문 앞 수류탄 팀원 거리 6m 밖),
+  그다음 한 명이 **후방 경계**(제자리에서 문 반대 방향을 봄)를 맡습니다. 리더가 전술을 끝내거나 죽으면 2초 뒤 역할도 끝나고
+  원래 SAIN 판단으로 돌아갑니다. ORBIT에는 전투 중 역할 분담이 없어서(교전은 SAIN에 넘김) SAIN 쪽에 넣었습니다.
+  F6 `Squad Roles` / `Squad Role Max Distance`.
 - 2026-09-27 09:10 — **다인큐(분대) 대응.** ① 문 하나에 한 봇만 전술 사용(같은 분대 둘이 동시에 문 닫기·수류탄·피킹 안 함),
   ② 팀원이 방 안(문 건너편)에 있거나 문 앞 2.5m까지 밀고 들어가는 중이면 전술 중단(팀원 가두기 방지), ③ 문 앞 수류탄은
   착지 지점 6m 안에 팀원이 있으면 안 던짐, ④ 문을 보는 동안 **다른 적이 봇 쪽(문 이쪽 편) 15m 안**에서 확인되면
@@ -695,6 +700,11 @@ Freeze인 성격(이 포크 프리셋 기준 Rat, SnappingTurtle, Chad, GigaChad
 **다인큐(분대) 상황:** 문 하나에 한 봇만(`door.skipClaimedBySomeoneElse`), 팀원이 방 안이거나 문을 밀고 들어가는 중이면 중단
 (`door.abort.teammateInsideRoom` / `teammatePushingDoor`), 팀원 근처엔 문 앞 수류탄 안 던짐(`door.nadeCancelledTeammateNear`),
 문을 보는 동안 다른 적이 봇 쪽 15m 안에 나타나면 측면 공격으로 보고 중단(`door.abort.otherEnemyOnOurSide`).
+
+**분대 역할 분담:** 리더가 전술을 시작하면 `squad roles for door …: overwatch=<봇> rearGuard=<봇>` 로그가 남고, 팀원 쪽은
+`START plan=Overwatch for leader <리더>` / `START plan=RearGuard …`. 집계 키: `door.role.overwatchAssigned`, `door.role.rearGuardAssigned`,
+`door.role.start.Overwatch|RearGuard`(팀원이 실제로 시작), `door.role.expiredBeforeStart`(배정됐는데 팀원이 3초 안에 못 받음 — 그 팀원이
+사격 등 다른 판단 중이었다는 뜻), `door.role.noMateAvailable`, `door.role.solo`(혼자), `door.end.Overwatch.leaderDone|leaderGone|enemySpotted`.
 
 **로그로 확인하는 법 (체크리스트)** — `BepInEx/LogOutput.log`에서 검색:
 1. `[Tactics] SETTINGS` — 레이드마다 2줄. F6에서 바꾼 값(확률, 거리 등)이 여기 그대로 찍혀 있으면 설정이 적용된 것. 이 줄이

@@ -58,6 +58,17 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public bool SquadChecks = true;
 
     [DataMember]
+    [Name("Squad Roles")]
+    [Description("When a bot starts a door tactic, the nearest teammate who knows the same enemy takes Overwatch (holds a cross angle on the door from the other side, back far enough to stay clear of a door grenade) and the next one takes Rear Guard (watches behind the group).")]
+    public bool SquadRoles = true;
+
+    [DataMember]
+    [Name("Squad Role Max Distance")]
+    [Description("Meters. Teammates farther than this from the door are not given a role.")]
+    [MinMax(5f, 40f, 1f)]
+    public float SquadRoleMaxDistance = 20f;
+
+    [DataMember]
     [Name("GigaChad Chance")]
     [Description("Percent. Chance a GigaChad (skilled player) uses a door tactic when one is possible.")]
     [MinMax(0f, 100f, 1f)]
