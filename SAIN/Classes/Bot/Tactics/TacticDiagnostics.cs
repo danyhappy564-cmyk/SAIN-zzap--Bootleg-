@@ -132,7 +132,9 @@ internal static class TacticDiagnostics
         );
         var c = general.CloseCombat;
         Logger.LogWarning(
-            $"[Tactics] SETTINGS CloseCombat: noBackTurning={c.NoBackTurning} dist={c.Distance:0}m seenWithin={c.SeenWithin:0.0}s pmcOnly={c.PmcOnly}"
+            $"[Tactics] SETTINGS CloseCombat: noBackTurning={c.NoBackTurning} dist={c.Distance:0}m seenWithin={c.SeenWithin:0.0}s dash<={c.SprintIfCoverWithin:0.0}m pmcOnly={c.PmcOnly} "
+                + $"suppDiscipline={c.SuppressionDiscipline} within={c.SuppressMaxTimeSinceContact:0.0}s keepMag={c.SuppressMinAmmoRatio:0.00} "
+                + $"burst={c.SuppressBurstRounds:0}/{c.SuppressBurstPause:0.0}s"
         );
     }
 }

@@ -6,6 +6,7 @@ using SAIN.Models.Enums;
 using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.GlobalSettings;
 using SAIN.Preset.Shared.GlobalSettings.Categories;
+using SAIN.Preset.Shared.GlobalSettings.Categories.General;
 using SAIN.Preset.Shared.Models;
 using SAIN.Preset.Shared.Models.Enums;
 using SAIN.SAINComponent.Classes.EnemyClasses;
@@ -152,6 +153,20 @@ public class SAINBotSuppressClass : BotComponentClassBase
             return false;
         }
 
+        var discipline = Discipline;
+        if (discipline != null)
+        {
+            if (_burstPauseUntil > Time.time)
+            {
+                if (SuppressingTarget)
+                {
+                    ResetSuppressing();
+                }
+                return false;
+            }
+            minimumAmmoRatio = Mathf.Max(minimumAmmoRatio, discipline.SuppressMinAmmoRatio);
+        }
+
         float ratio = CalcAmmoRatio(BotOwner, out int currentAmmo);
         bool ammoGoodForSupp = ratio >= minimumAmmoRatio && currentAmmo >= minimumBullets;
         if (!ammoGoodForSupp)
@@ -252,6 +267,10 @@ public class SAINBotSuppressClass : BotComponentClassBase
     {
         if (Enemy != null && !Enemy.IsZombie && !Enemy.IsVisible)
         {
+            if (_burstPauseUntil > Time.time && Discipline != null)
+            {
+                return false;
+            }
             if (withBehaviorChecks && !CanSuppressEnemy(Enemy))
             {
                 return false;
@@ -265,18 +284,65 @@ public class SAINBotSuppressClass : BotComponentClassBase
         return false;
     }
 
+    /// <summary>
+    /// zzap: F6 General > Close Combat (zzap) > Suppression Discipline, or null when off / not applicable.
+    /// </summary>
+    private CloseCombatSettings Discipline
+    {
+        get
+        {
+            var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
+            if (settings == null || !settings.SuppressionDiscipline || (settings.PmcOnly && !Bot.Info.Profile.IsPMC))
+            {
+                return null;
+            }
+            return settings;
+        }
+    }
+
+    private float _burstPauseUntil;
+    private float _lastSuppressShotTime;
+    private int _burstStartAmmo;
+
+    /// <summary>
+    /// zzap: count rounds fired in the current suppression burst; pause after SuppressBurstRounds.
+    /// </summary>
+    private void TrackBurst()
+    {
+        var discipline = Discipline;
+        if (discipline == null)
+        {
+            return;
+        }
+        float now = Time.time;
+        CalcAmmoRatio(BotOwner, out int ammo);
+        if (now - _lastSuppressShotTime > 1.5f || ammo > _burstStartAmmo)
+        {
+            _burstStartAmmo = ammo;
+        }
+        _lastSuppressShotTime = now;
+        if (_burstStartAmmo - ammo >= Mathf.RoundToInt(discipline.SuppressBurstRounds))
+        {
+            _burstPauseUntil = now + discipline.SuppressBurstPause * UnityEngine.Random.Range(0.7f, 1.3f);
+            _burstStartAmmo = ammo;
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("suppress.burstPause");
+            ResetSuppressing();
+        }
+    }
+
     private bool CanSuppressEnemy(Enemy Enemy)
     {
-        if (Enemy.Seen && Enemy.TimeSinceSeen <= TimeSinceSeenToSuppress)
+        float cap = Discipline?.SuppressMaxTimeSinceContact ?? float.MaxValue;
+        if (Enemy.Seen && Enemy.TimeSinceSeen <= Mathf.Min(TimeSinceSeenToSuppress, cap))
         {
             return true;
         }
         var status = Enemy.Status;
-        if (status.ShotAtMe && Time.time - status.TimeLastShotAtMe <= TimeSinceShotAtToSuppress)
+        if (status.ShotAtMe && Time.time - status.TimeLastShotAtMe <= Mathf.Min(TimeSinceShotAtToSuppress, cap))
         {
             return true;
         }
-        if (status.ShotMe && Time.time - status.TimeLastShotMe <= TimeSinceShotToSuppress)
+        if (status.ShotMe && Time.time - status.TimeLastShotMe <= Mathf.Min(TimeSinceShotToSuppress, cap))
         {
             return true;
         }
@@ -294,6 +360,11 @@ public class SAINBotSuppressClass : BotComponentClassBase
         SuppressingTarget = true;
         Enemy.Status.EnemyIsSuppressed = true;
         EnemyBeingSuppressed = Enemy;
+        TrackBurst();
+        if (!SuppressingTarget)
+        {
+            return false;
+        }
         if (_suppressTime < Time.time)
         {
             float timeAdd;

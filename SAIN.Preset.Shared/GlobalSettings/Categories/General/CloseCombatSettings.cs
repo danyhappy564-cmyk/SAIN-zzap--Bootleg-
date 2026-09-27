@@ -29,7 +29,42 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float SeenWithin = 4f;
 
     [DataMember]
+    [Name("Sprint If Cover Within")]
+    [Description("Meters. Exception: if the cover the bot is heading to is this close, it may dash there (a short sprint into cover is what players do too). 0 = never.")]
+    [MinMax(0f, 8f, 10f)]
+    public float SprintIfCoverWithin = 3f;
+
+    [DataMember]
+    [Name("Suppression Discipline")]
+    [Description("Limits blind suppressive fire at an enemy the bot can't see: only right after contact, short bursts with a pause, and never below a healthy magazine - so it isn't caught reloading with nothing left.")]
+    public bool SuppressionDiscipline = true;
+
+    [DataMember]
+    [Name("Suppress Only Within")]
+    [Description("Seconds. Suppress an unseen enemy only if it was seen / shot at the bot / hit the bot this recently. Caps the personality values (TwitchPlayers had 12-30s for being shot at).")]
+    [MinMax(0.5f, 15f, 10f)]
+    public float SuppressMaxTimeSinceContact = 3f;
+
+    [DataMember]
+    [Name("Suppress Keep Magazine")]
+    [Description("0-1. Stop suppressing once the magazine is below this fraction (vanilla 0.33). Keeps rounds for the enemy who actually peeks.")]
+    [MinMax(0.2f, 0.9f, 100f)]
+    public float SuppressMinAmmoRatio = 0.6f;
+
+    [DataMember]
+    [Name("Suppress Burst Rounds")]
+    [Description("Rounds per suppression burst before a pause.")]
+    [MinMax(2f, 15f, 1f)]
+    public float SuppressBurstRounds = 5f;
+
+    [DataMember]
+    [Name("Suppress Burst Pause")]
+    [Description("Seconds of pause between suppression bursts (randomized 0.7x-1.3x).")]
+    [MinMax(0.5f, 8f, 10f)]
+    public float SuppressBurstPause = 3f;
+
+    [DataMember]
     [Name("PMC Only")]
-    [Description("Apply only to PMCs. Scavs keep vanilla behaviour.")]
+    [Description("Apply everything above only to PMCs. Scavs keep vanilla behaviour.")]
     public bool PmcOnly = true;
 }

@@ -179,6 +179,7 @@ public class SAINCoverClass : BotComponentClassBase
     }
 
     private bool _noBackTurnActive;
+    private float _nextShortDashCount;
 
     /// <summary>
     /// zzap: an enemy close by and seen just now -> walk to cover facing it instead of sprinting with the back
@@ -194,6 +195,20 @@ public class SAINCoverClass : BotComponentClassBase
             && (enemy.IsVisible || enemy.TimeSinceSeen < settings.SeenWithin)
             && enemy.KnownPlaces.LastKnownPosition is Vector3 known
             && (known - Bot.Position).magnitude < settings.Distance;
+        if (active && settings.SprintIfCoverWithin > 0f && CoverPoint_MovingTo != null)
+        {
+            Vector3 toCover = CoverPoint_MovingTo.Position - Bot.Position;
+            toCover.y = 0f;
+            if (toCover.magnitude <= settings.SprintIfCoverWithin)
+            {
+                if (_nextShortDashCount < Time.time)
+                {
+                    _nextShortDashCount = Time.time + 2f;
+                    SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("close.shortDashToCover");
+                }
+                active = false;
+            }
+        }
         if (active != _noBackTurnActive)
         {
             _noBackTurnActive = active;
