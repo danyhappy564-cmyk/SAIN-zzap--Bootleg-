@@ -335,6 +335,9 @@ public class SquadCombatClass : BotComponentClassBase
     // ---------------------------------------------------------------- crossfire
 
     private static readonly List<(Vector3 point, float until)> _claimedPoints = new();
+    private static readonly List<Vector3> _candidates = new();
+    private static readonly float[] RING_SCALES = { 1f, 0.7f, 0.45f };
+    private static readonly float[] SIDESTEPS = { 3f, 6f, 9f, 12f };
 
     private bool TryStartCrossfire(Enemy enemy, Vector3 known, out string reason)
     {
@@ -393,39 +396,66 @@ public class SquadCombatClass : BotComponentClassBase
         int tooClose = 0;
         CleanClaims();
 
-        for (float offset = minAngle; offset <= 90f; offset += 15f)
+        // Candidates: (1) rotated around the enemy at three ranges, (2) sidesteps from where we stand.
+        // A single ring at our own range mostly landed inside buildings/walls in the first test (Customs dorms).
+        _candidates.Clear();
+        foreach (float scale in RING_SCALES)
         {
-            for (int sign = -1; sign <= 1; sign += 2)
+            float r = Mathf.Max(range * scale, 8f);
+            for (float offset = minAngle; offset <= 120f; offset += 15f)
             {
-                float angle = (baseAngle + offset * sign) * Mathf.Deg2Rad;
-                Vector3 raw = enemyPos + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * range;
-                if (!SampleNav(raw, out Vector3 point))
+                for (int sign = -1; sign <= 1; sign += 2)
                 {
-                    continue;
+                    float angle = (baseAngle + offset * sign) * Mathf.Deg2Rad;
+                    _candidates.Add(enemyPos + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * r);
                 }
-                tested++;
-                if (TooCloseToTeammates(point))
-                {
-                    tooClose++;
-                    continue;
-                }
-                if (Physics.Linecast(point + Vector3.up * 1.5f, enemyPos + Vector3.up * 1.3f, LayersMaskController.HighPolyWithTerrainMask))
-                {
-                    noLos++;
-                    continue;
-                }
-                if (!Bot.Mover.CanGoToPoint(point, out NavMeshPath path, true))
-                {
-                    continue;
-                }
-                float length = PathLength(path);
-                if (length > MAX_PATH_LENGTH || length >= bestPath)
-                {
-                    continue;
-                }
-                bestPath = length;
-                result = point;
             }
+        }
+        Vector3 toEnemyFromBot = Flat(enemyPos - Bot.Position);
+        if (toEnemyFromBot.sqrMagnitude > 1f)
+        {
+            Vector3 lateral = Vector3.Cross(Vector3.up, toEnemyFromBot.normalized);
+            foreach (float step in SIDESTEPS)
+            {
+                _candidates.Add(Bot.Position + lateral * step);
+                _candidates.Add(Bot.Position - lateral * step);
+            }
+        }
+
+        Vector3 refDir = fromEnemy.normalized;
+        foreach (Vector3 raw in _candidates)
+        {
+            if (!SampleNav(raw, out Vector3 point))
+            {
+                continue;
+            }
+            Vector3 candDir = Flat(point - enemyPos);
+            if (candDir.magnitude < 5f || Vector3.Angle(candDir, refDir) < minAngle)
+            {
+                continue;
+            }
+            tested++;
+            if (TooCloseToTeammates(point))
+            {
+                tooClose++;
+                continue;
+            }
+            if (Physics.Linecast(point + Vector3.up * 1.5f, enemyPos + Vector3.up * 1.3f, LayersMaskController.HighPolyWithTerrainMask))
+            {
+                noLos++;
+                continue;
+            }
+            if (!Bot.Mover.CanGoToPoint(point, out NavMeshPath path, true))
+            {
+                continue;
+            }
+            float length = PathLength(path);
+            if (length > MAX_PATH_LENGTH || length >= bestPath)
+            {
+                continue;
+            }
+            bestPath = length;
+            result = point;
         }
         if (bestPath < float.MaxValue)
         {
@@ -588,6 +618,13 @@ public class SquadCombatClass : BotComponentClassBase
             return;
         }
         ECombatDecision next = Bot.Decision.CurrentCombatDecision;
+        if (next == ECombatDecision.SquadTactic)
+        {
+            // SAINLayer restarts the current action whenever ANY decision changes (self action like reload,
+            // squad decision, enemy). The combat decision is still ours, so the new action keeps this session.
+            TacticDiagnostics.Count("squad.actionRestartKept");
+            return;
+        }
         End(next == ECombatDecision.StandAndShoot ? "enemySpotted(StandAndShoot)" : $"interrupted({next})");
     }
 

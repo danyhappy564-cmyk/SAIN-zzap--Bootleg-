@@ -405,6 +405,40 @@ public class DoorTacticClass : BotComponentClassBase
     /// Samples the navmesh near a planned point and rejects results that snapped through the wall
     /// onto the enemy's side of the door.
     /// </summary>
+    private static readonly float[] STACK_DEPTHS = { STACK_DEPTH, 1.3f, 0.6f, 1.8f };
+    private static readonly float[] STACK_GAPS = { STACK_SIDE_GAP, 0.4f, 1.1f, 0.15f };
+
+    /// <summary>
+    /// Beside the frame on the bot's side. The first test (Customs) failed with the single 0.9m/0.7m spot on
+    /// several doors (frame close to a corner or a narrow corridor), so try a few depths/gaps on both edges,
+    /// preferring the edge closer to the bot. The spot must stay outside the doorway's width (not visible
+    /// straight through the opening).
+    /// </summary>
+    private static bool FindStackPoint(DoorGeometry geo, float side, out Vector3 result)
+    {
+        foreach (float edge in new[] { side, -side })
+        {
+            foreach (float depth in STACK_DEPTHS)
+            {
+                foreach (float gap in STACK_GAPS)
+                {
+                    Vector3 raw = geo.Center + geo.BotSide * depth + geo.Axis * edge * (geo.HalfWidth + gap);
+                    if (!SampleOnBotSide(raw, geo, out result))
+                    {
+                        continue;
+                    }
+                    if (Mathf.Abs(Vector3.Dot(result - geo.Center, geo.Axis)) < geo.HalfWidth * 0.9f)
+                    {
+                        continue;
+                    }
+                    return true;
+                }
+            }
+        }
+        result = default;
+        return false;
+    }
+
     private static bool SampleOnBotSide(Vector3 point, DoorGeometry geo, out Vector3 result)
     {
         if (!SampleNav(point, out result))
@@ -498,15 +532,10 @@ public class DoorTacticClass : BotComponentClassBase
         {
             side = 1f;
         }
-        Vector3 stackRaw = geo.Center + geo.BotSide * STACK_DEPTH + geo.Axis * side * (geo.HalfWidth + STACK_SIDE_GAP);
-        if (!SampleOnBotSide(stackRaw, geo, out s.Stack))
+        if (!FindStackPoint(geo, side, out s.Stack))
         {
-            stackRaw = geo.Center + geo.BotSide * STACK_DEPTH - geo.Axis * side * (geo.HalfWidth + STACK_SIDE_GAP);
-            if (!SampleOnBotSide(stackRaw, geo, out s.Stack))
-            {
-                reason = "noStackPointOnNavmesh";
-                return null;
-            }
+            reason = "noStackPointOnNavmesh";
+            return null;
         }
         bool peekPointOk = SampleOnBotSide(geo.Center + geo.BotSide * PEEK_DEPTH, geo, out s.PeekPoint);
         bool closePointOk = SampleOnBotSide(geo.Center + geo.BotSide * CLOSE_DEPTH, geo, out s.ClosePoint);
@@ -2109,6 +2138,13 @@ public class DoorTacticClass : BotComponentClassBase
     /// </summary>
     public void OnActionStopped()
     {
+        if (_session != null && Bot.Decision.CurrentCombatDecision == ECombatDecision.DoorTactic)
+        {
+            // SAINLayer restarts the action on ANY decision change (self action, squad decision). Still our
+            // decision -> the new DoorTacticAction continues this session; don't cancel tricks or end it.
+            TacticDiagnostics.Count("door.actionRestartKept");
+            return;
+        }
         Bot.Mover.IgnoreDoorSlow = false;
         CancelFakeHeal("interrupted");
         ForceRestoreWeapon();
