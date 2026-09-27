@@ -58,6 +58,23 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public bool SquadChecks = true;
 
     [DataMember]
+    [Name("Close Gunfire Abort Distance")]
+    [Description("Meters. If anyone other than the enemy in the room is heard shooting closer than this, the bot drops the door and deals with it. 0 = off.")]
+    [MinMax(0f, 40f, 1f)]
+    public float CloseGunfireDistance = 12f;
+
+    [DataMember]
+    [Name("Resume After Third Party")]
+    [Description("After a door tactic was dropped because of a third party (shot at, flanked, close gunfire, target switched), the bot goes back to the same door once that's dealt with, without re-rolling the chance.")]
+    public bool ResumeAfterThirdParty = true;
+
+    [DataMember]
+    [Name("Resume Window")]
+    [Description("Seconds. How long after dropping the door the bot may still come back to it (the room enemy may have been last heard up to this long ago).")]
+    [MinMax(10f, 180f, 1f)]
+    public float ResumeWindow = 90f;
+
+    [DataMember]
     [Name("Squad Roles")]
     [Description("When a bot starts a door tactic, the nearest teammate who knows the same enemy takes Overwatch (holds a cross angle on the door from the other side, back far enough to stay clear of a door grenade) and the next one takes Rear Guard (watches behind the group).")]
     public bool SquadRoles = true;

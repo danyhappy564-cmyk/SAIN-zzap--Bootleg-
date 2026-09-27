@@ -192,7 +192,11 @@ public class DoorTacticClass : BotComponentClassBase
             reason = "noLastKnown";
             return false;
         }
-        if (enemy.TimeSinceLastKnownUpdated > MAX_TIME_SINCE_KNOWN)
+        bool resumeCandidate = Settings.ResumeAfterThirdParty
+            && _resumeUntil > Time.time
+            && _resumeEnemyId == enemy.EnemyProfileId;
+        float maxSinceKnown = resumeCandidate ? Mathf.Max(MAX_TIME_SINCE_KNOWN, Settings.ResumeWindow) : MAX_TIME_SINCE_KNOWN;
+        if (enemy.TimeSinceLastKnownUpdated > maxSinceKnown)
         {
             reason = "lastKnownTooOld";
             return false;
@@ -221,8 +225,15 @@ public class DoorTacticClass : BotComponentClassBase
             return false;
         }
 
+        bool resuming = resumeCandidate && _resumeDoorId == geo.Data.Id;
         float chance = Mathf.Clamp01(baseChance * Settings.ChanceMultiplier);
-        if (Random.value > chance)
+        if (resuming)
+        {
+            _resumeUntil = 0f;
+            TacticDiagnostics.Count("door.resume");
+            Log($"{Who()} RESUME door {geo.Data.Id} after third party ({_resumeReason}), no re-roll");
+        }
+        else if (Random.value > chance)
         {
             _doorCooldowns[geo.Data.Id] = time + DOOR_COOLDOWN_AFTER_ROLL_FAIL;
             _nextAllowedTime = time + GLOBAL_COOLDOWN;
@@ -606,6 +617,14 @@ public class DoorTacticClass : BotComponentClassBase
 
         if (s.IsSupport && !LeaderStillOnDoor(s, time))
         {
+            return;
+        }
+
+        if (CloseThirdPartyGunfire(s, out string gunfire))
+        {
+            Log($"{Who()} abort at step {s.Step}: {gunfire}");
+            TacticDiagnostics.Count("door.abort.closeGunfire");
+            End($"closeGunfire({gunfire})");
             return;
         }
 
@@ -1566,6 +1585,59 @@ public class DoorTacticClass : BotComponentClassBase
         return true;
     }
 
+    // ---------------------------------------------------------------- third party
+
+    private int _resumeDoorId = -1;
+    private string _resumeEnemyId;
+    private string _resumeReason;
+    private float _resumeUntil;
+
+    private static bool IsThirdPartyResult(string result)
+    {
+        return result.StartsWith("underFire")
+            || result.StartsWith("otherEnemyOnOurSide")
+            || result.StartsWith("closeGunfire")
+            || result.StartsWith("goalEnemyChanged");
+    }
+
+    /// <summary>
+    /// Someone other than the room enemy was heard shooting close by (any side of the door).
+    /// </summary>
+    private bool CloseThirdPartyGunfire(Session s, out string what)
+    {
+        what = string.Empty;
+        float maxDist = Settings.CloseGunfireDistance;
+        if (maxDist <= 0f)
+        {
+            return false;
+        }
+        var enemies = Bot.EnemyController.KnownEnemies;
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            Enemy other = enemies[i];
+            if (other == null || ReferenceEquals(other, s.Enemy))
+            {
+                continue;
+            }
+            var hearing = other.Hearing;
+            if (hearing == null || Time.time - hearing.LastHeardSoundTime > 2f)
+            {
+                continue;
+            }
+            if (hearing.LastHeardSoundType != SAINSoundType.Shot && hearing.LastHeardSoundType != SAINSoundType.SuppressedShot)
+            {
+                continue;
+            }
+            float dist = HorizontalDistance(hearing.LastHeardSoundPosition, Bot.Position);
+            if (dist < maxDist)
+            {
+                what = $"third party {other.EnemyName} shooting {dist:0}m away";
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ---------------------------------------------------------------- listening
 
     /// <summary>
@@ -1720,7 +1792,9 @@ public class DoorTacticClass : BotComponentClassBase
             return;
         }
         ECombatDecision next = Bot.Decision.CurrentCombatDecision;
-        string why = next == ECombatDecision.StandAndShoot ? "enemySpotted(StandAndShoot)" : $"interrupted({next})";
+        string why = next == ECombatDecision.StandAndShoot
+            ? "enemySpotted(StandAndShoot)"
+            : BotOwner.Memory.IsUnderFire ? $"underFire(interrupted:{next})" : $"interrupted({next})";
         End(why);
     }
 
@@ -1743,6 +1817,18 @@ public class DoorTacticClass : BotComponentClassBase
         float time = Time.time;
         _doorCooldowns[s.Door.Id] = time + DOOR_COOLDOWN_AFTER_SESSION;
         _nextAllowedTime = time + GLOBAL_COOLDOWN;
+        if (!s.IsSupport && Settings.ResumeAfterThirdParty && IsThirdPartyResult(result) && s.Enemy != null)
+        {
+            // Come back to this door once the third party is dealt with: short cooldown, no re-roll.
+            _doorCooldowns[s.Door.Id] = time + 5f;
+            _nextAllowedTime = time + 3f;
+            _resumeDoorId = s.Door.Id;
+            _resumeEnemyId = s.Enemy.EnemyProfileId;
+            _resumeUntil = time + Settings.ResumeWindow;
+            _resumeReason = result;
+            TacticDiagnostics.Count("door.resumeArmed");
+            Log($"{Who()} door {s.Door.Id} dropped for a third party ({result}) - will resume within {Settings.ResumeWindow:0}s if the room enemy is still there");
+        }
         Log(
             $"{Who()} END plan={s.Plan} lastStep={s.Step} result={result} duration={time - s.StartTime:0.0}s "
                 + $"jumped={s.Jumped} fakeNade={s.FakeNadeDrawn} fakeHeal={s.FakeHealStarted} nadeThrown={s.NadeThrown} enemyVisibleNow={s.Enemy?.IsVisible}"
