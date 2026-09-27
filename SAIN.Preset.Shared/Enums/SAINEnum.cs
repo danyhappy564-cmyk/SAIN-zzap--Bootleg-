@@ -22,6 +22,7 @@ public enum ECombatDecision
     DebugNoDecision,
     DoorTactic,
     SquadTactic,
+    Reposition,
 }
 
 public enum ESelfActionType

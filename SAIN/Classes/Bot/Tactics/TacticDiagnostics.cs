@@ -31,7 +31,7 @@ internal static class TacticDiagnostics
         {
             var general = GlobalSettingsClass.Instance?.General;
             return general != null
-                && (general.DoorTactics.DiagnosticLogs || general.FreezeAmbush.DiagnosticLogs || general.SquadCombat.DiagnosticLogs);
+                && (general.DoorTactics.DiagnosticLogs || general.FreezeAmbush.DiagnosticLogs || general.SquadCombat.DiagnosticLogs || general.Reposition.DiagnosticLogs);
         }
     }
 
@@ -129,6 +129,12 @@ internal static class TacticDiagnostics
             $"[Tactics] SETTINGS SquadCombat: enabled={q.Enabled} crossfire={q.Crossfire} minAngle={q.CrossfireMinAngle:0} spacing={q.MinSpacing:0}m "
                 + $"cover={q.CoverTeammate} coverDist={q.CoverMaxDistance:0}m trade={q.Trade} tradeWindow={q.TradeWindow:0}s "
                 + $"maxEnemyDist={q.MaxEnemyDistance:0}m pmcCallouts={q.PmcSquadVoiceCallouts} logs={q.DiagnosticLogs}"
+        );
+        var r = general.Reposition;
+        Logger.LogWarning(
+            $"[Tactics] SETTINGS Reposition: enabled={r.Enabled} fuse={r.FuseSelection}(<{r.ShortFuseDistance:0}m short) flank={r.NadeFlank}/{r.NadeFlankChance:0}% "
+                + $"relocate={r.Relocate}/{r.RelocateChance:0}% disengage={r.Disengage}/{r.DisengageChance:0}%(>{r.DisengageMinDistance:0}m) "
+                + $"bait={r.BaitPeek}/{r.BaitPeekChance:0}% fakeReload={r.FakeReload}/{r.FakeReloadChance:0}% ghost={r.GhostFlank}/{r.GhostFlankChance:0}% pmcOnly={r.PmcOnly} logs={r.DiagnosticLogs}"
         );
         var c = general.CloseCombat;
         Logger.LogWarning(

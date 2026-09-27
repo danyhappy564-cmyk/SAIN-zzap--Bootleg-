@@ -54,6 +54,8 @@ public class EnemyDecisionClass : BotBase
         }
 #endif
 
+        Bot.Reposition.Observe(enemy);
+
         BotWeaponManager weaponManager = BotOwner.WeaponManager;
         if (weaponManager == null || !weaponManager.HaveBullets || weaponManager.Reload.Reloading)
         {
@@ -78,6 +80,12 @@ public class EnemyDecisionClass : BotBase
         if (Bot.DoorTactic.ShallAvoidTacticGrenade(out reason))
         {
             result = ECombatDecision.Retreat;
+            return true;
+        }
+
+        if (Bot.Reposition.ShallUse(enemy, out reason))
+        {
+            result = ECombatDecision.Reposition;
             return true;
         }
 

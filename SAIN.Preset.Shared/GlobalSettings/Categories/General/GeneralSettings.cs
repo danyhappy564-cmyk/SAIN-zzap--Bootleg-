@@ -63,6 +63,11 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
     public CloseCombatSettings CloseCombat = new();
 
     [DataMember]
+    [Name("Reposition (zzap)")]
+    [Description("Grenade blast flank, relocate after being spotted, disengage after one magazine, bait peeks, fuse selection.")]
+    public RepositionSettings Reposition = new();
+
+    [DataMember]
     public ExtractSettings Extract = new();
 
     [DataMember]
@@ -95,6 +100,7 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
         list.Add(FreezeAmbush);
         list.Add(SquadCombat);
         list.Add(CloseCombat);
+        list.Add(Reposition);
         list.Add(Extract);
         list.Add(Flashlight);
         list.Add(LootingBots);
