@@ -176,7 +176,10 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
     /// EnsureDoorFinalizeWatchdogInitialized() below for when that scan actually has to happen
     /// (GameWorldComponent.Init() turned out to be too early, see the comment there).
     /// </summary>
-    private const float DOOR_FINALIZE_WATCH_TIMEOUT = 3f;
+    // 3s -> 1.2s (2026-09-27 video): NavMeshDoorLink only carves the open leaf out of the navmesh once the door
+    // is Open, so for the 3s a bot-opened door sat in Interacting the path ran straight through the leaf and the bot
+    // walked into the pocket behind it. A door swing takes ~1s.
+    private const float DOOR_FINALIZE_WATCH_TIMEOUT = 1.2f;
 
     // GameWorldComponent.Init() (where Init() above used to do this scan) runs as soon as the
     // GameWorld object exists, before the map's scene content - including every Door - has finished

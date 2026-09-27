@@ -71,7 +71,7 @@ public class EnemyDecisionClass : BotBase
         }
 #endif
 
-        if (Bot.DoorTactic.ShallEmergencyRetreat(enemy, out reason))
+        if (Bot.DoorTactic.ShallEmergencyRetreat(enemy, out reason) || Bot.Reposition.ShallPullBack(out reason))
         {
             result = ECombatDecision.Retreat;
             return true;

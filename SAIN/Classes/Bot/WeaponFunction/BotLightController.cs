@@ -39,8 +39,8 @@ public class BotLightController : BotComponentClassBase
                 }
                 _lightOnFailures = 0;
             }
-            _nextLightChangeTime = Time.time + _changelightFreq * UnityEngine.Random.Range(0.66f, 1.33f);
-            if (wantLightOn && _lastTurnOnTime > 0f && !IsLightEnabled)
+            _nextLightChangeTime = Time.time + (wantLightOn ? 0.25f : _changelightFreq * UnityEngine.Random.Range(0.66f, 1.33f));
+            if (wantLightOn && _lastTurnOnTime > 0f && Time.time - _lastTurnOnTime > 0.8f && !IsLightEnabled)
             {
                 _lightOnFailures++;
                 if (_lightOnFailures >= 2)
@@ -145,7 +145,8 @@ public class BotLightController : BotComponentClassBase
                 return;
             }
 
-            if (enemy.IsVisible && Time.time - enemy.Vision.VisibleStartTime > 0.75f)
+            // zzap (reference clip 2): light off while closing in, on the moment the target is in sight to blind them.
+            if (enemy.IsVisible && Time.time - enemy.Vision.VisibleStartTime > 0.1f)
             {
                 if (enemy.RealDistance <= maxTurnOnrange * 0.9f)
                 {

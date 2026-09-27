@@ -88,6 +88,8 @@ public class RepositionClass : BotComponentClassBase
         public float HoldPose = 1f;
         public int BaitLeft;
         public bool BaitCrouch;
+        public bool BaitJump;
+        public bool BaitJumped;
         public bool DrewFire;
         public Vector3 Noise;
         public int NoiseLeft = 2;
@@ -425,6 +427,32 @@ public class RepositionClass : BotComponentClassBase
         return false;
     }
 
+    private float _pullBackShootUntil;
+    private float _pullBackUntil;
+    private bool _pullBackLogged;
+
+    /// <summary>
+    /// Called from EnemyDecisionClass next to the emergency retreat: the short window after a bait peek's shot where
+    /// the bot ducks back into cover (SAIN Retreat).
+    /// </summary>
+    public bool ShallPullBack(out string reason)
+    {
+        float time = Time.time;
+        if (_pullBackUntil > time && time >= _pullBackShootUntil)
+        {
+            if (!_pullBackLogged)
+            {
+                _pullBackLogged = true;
+                TacticDiagnostics.Count("repo.bait.pullBack");
+                Log($"{Who()} bait peek shot done -> back into cover");
+            }
+            reason = "baitPullBack";
+            return true;
+        }
+        reason = string.Empty;
+        return false;
+    }
+
     private static bool OtherEnemyVisible(Enemy goal, EnemyList knownEnemies)
     {
         if (knownEnemies == null)
@@ -574,6 +602,7 @@ public class RepositionClass : BotComponentClassBase
         _session.Home = Bot.Position;
         _session.BaitLeft = Random.value < 0.5f ? 1 : 2;
         _session.BaitCrouch = Random.value < 0.4f;
+        _session.BaitJump = Random.value < 0.5f;
         reason = "bait";
         return true;
     }
@@ -731,6 +760,15 @@ public class RepositionClass : BotComponentClassBase
 
             case EPhase.BaitOut:
                 Bot.Mover.SetTargetPose(s.BaitCrouch ? 0.55f : 1f);
+                // Reference clip 3: hop out to see over/around cover, not just a shoulder.
+                if (s.BaitJump && !s.BaitJumped)
+                {
+                    s.BaitJumped = Bot.Mover.TryJump();
+                    if (s.BaitJumped)
+                    {
+                        TacticDiagnostics.Count("repo.bait.jump");
+                    }
+                }
                 if (MoveTo(s, s.Target, false, phaseTime) || phaseTime > 0.9f)
                 {
                     SetPhase(s, EPhase.BaitShow);
@@ -752,8 +790,17 @@ public class RepositionClass : BotComponentClassBase
                     TacticDiagnostics.Count("repo.bait.peeked");
                     if (s.BaitLeft > 0)
                     {
-                        // Vary it: other stance next time so the head isn't where they pre-aimed.
+                        // Vary it: other stance and the OTHER side next time so the head isn't where they pre-aimed.
                         s.BaitCrouch = !s.BaitCrouch;
+                        s.BaitJump = !s.BaitJump;
+                        s.BaitJumped = false;
+                        Vector3 other = s.Home + (s.Home - s.Target);
+                        if (NavMesh.SamplePosition(other, out NavMeshHit otherHit, 0.6f, -1)
+                            && !Physics.Linecast(otherHit.position + Vector3.up * 1.4f, s.Look, LayersMaskController.HighPolyWithTerrainMask))
+                        {
+                            s.Target = otherHit.position;
+                            TacticDiagnostics.Count("repo.bait.otherSide");
+                        }
                         SetPhase(s, EPhase.BaitWait);
                     }
                     else
@@ -884,6 +931,13 @@ public class RepositionClass : BotComponentClassBase
         if (s.Mode == EMode.BaitPeek && Bot.Decision.CurrentCombatDecision == ECombatDecision.RushEnemy)
         {
             TacticDiagnostics.Count("repo.bait.rushAfter");
+        }
+        if (s.Mode == EMode.BaitPeek && result.StartsWith("enemySpotted"))
+        {
+            // Peek, shoot briefly, back into cover (reference clip 3) instead of standing out in the open.
+            _pullBackShootUntil = Time.time + 0.9f;
+            _pullBackUntil = _pullBackShootUntil + 1.6f;
+            _pullBackLogged = false;
         }
         Log($"{Who()} END {s.Mode} result={result} after {Time.time - s.StartTime:0.0}s phase={s.Phase}");
     }

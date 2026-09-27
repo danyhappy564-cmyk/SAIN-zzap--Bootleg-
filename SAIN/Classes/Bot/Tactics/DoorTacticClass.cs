@@ -583,6 +583,8 @@ public class DoorTacticClass : BotComponentClassBase
         public bool FakeNadeDrawn;
         public bool CloseAttempted;
         public bool NadeThrown;
+        public float ProgressCheckTime;
+        public Vector3 ProgressCheckPos;
         public int NadeCount;
         public float NadeThrowTime;
         public float NadeFuse;
@@ -744,17 +746,20 @@ public class DoorTacticClass : BotComponentClassBase
     }
 
     /// <summary>
-    /// Where to wait out our own door grenade: 6-9m back on our side, preferring a spot the landing point
-    /// can't see (around a corner / behind a wall), and a short path so the bot gets there before the fuse.
+    /// Where to wait out our own door grenade. Matches the user's reference clip (video 4): close the door, underhand
+    /// toss at its foot, back off 7-8m down the corridor and hold the door in the sights until it goes off. So the spot
+    /// must SEE the door (to shoot whoever bolts out) and be 7m+ from it; if nothing like that exists, 6m+ out of the
+    /// grenade's line of sight, else the farthest reachable.
     /// </summary>
     private bool FindFarHold(DoorGeometry geo, out Vector3 result)
     {
-        float[] depths = [9f, 8f, 7f, 6f];
-        float[] laterals = [0f, 2f, -2f, 3.5f, -3.5f];
+        float[] depths = [9f, 8f, 7.5f, 7f, 6f];
+        float[] laterals = [0f, 1.5f, -1.5f, 3f, -3f];
+        Vector3 doorChest = geo.Center + geo.BotSide * 0.3f + Vector3.up * 1.2f;
         Vector3 landing = geo.Center + geo.BotSide * 0.4f + Vector3.up * 0.3f;
-        bool haveOpen = false;
-        Vector3 bestOpen = default;
-        float bestOpenDist = 0f;
+        bool haveCovered = false, haveAny = false;
+        Vector3 covered = default, any = default;
+        float anyDist = 0f;
         foreach (float depth in depths)
         {
             foreach (float lateral in laterals)
@@ -766,7 +771,8 @@ public class DoorTacticClass : BotComponentClassBase
                 }
                 Vector3 flat = point - geo.Center;
                 flat.y = 0f;
-                if (flat.magnitude < FAR_HOLD_MIN_DIST)
+                float dist = flat.magnitude;
+                if (dist < FAR_HOLD_MIN_DIST)
                 {
                     continue;
                 }
@@ -774,22 +780,28 @@ public class DoorTacticClass : BotComponentClassBase
                 {
                     continue;
                 }
-                bool covered = Physics.Linecast(landing, point + Vector3.up * 1.2f, LayersMaskController.HighPolyWithTerrainMask);
-                if (covered)
+                Vector3 eye = point + Vector3.up * 1.4f;
+                bool seesDoor = !Physics.Linecast(eye, doorChest, LayersMaskController.HighPolyWithTerrainMask);
+                if (seesDoor && dist >= 7f)
                 {
                     result = point;
                     return true;
                 }
-                if (flat.magnitude > bestOpenDist)
+                if (!haveCovered && Physics.Linecast(landing, eye, LayersMaskController.HighPolyWithTerrainMask))
                 {
-                    bestOpenDist = flat.magnitude;
-                    bestOpen = point;
-                    haveOpen = true;
+                    covered = point;
+                    haveCovered = true;
+                }
+                if (dist > anyDist)
+                {
+                    anyDist = dist;
+                    any = point;
+                    haveAny = true;
                 }
             }
         }
-        result = bestOpen;
-        return haveOpen;
+        result = haveCovered ? covered : any;
+        return haveCovered || haveAny;
     }
 
     private static float PathLength(NavMeshPath path)
@@ -1410,6 +1422,23 @@ public class DoorTacticClass : BotComponentClassBase
         {
             End($"moveTimeout:{s.Step}");
             return false;
+        }
+        // Not getting anywhere (wedged behind a door leaf / against a wall): give up after 2.5s instead of pushing
+        // into it for the full 12s (2026-09-27 video: 2.5m to the stack took 12s and ended in moveTimeout).
+        if (stepTime < 0.1f || s.ProgressCheckTime <= 0f)
+        {
+            s.ProgressCheckTime = Time.time + 2.5f;
+            s.ProgressCheckPos = Bot.Position;
+        }
+        else if (Time.time > s.ProgressCheckTime)
+        {
+            if (HorizontalDistance(Bot.Position, s.ProgressCheckPos) < 0.4f)
+            {
+                End($"stuck:{s.Step}");
+                return false;
+            }
+            s.ProgressCheckTime = Time.time + 2.5f;
+            s.ProgressCheckPos = Bot.Position;
         }
         if (s.NextMoveOrderTime < Time.time)
         {
@@ -2507,6 +2536,7 @@ public class DoorTacticClass : BotComponentClassBase
         Log($"{Who()} step {s.Step} -> {step} ({why}) t={Time.time - s.StartTime:0.0}s");
         s.Step = step;
         s.StepStartTime = Time.time;
+        s.ProgressCheckTime = 0f;
         // Door-proximity slowdown (BotPathData) is only lifted for the quick peek hops and for backing
         // away from our own grenade next to the door.
         Bot.Mover.IgnoreDoorSlow =
@@ -2576,7 +2606,7 @@ public class DoorTacticClass : BotComponentClassBase
         }
         _doorCooldowns[s.Door.Id] = time + DOOR_COOLDOWN_AFTER_SESSION;
         _nextAllowedTime = time + GLOBAL_COOLDOWN;
-        if (resultKey == "moveTimeout" || resultKey == "noPath" || resultKey == "doorDidNotOpen" || resultKey == "doorOpenFailed")
+        if (resultKey == "moveTimeout" || resultKey == "stuck" || resultKey == "noPath" || resultKey == "doorDidNotOpen" || resultKey == "doorOpenFailed")
         {
             // Failed to even get going: don't chain straight into the next door (one bot started 8 sessions in a row).
             _nextAllowedTime = time + FAIL_COOLDOWN;
@@ -2630,7 +2660,7 @@ public class DoorTacticClass : BotComponentClassBase
     // door, it shot the player and died to its own grenade. SAIN's grenade avoidance never includes the
     // thrower (GrenadeController only notifies OTHER players), so the door-grenade (Trap) nades are tracked
     // here and (1) no bot opens a door next to one, (2) a bot that ends up next to one retreats.
-    private const float OWN_NADE_DANGER_RADIUS = 7f;
+    private const float OWN_NADE_DANGER_RADIUS = 6f;
     private const float OWN_NADE_DOOR_RADIUS = 6f;
     private const float OWN_NADE_MAX_AGE = 15f;
 
@@ -2694,7 +2724,8 @@ public class DoorTacticClass : BotComponentClassBase
         {
             return false;
         }
-        if (_session != null && (_session.Step == EStep.ThrowNade || _session.Step == EStep.MoveToFarHold))
+        // Our own session is either walking away from it or already waiting at the far hold (7m+, gun on the door).
+        if (_session != null && (_session.Step == EStep.ThrowNade || _session.Step == EStep.MoveToFarHold || _session.Step == EStep.WaitBlast))
         {
             return false;
         }

@@ -88,6 +88,12 @@ public class GrenadeController(BotManagerComponent controller) : BotManagerBase(
 
     private const float CLOSE_BLAST_KNOWN_DIST = 25f;
 
+    private static bool IsSquadmate(BotComponent bot, Player thrower)
+    {
+        var members = bot.Squad?.Members;
+        return members != null && members.ContainsKey(thrower.ProfileId);
+    }
+
     private void RegisterGrenadeExplosionForSAINBots(Vector3 explosionPosition, Player player, string playerProfileID, float range)
     {
         // Play a sound with the input range.
@@ -102,7 +108,7 @@ public class GrenadeController(BotManagerComponent controller) : BotManagerBase(
                 if (distance < range)
                 {
                     Enemy enemy = bot.EnemyController.GetEnemy(playerProfileID, true);
-                    if (enemy == null && distance < CLOSE_BLAST_KNOWN_DIST && player != null)
+                    if (enemy == null && distance < CLOSE_BLAST_KNOWN_DIST && player != null && !IsSquadmate(bot, player))
                     {
                         // zzap: a frag going off 25m away is noticed by anyone. SAIN only turned the blast into an
                         // estimated thrower position for bots that already knew the thrower, so a squad busy with
