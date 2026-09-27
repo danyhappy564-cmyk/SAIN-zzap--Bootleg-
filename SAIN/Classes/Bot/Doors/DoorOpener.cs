@@ -598,6 +598,19 @@ public class DoorOpener : BotComponentClassBase
         {
             return false;
         }
+        if (type == EInteractionType.Open
+            && SAIN.SAINComponent.Classes.Tactics.DoorTacticClass.LiveTacticNadeNear(data.Door.transform.position, 6f, out _))
+        {
+            // zzap: never open a door that has a live door-trap grenade next to it (first raid test: a bot
+            // opened the door onto its own grenade and died).
+            if (_nextNadeBlockLog < Time.time)
+            {
+                _nextNadeBlockLog = Time.time + 2f;
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("door.openBlockedByTacticNade");
+                Logger.LogWarning($"[DoorTactic] [{Bot.name}] not opening door {data.Door.Id}: live door grenade next to it");
+            }
+            return false;
+        }
 
         switch (data.Door.DoorState)
         {
@@ -632,6 +645,8 @@ public class DoorOpener : BotComponentClassBase
         }
         return false;
     }
+
+    private float _nextNadeBlockLog;
 
     public bool ShallKickOpen(Door door, EInteractionType Etype)
     {

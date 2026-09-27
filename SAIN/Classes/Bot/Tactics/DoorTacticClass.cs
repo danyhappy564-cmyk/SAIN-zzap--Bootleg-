@@ -88,7 +88,8 @@ public class DoorTacticClass : BotComponentClassBase
     private const float ARRIVE_DIST = 0.6f;
     private const float MOVE_STEP_TIMEOUT = 7f;
     private const float SESSION_MAX_TIME = 150f;
-    private const float FAR_HOLD_MIN_DIST = 4.5f;
+    private const float FAR_HOLD_MIN_DIST = 6f;
+    private const float FAR_HOLD_MAX_PATH = 14f;
     private const float DOOR_COOLDOWN_AFTER_SESSION = 60f;
     private const float DOOR_COOLDOWN_AFTER_ROLL_FAIL = 25f;
     private const float GLOBAL_COOLDOWN = 8f;
@@ -636,10 +637,18 @@ public class DoorTacticClass : BotComponentClassBase
         s.FirstStep = doorOpen ? EStep.MoveToClose : EStep.MoveToStack;
     }
 
+    /// <summary>
+    /// Where to wait out our own door grenade: 6-9m back on our side, preferring a spot the landing point
+    /// can't see (around a corner / behind a wall), and a short path so the bot gets there before the fuse.
+    /// </summary>
     private bool FindFarHold(DoorGeometry geo, out Vector3 result)
     {
-        float[] depths = [6f, 5.5f, 5f];
-        float[] laterals = [0f, 1.5f, -1.5f];
+        float[] depths = [9f, 8f, 7f, 6f];
+        float[] laterals = [0f, 2f, -2f, 3.5f, -3.5f];
+        Vector3 landing = geo.Center + geo.BotSide * 0.4f + Vector3.up * 0.3f;
+        bool haveOpen = false;
+        Vector3 bestOpen = default;
+        float bestOpenDist = 0f;
         foreach (float depth in depths)
         {
             foreach (float lateral in laterals)
@@ -655,15 +664,37 @@ public class DoorTacticClass : BotComponentClassBase
                 {
                     continue;
                 }
-                if (Bot.Mover.CanGoToPoint(point, out _, true))
+                if (!Bot.Mover.CanGoToPoint(point, out NavMeshPath path, true) || PathLength(path) > FAR_HOLD_MAX_PATH)
+                {
+                    continue;
+                }
+                bool covered = Physics.Linecast(landing, point + Vector3.up * 1.2f, LayersMaskController.HighPolyWithTerrainMask);
+                if (covered)
                 {
                     result = point;
                     return true;
                 }
+                if (flat.magnitude > bestOpenDist)
+                {
+                    bestOpenDist = flat.magnitude;
+                    bestOpen = point;
+                    haveOpen = true;
+                }
             }
         }
-        result = default;
-        return false;
+        result = bestOpen;
+        return haveOpen;
+    }
+
+    private static float PathLength(NavMeshPath path)
+    {
+        float length = 0f;
+        var corners = path.corners;
+        for (int i = 1; i < corners.Length; i++)
+        {
+            length += (corners[i] - corners[i - 1]).magnitude;
+        }
+        return length;
     }
 
     // ---------------------------------------------------------------- execution
@@ -961,7 +992,8 @@ public class DoorTacticClass : BotComponentClassBase
                     }
                     break;
                 }
-                if (stepTime > 1.3f)
+                // Go as soon as the grenade has left the hand (tracked) - not a fixed wait next to it.
+                if ((_expectOwnNadeUntil == 0f && stepTime > 0.2f) || stepTime > 1.6f)
                 {
                     SetStep(s.HasFarHold ? EStep.MoveToFarHold : EStep.Hold, "nadeThrown");
                 }
@@ -1367,9 +1399,10 @@ public class DoorTacticClass : BotComponentClassBase
                 // No GrenadeType: DoThrow would otherwise swap to the first frag in the rig (CheckGrenadeWithType).
                 data.GrenadeType = null;
                 grenades.SetThrowParams(longFuse);
-                if (grenades.SetThrowData(data))
+                if (grenades.SetThrowData(data) && grenades.DoThrow())
                 {
-                    return grenades.DoThrow();
+                    _expectOwnNadeUntil = Time.time + 4f;
+                    return true;
                 }
             }
         }
@@ -2168,6 +2201,10 @@ public class DoorTacticClass : BotComponentClassBase
         }
         _session = null;
         Bot.Mover.IgnoreDoorSlow = false;
+        // The tactic walks at 0.45-0.7 and crouches; SAIN's StandAndShoot never resets either, so without this
+        // the bot kept slow-walking (and backing off at slow-walk speed) after the tactic ended (first raid test).
+        Bot.Mover.SetTargetMoveSpeed(1f);
+        Bot.Mover.SetTargetPose(1f);
         CancelFakeHeal("sessionEnd");
         if (_doorClaims.TryGetValue(s.Door.Id, out DoorClaim claim) && claim.ProfileId == Bot.ProfileId)
         {
@@ -2196,13 +2233,121 @@ public class DoorTacticClass : BotComponentClassBase
         );
     }
 
+    public override void Init()
+    {
+        var controller = BotManagerComponent.Instance?.GrenadeController;
+        if (controller != null)
+        {
+            controller.OnGrenadeThrown += OnAnyGrenadeThrown;
+            _subscribedController = controller;
+        }
+        base.Init();
+    }
+
     public override void Dispose()
     {
         if (_session != null)
         {
             End("disposed");
         }
+        if (_subscribedController != null)
+        {
+            _subscribedController.OnGrenadeThrown -= OnAnyGrenadeThrown;
+            _subscribedController = null;
+        }
         base.Dispose();
+    }
+
+    // ---------------------------------------------------------------- own door grenade safety
+
+    // First raid test: a bot threw its door grenade, then (session over) SAIN walked it back through that
+    // door, it shot the player and died to its own grenade. SAIN's grenade avoidance never includes the
+    // thrower (GrenadeController only notifies OTHER players), so the door-grenade (Trap) nades are tracked
+    // here and (1) no bot opens a door next to one, (2) a bot that ends up next to one retreats.
+    private const float OWN_NADE_DANGER_RADIUS = 7f;
+    private const float OWN_NADE_DOOR_RADIUS = 6f;
+    private const float OWN_NADE_MAX_AGE = 15f;
+
+    private static readonly List<(Grenade grenade, float time)> _liveTacticNades = new();
+    private GrenadeController _subscribedController;
+    private float _expectOwnNadeUntil;
+    private float _nextOwnNadeLogTime;
+
+    private void OnAnyGrenadeThrown(Grenade grenade, Vector3 dangerPoint, string profileId)
+    {
+        if (grenade == null || profileId != Bot.ProfileId || Time.time > _expectOwnNadeUntil)
+        {
+            return;
+        }
+        _expectOwnNadeUntil = 0f;
+        _liveTacticNades.Add((grenade, Time.time));
+        TacticDiagnostics.Count("door.ownNadeTracked");
+        Log($"{Who()} own door grenade released, tracking it (no bot opens a door within {OWN_NADE_DOOR_RADIUS:0}m of it, "
+            + $"bots within {OWN_NADE_DANGER_RADIUS:0}m in its line of sight retreat)");
+    }
+
+    private static void CleanTacticNades()
+    {
+        float time = Time.time;
+        _liveTacticNades.RemoveAll(x => x.grenade == null || time - x.time > OWN_NADE_MAX_AGE);
+    }
+
+    /// <summary>
+    /// A live door-trap grenade (any bot's) within radius of the point.
+    /// </summary>
+    public static bool LiveTacticNadeNear(Vector3 point, float radius, out Vector3 nadePos)
+    {
+        CleanTacticNades();
+        foreach (var entry in _liveTacticNades)
+        {
+            Vector3 pos = entry.grenade.transform.position;
+            if ((pos - point).sqrMagnitude < radius * radius)
+            {
+                nadePos = pos;
+                return true;
+            }
+        }
+        nadePos = default;
+        return false;
+    }
+
+    /// <summary>
+    /// Called from EnemyDecisionClass right after the ammo check (before shooting): the bot is close to a
+    /// live door-trap grenade with nothing in between -> Retreat. Skipped while our own session is walking
+    /// away from it or holding the far spot.
+    /// </summary>
+    public bool ShallAvoidTacticGrenade(out string reason)
+    {
+        reason = string.Empty;
+        if (_liveTacticNades.Count == 0)
+        {
+            return false;
+        }
+        if (_session != null && (_session.Step == EStep.ThrowNade || _session.Step == EStep.MoveToFarHold))
+        {
+            return false;
+        }
+        Vector3 chest = Bot.Position + Vector3.up * 1.2f;
+        if (!LiveTacticNadeNear(chest, OWN_NADE_DANGER_RADIUS, out Vector3 nadePos))
+        {
+            return false;
+        }
+        if (Physics.Linecast(nadePos + Vector3.up * 0.3f, chest, LayersMaskController.HighPolyWithTerrainMask))
+        {
+            return false;
+        }
+        if (_session != null)
+        {
+            End("ownGrenadeTooClose");
+        }
+        reason = "tacticGrenadeNear";
+        if (_nextOwnNadeLogTime < Time.time)
+        {
+            _nextOwnNadeLogTime = Time.time + 2f;
+            TacticDiagnostics.Count("door.ownNadeRetreat");
+            Log($"{Who()} live door grenade {(nadePos - chest).magnitude:0.0}m away in line of sight -> retreat instead of fighting here");
+        }
+        return true;
     }
 
     // ---------------------------------------------------------------- settings / logging

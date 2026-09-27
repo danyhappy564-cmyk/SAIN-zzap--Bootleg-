@@ -637,6 +637,8 @@ public class SquadCombatClass : BotComponentClassBase
         }
         _session = null;
         _cooldownUntil = Time.time + COOLDOWN_AFTER_END;
+        Bot.Mover.SetTargetMoveSpeed(1f);
+        Bot.Mover.SetTargetPose(1f);
         if (s.Mode == EMode.CoverMate && s.Mate != null && _coverClaims.TryGetValue(s.Mate.ProfileId, out string coverer) && coverer == Bot.ProfileId)
         {
             _coverClaims.Remove(s.Mate.ProfileId);
