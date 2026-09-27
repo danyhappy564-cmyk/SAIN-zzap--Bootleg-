@@ -140,6 +140,12 @@ public class SelfActionDecisionClass : BotBase
 
         if (CheckReloadRatiosCanReload(enemy, RELOAD_AMMORATIO_MIN_PEACE, RELOAD_AMMORATIO_MAX, _ammoRatio))
         {
+            // zzap: dry mid-fight with the enemy close -> pistol instead of a reload.
+            if (Bot.CombatWeapon != null && Bot.CombatWeapon.TrySwapInsteadOfReload(enemy))
+            {
+                _lastReloadTime = Time.time;
+                return false;
+            }
             if (TryReload(botOwner, reload))
             {
                 return true;

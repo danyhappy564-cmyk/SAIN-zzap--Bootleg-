@@ -92,6 +92,39 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public bool DiamondStepTestMode = false;
 
     [DataMember]
+    [Name("Pistol Swap When Empty")]
+    [Description("Magazine runs dry mid-fight with the enemy in sight and close: draw the pistol instead of reloading (faster, like a player). Back to the main gun when the pistol is empty, the enemy is gone for 6s or has moved far away - it is reloaded then.")]
+    public bool PistolSwap = true;
+
+    [DataMember]
+    [Name("Pistol Swap Max Distance")]
+    [Description("Meters. Only swap to the pistol when the enemy is closer than this.")]
+    [MinMax(5f, 60f, 1f)]
+    public float PistolSwapMaxDistance = 30f;
+
+    [DataMember]
+    [Name("Quick Reload In Combat")]
+    [Description("In a fight (enemy seen within 10s or under fire) reload like double-tapping R: the old magazine is dropped on the ground instead of stowed, which is faster. Out of combat the normal reload is used.")]
+    public bool QuickReload = true;
+
+    [DataMember]
+    [Name("Long-Range Weapon Swap")]
+    [Description("If the second primary slot holds a DMR or sniper rifle and the enemy is seen far away, switch to it; switch back to the main gun when the enemy gets close or is gone.")]
+    public bool SniperSwap = true;
+
+    [DataMember]
+    [Name("Long-Range Swap Distance")]
+    [Description("Meters. Switch to the DMR/sniper when the enemy is at least this far.")]
+    [MinMax(30f, 300f, 1f)]
+    public float SniperSwapMinDistance = 80f;
+
+    [DataMember]
+    [Name("Long-Range Swap Back Distance")]
+    [Description("Meters. Switch back to the main gun when the enemy is closer than this.")]
+    [MinMax(10f, 150f, 1f)]
+    public float SniperSwapBackDistance = 45f;
+
+    [DataMember]
     [Name("PMC Only")]
     [Description("Apply everything above only to PMCs. Scavs keep vanilla behaviour.")]
     public bool PmcOnly = true;

@@ -126,6 +126,7 @@ public class BotComponent : BotComponentBase, ISPlayer
     public DoorTacticClass DoorTactic { get; private set; }
     public SquadCombatClass SquadCombat { get; private set; }
     public RepositionClass Reposition { get; private set; }
+    public CombatWeaponClass CombatWeapon { get; private set; }
     public ManualShootClass ManualShoot { get; private set; }
     public BotFlashedClass Flashed { get; private set; }
     public CurrentTargetClass CurrentTarget { get; private set; }
@@ -327,6 +328,7 @@ public class BotComponent : BotComponentBase, ISPlayer
             DoorTactic = new DoorTacticClass(this);
             SquadCombat = new SquadCombatClass(this);
             Reposition = new RepositionClass(this);
+            CombatWeapon = new CombatWeaponClass(this);
             Medical = new SAINBotMedicalClass(this);
             BotLight = new BotLightController(this);
             BackpackDropper = new BotBackpackDropClass(this);

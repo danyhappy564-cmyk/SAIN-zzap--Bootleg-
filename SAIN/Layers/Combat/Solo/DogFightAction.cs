@@ -2,6 +2,7 @@
 using DrakiaXYZ.BigBrain.Brains;
 using EFT;
 using SAIN.SAINComponent.Classes.EnemyClasses;
+using SAIN.SAINComponent.Classes.Mover;
 
 namespace SAIN.Layers.Combat.Solo;
 
@@ -11,6 +12,11 @@ internal class DogFightAction(BotOwner bot) : BotAction(bot, "Dog Fight"), IBotA
     {
         Enemy Enemy = Bot.GoalEnemy;
         Bot.Mover.SetTargetPose(1f);
+        _diamond ??= new DiamondStepper(Bot, "DogFight");
+        if (_diamond.Tick(Enemy, 1.5f))
+        {
+            return;
+        }
         Bot.Mover.DogFight.DogFightMove(true, Enemy);
     }
 
@@ -24,9 +30,12 @@ internal class DogFightAction(BotOwner bot) : BotAction(bot, "Dog Fight"), IBotA
         }
     }
 
+    private DiamondStepper _diamond;
+
     public override void Stop()
     {
         base.Stop();
+        _diamond?.Stop();
         Bot.Mover.DogFight.ResetDogFightStatus();
     }
 
