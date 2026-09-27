@@ -609,6 +609,16 @@ public class DoorTacticClass : BotComponentClassBase
             return;
         }
 
+        // Third party: being shot at by anyone (e.g. a distant shooter the flank check doesn't cover)
+        // means the door is no longer the priority - hand the bot back to SAIN's normal combat decisions.
+        if (BotOwner.Memory.IsUnderFire)
+        {
+            Log($"{Who()} abort at step {s.Step}: under fire (third party or unseen shooter)");
+            TacticDiagnostics.Count("door.abort.underFire");
+            End("underFire");
+            return;
+        }
+
         if (Settings.SquadChecks && _nextSquadCheckTime < time)
         {
             _nextSquadCheckTime = time + 0.5f;

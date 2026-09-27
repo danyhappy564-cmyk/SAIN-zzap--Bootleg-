@@ -31,6 +31,9 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다 — 성�
 (2026-09-19 규칙 추가 이전 항목은 소급 기입하지 않습니다 — 그 이전 내용은
 아래 "고친 것" 절의 번호별 섹션 참고.)
 
+- 2026-09-27 09:20 — **제3자 개입 대응 보강**: 전술 중 누구에게든 총을 맞거나 총알이 스치면(`IsUnderFire`) 즉시 중단하고 SAIN 원래
+  교전으로 돌아감. 전에는 측면 체크(봇 쪽 15m) 밖의 먼 사수나 안 보이는 사수에게 맞아도, 제압이 심하지 않으면 계속 문을 보고 있을 수
+  있었음. 로그 `door.abort.underFire`.
 - 2026-09-27 09:17 — **분대 역할 분담 추가.** 봇이 문 전술을 시작하면, 같은 적을 알고 있고 문에서 20m 안(문 이쪽 편)에 있는 팀원 중
   가장 가까운 한 명이 **오버워치**(문틀 반대쪽 모서리 5.5~7m 뒤에서 문을 교차 각도로 겨눔 — 문 앞 수류탄 팀원 거리 6m 밖),
   그다음 한 명이 **후방 경계**(제자리에서 문 반대 방향을 봄)를 맡습니다. 리더가 전술을 끝내거나 죽으면 2초 뒤 역할도 끝나고
@@ -705,6 +708,11 @@ Freeze인 성격(이 포크 프리셋 기준 Rat, SnappingTurtle, Chad, GigaChad
 `START plan=Overwatch for leader <리더>` / `START plan=RearGuard …`. 집계 키: `door.role.overwatchAssigned`, `door.role.rearGuardAssigned`,
 `door.role.start.Overwatch|RearGuard`(팀원이 실제로 시작), `door.role.expiredBeforeStart`(배정됐는데 팀원이 3초 안에 못 받음 — 그 팀원이
 사격 등 다른 판단 중이었다는 뜻), `door.role.noMateAvailable`, `door.role.solo`(혼자), `door.end.Overwatch.leaderDone|leaderGone|enemySpotted`.
+
+**제3자 개입 시:** ① 제3자가 **보이면** → SAIN 사격이 먼저라 즉시 전술 종료(`enemySpotted`/`interrupted`), ② 봇 쪽 15m 안에서
+**들리거나 확인되면** → 측면으로 보고 중단(`otherEnemyOnOurSide`), ③ **총에 맞거나 총알이 스치면**(먼 사수 포함) → 중단(`underFire`),
+④ SAIN이 목표 적을 제3자로 **바꾸면** → 중단(`goalEnemyChanged`), ⑤ 심한 제압 → 공격 행동 자체가 막혀 중단(`interrupted`).
+리더가 멈추면 역할 팀원도 2초 뒤 해제. 방 건너편이나 멀리서 나는 총소리만으로는 계속 문을 봄(실제 플레이어처럼).
 
 **로그로 확인하는 법 (체크리스트)** — `BepInEx/LogOutput.log`에서 검색:
 1. `[Tactics] SETTINGS` — 레이드마다 2줄. F6에서 바꾼 값(확률, 거리 등)이 여기 그대로 찍혀 있으면 설정이 적용된 것. 이 줄이
