@@ -26,8 +26,8 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public bool FakeGrenade = true;
 
     [DataMember]
-    [Name("Fake Heal")]
-    [Description("GigaChad/Chad, only when actually hurt: start a heal (audible) next to the door and cancel it after about 1.5s to bait a push.")]
+    [Name("Fake Heal / Stim")]
+    [Description("GigaChad/Chad: start a heal (only when actually hurt, cancelled after 1.5s) or a stim injection (cancelled after 0.7s, before it goes in) next to the door to bait a push. Cancelled at once if the enemy is heard coming out.")]
     public bool FakeHeal = true;
 
     [DataMember]
@@ -37,7 +37,7 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
 
     [DataMember]
     [Name("Door Grenade")]
-    [Description("GigaChad: after closing the door, back off and throw a long fuse grenade at the door so it goes off when the enemy comes out.")]
+    [Description("GigaChad: after closing the door, crouch beside the frame, listen, then gently toss a long fuse grenade right at the door and back off. Skipped if the enemy is heard coming out (sprint/jump/door sound).")]
     public bool DoorGrenade = true;
 
     [DataMember]

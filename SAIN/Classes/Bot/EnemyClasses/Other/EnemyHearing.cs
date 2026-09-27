@@ -18,6 +18,14 @@ public class EnemyHearing(EnemyData enemyData) : EnemyBase(enemyData, enemyData.
     }
 
     public BotSound LastSoundHeard { get; set; }
+
+    /// <summary>
+    /// zzap: type/time/position of the last sound heard from this enemy, so door tactics can tell a
+    /// sprint/jump/door sound (someone coming out) from slow walking.
+    /// </summary>
+    public SAINSoundType LastHeardSoundType { get; private set; }
+    public float LastHeardSoundTime { get; private set; } = -1000f;
+    public Vector3 LastHeardSoundPosition { get; private set; }
     public Vector3? LastHeardPosition { get; private set; }
 
     private const float REPORT_HEARD_FREQUENCY = 1f;
@@ -72,6 +80,9 @@ public class EnemyHearing(EnemyData enemyData) : EnemyBase(enemyData, enemyData.
         }
 
         Heard = true;
+        LastHeardSoundType = report.soundType;
+        LastHeardSoundTime = Time.time;
+        LastHeardSoundPosition = report.position;
         bool wasGunfire = report.soundType.IsGunShot();
         Enemy.Status.HeardRecently = true;
         _timeLastHeard = Time.time;

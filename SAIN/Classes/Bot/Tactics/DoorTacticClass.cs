@@ -56,6 +56,7 @@ public class DoorTacticClass : BotComponentClassBase
         MoveToClose,
         CloseDoor,
         MoveToFarHold,
+        NadeListen,
         ThrowNade,
         Hold,
     }
@@ -368,6 +369,7 @@ public class DoorTacticClass : BotComponentClassBase
         public Enemy Enemy;
         public DoorDataStruct Door;
         public Vector3 Center;
+        public Vector3 BotSide;
         public Vector3 InsidePoint;
         public Vector3 Stack;
         public Vector3 PeekPoint;
@@ -411,6 +413,7 @@ public class DoorTacticClass : BotComponentClassBase
             Enemy = enemy,
             Door = geo.Data,
             Center = geo.Center,
+            BotSide = geo.BotSide,
             InsidePoint = geo.Center - geo.BotSide * 1.5f + Vector3.up * 1.2f,
             StartTime = Time.time,
         };
@@ -467,11 +470,7 @@ public class DoorTacticClass : BotComponentClassBase
                     {
                         s.HasFarHold = true;
                         s.WantDoorNade = true;
-                        if (!doorOpen)
-                        {
-                            // Door already shut: nothing to close, go straight to backing off and throwing.
-                            s.FirstStep = EStep.MoveToFarHold;
-                        }
+
                     }
                 }
                 else
@@ -576,6 +575,10 @@ public class DoorTacticClass : BotComponentClassBase
                     {
                         SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : EStep.PeekOut, "atStack");
                     }
+                    else if (s.WantDoorNade && !s.NadeThrown)
+                    {
+                        SetStep(EStep.NadeListen, "atStack");
+                    }
                     else
                     {
                         SetStep(s.WantFakeHeal ? EStep.FakeHealStart : EStep.Hold, "atStack");
@@ -657,6 +660,13 @@ public class DoorTacticClass : BotComponentClassBase
 
             case EStep.FakeNadeDraw:
                 s.LookTarget = s.InsidePoint;
+                if (s.FakeNadeDrawn && EnemyComingOut(s, out string heardNade))
+                {
+                    Log($"{Who()} heard {heardNade} during fake grenade -> put it away now, gun up on the door");
+                    TacticDiagnostics.Count("trick.cancelledOnSound");
+                    SetStep(EStep.FakeNadeHolster, "heardComingOut");
+                    break;
+                }
                 if (!s.FakeNadeDrawn)
                 {
                     s.FakeNadeDrawn = true;
@@ -687,6 +697,14 @@ public class DoorTacticClass : BotComponentClassBase
 
             case EStep.FakeHealStart:
                 s.LookTarget = s.InsidePoint;
+                if (s.FakeHealStarted && EnemyComingOut(s, out string heardHeal))
+                {
+                    Log($"{Who()} heard {heardHeal} during fake heal/stim -> cancel now, gun up on the door");
+                    TacticDiagnostics.Count("trick.cancelledOnSound");
+                    CancelFakeHeal("heardComingOut");
+                    SetStep(EStep.Hold, "heardComingOut");
+                    break;
+                }
                 if (!s.FakeHealStarted)
                 {
                     s.FakeHealStarted = true;
@@ -697,9 +715,9 @@ public class DoorTacticClass : BotComponentClassBase
                     }
                     break;
                 }
-                if (stepTime > 1.5f)
+                if (stepTime > (_fakeStimRunning ? 0.7f : 1.5f))
                 {
-                    SetStep(EStep.FakeHealCancel, "fakeHealShown");
+                    SetStep(EStep.FakeHealCancel, _fakeStimRunning ? "fakeStimShown" : "fakeHealShown");
                 }
                 break;
 
@@ -738,14 +756,7 @@ public class DoorTacticClass : BotComponentClassBase
                             || Bot.Talk.Say(EPhraseTrigger.BadWork, ETagStatus.Combat, false);
                         Log($"{Who()} taunt after closing door: {(said ? "said" : "blocked")}");
                     }
-                    if (s.WantDoorNade && s.HasFarHold)
-                    {
-                        SetStep(EStep.MoveToFarHold, "doorClosed");
-                    }
-                    else
-                    {
-                        SetStep(EStep.MoveToStack, "doorClosed");
-                    }
+                    SetStep(EStep.MoveToStack, "doorClosed");
                 }
                 break;
 
@@ -753,18 +764,41 @@ public class DoorTacticClass : BotComponentClassBase
                 s.LookTarget = null;
                 if (MoveStep(s, s.FarHold, true, stepTime))
                 {
-                    SetStep(EStep.ThrowNade, "atFarHold");
+                    SetStep(EStep.Hold, "backedOffFromOwnGrenade");
+                }
+                break;
+
+            case EStep.NadeListen:
+                // Crouch beside the frame and listen before committing: whoever is inside may have heard
+                // the door close and be about to come out.
+                s.LookTarget = s.Center + Vector3.up * 1.2f;
+                Bot.Mover.Stop();
+                Bot.Mover.SetTargetPose(0f);
+                if (AbortIfEnemyComingOut(s, "before door grenade"))
+                {
+                    break;
+                }
+                if (stepTime > 0.7f)
+                {
+                    SetStep(EStep.ThrowNade, "quietInside");
                 }
                 break;
 
             case EStep.ThrowNade:
-                s.LookTarget = s.Center + Vector3.up * 0.5f;
+                // Crouched, short low toss at the door front from beside the frame (like a right-click
+                // underhand throw), so it doesn't bounce back. Long fuse only, then back off.
+                s.LookTarget = s.Center + Vector3.up * 0.3f;
                 if (!s.NadeThrown)
                 {
                     Bot.Mover.Stop();
+                    Bot.Mover.SetTargetPose(0f);
+                    if (AbortIfEnemyComingOut(s, "at grenade throw"))
+                    {
+                        break;
+                    }
                     s.NadeThrown = true;
                     bool thrown = TryThrowAtDoor(s);
-                    Log($"{Who()} door grenade at door {s.Door.Id}: {(thrown ? "THROWN" : "no valid arc")}");
+                    Log($"{Who()} door grenade at door {s.Door.Id}: {(thrown ? "THROWN (crouched, short toss)" : "no valid arc")}");
                     TacticDiagnostics.Count(thrown ? "door.nadeThrown" : "door.nadeNoArc");
                     if (!thrown)
                     {
@@ -772,9 +806,9 @@ public class DoorTacticClass : BotComponentClassBase
                     }
                     break;
                 }
-                if (stepTime > 1.5f)
+                if (stepTime > 1.3f)
                 {
-                    SetStep(EStep.Hold, "nadeThrown");
+                    SetStep(s.HasFarHold ? EStep.MoveToFarHold : EStep.Hold, "nadeThrown");
                 }
                 break;
 
@@ -896,8 +930,43 @@ public class DoorTacticClass : BotComponentClassBase
         {
             return false;
         }
-        var firstAid = BotOwner.Medecine?.FirstAid;
-        return firstAid != null && !firstAid.Using && firstAid.Have2Do;
+        var medecine = BotOwner.Medecine;
+        if (medecine == null || medecine.Using)
+        {
+            return false;
+        }
+        bool hurt = medecine.FirstAid != null && !medecine.FirstAid.Using && medecine.FirstAid.Have2Do;
+        bool haveStim = medecine.Stimulators?._stimulator != null && !medecine.Stimulators.Using;
+        return hurt || haveStim;
+    }
+
+    private bool _fakeStimRunning;
+    private float _fakeStimStartTime;
+
+    /// <summary>
+    /// Stim version of the fake: start the injector (audible) and switch back before it goes in.
+    /// Used when the bot isn't hurt (a heal can't start then) but carries a stim.
+    /// </summary>
+    private bool StartFakeStim()
+    {
+        var stims = BotOwner.Medecine?.Stimulators;
+        var stim = stims?._stimulator;
+        if (stim == null || stims.Using)
+        {
+            Log($"{Who()} fake stim skipped: no stim or already using one");
+            return false;
+        }
+        Callback<IMedsController> callback = result =>
+        {
+            Log($"{Who()} fake stim in hands: {(result.Value != null ? "yes" : "FAILED")}");
+        };
+        Player.SetInHands(stim, EBodyPart.Chest, stim.GetRandomAnimationVariant(), callback);
+        _fakeStimRunning = true;
+        _fakeStimStartTime = Time.time;
+        _emergencyWindowUntil = Time.time + 0.8f + EMERGENCY_WINDOW_AFTER_FAKE;
+        Log($"{Who()} fake stim start: {stim.ShortName.Localized()} (will cancel before injecting)");
+        TacticDiagnostics.Count("fakeStim.started");
+        return true;
     }
 
     private bool _fakeHealRunning;
@@ -907,6 +976,10 @@ public class DoorTacticClass : BotComponentClassBase
         var firstAid = BotOwner.Medecine?.FirstAid;
         if (firstAid == null || firstAid.Using || !firstAid.Have2Do)
         {
+            if (StartFakeStim())
+            {
+                return true;
+            }
             Log($"{Who()} fake heal skipped: nothing to heal or already healing");
             return false;
         }
@@ -923,6 +996,13 @@ public class DoorTacticClass : BotComponentClassBase
 
     private void CancelFakeHeal(string why)
     {
+        if (_fakeStimRunning)
+        {
+            _fakeStimRunning = false;
+            bool ok = BotOwner.WeaponManager?.Selector?.TakePrevWeapon() == true;
+            Log($"{Who()} fake stim cancelled ({why}) after {Time.time - _fakeStimStartTime:0.0}s: TakePrevWeapon={ok}");
+            TacticDiagnostics.Count(ok ? "fakeStim.cancelled" : "fakeStim.cancelRefused");
+        }
         if (!_fakeHealRunning)
         {
             return;
@@ -1019,10 +1099,11 @@ public class DoorTacticClass : BotComponentClassBase
         }
         grenades.SetThrowParams(longFuse);
         Log($"{Who()} door grenade picked {longFuse.ShortName.Localized()} fuse={longFuse.GetExplDelay:0.0}s");
-        Vector3 target = s.Center + (Bot.Position - s.Center).normalized * 0.6f;
-        target.y = s.Center.y + 0.25f;
+        // Right at the door on our side, so it lands against the door instead of bouncing back to us.
+        Vector3 target = s.Center + s.BotSide * 0.4f;
+        target.y = s.Center.y + 0.1f;
         Vector3 from = Bot.Transform.WeaponData.WeaponRoot;
-        AIGreandeAng[] angles = [AIGreandeAng.ang15, AIGreandeAng.ang25, AIGreandeAng.ang5, AIGreandeAng.ang35];
+        AIGreandeAng[] angles = [AIGreandeAng.ang5, AIGreandeAng.ang15, AIGreandeAng.ang25];
         foreach (AIGreandeAng angle in angles)
         {
             AIGreanageThrowData data = AIGrenadeHelper.CanThrowGrenade2(from, target, grenades.MaxPower * 0.9f, angle, -1f, 0.66f);
@@ -1038,6 +1119,57 @@ public class DoorTacticClass : BotComponentClassBase
             }
         }
         return false;
+    }
+
+    // ---------------------------------------------------------------- listening
+
+    /// <summary>
+    /// True if the enemy was just heard making a "coming out" noise near this door: sprint, jump,
+    /// landing, or the door itself. Plain footsteps (incl. slow walking) don't count - a player who
+    /// sneaks up to the door isn't committing yet, and a fake rush sound only makes the bot re-hold.
+    /// </summary>
+    private bool EnemyComingOut(Session s, out string what)
+    {
+        what = string.Empty;
+        var hearing = s.Enemy?.Hearing;
+        if (hearing == null || Time.time - hearing.LastHeardSoundTime > 1.2f)
+        {
+            return false;
+        }
+        switch (hearing.LastHeardSoundType)
+        {
+            case SAINSoundType.Sprint:
+            case SAINSoundType.Jump:
+            case SAINSoundType.Land:
+            case SAINSoundType.Door:
+            case SAINSoundType.DoorBreach:
+                break;
+            default:
+                return false;
+        }
+        if (HorizontalDistance(hearing.LastHeardSoundPosition, s.Center) > 7f)
+        {
+            return false;
+        }
+        what = $"{hearing.LastHeardSoundType} {HorizontalDistance(hearing.LastHeardSoundPosition, s.Center):0.0}m from the door";
+        return true;
+    }
+
+    /// <summary>
+    /// Door grenade setup: if the enemy sounds like they're coming out, drop the grenade plan, gun up
+    /// and hold the door from beside the frame instead of running.
+    /// </summary>
+    private bool AbortIfEnemyComingOut(Session s, string when)
+    {
+        if (!EnemyComingOut(s, out string what))
+        {
+            return false;
+        }
+        Log($"{Who()} heard {what} {when} -> no grenade, gun up, hold the door");
+        TacticDiagnostics.Count("door.nadeAbortedOnSound");
+        s.WantDoorNade = false;
+        SetStep(EStep.Hold, "heardComingOut");
+        return true;
     }
 
     // ---------------------------------------------------------------- emergency retreat
@@ -1071,7 +1203,9 @@ public class DoorTacticClass : BotComponentClassBase
         }
         Vector3? known = enemy.KnownPlaces.LastKnownPosition;
         bool close = known != null && HorizontalDistance(known.Value, Bot.Position) < Settings.EmergencyRetreatDistance;
-        bool coming = enemy.IsVisible || enemy.TimeSinceLastKnownUpdated < 1.5f;
+        // Only when the enemy is actually out and visible: a heard rush may be a fake, the tactic's own
+        // sound check already cancels the trick and re-holds the door for that.
+        bool coming = enemy.IsVisible;
         if (!close || !coming)
         {
             reason = string.Empty;
@@ -1117,6 +1251,9 @@ public class DoorTacticClass : BotComponentClassBase
         Log($"{Who()} step {s.Step} -> {step} ({why}) t={Time.time - s.StartTime:0.0}s");
         s.Step = step;
         s.StepStartTime = Time.time;
+        // Door-proximity slowdown (BotPathData) is only lifted for the quick peek hops and for backing
+        // away from our own grenade next to the door.
+        Bot.Mover.IgnoreDoorSlow = step == EStep.PeekOut || step == EStep.PeekBack || step == EStep.MoveToFarHold;
         s.NextMoveOrderTime = 0f;
         if (step == EStep.Hold)
         {
