@@ -75,6 +75,17 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float ResumeWindow = 90f;
 
     [DataMember]
+    [Name("Squad Breach")]
+    [Description("GigaChad/Chad with teammates nearby: open the door, everyone who has a grenade throws one into the room, then they rush in together right after the blast while one teammate watches the door.")]
+    public bool SquadBreach = true;
+
+    [DataMember]
+    [Name("Squad Breach Chance")]
+    [Description("Percent. When a GigaChad/Chad starts a door tactic with a teammate available and a grenade in the rig, chance it picks the squad breach over the solo tactics.")]
+    [MinMax(0f, 100f, 1f)]
+    public float SquadBreachChance = 50f;
+
+    [DataMember]
     [Name("Squad Roles")]
     [Description("When a bot starts a door tactic, the nearest teammate who knows the same enemy takes Overwatch (holds a cross angle on the door from the other side, back far enough to stay clear of a door grenade) and the next one takes Rear Guard (watches behind the group).")]
     public bool SquadRoles = true;

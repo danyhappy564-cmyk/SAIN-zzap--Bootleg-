@@ -42,6 +42,8 @@ public class DoorTacticClass : BotComponentClassBase
         Ambush,
         Overwatch,
         RearGuard,
+        Breach,
+        Assault,
     }
 
     public enum EStep
@@ -49,6 +51,13 @@ public class DoorTacticClass : BotComponentClassBase
         None,
         MoveToStack,
         MoveToOverwatch,
+        MoveToAssault,
+        AssaultReady,
+        AssaultThrow,
+        BreachReady,
+        BreachThrow,
+        BreachWaitBlast,
+        BreachRush,
         OpenDoorFromSide,
         PeekOut,
         PeekBack,
@@ -160,6 +169,17 @@ public class DoorTacticClass : BotComponentClassBase
     public int LeadingDoorId
     {
         get { return _session != null && !_session.IsSupport ? _session.Door.Id : -1; }
+    }
+
+    /// <summary>Squad breach sync, read by Assault teammates: has the leader thrown, and when does it go off.</summary>
+    public bool LeaderBreachThrown
+    {
+        get { return _session != null && _session.Plan == EPlan.Breach && _session.BreachThrown; }
+    }
+
+    public float LeaderBreachBlastTime
+    {
+        get { return _session != null && _session.Plan == EPlan.Breach ? _session.BreachBlastTime : -1f; }
     }
 
     private bool TryStart(Enemy enemy, out string reason)
@@ -447,6 +467,10 @@ public class DoorTacticClass : BotComponentClassBase
         public BotComponent Leader;
         public Vector3 OverwatchPoint;
         public float LeaderGoneTime = -1f;
+        public Vector3 RushPoint;
+        public bool BreachThrown;
+        public float BreachBlastTime = -1f;
+        public bool OwnNadeThrown;
         public readonly HashSet<string> SupportIds = new();
     }
 
@@ -499,7 +523,20 @@ public class DoorTacticClass : BotComponentClassBase
                 // Shut door: opened first from the stack point beside the frame, out of the room's line of sight.
                 bool peekAllowed = Settings.JumpPeek && peekPointOk;
                 bool trapAllowed = personality == EPersonality.GigaChad && Settings.RoomTrap;
-                if (peekAllowed && (!trapAllowed || Random.value < Settings.GigaChadPeekChance / 100f))
+                bool breachAllowed = Settings.SquadBreach
+                    && Settings.SquadRoles
+                    && haveNade
+                    && FindRoleCandidates(geo, enemy.EnemyProfileId).Count > 0;
+                if (breachAllowed && Random.value < Settings.SquadBreachChance / 100f)
+                {
+                    s.Plan = EPlan.Breach;
+                    s.FirstStep = EStep.MoveToStack;
+                    s.NeedsOpenForPeek = !doorOpen;
+                    s.RushPoint = PickRushPoint(geo, enemy, 0f);
+                    s.HoldTime = 0f;
+                    s.HoldPose = 0.8f;
+                }
+                else if (peekAllowed && (!trapAllowed || Random.value < Settings.GigaChadPeekChance / 100f))
                 {
                     s.Plan = EPlan.Peek;
                     s.FirstStep = EStep.MoveToStack;
@@ -660,6 +697,10 @@ public class DoorTacticClass : BotComponentClassBase
                     {
                         SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : EStep.PeekOut, "atStack");
                     }
+                    else if (s.Plan == EPlan.Breach)
+                    {
+                        SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : EStep.BreachReady, "atStack");
+                    }
                     else if (s.WantDoorNade && !s.NadeThrown)
                     {
                         SetStep(EStep.NadeListen, "atStack");
@@ -695,7 +736,7 @@ public class DoorTacticClass : BotComponentClassBase
                         End("doorDidNotOpen");
                         break;
                     }
-                    SetStep(EStep.PeekOut, "doorOpened");
+                    SetStep(s.Plan == EPlan.Breach ? EStep.BreachReady : EStep.PeekOut, "doorOpened");
                 }
                 break;
 
@@ -894,6 +935,92 @@ public class DoorTacticClass : BotComponentClassBase
                 if (stepTime > 1.3f)
                 {
                     SetStep(s.HasFarHold ? EStep.MoveToFarHold : EStep.Hold, "nadeThrown");
+                }
+                break;
+
+            case EStep.BreachReady:
+                // Give the assault teammates a moment to stack up on the frame.
+                s.LookTarget = s.InsidePoint;
+                Bot.Mover.Stop();
+                if (AbortIfEnemyComingOut(s, "before breach"))
+                {
+                    break;
+                }
+                if (stepTime > 2f || SupportsReady(s))
+                {
+                    SetStep(EStep.BreachThrow, stepTime > 2f ? "waitedForSquad" : "squadStacked");
+                }
+                break;
+
+            case EStep.BreachThrow:
+                s.LookTarget = s.InsidePoint;
+                if (!s.BreachThrown)
+                {
+                    Bot.Mover.Stop();
+                    s.BreachThrown = true;
+                    float fuse = ThrowIntoRoom(s, s.RushPoint, "breach");
+                    s.BreachBlastTime = fuse > 0f ? Time.time + fuse + 0.8f : Time.time + 0.5f;
+                    Log($"{Who()} BREACH grenade {(fuse > 0f ? $"thrown, blast in ~{s.BreachBlastTime - Time.time:0.0}s" : "NOT thrown, going in anyway")}");
+                    break;
+                }
+                if (stepTime > 1f)
+                {
+                    SetStep(EStep.BreachWaitBlast, "nadeOut");
+                }
+                break;
+
+            case EStep.MoveToAssault:
+                s.LookTarget = s.InsidePoint;
+                if (MoveStep(s, s.OverwatchPoint, true, stepTime))
+                {
+                    SetStep(EStep.AssaultReady, "stackedOnFrame");
+                }
+                break;
+
+            case EStep.AssaultReady:
+                s.LookTarget = s.InsidePoint;
+                Bot.Mover.Stop();
+                if (s.Leader != null && s.Leader.DoorTactic.LeaderBreachThrown)
+                {
+                    SetStep(EStep.AssaultThrow, "leaderThrew");
+                }
+                break;
+
+            case EStep.AssaultThrow:
+                s.LookTarget = s.InsidePoint;
+                if (!s.OwnNadeThrown)
+                {
+                    s.OwnNadeThrown = true;
+                    float fuse = ThrowIntoRoom(s, s.RushPoint, "assault");
+                    Log($"{Who()} assault grenade {(fuse > 0f ? "thrown" : "not thrown (none/no arc)")}");
+                    break;
+                }
+                if (stepTime > 1f)
+                {
+                    SetStep(EStep.BreachWaitBlast, "nadeOut");
+                }
+                break;
+
+            case EStep.BreachWaitBlast:
+                s.LookTarget = s.InsidePoint;
+                Bot.Mover.Stop();
+                float blastAt = s.IsSupport ? s.Leader?.DoorTactic.LeaderBreachBlastTime ?? -1f : s.BreachBlastTime;
+                if (blastAt > 0f && Time.time >= blastAt)
+                {
+                    TacticDiagnostics.Count($"door.breach.rush.{s.Plan}");
+                    SetStep(EStep.BreachRush, "blast");
+                }
+                else if (stepTime > 8f)
+                {
+                    End("breachBlastTimeout");
+                }
+                break;
+
+            case EStep.BreachRush:
+                s.LookTarget = null;
+                if (MoveStep(s, s.RushPoint, true, stepTime) || stepTime > 4f)
+                {
+                    End("breachEntered");
                 }
                 break;
 
@@ -1381,30 +1508,7 @@ public class DoorTacticClass : BotComponentClassBase
             return;
         }
         string enemyId = leader.Enemy.EnemyProfileId;
-        var candidates = new List<BotComponent>();
-        foreach (var member in members.Values)
-        {
-            if (member == null || ReferenceEquals(member, Bot) || member.IsDead || member.DoorTactic == null)
-            {
-                continue;
-            }
-            if (member.DoorTactic.Active)
-            {
-                continue;
-            }
-            Enemy theirs = member.GoalEnemy;
-            if (theirs == null || theirs.EnemyProfileId != enemyId || theirs.IsVisible)
-            {
-                continue;
-            }
-            Vector3 toMate = member.Position - geo.Center;
-            toMate.y = 0f;
-            if (toMate.magnitude > Settings.SquadRoleMaxDistance || Vector3.Dot(toMate, geo.BotSide) < 0f)
-            {
-                continue;
-            }
-            candidates.Add(member);
-        }
+        List<BotComponent> candidates = FindRoleCandidates(geo, enemyId);
         if (candidates.Count == 0)
         {
             Log($"{Who()} squad roles: no teammate near the door who knows this enemy");
@@ -1412,6 +1516,11 @@ public class DoorTacticClass : BotComponentClassBase
             return;
         }
         candidates.Sort((a, b) => HorizontalDistance(a.Position, geo.Center).CompareTo(HorizontalDistance(b.Position, geo.Center)));
+        if (leader.Plan == EPlan.Breach)
+        {
+            AssignBreachRoles(leader, geo, candidates, enemyId);
+            return;
+        }
 
         string overwatchName = "none";
         string rearName = "none";
@@ -1466,6 +1575,203 @@ public class DoorTacticClass : BotComponentClassBase
             TacticDiagnostics.Count("door.role.rearGuardAssigned");
         }
         Log($"{Who()} squad roles for door {geo.Data.Id}: overwatch={overwatchName} rearGuard={rearName} (candidates={candidates.Count})");
+    }
+
+    private List<BotComponent> FindRoleCandidates(DoorGeometry geo, string enemyId)
+    {
+        var result = new List<BotComponent>();
+        var members = Bot.Squad.Members;
+        if (members == null)
+        {
+            return result;
+        }
+        foreach (var member in members.Values)
+        {
+            if (member == null || ReferenceEquals(member, Bot) || member.IsDead || member.DoorTactic == null || member.DoorTactic.Active)
+            {
+                continue;
+            }
+            Enemy theirs = member.GoalEnemy;
+            if (theirs == null || theirs.EnemyProfileId != enemyId || theirs.IsVisible)
+            {
+                continue;
+            }
+            Vector3 toMate = member.Position - geo.Center;
+            toMate.y = 0f;
+            if (toMate.magnitude > Settings.SquadRoleMaxDistance || Vector3.Dot(toMate, geo.BotSide) < 0f)
+            {
+                continue;
+            }
+            result.Add(member);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Squad breach: nearest teammate watches the door (Overwatch), up to two more stack on the frame
+    /// (Assault), throw their own grenade when the leader throws, and rush in with the leader after the blast.
+    /// </summary>
+    private void AssignBreachRoles(Session leader, DoorGeometry geo, List<BotComponent> candidates, string enemyId)
+    {
+        int index = 0;
+        string overwatchName = "none";
+        var assaultNames = new List<string>();
+        if (FindOverwatchPoint(geo, out Vector3 overwatch))
+        {
+            BotComponent mate = candidates[index++];
+            mate.DoorTactic.ReceiveRole(
+                new RoleAssignment
+                {
+                    Role = EPlan.Overwatch,
+                    Leader = Bot,
+                    EnemyProfileId = enemyId,
+                    Door = geo.Data,
+                    Center = geo.Center,
+                    BotSide = geo.BotSide,
+                    Point = overwatch,
+                    Look = geo.Center + Vector3.up * 1.2f,
+                    Until = Time.time + 3f,
+                }
+            );
+            leader.SupportIds.Add(mate.ProfileId);
+            overwatchName = mate.name;
+            TacticDiagnostics.Count("door.role.overwatchAssigned");
+        }
+        float leaderSide = Mathf.Sign(Vector3.Dot(leader.Stack - geo.Center, geo.Axis));
+        if (leaderSide == 0f)
+        {
+            leaderSide = 1f;
+        }
+        Vector3[] stackSpots =
+        [
+            geo.Center + geo.BotSide * STACK_DEPTH - geo.Axis * leaderSide * (geo.HalfWidth + STACK_SIDE_GAP),
+            geo.Center + geo.BotSide * (STACK_DEPTH + 0.6f) + geo.Axis * leaderSide * (geo.HalfWidth + STACK_SIDE_GAP + 0.7f),
+        ];
+        int spot = 0;
+        while (index < candidates.Count && spot < stackSpots.Length)
+        {
+            if (!SampleOnBotSide(stackSpots[spot], geo, out Vector3 point))
+            {
+                spot++;
+                continue;
+            }
+            BotComponent mate = candidates[index++];
+            mate.DoorTactic.ReceiveRole(
+                new RoleAssignment
+                {
+                    Role = EPlan.Assault,
+                    Leader = Bot,
+                    EnemyProfileId = enemyId,
+                    Door = geo.Data,
+                    Center = geo.Center,
+                    BotSide = geo.BotSide,
+                    Point = point,
+                    Look = geo.Center - geo.BotSide * 1.5f + Vector3.up * 1.2f,
+                    Until = Time.time + 3f,
+                }
+            );
+            leader.SupportIds.Add(mate.ProfileId);
+            assaultNames.Add(mate.name);
+            TacticDiagnostics.Count("door.role.assaultAssigned");
+            spot++;
+        }
+        Log(
+            $"{Who()} BREACH roles for door {geo.Data.Id}: overwatch={overwatchName} assault=[{string.Join(", ", assaultNames)}] (candidates={candidates.Count})"
+        );
+    }
+
+    private bool SupportsReady(Session leader)
+    {
+        var members = Bot.Squad.Members;
+        if (members == null || leader.SupportIds.Count == 0)
+        {
+            return true;
+        }
+        foreach (string id in leader.SupportIds)
+        {
+            if (!members.TryGetValue(id, out BotComponent mate) || mate == null || mate.IsDead)
+            {
+                continue;
+            }
+            var tactic = mate.DoorTactic;
+            if (tactic.Plan == EPlan.Assault && tactic.Step != EStep.AssaultReady)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private Vector3 PickRushPoint(DoorGeometry geo, Enemy enemy, float lateral)
+    {
+        Vector3? known = enemy.KnownPlaces.LastKnownPosition;
+        Vector3 raw = geo.Center - geo.BotSide * 3f + geo.Axis * lateral;
+        if (known != null && HorizontalDistance(known.Value, geo.Center) < MAX_ENEMY_DOOR_DIST && lateral == 0f)
+        {
+            raw = known.Value;
+        }
+        return SampleNav(raw, out Vector3 point) ? point : raw;
+    }
+
+    /// <summary>
+    /// Throws whatever grenade the bot would normally use (frag first, then flash) into the room.
+    /// Never when a teammate is on the room side within 6m of the target; teammates stacked on our side
+    /// are behind the wall. Returns the fuse time, or 0 when nothing was thrown.
+    /// </summary>
+    private float ThrowIntoRoom(Session s, Vector3 target, string label)
+    {
+        var grenades = BotOwner.WeaponManager?.Grenades;
+        if (grenades == null || grenades.ThrowindNow || !grenades.HaveGrenade || !grenades.ReadyToThrow)
+        {
+            TacticDiagnostics.Count($"door.breach.{label}.noGrenade");
+            return 0f;
+        }
+        var members = Bot.Squad.Members;
+        if (members != null)
+        {
+            foreach (var member in members.Values)
+            {
+                if (member == null || ReferenceEquals(member, Bot) || member.IsDead)
+                {
+                    continue;
+                }
+                bool roomSide = Vector3.Dot(member.Position - s.Center, s.BotSide) < 0f;
+                if (roomSide && HorizontalDistance(member.Position, target) < 6f)
+                {
+                    Log($"{Who()} {label} grenade cancelled: teammate {member.name} is inside the room near the target");
+                    TacticDiagnostics.Count($"door.breach.{label}.teammateInRoom");
+                    return 0f;
+                }
+            }
+        }
+        grenades.CheckGrenade();
+        ThrowWeap nade = grenades.grenade;
+        if (nade == null)
+        {
+            TacticDiagnostics.Count($"door.breach.{label}.noGrenade");
+            return 0f;
+        }
+        Vector3 from = Bot.Transform.WeaponData.WeaponRoot;
+        Vector3 aim = target + Vector3.up * 0.25f;
+        AIGreandeAng[] angles = [AIGreandeAng.ang25, AIGreandeAng.ang35, AIGreandeAng.ang15, AIGreandeAng.ang45];
+        foreach (AIGreandeAng angle in angles)
+        {
+            AIGreanageThrowData data = AIGrenadeHelper.CanThrowGrenade2(from, aim, grenades.MaxPower * 0.9f, angle, -1f, 0.66f);
+            if (!data.CanThrow)
+            {
+                continue;
+            }
+            data.GrenadeType = null;
+            grenades.SetThrowParams(nade);
+            if (grenades.SetThrowData(data) && grenades.DoThrow())
+            {
+                TacticDiagnostics.Count($"door.breach.{label}.thrown");
+                Log($"{Who()} {label} grenade {nade.ShortName.Localized()} ({nade.ThrowType}, fuse {nade.GetExplDelay:0.0}s) into the room");
+                return Mathf.Max(nade.GetExplDelay, 1f);
+            }
+        }
+        TacticDiagnostics.Count($"door.breach.{label}.noArc");
+        return 0f;
     }
 
     private bool FindOverwatchPoint(DoorGeometry geo, out Vector3 result)
@@ -1544,8 +1850,21 @@ public class DoorTacticClass : BotComponentClassBase
             IsSupport = true,
             Leader = role.Leader,
             StartTime = Time.time,
-            FirstStep = role.Role == EPlan.Overwatch ? EStep.MoveToOverwatch : EStep.Hold,
+            FirstStep = role.Role switch
+            {
+                EPlan.Overwatch => EStep.MoveToOverwatch,
+                EPlan.Assault => EStep.MoveToAssault,
+                _ => EStep.Hold,
+            },
         };
+        if (role.Role == EPlan.Assault)
+        {
+            // Spread the rush: each assault aims at a different spot in the room.
+            Vector3 axis = Vector3.Cross(role.BotSide, Vector3.up);
+            float lateral = Vector3.Dot(role.Point - role.Center, axis) > 0f ? 1.2f : -1.2f;
+            Vector3 raw = role.Center - role.BotSide * 3f + axis * lateral;
+            s.RushPoint = SampleNav(raw, out Vector3 rush) ? rush : raw;
+        }
         _session = s;
         TacticDiagnostics.Count($"door.role.start.{role.Role}");
         Log(
@@ -1685,6 +2004,11 @@ public class DoorTacticClass : BotComponentClassBase
         Log($"{Who()} heard {what} {when} -> no grenade, gun up, hold the door");
         TacticDiagnostics.Count("door.nadeAbortedOnSound");
         s.WantDoorNade = false;
+        if (s.HoldTime < 3f)
+        {
+            // Breach/peek plans have little or no hold time of their own: hold the door a few seconds.
+            s.HoldTime = Random.Range(3f, 6f);
+        }
         SetStep(EStep.Hold, "heardComingOut");
         return true;
     }
@@ -1770,7 +2094,8 @@ public class DoorTacticClass : BotComponentClassBase
         s.StepStartTime = Time.time;
         // Door-proximity slowdown (BotPathData) is only lifted for the quick peek hops and for backing
         // away from our own grenade next to the door.
-        Bot.Mover.IgnoreDoorSlow = step == EStep.PeekOut || step == EStep.PeekBack || step == EStep.MoveToFarHold;
+        Bot.Mover.IgnoreDoorSlow =
+            step == EStep.PeekOut || step == EStep.PeekBack || step == EStep.MoveToFarHold || step == EStep.BreachRush;
         s.NextMoveOrderTime = 0f;
         if (step == EStep.Hold)
         {

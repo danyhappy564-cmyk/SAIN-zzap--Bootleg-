@@ -31,6 +31,11 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다 — 성�
 (2026-09-19 규칙 추가 이전 항목은 소급 기입하지 않습니다 — 그 이전 내용은
 아래 "고친 것" 절의 번호별 섹션 참고.)
 
+- 2026-09-27 09:26 — **분대 브리칭(다인큐 돌입) 추가.** GigaChad/Chad가 수류탄이 있고 같은 적을 아는 팀원이 근처에 있으면 50% 확률로:
+  리더가 문틀 옆에 붙고(닫혀 있으면 옆에서 열고) → 팀원들이 문틀에 붙을 때까지 최대 2초 대기 → 리더가 방 안(적 마지막 위치)에 수류탄 →
+  **돌입조 팀원(최대 2명)도 각자 수류탄**(파편 우선, 없으면 섬광) → 폭발 직후 **우르르 진입**(각자 다른 지점으로 퍼짐), **가장 가까운 팀원 1명은
+  오버워치로 문을 계속 봄**. 방 안에 팀원이 있으면 수류탄 안 던짐. 진입 직전 나오는 소리가 들리면 수류탄 없이 문 옆에서 3~6초 홀드.
+  F6 `Squad Breach` / `Squad Breach Chance`.
 - 2026-09-27 09:23 — **제3자 대응 2가지 추가.** ① **가까운 제3자 총소리**: 방 안 적이 아닌 누군가가 봇에서 12m 안에서 총을 쏘는 소리가
   나면(문 어느 쪽이든) 문을 포기하고 그쪽을 처리. ② **처리 후 복귀**: 제3자 때문에 문을 포기했으면(피격, 측면, 가까운 총소리, 목표 변경,
   피격 중 다른 판단으로 넘어감) 90초 안에, 방 안 적 정보가 아직 있으면 **같은 문으로 돌아와서 확률을 다시 굴리지 않고** 전술을 재개.
@@ -719,6 +724,11 @@ Freeze인 성격(이 포크 프리셋 기준 Rat, SnappingTurtle, Chad, GigaChad
 ⑥ 방 안 적이 아닌 누군가가 **12m 안에서 총을 쏘면** → 중단(`closeGunfire`). 리더가 멈추면 역할 팀원도 2초 뒤 해제. 그보다 먼 총소리만으로는
 계속 문을 봄(실제 플레이어처럼). **①~⑥ 중 제3자 때문에 멈춘 경우**(`underFire`, `otherEnemyOnOurSide`, `closeGunfire`, `goalEnemyChanged`)는
 90초 안에 방 안 적 정보가 남아 있으면 같은 문으로 돌아와 재개(`door.resumeArmed` → `door.resume`, 로그 `RESUME door …`).
+
+**분대 브리칭:** 로그 `BREACH roles for door …: overwatch=<봇> assault=[<봇>, …]`, `BREACH grenade thrown, blast in ~4.3s`,
+팀원 `assault grenade thrown`. 집계: `door.start.<성격>.Breach`, `door.role.assaultAssigned`, `door.role.start.Assault`,
+`door.breach.breach.thrown|noArc|noGrenade|teammateInRoom`, `door.breach.assault.thrown|…`, `door.breach.rush.Breach|Assault`(실제 돌입 수),
+`door.end.Breach.breachEntered`(진입 완료) / `breachBlastTimeout`(폭발 대기 8초 초과 — 문제 신호).
 
 **로그로 확인하는 법 (체크리스트)** — `BepInEx/LogOutput.log`에서 검색:
 1. `[Tactics] SETTINGS` — 레이드마다 2줄. F6에서 바꾼 값(확률, 거리 등)이 여기 그대로 찍혀 있으면 설정이 적용된 것. 이 줄이
