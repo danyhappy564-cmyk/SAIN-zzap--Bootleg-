@@ -31,6 +31,10 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다 — 성�
 (2026-09-19 규칙 추가 이전 항목은 소급 기입하지 않습니다 — 그 이전 내용은
 아래 "고친 것" 절의 번호별 섹션 참고.)
 
+- 2026-09-27 09:32 — **분대 교전 틀(Squad Combat) 추가.** 원래 SAIN은 적을 10초 넘게 못 봤을 때만 분대 레이어가 움직여서, 한창 교전 중엔
+  분대원이 각자 따로 싸웠습니다. 이제 적 위치는 아는데 지금 안 보이는 분대원이 ① **크로스파이어**(팀원이 쏘고 있으면 다른 각도로 벌림),
+  ② **팀원 엄호**(20m 안 팀원이 재장전·치료 중이면 옆에 붙어 그 적 방향 홀드), ③ **트레이드**(팀원이 쓰러지면 공격형은 적 위치로 밀고,
+  신중형은 각도를 잡고 홀드)를 합니다. F6 General → `Squad Combat (zzap)`에서 통째로/항목별로 끄고 켤 수 있음. 설명은 15번.
 - 2026-09-27 09:26 — **분대 브리칭(다인큐 돌입) 추가.** GigaChad/Chad가 수류탄이 있고 같은 적을 아는 팀원이 근처에 있으면 50% 확률로:
   리더가 문틀 옆에 붙고(닫혀 있으면 옆에서 열고) → 팀원들이 문틀에 붙을 때까지 최대 2초 대기 → 리더가 방 안(적 마지막 위치)에 수류탄 →
   **돌입조 팀원(최대 2명)도 각자 수류탄**(파편 우선, 없으면 섬광) → 폭발 직후 **우르르 진입**(각자 다른 지점으로 퍼짐), **가장 가까운 팀원 1명은
@@ -760,6 +764,46 @@ Freeze인 성격(이 포크 프리셋 기준 Rat, SnappingTurtle, Chad, GigaChad
 - **게임 안 검증 전입니다.** 컨테이너에서는 Unity 2022 전용 API 때문에 원본 SAIN도 26개 에러가 나는
   환경이라(환경 문제), "원본과 같은 26개 외에 새 에러 0개"로 컴파일만 확인했습니다. 실제 빌드는 PC에서
   `dotnet build SAIN.slnx -c Release`.
+
+
+### 15. 분대 교전 틀 — 다인큐가 각자 따로 싸우던 문제 (2026-09-27)
+
+**문제:** 원래 SAIN의 분대 레이어는 봇이 적을 10초 넘게 못 봤을 때만 동작합니다. 그래서 교전이 한창일 때는 분대원이
+각자 혼자 싸우는 것처럼 보였습니다(같은 자리에 뭉치거나, 한 명이 쏘는 동안 나머지는 뒤에 줄 서 있음).
+
+**해결:** SAIN 전투 레이어(`SAIN : Combat Layer`) 안에 새 판단 `SquadTactic`을 추가했습니다. 레이어 이름과 구조를 그대로
+두었기 때문에 ORBIT 호환성에는 영향이 없습니다. 판단 순서는 사격 → 원거리 사격 → 러시 → 문 전술 → **분대 교전** →
+수류탄 → 교전 → 수색 → 매복 → 엄폐입니다. 적이 **보이거나 총에 맞고 있으면 동작하지 않습니다**(SAIN 원래 사격이 우선).
+적은 알지만 지금 안 보이는 분대원에게만 동작합니다.
+
+| 모드 | 조건 | 행동 |
+|---|---|---|
+| **Crossfire** (크로스파이어) | 같은 적에게 팀원이 지금 쏘고 있음 | 팀원과 **35도 이상 다른 각도**, 팀원과 **4m 이상 떨어진** 지점 중 적 위치가 보이는 곳으로 이동해서 그 방향을 겨누고 대기(최대 20초). 같은 지점은 한 명만 차지 |
+| **CoverMate** (팀원 엄호) | 20m 안 팀원이 재장전·치료·수술 중 | 그 팀원 옆으로 가서 그 팀원의 적 방향을 홀드. 한 팀원당 엄호자 1명, 팀원이 끝나면 해제 |
+| **TradePush** (트레이드 돌격) | 10초 안에 팀원이 쓰러짐 + 공격형 성격(적 재장전·치료 때 러시하는 성격) | 그 팀원을 죽인 적의 위치로 밀고 들어감 |
+| **TradeAngle** (트레이드 각 잡기) | 같은 조건 + 신중한 성격 | 그 적 위치에 다른 각도를 잡고 홀드 |
+
+**F6 설정** (General → `Squad Combat (zzap)`): `Squad Combat Enabled`(전체 끄기/켜기), `Crossfire`, `Crossfire Min Angle`(35),
+`Min Teammate Spacing`(4m), `Cover Reloading/Healing Teammate`, `Cover Max Distance`(20m), `Trade Downed Teammate`,
+`Trade Window`(10초), `Max Engage Distance`(80m — 이보다 먼 적에는 동작 안 함), `Diagnostic Logs`.
+예전 프리셋 파일에는 이 항목이 없어도 기본값으로 로드됩니다.
+
+**로그 확인:**
+- `[Tactics] SETTINGS SquadCombat: enabled=… crossfire=… minAngle=…` — 레이드마다 1줄. F6 값이 적용됐는지 확인.
+- `[SquadCombat]` — 한 건씩: 시작(`crossfire`, `trade for <팀원>: pushing the killer's position` 등), 도착, 종료 이유.
+- `[Tactics] SUMMARY`의 `squad.*` 집계:
+  - `squad.start.<Crossfire|CoverMate|TradePush|TradeAngle>` 시작 수, `squad.arrived.<모드>` 목표 지점 도착 수
+  - `squad.end.<모드>.<이유>` — `underFire`, `goalEnemyChanged`, `mateGone`/`mateDone`(엄호 대상 사망/행동 끝), `coverTimeout`,
+    `holdTimeout`, `enemyInfoStale`, `pushTimeout`, `reachedKillerPosition`, `moveTimeout`, `noPath`
+  - `squad.teammateDown` 팀원 사망 감지 수
+  - `squad.crossfire.noPoint.<noNavmesh|bunched|noLineOfSight|noPath>` — 크로스파이어 자리를 못 찾은 이유
+- SAIN 디버그 오버레이: `Squad Combat: mode=…`
+
+**문제 신호:** `squad.start.*`는 많은데 `squad.arrived.*`가 거의 없음(이동 실패), `squad.end.*.noPath`/`moveTimeout`가 많음,
+`squad.crossfire.noPoint.bunched`가 대부분(간격 값이 맵에 비해 너무 큼), 분대가 있는데 `squad.start.*`가 0.
+
+**한계:** 게임 안 검증 전입니다(14번과 같은 방식으로 "원본과 같은 26개 외에 새 에러 0개"로 컴파일만 확인).
+SAIN 분대 레이어(10초 이상 적을 못 봤을 때의 수색/집결)는 그대로이고, 이 틀은 그 전 단계인 교전 중에만 동작합니다.
 
 ## 상태
 

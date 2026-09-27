@@ -144,6 +144,19 @@ public class EnemyDecisionClass : BotBase
                 return true;
             }
 
+            bool squadTactic = Bot.SquadCombat.ShallUse(enemy, out reason);
+#if DEBUG
+            if (SAINPlugin.DebugMode)
+            {
+                DecisionReasons.AppendLine($"4c. Squad Combat: [{squadTactic}, {reason}]");
+            }
+#endif
+            if (squadTactic)
+            {
+                result = ECombatDecision.SquadTactic;
+                return true;
+            }
+
             bool shallThrowNade = shallThrowGrenade(enemy, out reason);
 #if DEBUG
             if (SAINPlugin.DebugMode)

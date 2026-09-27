@@ -53,6 +53,11 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
     public FreezeAmbushSettings FreezeAmbush = new();
 
     [DataMember]
+    [Name("Squad Combat (zzap)")]
+    [Description("Squad engagement in a live firefight: crossfire angles, covering a reloading/healing teammate, trading a downed teammate.")]
+    public SquadCombatSettings SquadCombat = new();
+
+    [DataMember]
     public ExtractSettings Extract = new();
 
     [DataMember]
@@ -83,6 +88,7 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
         list.Add(Doors);
         list.Add(DoorTactics);
         list.Add(FreezeAmbush);
+        list.Add(SquadCombat);
         list.Add(Extract);
         list.Add(Flashlight);
         list.Add(LootingBots);

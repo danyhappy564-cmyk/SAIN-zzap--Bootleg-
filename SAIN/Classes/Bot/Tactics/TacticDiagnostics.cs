@@ -30,7 +30,8 @@ internal static class TacticDiagnostics
         get
         {
             var general = GlobalSettingsClass.Instance?.General;
-            return general != null && (general.DoorTactics.DiagnosticLogs || general.FreezeAmbush.DiagnosticLogs);
+            return general != null
+                && (general.DoorTactics.DiagnosticLogs || general.FreezeAmbush.DiagnosticLogs || general.SquadCombat.DiagnosticLogs);
         }
     }
 
@@ -121,6 +122,12 @@ internal static class TacticDiagnostics
         Logger.LogWarning(
             $"[Tactics] SETTINGS FreezeAmbush: maxDist={f.MaxDistance:0}m outdoors={f.AllowOutdoors} time={f.MinDuration:0}-{f.MaxDuration:0}s "
                 + $"notSeenFor={f.MinTimeSinceSeen:0}s heardWithin={f.MaxTimeSinceHeard:0}s watchCorner={f.WatchApproachCorner} logs={f.DiagnosticLogs}"
+        );
+        var q = general.SquadCombat;
+        Logger.LogWarning(
+            $"[Tactics] SETTINGS SquadCombat: enabled={q.Enabled} crossfire={q.Crossfire} minAngle={q.CrossfireMinAngle:0} spacing={q.MinSpacing:0}m "
+                + $"cover={q.CoverTeammate} coverDist={q.CoverMaxDistance:0}m trade={q.Trade} tradeWindow={q.TradeWindow:0}s "
+                + $"maxEnemyDist={q.MaxEnemyDistance:0}m logs={q.DiagnosticLogs}"
         );
     }
 }
