@@ -204,6 +204,12 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float ChanceMultiplier = 1f;
 
     [DataMember]
+    [Name("Run-By Peek Chance")]
+    [Description("Percent. Instead of the jump peek: sprint along the corridor straight past the open doorway glancing in, turn around, run past it once more back to the frame, then settle in. Always used when a jump isn't safe there (low ceiling, step/stairs).")]
+    [MinMax(0f, 100f, 1f)]
+    public float RunByChance = 40f;
+
+    [DataMember]
     [Name("Step Peeks After Jump Peek")]
     [Description("After the jump peek, 2-3 quick short steps into the doorway line and back (diamond-step style), alternating stance and the corner of the room being checked, before holding. Only when the door is open.")]
     public bool StepPeek = true;

@@ -454,6 +454,20 @@ public class RepositionClass : BotComponentClassBase
         return false;
     }
 
+    /// <summary>
+    /// Headroom above here and the landing spot, and no step between them.
+    /// </summary>
+    private bool JumpSafe(Vector3 landing)
+    {
+        if (Physics.Raycast(Bot.Position + Vector3.up * 1.7f, Vector3.up, 0.6f, LayersMaskController.HighPolyWithTerrainMask)
+            || Physics.Raycast(landing + Vector3.up * 1.7f, Vector3.up, 0.6f, LayersMaskController.HighPolyWithTerrainMask))
+        {
+            TacticDiagnostics.Count("repo.bait.jumpUnsafe");
+            return false;
+        }
+        return Mathf.Abs(landing.y - Bot.Position.y) <= 0.25f;
+    }
+
     private static bool OtherEnemyVisible(Enemy goal, EnemyList knownEnemies)
     {
         if (knownEnemies == null)
@@ -766,7 +780,7 @@ public class RepositionClass : BotComponentClassBase
                 // Reference clip 3: hop out past the cover edge (forward), not over the cover.
                 if (s.BaitJump && !s.BaitJumped)
                 {
-                    s.BaitJumped = Bot.Mover.TryJump();
+                    s.BaitJumped = JumpSafe(s.Target) && Bot.Mover.TryJump();
                     if (s.BaitJumped)
                     {
                         TacticDiagnostics.Count("repo.bait.jump");
@@ -790,7 +804,7 @@ public class RepositionClass : BotComponentClassBase
                 // Info peek: hop straight back in too (the door jump peek's back-hop, from cover).
                 if (s.BaitJump && !s.BaitJumpedBack && phaseTime > 0.05f)
                 {
-                    s.BaitJumpedBack = Bot.Mover.TryJump();
+                    s.BaitJumpedBack = JumpSafe(s.Home) && Bot.Mover.TryJump();
                 }
                 if (MoveTo(s, s.Home, s.BaitJump, phaseTime) || phaseTime > 1.2f)
                 {

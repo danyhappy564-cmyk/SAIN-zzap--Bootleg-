@@ -77,6 +77,9 @@ public class DoorTacticClass : BotComponentClassBase
         FakeRetreatSneakBack,
         StepPeekOut,
         StepPeekBack,
+        RunByAcross,
+        RunByTurn,
+        RunByBack,
     }
 
     private const float MAX_BOT_DOOR_DIST = 8f;
@@ -586,6 +589,8 @@ public class DoorTacticClass : BotComponentClassBase
         public bool CloseAttempted;
         public bool NadeThrown;
         public int StepPeeksLeft;
+        public int PeekStyle; // 0 = undecided, 1 = jump peek, 2 = run-by
+        public Vector3 RunByFar;
         public Vector3 StepPoint;
         public bool StepCrouch;
         public float StepHoldTime;
@@ -880,11 +885,11 @@ public class DoorTacticClass : BotComponentClassBase
                     if (s.PostBlastPeek)
                     {
                         s.NeedsOpenForPeek = s.Door.Door != null && s.Door.Door.DoorState != EDoorState.Open;
-                        SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : EStep.PeekOut, "atStackAfterBlast");
+                        SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : PeekEntry(s), "atStackAfterBlast");
                     }
                     else if (s.Plan == EPlan.Peek)
                     {
-                        SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : EStep.PeekOut, "atStack");
+                        SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : PeekEntry(s), "atStack");
                     }
                     else if (s.Plan == EPlan.Breach)
                     {
@@ -939,8 +944,46 @@ public class DoorTacticClass : BotComponentClassBase
                     }
                     EStep afterOpen = s.Plan == EPlan.Breach ? EStep.BreachReady
                         : s.WantDoorNade && !s.NadeThrown && s.NadeInside ? EStep.NadeListen
-                        : EStep.PeekOut;
+                        : PeekEntry(s);
                     SetStep(afterOpen, "doorOpened");
+                }
+                break;
+
+            case EStep.RunByAcross:
+                // Run-by (user suggestion): sprint along the corridor straight past the open doorway, "glancing" in,
+                // to the far side of the frame...
+                Bot.Mover.IgnoreDoorSlow = true;
+                s.LookTarget = s.InsidePoint;
+                if (MoveStep(s, s.RunByFar, true, stepTime))
+                {
+                    SetStep(EStep.RunByTurn, "pastDoorway");
+                }
+                break;
+
+            case EStep.RunByTurn:
+                // ...turn around (a beat, gun toward the room)...
+                s.LookTarget = s.InsidePoint;
+                Bot.Mover.Stop();
+                if (stepTime > 0.35f)
+                {
+                    SetStep(EStep.RunByBack, "turned");
+                }
+                break;
+
+            case EStep.RunByBack:
+                // ...and run past it once more back to the stack, then settle in (step peeks / trick / hold).
+                Bot.Mover.IgnoreDoorSlow = true;
+                s.LookTarget = s.InsidePoint;
+                if (MoveStep(s, s.Stack, true, stepTime))
+                {
+                    TacticDiagnostics.Count("door.runBy.done");
+                    Bot.Mover.IgnoreDoorSlow = false;
+                    if (s.StepPeeksLeft == 0 && Settings.StepPeek && TryPrepareStepPeeks(s))
+                    {
+                        SetStep(EStep.StepPeekOut, "runByDoneStepPeeks");
+                        break;
+                    }
+                    SetStep(s.WantFakeNade ? EStep.FakeNadeDraw : s.WantFakeHeal ? EStep.FakeHealStart : EStep.Hold, "runByDone");
                 }
                 break;
 
@@ -951,7 +994,7 @@ public class DoorTacticClass : BotComponentClassBase
                 s.LookTarget = s.InsidePoint;
                 if (!s.Jumped)
                 {
-                    s.Jumped = Bot.Mover.TryJump();
+                    s.Jumped = JumpSafe(s.PeekPoint) && Bot.Mover.TryJump();
                     if (s.Jumped)
                     {
                         TacticDiagnostics.Count("door.jumpOut");
@@ -974,7 +1017,7 @@ public class DoorTacticClass : BotComponentClassBase
                 }
                 if (!s.JumpedBack)
                 {
-                    s.JumpedBack = Bot.Mover.TryJump();
+                    s.JumpedBack = JumpSafe(s.Stack) && Bot.Mover.TryJump();
                     if (s.JumpedBack)
                     {
                         TacticDiagnostics.Count("door.jumpBack");
@@ -1459,6 +1502,82 @@ public class DoorTacticClass : BotComponentClassBase
     private float _peekShotUntil;
     private float _pullBackUntil;
     private bool _pullBackLogged;
+
+    /// <summary>
+    /// First peek move after reaching the stack (and opening): jump peek, or the run-by when the jump isn't safe here
+    /// (low ceiling / step or stairs between stack and peek point) or on the F6 run-by roll. Decided once per session.
+    /// </summary>
+    private EStep PeekEntry(Session s)
+    {
+        if (s.PeekStyle == 0)
+        {
+            bool jumpOk = JumpSafe(s.PeekPoint);
+            bool runByOk = FindRunByPoint(s);
+            bool rollRunBy = Random.value * 100f < Settings.RunByChance;
+            s.PeekStyle = runByOk && (!jumpOk || rollRunBy) ? 2 : 1;
+            if (!jumpOk)
+            {
+                TacticDiagnostics.Count("door.jumpUnsafe");
+            }
+            Log($"{Who()} peek style at door {s.Door.Id}: {(s.PeekStyle == 2 ? "RUN-BY" : "jump peek")} (jumpSafe={jumpOk}, runByPoint={runByOk})");
+            if (s.PeekStyle == 2)
+            {
+                TacticDiagnostics.Count("door.runBy.start");
+            }
+        }
+        return s.PeekStyle == 2 ? EStep.RunByAcross : EStep.PeekOut;
+    }
+
+    /// <summary>
+    /// Headroom for a jump (a low ceiling cuts it off / bounces the bot) and no step between here and the landing spot
+    /// (entrance stairs: the landing snags and the bot gets stuck).
+    /// </summary>
+    private bool JumpSafe(Vector3 landing)
+    {
+        Vector3 head = Bot.Position + Vector3.up * 1.7f;
+        if (Physics.Raycast(head, Vector3.up, 0.6f, LayersMaskController.HighPolyWithTerrainMask))
+        {
+            return false;
+        }
+        if (Physics.Raycast(landing + Vector3.up * 1.7f, Vector3.up, 0.6f, LayersMaskController.HighPolyWithTerrainMask))
+        {
+            return false;
+        }
+        return Mathf.Abs(landing.y - Bot.Position.y) <= 0.25f;
+    }
+
+    /// <summary>
+    /// Mirror of the stack on the other side of the doorway (corridor side), so the run crosses the whole opening.
+    /// </summary>
+    private bool FindRunByPoint(Session s)
+    {
+        Vector3 axis = Vector3.Cross(s.BotSide, Vector3.up).normalized;
+        Vector3 center = s.Center;
+        float stackSide = Mathf.Sign(Vector3.Dot(s.Stack - center, axis));
+        if (stackSide == 0f)
+        {
+            stackSide = 1f;
+        }
+        float halfWidth = Mathf.Max(0.4f, Mathf.Abs(Vector3.Dot(s.Stack - center, axis)) - 0.4f);
+        foreach (float extra in new[] { 1.4f, 1.0f, 1.8f })
+        {
+            Vector3 raw = center + s.BotSide * 1.1f - axis * stackSide * (halfWidth + extra);
+            if (!NavMesh.SamplePosition(raw, out NavMeshHit hit, 0.5f, -1))
+            {
+                continue;
+            }
+            if (Vector3.Dot(hit.position - center, s.BotSide) < 0.3f)
+            {
+                continue;
+            }
+            if (Bot.Mover.CanGoToPoint(hit.position, out NavMeshPath path, true) && PathLength(path) < 9f)
+            {
+                s.RunByFar = hit.position;
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// <summary>
     /// 2-3 short steps from the stack toward the doorway line (40-55% of the way to the peek point), 0.15-0.3s out each.
