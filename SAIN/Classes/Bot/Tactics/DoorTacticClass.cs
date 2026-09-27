@@ -994,7 +994,7 @@ public class DoorTacticClass : BotComponentClassBase
                 s.LookTarget = s.InsidePoint;
                 if (!s.Jumped)
                 {
-                    s.Jumped = JumpSafe(s.PeekPoint) && Bot.Mover.TryJump();
+                    s.Jumped = s.PeekStyle != 3 && JumpSafe(s.PeekPoint) && Bot.Mover.TryJump();
                     if (s.Jumped)
                     {
                         TacticDiagnostics.Count("door.jumpOut");
@@ -1017,7 +1017,7 @@ public class DoorTacticClass : BotComponentClassBase
                 }
                 if (!s.JumpedBack)
                 {
-                    s.JumpedBack = JumpSafe(s.Stack) && Bot.Mover.TryJump();
+                    s.JumpedBack = s.PeekStyle != 3 && JumpSafe(s.Stack) && Bot.Mover.TryJump();
                     if (s.JumpedBack)
                     {
                         TacticDiagnostics.Count("door.jumpBack");
@@ -1511,15 +1511,22 @@ public class DoorTacticClass : BotComponentClassBase
     {
         if (s.PeekStyle == 0)
         {
-            bool jumpOk = JumpSafe(s.PeekPoint);
+            OpenSegment(s.Door.Link, out Vector3 leafA, out Vector3 leafB);
+            bool leafClear = DistanceToSegmentFlat(s.PeekPoint, leafA, leafB) >= 0.5f;
+            if (!leafClear)
+            {
+                TacticDiagnostics.Count("door.jumpLeafTooClose");
+            }
+            bool jumpOk = leafClear && JumpSafe(s.PeekPoint);
             bool runByOk = FindRunByPoint(s);
             bool rollRunBy = Random.value * 100f < Settings.RunByChance;
-            s.PeekStyle = runByOk && (!jumpOk || rollRunBy) ? 2 : 1;
+            // 1 = jump peek, 2 = run-by, 3 = plain step out (neither is safe here).
+            s.PeekStyle = runByOk && (!jumpOk || rollRunBy) ? 2 : jumpOk ? 1 : 3;
             if (!jumpOk)
             {
                 TacticDiagnostics.Count("door.jumpUnsafe");
             }
-            Log($"{Who()} peek style at door {s.Door.Id}: {(s.PeekStyle == 2 ? "RUN-BY" : "jump peek")} (jumpSafe={jumpOk}, runByPoint={runByOk})");
+            Log($"{Who()} peek style at door {s.Door.Id}: {(s.PeekStyle == 2 ? "RUN-BY" : s.PeekStyle == 1 ? "jump peek" : "plain step peek")} (jumpSafe={jumpOk}, runByPoint={runByOk})");
             if (s.PeekStyle == 2)
             {
                 TacticDiagnostics.Count("door.runBy.start");
@@ -1570,6 +1577,10 @@ public class DoorTacticClass : BotComponentClassBase
             {
                 continue;
             }
+            if (!RunByLaneClear(s, s.Stack, hit.position))
+            {
+                continue;
+            }
             if (Bot.Mover.CanGoToPoint(hit.position, out NavMeshPath path, true) && PathLength(path) < 9f)
             {
                 s.RunByFar = hit.position;
@@ -1577,6 +1588,33 @@ public class DoorTacticClass : BotComponentClassBase
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// The straight run from the stack across the doorway must not hit the open leaf (a door that opens into the
+    /// corridor sticks out across it - the bot would run face-first into it, like the "stuck at the door" clip) or
+    /// anything else on the navmesh (NavMesh.Raycast: the leaf's carve may not be in yet).
+    /// </summary>
+    private bool RunByLaneClear(Session s, Vector3 from, Vector3 to)
+    {
+        if (NavMesh.Raycast(from, to, out _, -1))
+        {
+            TacticDiagnostics.Count("door.runBy.laneBlocked");
+            return false;
+        }
+        OpenSegment(s.Door.Link, out Vector3 openA, out Vector3 openB);
+        float length = HorizontalDistance(from, to);
+        int samples = Mathf.Max(2, Mathf.CeilToInt(length / 0.25f));
+        for (int i = 0; i <= samples; i++)
+        {
+            Vector3 p = Vector3.Lerp(from, to, i / (float)samples);
+            if (DistanceToSegmentFlat(p, openA, openB) < 0.55f)
+            {
+                TacticDiagnostics.Count("door.runBy.leafInTheWay");
+                return false;
+            }
+        }
+        return true;
     }
 
     /// <summary>
