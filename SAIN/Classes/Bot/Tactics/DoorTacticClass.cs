@@ -2217,6 +2217,9 @@ public class DoorTacticClass : BotComponentClassBase
             if (player != null)
             {
                 player.OnPlayerDead -= OnOwnDeath;
+                // Clear any movement input (diamond step / SAIN mover) left from the last frame alive.
+                player.Move(Vector2.zero);
+                player.EnableSprint(false);
             }
             var decision = Bot.Decision;
             Enemy goal = Bot.GoalEnemy;

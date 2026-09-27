@@ -245,7 +245,13 @@ public class SAINBotSuppressClass : BotComponentClassBase
             return 0f;
         }
         currentAmmoCount = weaponManager.Reload.BulletCount;
-        return (float)currentAmmoCount / weaponManager.Reload.MaxBulletCount;
+        // zzap: no magazine in the gun mid-reload (quick reload drops it) -> BSG's MaxBulletCount throws.
+        if (item.ReloadMode != EFT.InventoryLogic.Weapon.EReloadMode.OnlyBarrel && item.GetCurrentMagazine() == null)
+        {
+            return 0f;
+        }
+        int max = weaponManager.Reload.MaxBulletCount;
+        return max > 0 ? (float)currentAmmoCount / max : 0f;
     }
 
     public float TimeSinceSeenToSuppress

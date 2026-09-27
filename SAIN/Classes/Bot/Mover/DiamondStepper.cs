@@ -33,6 +33,11 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
     /// <summary>Returns true while it is driving the bot's movement this frame.</summary>
     public bool Tick(Enemy enemy, float minDistance)
     {
+        if (Bot.Player?.HealthController?.IsAlive != true)
+        {
+            _diamondActive = false;
+            return false;
+        }
         var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
         if (settings == null || !settings.DiamondStep)
         {
@@ -155,7 +160,10 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         if (_diamondActive)
         {
             _diamondActive = false;
-            Bot.Player?.Move(Vector2.zero);
+            if (Bot.Player?.HealthController?.IsAlive == true)
+            {
+                Bot.Player.Move(Vector2.zero);
+            }
             TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] stop: {why}");
         }
         TacticDiagnostics.SetDiamond(Bot.ProfileId, $"off({why})");

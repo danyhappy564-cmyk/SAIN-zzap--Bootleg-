@@ -210,6 +210,12 @@ public class PlayerMovementController
         }
 
         Player player = playerComp.Player;
+        // zzap (2026-09-28 field report: corpse left standing and sliding back and forth): never feed movement input to a
+        // dead player - a move order landing in the death frame kept the body walking instead of going ragdoll.
+        if (player == null || player.HealthController?.IsAlive != true)
+        {
+            return;
+        }
         float playerSpeed = player.Speed;
 
         float destinationDistance = (finalMoveDestination - playerComp.Position).magnitude;
