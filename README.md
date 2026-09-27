@@ -25,31 +25,44 @@
 SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포크는 ① **봇이 문 앞에서 낑기는 버그**를 고치고,
 ② 실제 고인물 플레이를 흉내 낸 **전술 행동**을 SAIN 전투 레이어 안에 추가하고, ③ 바로 쓸 수 있는 **zzap 프리셋**을 같이 넣었습니다.
 
-- 📜 **변경 이력:** [`changelog/CHANGELOG.md`](changelog/CHANGELOG.md)
-- 🔧 **문 끼임 수정 상세 기록(1~15번):** [`changelog/FIXES.md`](changelog/FIXES.md)
+변경 이력은 [`changelog/CHANGELOG.md`](changelog/CHANGELOG.md), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
 
-## 최근 변경 (2026-09-28 06:49)
+## 추가한 기능
 
-문 앞 수류탄·문 닫고 후퇴·폭발 후속·분대 브리칭·폭음 측면·한 탄창 이탈·고스트 우회 **제거**, 페이크 수류탄/치료 **개선**(바로 집어넣기, 적이 가까울 때만,
-뛰는 소리 들리면 취소), 문 전술 중 **제3자 감지**, **다이아몬드 스텝**, 피격 음성 끔, **zzap 프리셋** 동봉. 자세한 건 변경 이력 참고.
+**행동(전술)** — 전부 SAIN 전투 레이어(`SAIN : Combat Layer`) 안의 결정이라 **ORBIT과 수정 없이 호환**됩니다.
 
-## 현재 들어 있는 기능
+| 기능 | 하는 일 | 누가 | F6 설정 위치 |
+|---|---|---|---|
+| 점프 피킹 | 복도에서 문 앞으로 점프해 방 안을 보고 바로 점프해서 복귀. 닫힌 문은 문틀 옆에서 먼저 엶 | GigaChad / Chad | `General > Door Tactics (zzap)` |
+| 런바이 피킹 | 점프가 위험한 곳(낮은 천장·계단)에선 문 앞을 달려 지나가며 보고, 돌아서 한 번 더 지나감 | GigaChad / Chad | 〃 `Run-By Peek Chance` |
+| 스텝 피킹 | 피킹 후 문틀에서 짧게 2~3번 들락날락 (서기/앉기, 방 좌/우 모서리 번갈아) | GigaChad / Chad | 〃 `Step Peeks After Jump Peek` |
+| 페이크 수류탄 | 문틀에서 수류탄 꺼내는 소리만 내고 즉시 집어넣음. 적이 문 근처에 있을 때만, 뛰는 소리 들리면 취소 | GigaChad / Chad | 〃 `Fake Grenade` |
+| 페이크 치료·스팀 | 치료/주사 소리만 내고 손에 드는 순간 취소. 출혈·중상이면 안 함(진짜 치료 우선) | GigaChad / Chad | 〃 `Fake Heal / Stim` |
+| 방 가두기 | 문 옆에 붙어 문을 지킴 (문은 그대로 둠) | GigaChad / SnappingTurtle | 〃 `Room Trap` |
+| 문 옆 매복 | 문 옆에 낮은 자세로 조용히 대기 | Rat | 〃 `Room Trap` |
+| 분대 역할 | 한 명이 문 전술을 하면 동료는 오버워치(교차 각) / 후방 경계 | 분대 | 〃 `Squad Roles` |
+| 제3자 감지 | 문 전술 중 다른 적이 보이거나 25m 안에서 소리 나면 즉시 문을 버리고 대응 | 전원 | 자동 |
+| 다이아몬드 스텝 | 사격 중 A/D를 와다다 누르듯 좌우로 짧게 끊어 움직이고 가끔 앞뒤·멈춤 (탭 0.18초) | GigaChad / Chad / Wreckless | `General > Close Combat (zzap)` |
+| 등 안 돌리기 | 가까운 적 앞에서 엄폐로 뛸 때 등을 보이지 않고 조준한 채 걸어서 이동 (3m 안 엄폐물은 대시) | PMC | 〃 `No Back Turning Near Enemy` |
+| 제압사격 절제 | 안 보이는 적에게 난사하다 탄창 비우는 것 방지 (짧은 점사, 탄 60% 이상 유지) | PMC | 〃 `Suppression Discipline` |
+| 재배치 | 먼저 맞았으면 엄폐 → 치료 → 수류탄 → 적이 못 보는 각으로 이동 | PMC | `General > Reposition (zzap)` |
+| 미끼 피킹 | 엄폐에서 앞 점프로 정보 확인 후 복귀, 이후 짧은 사격 피킹 좌우 교대 | 공격형 성격 | 〃 `Bait Peek` |
+| 가짜 재장전 | 탄창 확인 동작(소리)으로 재장전하는 척 후 적이 올 각을 조준 | PMC | 〃 `Fake Reload` |
+| 수류탄 신관 선택 | 실내·근거리는 짧은 신관, 실외 원거리는 긴 신관 | PMC | 〃 `Fuse Selection` |
+| 분대 교전 | 크로스파이어 각, 엄호, 동료 사망 시 트레이드 | 분대 | `General > Squad Combat (zzap)` |
+| 정지 매복 | 적이 가까울 때 멈춰서 코너 조준 (맞으면 즉시 해제) | Rat / SnappingTurtle / Coward (zzap 프리셋 기준) | `General > Freeze Ambush (zzap)` |
+| 폭발음 반응 | 25m 안 수류탄 폭발이면 모르던 봇도 던진 사람을 적으로 인식 | 전원 | 자동 |
+| 피격 음성 끔 | 맞을 때마다 내던 "윽 / 맞았다" 음성 제거 | 전원 | `Talk > Bot Pain Voice On Hit (zzap)` |
 
-| 분류 | 기능 | F6 위치 |
-|---|---|---|
-| 문 버그 | 문 감지/스턱/대기모드 낑김/문 상태 워치독 등 (FIXES.md 1~13번) | — |
-| 문 버그 | 이동 중 열린 문 자동 닫기 끔 (열기만 함) | `General > Door Tactics (zzap) > Bots Close Open Doors In Their Way` |
-| 문 전술 | GigaChad/Chad **점프 피킹 / 런바이 / 스텝 피킹**, 문틀 옆 대기 | `General > Door Tactics (zzap)` |
-| 문 전술 | **페이크 수류탄 / 페이크 치료·스팀** (문틀에서, 적이 가까울 때만) | 〃 `Fake Grenade`, `Fake Heal / Stim` |
-| 문 전술 | GigaChad/SnappingTurtle **방 가두기**(문 옆 대기), Rat **문 옆 매복** | 〃 `Room Trap` |
-| 문 전술 | 분대 역할(오버워치 / 후방 경계), 제3자 감지 시 즉시 포기 | 〃 `Squad Roles` |
-| 재배치 | 선제 피격 시 수류탄 후 재배치, 미끼 피킹, 가짜 재장전(탄창 확인), 수류탄 신관 선택 | `General > Reposition (zzap)` |
-| 근접 교전 | **다이아몬드 스텝**(사격 중 좌우·앞뒤), 가까운 적 앞에서 등 안 돌림, 제압사격 절제 | `General > Close Combat (zzap)` |
-| 분대 | 크로스파이어·엄호·트레이드 | `General > Squad Combat (zzap)` |
-| 매복 | Rat/Turtle/Coward 정지 매복 (피격 시 해제) | `General > Freeze Ambush (zzap)` |
-| 음성 | 피격 신음/"맞았다" 끔 | `Talk > Bot Pain Voice On Hit (zzap)` |
+**버그 수정**
 
-전술 행동은 전부 SAIN 전투 레이어(`SAIN : Combat Layer`) 안의 결정으로 들어가 있어서, 레이어 이름만 보는 **ORBIT과 수정 없이 호환**됩니다.
+| 수정 | 내용 |
+|---|---|
+| 문 낑김 | 문 감지 범위, 스턱 체크, 대기모드 진입 시 문 상호작용 멈춤, 문 상태 워치독(1.2초) 등 — 상세는 [`changelog/FIXES.md`](changelog/FIXES.md) |
+| 문 자동 닫기 끔 | 이동 중 열린 문을 닫았다 여는 루프 제거 (`Door Tactics (zzap) > Bots Close Open Doors In Their Way`, 기본 꺼짐) |
+| Waypoints 문 링크 | DrakiaXYZ-Waypoints가 만든 문 링크의 뒤바뀐 필드 대응 |
+| 전술장비 딸깍 반복 | 켤 광원이 없는 총에서 1초마다 켜기 재시도하던 것 → 2번 실패 시 60초 쉼 |
+| 손전등 눈뽕 | 적이 보이면 0.1~0.35초 안에 켬 |
 
 ## zzap 프리셋
 

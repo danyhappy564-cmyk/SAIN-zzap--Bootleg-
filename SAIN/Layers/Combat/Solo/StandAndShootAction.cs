@@ -2,6 +2,7 @@
 using EFT;
 using SAIN.Helpers;
 using SAIN.Preset.Shared.GlobalSettings;
+using SAIN.Preset.Shared.GlobalSettings.Categories.General;
 using SAIN.Preset.Shared.Models.Preset.Personalities;
 using SAIN.Models.PlayerData;
 using SAIN.SAINComponent.Classes.EnemyClasses;
@@ -25,13 +26,16 @@ public class StandAndShootAction(BotOwner bot) : BotAction(bot, nameof(StandAndS
         //}
     }
 
-    // zzap fork: diamond step (user's definition: while shooting, keep stepping left/right/forward/back).
-    // Vertices of a small diamond around the spot where the bot started shooting; mostly lateral (ADAD),
-    // sometimes a W/S step. Walk (not sprint) so the gun stays up and on target; steering keeps aiming.
+    // zzap fork: diamond step (user: "tap-dance" - mash A/D, now and then W/S, while shooting).
+    // v1 walked to points 0.5-1.2m away via the path system; SAIN's mover slows to ~5% speed inside 0.75m of the
+    // destination, so it crept. Now the direction is held directly (like a key press) for a short tap, then switched.
+    // The leash keeps it around the spot where the shooting started. Steering keeps aiming the whole time.
     private Vector3 _diamondCenter;
     private bool _diamondActive;
-    private int _diamondVertex = -1;
-    private float _nextDiamondStep;
+    private Vector3 _tapDir;
+    private float _tapEnd;
+    private bool _tapPause;
+    private bool _lastTapLateralLeft;
 
     private bool DiamondStep(Enemy enemy)
     {
@@ -61,18 +65,13 @@ public class StandAndShootAction(BotOwner bot) : BotAction(bot, nameof(StandAndS
         {
             _diamondActive = true;
             _diamondCenter = Bot.Position;
-            _diamondVertex = -1;
-            _nextDiamondStep = 0f;
+            _tapEnd = 0f;
+            Bot.Mover.Stop();
         }
         Bot.Mover.SetTargetPose(1f);
         Bot.Mover.SetTargetMoveSpeed(1f);
-        if (Time.time < _nextDiamondStep)
-        {
-            return true;
-        }
-        _nextDiamondStep = Time.time + Random.Range(0.3f, 0.55f);
 
-        Vector3 forward = enemy.EnemyPosition - _diamondCenter;
+        Vector3 forward = enemy.EnemyPosition - Bot.Position;
         forward.y = 0f;
         if (forward.sqrMagnitude < 0.01f)
         {
@@ -80,105 +79,69 @@ public class StandAndShootAction(BotOwner bot) : BotAction(bot, nameof(StandAndS
         }
         forward.Normalize();
         Vector3 right = Vector3.Cross(Vector3.up, forward);
-        float size = settings.DiamondStepSize;
-        // 0 = left, 1 = right, 2 = forward, 3 = back. Mostly the other side (ADAD), 30% a W/S step.
-        int next;
-        if (_diamondVertex == 0 || _diamondVertex == 1)
+
+        if (Time.time >= _tapEnd)
         {
-            next = Random.value < 0.7f ? 1 - _diamondVertex : (Random.value < 0.5f ? 2 : 3);
+            PickTap(settings, forward, right);
         }
-        else
+        if (_tapPause)
         {
-            next = Random.value < 0.5f ? 0 : 1;
+            return true;
         }
-        for (int attempt = 0; attempt < 4; attempt++)
+        // Never walk off a ledge / into a wall mid-tap: if the next 0.5m is blocked, flip the tap.
+        if (NavMesh.Raycast(Bot.Position, Bot.Position + _tapDir * 0.5f, out _, -1))
         {
-            int vertex = (next + attempt) % 4;
-            Vector3 offset = vertex switch
+            _tapDir = -_tapDir;
+            if (NavMesh.Raycast(Bot.Position, Bot.Position + _tapDir * 0.5f, out _, -1))
             {
-                0 => -right * size,
-                1 => right * size,
-                2 => forward * size * 0.6f,
-                _ => -forward * size * 0.6f,
-            };
-            if (!NavMesh.SamplePosition(_diamondCenter + offset, out NavMeshHit hit, 0.5f, -1))
-            {
-                continue;
-            }
-            if (Mathf.Abs(hit.position.y - Bot.Position.y) > 0.4f || NavMesh.Raycast(Bot.Position, hit.position, out _, -1))
-            {
-                continue;
-            }
-            if (Bot.Mover.WalkToPoint(hit.position, false, 0.3f))
-            {
-                _diamondVertex = vertex;
                 return true;
             }
         }
+        Bot.PlayerComponent.CharacterController.SetWantToSprint(false);
+        // Far-away "destination" so SAIN's arrival slowdown never kicks in during a tap.
+        Bot.PlayerComponent.CharacterController.SetTargetMoveDirection(_tapDir, Bot.Position + _tapDir * 5f, Bot.PlayerComponent, 0f, 1f);
         return true;
+    }
+
+    private void PickTap(CloseCombatSettings settings, Vector3 forward, Vector3 right)
+    {
+        float tap = settings.DiamondStepTapTime;
+        _tapEnd = Time.time + Random.Range(tap * 0.65f, tap * 1.35f);
+        // Short stop now and then (a real player's rhythm isn't perfectly even).
+        _tapPause = Random.value < 0.1f;
+        if (_tapPause)
+        {
+            _tapEnd = Time.time + Random.Range(0.06f, 0.12f);
+            return;
+        }
+        Vector3 offset = Bot.Position - _diamondCenter;
+        offset.y = 0f;
+        float leash = settings.DiamondStepSize;
+        if (offset.magnitude > leash)
+        {
+            // Too far from the spot: tap back toward it.
+            _tapDir = -offset.normalized;
+            return;
+        }
+        if (Random.value < 0.75f)
+        {
+            // A/D, mostly alternating.
+            bool left = Random.value < 0.8f ? !_lastTapLateralLeft : _lastTapLateralLeft;
+            _lastTapLateralLeft = left;
+            _tapDir = left ? -right : right;
+        }
+        else
+        {
+            _tapDir = Random.value < 0.5f ? forward : -forward;
+        }
     }
 
     private bool StopDiamond()
     {
-        _diamondActive = false;
-        return false;
-    }
-
-    private bool shallMoveShoot = false;
-
-    public override void Start()
-    {
-        const float STAND_AND_SHOOT_HOLDLEAN_DURATION = 0.66f;
-        base.Start();
-        shallMoveShoot = moveShoot(Bot.GoalEnemy);
-        if (!shallMoveShoot)
+        if (_diamondActive)
         {
-            Bot.Mover.Stop();
-        }
-        Bot.Mover.Lean.HoldLean(STAND_AND_SHOOT_HOLDLEAN_DURATION);
-    }
-
-    private bool moveShoot(Enemy enemy)
-    {
-        if (Bot.Player.IsInPronePose)
-        {
-            return false;
-        }
-        if (FindSwingMovePosition(Bot.Transform.NavData, enemy, out Vector3 movePosition))
-        {
-            return Bot.Mover.WalkToPoint(movePosition, false);
-        }
-        return false;
-    }
-
-    private static bool FindSwingMovePosition(PlayerNavData navData, Enemy enemy, out Vector3 movePosition)
-    {
-        movePosition = Vector3.zero;
-        if (enemy != null && navData.IsOnNavMesh && enemy.RealDistance < 50)
-        {
-            float angle = UnityEngine.Random.Range(70, 110);
-            if (EFTMath.RandomBool())
-            {
-                angle *= -1;
-            }
-
-            Vector3 directionToEnemy = enemy.EnemyDirection.normalized;
-            Vector3 rotated = Vector.Rotate(directionToEnemy, 0, angle, 0);
-            rotated.y = 0;
-            rotated *= 6f;
-            rotated += Random.insideUnitSphere;
-            if (NavMesh.SamplePosition(navData.Position + rotated, out var hit, 3f, -1))
-            {
-                movePosition = hit.position;
-                if (NavMesh.Raycast(navData.Position, movePosition, out var rayHit, -1))
-                {
-                    movePosition = rayHit.position;
-                }
-                if ((movePosition - navData.Position).sqrMagnitude > 0.75f)
-                {
-                    return true;
-                }
-            }
+            _diamondActive = false;
+            Bot.Player?.Move(Vector2.zero);
         }
         return false;
     }

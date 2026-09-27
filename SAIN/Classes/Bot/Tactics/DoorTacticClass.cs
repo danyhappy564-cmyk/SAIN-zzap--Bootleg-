@@ -1406,6 +1406,12 @@ public class DoorTacticClass : BotComponentClassBase
         {
             return false;
         }
+        // Real healing comes first: bleeding or badly hurt -> no fake, SAIN's own heal decision handles it.
+        var status = Bot.Memory.Health.HealthStatus;
+        if (medecine.FirstAid?.IsBleeding == true || status == ETagStatus.BadlyInjured || status == ETagStatus.Dying)
+        {
+            return false;
+        }
         bool hurt = medecine.FirstAid != null && !medecine.FirstAid.Using && medecine.FirstAid.Have2Do;
         bool haveStim = medecine.Stimulators?._stimulator != null && !medecine.Stimulators.Using;
         return hurt || haveStim;
@@ -1482,8 +1488,11 @@ public class DoorTacticClass : BotComponentClassBase
         var firstAid = BotOwner.Medecine?.FirstAid;
         if (firstAid != null && firstAid.Using)
         {
-            // BSG's own cancel: TakePrevWeapon + heal cooldown.
+            // BSG's own cancel: TakePrevWeapon + heal cooldown. The cooldown (Mind.HEAL_DELAY_SEC) would also hold back
+            // the REAL heal SAIN decides on later, so give it back right away.
+            float before = firstAid._nextPosibleUseTime;
             firstAid.StopUse();
+            firstAid._nextPosibleUseTime = Mathf.Min(firstAid._nextPosibleUseTime, Mathf.Max(before, Time.time + 0.5f));
             Log($"{Who()} fake heal cancelled ({why})");
         }
     }

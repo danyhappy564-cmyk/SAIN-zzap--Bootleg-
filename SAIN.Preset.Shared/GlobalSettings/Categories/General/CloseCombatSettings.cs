@@ -65,7 +65,7 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
 
     [DataMember]
     [Name("Diamond Step While Shooting")]
-    [Description("GigaChad/Chad/Wreckless: while shooting at a visible enemy, keep moving in a small diamond around the spot - left, right, a step forward or back (ADAD with W/S mixed in) - instead of standing still. The gun stays on the enemy the whole time.")]
+    [Description("GigaChad/Chad/Wreckless: while shooting at a visible enemy, tap-dance around the spot - quick A/D taps (mostly alternating) with W/S mixed in and short random stops - instead of standing still. The gun stays on the enemy the whole time.")]
     public bool DiamondStep = true;
 
     [DataMember]
@@ -75,10 +75,16 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float DiamondStepMaxDistance = 40f;
 
     [DataMember]
-    [Name("Diamond Step Size")]
-    [Description("Meters from the center spot to each side of the diamond. Forward/back steps are 60% of this.")]
+    [Name("Diamond Step Leash")]
+    [Description("Meters. How far the bot may drift from the spot where it started shooting; beyond this the next tap goes back toward it.")]
     [MinMax(0.5f, 3f, 10f)]
-    public float DiamondStepSize = 1.2f;
+    public float DiamondStepSize = 1.5f;
+
+    [DataMember]
+    [Name("Diamond Step Tap Time")]
+    [Description("Seconds one direction is held (randomized 0.65x-1.35x), like tapping A/D. Lower = faster tap-dance. Below ~0.1s EFT's movement inertia barely moves the body; above ~0.35s it looks like plain strafing.")]
+    [MinMax(0.08f, 0.5f, 100f)]
+    public float DiamondStepTapTime = 0.18f;
 
     [DataMember]
     [Name("TEST MODE: Diamond Step For Everyone")]
