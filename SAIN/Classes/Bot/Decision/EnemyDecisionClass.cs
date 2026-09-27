@@ -215,7 +215,7 @@ public class EnemyDecisionClass : BotBase
             }
         }
 
-        bool freeze = shallFreezeAndWait(enemy, out reason);
+        bool freeze = shallFreezeAndWait(enemy, knownEnemies, out reason);
 #if DEBUG
         if (SAINPlugin.DebugMode)
         {
@@ -272,7 +272,7 @@ public class EnemyDecisionClass : BotBase
         return canTakeAggressiveAction;
     }
 
-    private bool shallFreezeAndWait(Enemy enemy, out string reason)
+    private bool shallFreezeAndWait(Enemy enemy, EnemyList knownEnemies, out string reason)
     {
         // zzap: limits come from F6 General > Freeze Ambush (zzap); SAIN had them hardcoded (70m, indoors only, 240s, 80s, 10-120s).
         var freeze = GlobalSettings.General.FreezeAmbush;
@@ -306,6 +306,23 @@ public class EnemyDecisionClass : BotBase
             reason = "tooFar";
             return false;
         }
+        // zzap: SAIN never broke the freeze when the bot got shot. A frozen bot (every personality but Wreckless
+        // freezes in TwitchPlayers) hit from an angle it wasn't watching stood still until the timer ran out
+        // (up to 120s) and died standing. Being shot at / hit / another enemy in sight ends it.
+        if (FreezeBroken(enemy, knownEnemies, out string broken))
+        {
+            if (Bot.Decision.CurrentCombatDecision == ECombatDecision.Freeze)
+            {
+                TacticDiagnostics.Count($"freeze.broken.{broken}");
+                if (freeze.DiagnosticLogs)
+                {
+                    Logger.LogWarning($"[Freeze] [{Bot.name}] [{Bot.Info.Personality}] BREAK ambush: {broken}");
+                }
+            }
+            TimeToUnfreeze = 0f;
+            reason = broken;
+            return false;
+        }
 
         if (Bot.Decision.CurrentCombatDecision != ECombatDecision.Freeze)
         {
@@ -332,6 +349,34 @@ public class EnemyDecisionClass : BotBase
         }
         reason = "timeForFreeze";
         return true;
+    }
+
+    private bool FreezeBroken(Enemy enemy, EnemyList knownEnemies, out string why)
+    {
+        if (BotOwner.Memory.IsUnderFire)
+        {
+            why = "underFire";
+            return true;
+        }
+        var status = enemy.Status;
+        if (status.ShotMeRecently || status.ShotAtMeRecently)
+        {
+            why = "shotAt";
+            return true;
+        }
+        if (knownEnemies != null)
+        {
+            foreach (Enemy other in knownEnemies)
+            {
+                if (other != null && other != enemy && (other.IsVisible || other.Status.ShotMeRecently || other.Status.ShotAtMeRecently))
+                {
+                    why = "otherEnemy";
+                    return true;
+                }
+            }
+        }
+        why = string.Empty;
+        return false;
     }
 
     private bool shallThrowGrenade(Enemy enemy, out string reason)
