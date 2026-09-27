@@ -54,6 +54,7 @@ public class GroupTalk : BotBase
             !BotSquad.BotInGroup
             || !Bot.Info.FileSettings.Mind.SquadTalk
             || SAINPlugin.LoadedPreset.GlobalSettings.Talk.DisableBotTalkPatching
+            || Bot.Talk.SquadCalloutsMuted
         )
         {
             if (Subscribed)

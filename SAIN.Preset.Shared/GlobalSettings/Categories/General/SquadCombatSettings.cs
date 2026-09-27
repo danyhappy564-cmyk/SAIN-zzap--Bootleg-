@@ -62,6 +62,11 @@ public class SquadCombatSettings : SAINSettingsBase<SquadCombatSettings>, ISAINS
     public float MaxEnemyDistance = 80f;
 
     [DataMember]
+    [Name("PMC Squad Voice Callouts")]
+    [Description("Off (default): PMC squadmates don't shout squad callouts at each other (contact!, retreat!, reloading/out of ammo, grenade!, sniper!, enemy down, need help...). Real squads use Discord. Taunts/begging aimed at the enemy and pain sounds stay. Scavs keep vanilla talk.")]
+    public bool PmcSquadVoiceCallouts = false;
+
+    [DataMember]
     [Name("Diagnostic Logs")]
     [Description("Writes [SquadCombat] lines to BepInEx LogOutput.log for every start and result, plus SUMMARY counters.")]
     public bool DiagnosticLogs = true;

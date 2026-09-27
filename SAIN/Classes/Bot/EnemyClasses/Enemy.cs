@@ -646,7 +646,7 @@ public class Enemy : BotBase, ISPlayer
     public void SetEnemyAsSniper(bool isSniper)
     {
         IsSniper = isSniper;
-        if (isSniper && Bot.Squad.BotInGroup && Bot.Talk.GroupTalk.FriendIsClose)
+        if (isSniper && Bot.Squad.BotInGroup && !Bot.Talk.SquadCalloutsMuted && Bot.Talk.GroupTalk.FriendIsClose)
         {
             Bot.Talk.TalkAfterDelay(EPhraseTrigger.SniperPhrase, ETagStatus.Combat, UnityEngine.Random.Range(0.33f, 0.66f));
         }

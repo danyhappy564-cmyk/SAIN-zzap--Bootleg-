@@ -26,7 +26,7 @@ public class ThrowGrenadeAction(BotOwner bot) : BotAction(bot, nameof(ThrowGrena
     {
         base.Start();
         StartTime = Time.time;
-        if (Bot.Squad.BotInGroup && Bot.Talk.GroupTalk.FriendIsClose)
+        if (Bot.Squad.BotInGroup && !Bot.Talk.SquadCalloutsMuted && Bot.Talk.GroupTalk.FriendIsClose)
         {
             Bot.Talk.Say(EPhraseTrigger.OnGrenade, null, false);
         }

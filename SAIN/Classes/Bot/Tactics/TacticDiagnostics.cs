@@ -128,7 +128,7 @@ internal static class TacticDiagnostics
         Logger.LogWarning(
             $"[Tactics] SETTINGS SquadCombat: enabled={q.Enabled} crossfire={q.Crossfire} minAngle={q.CrossfireMinAngle:0} spacing={q.MinSpacing:0}m "
                 + $"cover={q.CoverTeammate} coverDist={q.CoverMaxDistance:0}m trade={q.Trade} tradeWindow={q.TradeWindow:0}s "
-                + $"maxEnemyDist={q.MaxEnemyDistance:0}m logs={q.DiagnosticLogs}"
+                + $"maxEnemyDist={q.MaxEnemyDistance:0}m pmcCallouts={q.PmcSquadVoiceCallouts} logs={q.DiagnosticLogs}"
         );
     }
 }

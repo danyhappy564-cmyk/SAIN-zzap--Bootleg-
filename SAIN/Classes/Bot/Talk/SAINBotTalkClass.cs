@@ -3,6 +3,7 @@ using EFT;
 using EFT.Ballistics;
 using SAIN.Components;
 using SAIN.Components.PlayerComponentSpace;
+using SAIN.Preset.Shared.GlobalSettings;
 using UnityEngine;
 
 namespace SAIN.SAINComponent.Classes.Talk;
@@ -245,8 +246,24 @@ public class SAINBotTalkClass : BotComponentClassBase
         return true;
     }
 
+    /// <summary>
+    /// zzap: PMC squad callouts muted unless F6 General > Squad Combat (zzap) > PMC Squad Voice Callouts is on.
+    /// </summary>
+    public bool SquadCalloutsMuted
+    {
+        get
+        {
+            var settings = GlobalSettingsClass.Instance?.General?.SquadCombat;
+            return settings != null && !settings.PmcSquadVoiceCallouts && Bot.Info.Profile.IsPMC;
+        }
+    }
+
     public bool GroupSay(EPhraseTrigger phrase, ETagStatus? additionalMask = null, bool withGroupDelay = false, float chance = 60)
     {
+        if (SquadCalloutsMuted)
+        {
+            return false;
+        }
         var squadSettings = Bot.Squad.SquadInfo?.SquadPersonalitySettings;
         if (squadSettings != null)
         {
