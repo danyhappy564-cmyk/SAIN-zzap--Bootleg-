@@ -90,6 +90,7 @@ public class RepositionClass : BotComponentClassBase
         public bool BaitCrouch;
         public bool BaitJump;
         public bool BaitJumped;
+        public bool BaitJumpedBack;
         public bool DrewFire;
         public Vector3 Noise;
         public int NoiseLeft = 2;
@@ -600,9 +601,11 @@ public class RepositionClass : BotComponentClassBase
         }
         Start(EMode.BaitPeek, enemy, point, enemyPos + Vector3.up * 1.3f, EPhase.BaitOut, "fake peek to draw fire");
         _session.Home = Bot.Position;
-        _session.BaitLeft = Random.value < 0.5f ? 1 : 2;
+        // Reference clip 3 (user correction): first an info peek - hop OUT past the cover edge, look, hop straight BACK -
+        // then short shooting peeks alternating sides.
+        _session.BaitLeft = 2;
         _session.BaitCrouch = Random.value < 0.4f;
-        _session.BaitJump = Random.value < 0.5f;
+        _session.BaitJump = true;
         reason = "bait";
         return true;
     }
@@ -760,7 +763,7 @@ public class RepositionClass : BotComponentClassBase
 
             case EPhase.BaitOut:
                 Bot.Mover.SetTargetPose(s.BaitCrouch ? 0.55f : 1f);
-                // Reference clip 3: hop out to see over/around cover, not just a shoulder.
+                // Reference clip 3: hop out past the cover edge (forward), not over the cover.
                 if (s.BaitJump && !s.BaitJumped)
                 {
                     s.BaitJumped = Bot.Mover.TryJump();
@@ -769,7 +772,7 @@ public class RepositionClass : BotComponentClassBase
                         TacticDiagnostics.Count("repo.bait.jump");
                     }
                 }
-                if (MoveTo(s, s.Target, false, phaseTime) || phaseTime > 0.9f)
+                if (MoveTo(s, s.Target, s.BaitJump, phaseTime) || phaseTime > 0.9f)
                 {
                     SetPhase(s, EPhase.BaitShow);
                 }
@@ -784,7 +787,12 @@ public class RepositionClass : BotComponentClassBase
                 break;
 
             case EPhase.BaitBack:
-                if (MoveTo(s, s.Home, false, phaseTime) || phaseTime > 1.2f)
+                // Info peek: hop straight back in too (the door jump peek's back-hop, from cover).
+                if (s.BaitJump && !s.BaitJumpedBack && phaseTime > 0.05f)
+                {
+                    s.BaitJumpedBack = Bot.Mover.TryJump();
+                }
+                if (MoveTo(s, s.Home, s.BaitJump, phaseTime) || phaseTime > 1.2f)
                 {
                     s.BaitLeft--;
                     TacticDiagnostics.Count("repo.bait.peeked");
@@ -792,8 +800,10 @@ public class RepositionClass : BotComponentClassBase
                     {
                         // Vary it: other stance and the OTHER side next time so the head isn't where they pre-aimed.
                         s.BaitCrouch = !s.BaitCrouch;
-                        s.BaitJump = !s.BaitJump;
+                        // After the info hop: plain short peeks (shoot if they're there), other side each time.
+                        s.BaitJump = false;
                         s.BaitJumped = false;
+                        s.BaitJumpedBack = false;
                         Vector3 other = s.Home + (s.Home - s.Target);
                         if (NavMesh.SamplePosition(other, out NavMeshHit otherHit, 0.6f, -1)
                             && !Physics.Linecast(otherHit.position + Vector3.up * 1.4f, s.Look, LayersMaskController.HighPolyWithTerrainMask))
