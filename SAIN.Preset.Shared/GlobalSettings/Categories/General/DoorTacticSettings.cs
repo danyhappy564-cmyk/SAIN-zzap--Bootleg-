@@ -204,6 +204,11 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float ChanceMultiplier = 1f;
 
     [DataMember]
+    [Name("TEST MODE: All PMCs Use GigaChad Tactics")]
+    [Description("For testing only. Every PMC plans door tactics as a GigaChad (peek / trap / door grenade and its follow-ups) and the start chance is 100%. Turn it off for normal play.")]
+    public bool TestModeAllPmcGigaChad = false;
+
+    [DataMember]
     [Name("Diagnostic Logs")]
     [Description("Writes [DoorTactic] lines to BepInEx LogOutput.log: every tactic start, step change and result.")]
     public bool DiagnosticLogs = true;

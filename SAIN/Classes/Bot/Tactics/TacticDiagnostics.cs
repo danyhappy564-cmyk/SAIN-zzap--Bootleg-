@@ -117,7 +117,7 @@ internal static class TacticDiagnostics
                 + $"chance%: giga={d.GigaChadChance:0} chad={d.ChadChance:0} turtle={d.SnappingTurtleChance:0} rat={d.RatChance:0} "
                 + $"peekVsTrap={d.GigaChadPeekChance:0} trickGiga={d.GigaChadFakeTrickChance:0} trickChad={d.ChadFakeTrickChance:0} "
                 + $"trapHeal={d.GigaChadTrapFakeHealChance:0} doorNadeChance={d.DoorGrenadeChance:0} x{d.ChanceMultiplier:0.0} "
-                + $"followUp={d.PostBlastFollowUp} peek%={d.PostBlastPeekChance:0} fakeRetreat%={d.PostBlastFakeRetreatChance:0} inside%={d.DoorGrenadeInsideChance:0} maxNades={d.MaxDoorGrenades:0} listen={d.PostBlastListenTime:0.0}s "
+                + $"TESTMODE={d.TestModeAllPmcGigaChad} followUp={d.PostBlastFollowUp} peek%={d.PostBlastPeekChance:0} fakeRetreat%={d.PostBlastFakeRetreatChance:0} inside%={d.DoorGrenadeInsideChance:0} maxNades={d.MaxDoorGrenades:0} listen={d.PostBlastListenTime:0.0}s "
                 + $"shot/pullBack={d.PeekShotTime:0.0}/{d.PullBackTime:0.0}s logs={d.DiagnosticLogs}/{d.VerboseLogs}"
         );
         Logger.LogWarning(

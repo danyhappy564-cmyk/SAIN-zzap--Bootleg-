@@ -200,6 +200,11 @@ public class DoorTacticClass : BotComponentClassBase
             return false;
         }
         EPersonality personality = Bot.Info.Personality;
+        bool testMode = Settings.TestModeAllPmcGigaChad && Bot.Info.Profile.IsPMC;
+        if (testMode)
+        {
+            personality = EPersonality.GigaChad;
+        }
         float baseChance = GetBaseChance(personality);
         if (baseChance <= 0f)
         {
@@ -251,7 +256,7 @@ public class DoorTacticClass : BotComponentClassBase
         }
 
         bool resuming = resumeCandidate && _resumeDoorId == geo.Data.Id;
-        float chance = Mathf.Clamp01(baseChance * Settings.ChanceMultiplier);
+        float chance = testMode ? 1f : Mathf.Clamp01(baseChance * Settings.ChanceMultiplier);
         if (resuming)
         {
             _resumeUntil = 0f;
@@ -390,6 +395,11 @@ public class DoorTacticClass : BotComponentClassBase
                 continue;
             }
 
+            // The link's Close1/Close2_Normal/MidClose sit at door height, not on the floor; every stack/peek/
+            // close point sampled from there was >0.7m above the navmesh -> "noStackPointOnNavmesh" on every
+            // door in the first two raids. Drop the center to the floor on the bot's side.
+            center = FloorPoint(data.Link, center, normal * Mathf.Sign(botDot));
+
             best = new DoorGeometry
             {
                 Data = data,
@@ -442,6 +452,22 @@ public class DoorTacticClass : BotComponentClassBase
         }
         result = default;
         return false;
+    }
+
+    private static Vector3 FloorPoint(NavMeshDoorLink link, Vector3 center, Vector3 botSide)
+    {
+        // Off the door plane (a shut door would stop the ray), straight down.
+        Vector3 start = center + botSide * 0.5f + Vector3.up * 0.3f;
+        if (Physics.Raycast(start, Vector3.down, out RaycastHit hit, 3f, LayersMaskController.HighPolyWithTerrainMask))
+        {
+            center.y = hit.point.y;
+            return center;
+        }
+        if (Mathf.Abs(center.y - link.BottomY) < 3f)
+        {
+            center.y = link.BottomY;
+        }
+        return center;
     }
 
     private static bool SampleOnBotSide(Vector3 point, DoorGeometry geo, out Vector3 result)
@@ -549,6 +575,9 @@ public class DoorTacticClass : BotComponentClassBase
         }
         if (!FindStackPoint(geo, side, out s.Stack))
         {
+            bool nav = NavMesh.SamplePosition(geo.Center + geo.BotSide * STACK_DEPTH, out NavMeshHit near, 3f, -1);
+            Log($"{Who()} no stack point at door {geo.Data.Id}: center y={geo.Center.y:0.00} linkMid y={geo.Data.Link.MidClose.y:0.00} "
+                + $"bottomY={geo.Data.Link.BottomY:0.00} width={geo.HalfWidth * 2f:0.00} nearestNav={(nav ? $"{(near.position - (geo.Center + geo.BotSide * STACK_DEPTH)).magnitude:0.00}m away" : "none within 3m")}");
             reason = "noStackPointOnNavmesh";
             return null;
         }
