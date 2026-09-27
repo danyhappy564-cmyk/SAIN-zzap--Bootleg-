@@ -53,6 +53,11 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float EmergencyRetreatDistance = 10f;
 
     [DataMember]
+    [Name("Squad And Flank Checks")]
+    [Description("One bot per door; abort if a teammate is inside the room or pushing through the door, or if another enemy shows up on the bot's side (flank). Door grenades are never thrown within 6m of a teammate.")]
+    public bool SquadChecks = true;
+
+    [DataMember]
     [Name("GigaChad Chance")]
     [Description("Percent. Chance a GigaChad (skilled player) uses a door tactic when one is possible.")]
     [MinMax(0f, 100f, 1f)]

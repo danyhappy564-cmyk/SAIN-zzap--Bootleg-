@@ -193,6 +193,18 @@ public class DoorTacticClass : BotComponentClassBase
             return false;
         }
 
+        if (DoorClaimedByOther(geo.Data.Id, out string holder))
+        {
+            reason = $"doorClaimedBy({holder})";
+            TacticDiagnostics.Count("door.skipClaimedBySomeoneElse");
+            return false;
+        }
+        if (Settings.SquadChecks && SquadOrFlankProblem(geo.Center, geo.BotSide, enemy, out string squadReason))
+        {
+            reason = squadReason;
+            return false;
+        }
+
         float chance = Mathf.Clamp01(baseChance * Settings.ChanceMultiplier);
         if (Random.value > chance)
         {
@@ -215,6 +227,7 @@ public class DoorTacticClass : BotComponentClassBase
         }
 
         _session = session;
+        _doorClaims[geo.Data.Id] = new DoorClaim(Bot.ProfileId, Bot.name, Time.time + SESSION_MAX_TIME);
         TacticDiagnostics.Count($"door.start.{personality}.{session.Plan}");
         Log(
             $"{Who()} START plan={session.Plan} door={geo.Data.Id} doorState={geo.Data.Door.DoorState} "
@@ -564,6 +577,18 @@ public class DoorTacticClass : BotComponentClassBase
         }
         float time = Time.time;
         float stepTime = time - s.StepStartTime;
+
+        if (Settings.SquadChecks && _nextSquadCheckTime < time)
+        {
+            _nextSquadCheckTime = time + 0.5f;
+            if (SquadOrFlankProblem(s.Center, s.BotSide, s.Enemy, out string squadReason))
+            {
+                Log($"{Who()} abort at step {s.Step}: {squadReason}");
+                TacticDiagnostics.Count($"door.abort.{squadReason.Split('(')[0]}");
+                End(squadReason);
+                return;
+            }
+        }
 
         switch (s.Step)
         {
@@ -1097,6 +1122,12 @@ public class DoorTacticClass : BotComponentClassBase
             Log($"{Who()} door grenade skipped: no frag with fuse >= {Settings.DoorGrenadeMinFuse:0.0}s");
             return false;
         }
+        if (Settings.SquadChecks && TeammateNear(target: s.Center + s.BotSide * 0.4f, radius: 6f, out string mate))
+        {
+            Log($"{Who()} door grenade cancelled: teammate {mate} within 6m of the landing spot");
+            TacticDiagnostics.Count("door.nadeCancelledTeammateNear");
+            return false;
+        }
         grenades.SetThrowParams(longFuse);
         Log($"{Who()} door grenade picked {longFuse.ShortName.Localized()} fuse={longFuse.GetExplDelay:0.0}s");
         // Right at the door on our side, so it lands against the door instead of bouncing back to us.
@@ -1116,6 +1147,124 @@ public class DoorTacticClass : BotComponentClassBase
                 {
                     return grenades.DoThrow();
                 }
+            }
+        }
+        return false;
+    }
+
+    // ---------------------------------------------------------------- squad / multiple enemies
+
+    private readonly struct DoorClaim(string profileId, string name, float until)
+    {
+        public readonly string ProfileId = profileId;
+        public readonly string Name = name;
+        public readonly float Until = until;
+    }
+
+    /// <summary>
+    /// One bot per door at a time, shared by every bot in the raid (static), so two squadmates don't
+    /// both close the door, throw grenades at it or peek it together.
+    /// </summary>
+    private static readonly Dictionary<int, DoorClaim> _doorClaims = new();
+
+    private float _nextSquadCheckTime;
+
+    private bool DoorClaimedByOther(int doorId, out string holder)
+    {
+        holder = string.Empty;
+        if (!_doorClaims.TryGetValue(doorId, out DoorClaim claim))
+        {
+            return false;
+        }
+        if (claim.ProfileId == Bot.ProfileId || claim.Until < Time.time)
+        {
+            _doorClaims.Remove(doorId);
+            return false;
+        }
+        holder = claim.Name;
+        return true;
+    }
+
+    /// <summary>
+    /// Things that make a solo door tactic wrong when more than one player is involved:
+    ///  - a teammate is inside the room / on the enemy's side of the door (never close it on them),
+    ///  - a teammate is right at the door, i.e. pushing through it anyway,
+    ///  - another known enemy is on OUR side of the door (someone flanking while we stare at the door).
+    /// </summary>
+    private bool SquadOrFlankProblem(Vector3 doorCenter, Vector3 botSide, Enemy goalEnemy, out string reason)
+    {
+        var members = Bot.Squad.Members;
+        if (members != null)
+        {
+            foreach (var member in members.Values)
+            {
+                if (member == null || ReferenceEquals(member, Bot) || member.IsDead)
+                {
+                    continue;
+                }
+                Vector3 toMate = member.Position - doorCenter;
+                toMate.y = 0f;
+                float dist = toMate.magnitude;
+                if (dist < 2.5f)
+                {
+                    reason = $"teammatePushingDoor({member.name})";
+                    return true;
+                }
+                if (dist < MAX_ENEMY_DOOR_DIST && Vector3.Dot(toMate, botSide) < -0.3f)
+                {
+                    reason = $"teammateInsideRoom({member.name})";
+                    return true;
+                }
+            }
+        }
+
+        var enemies = Bot.EnemyController.KnownEnemies;
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            Enemy other = enemies[i];
+            if (other == null || ReferenceEquals(other, goalEnemy))
+            {
+                continue;
+            }
+            if (!other.IsVisible && other.TimeSinceLastKnownUpdated > 5f)
+            {
+                continue;
+            }
+            Vector3? known = other.KnownPlaces.LastKnownPosition;
+            if (known == null)
+            {
+                continue;
+            }
+            Vector3 toOther = known.Value - doorCenter;
+            toOther.y = 0f;
+            if (toOther.magnitude < 15f && Vector3.Dot(toOther, botSide) > 0f)
+            {
+                reason = $"otherEnemyOnOurSide({other.EnemyName}, {toOther.magnitude:0}m)";
+                return true;
+            }
+        }
+        reason = string.Empty;
+        return false;
+    }
+
+    private bool TeammateNear(Vector3 target, float radius, out string who)
+    {
+        who = string.Empty;
+        var members = Bot.Squad.Members;
+        if (members == null)
+        {
+            return false;
+        }
+        foreach (var member in members.Values)
+        {
+            if (member == null || ReferenceEquals(member, Bot) || member.IsDead)
+            {
+                continue;
+            }
+            if (HorizontalDistance(member.Position, target) < radius)
+            {
+                who = member.name;
+                return true;
             }
         }
         return false;
@@ -1289,6 +1438,10 @@ public class DoorTacticClass : BotComponentClassBase
         _session = null;
         Bot.Mover.IgnoreDoorSlow = false;
         CancelFakeHeal("sessionEnd");
+        if (_doorClaims.TryGetValue(s.Door.Id, out DoorClaim claim) && claim.ProfileId == Bot.ProfileId)
+        {
+            _doorClaims.Remove(s.Door.Id);
+        }
         string resultKey = result.Contains("(") ? result.Substring(0, result.IndexOf('(')) : result.Split(':')[0];
         TacticDiagnostics.Count($"door.end.{s.Plan}.{resultKey}");
         float time = Time.time;
