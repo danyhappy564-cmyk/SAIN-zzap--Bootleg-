@@ -87,6 +87,10 @@ public class DoorTacticClass : BotComponentClassBase
     private const float PEEK_DEPTH = 1.0f;
     private const float PEEK_LOOK_TIME = 0.15f;
     private const float EMERGENCY_WINDOW_AFTER_FAKE = 2.5f;
+    private const float FAKE_NADE_SHOW_TIME = 0.7f;
+    private const float FAKE_HEAL_SHOW_TIME = 0.6f;
+    private const float FAKE_STIM_SHOW_TIME = 0.5f;
+    private const float FAKE_MAX_DOOR_DIST = 2.5f;
     private const float EMERGENCY_MIN_RETREAT_TIME = 1.5f;
     private const float CLOSE_DEPTH = 0.9f;
     private const float ARRIVE_DIST = 0.6f;
@@ -917,6 +921,11 @@ public class DoorTacticClass : BotComponentClassBase
                 }
                 if (!s.FakeNadeDrawn)
                 {
+                    if (!CloseEnoughForFake(s, "fake grenade"))
+                    {
+                        SetStep(EStep.Hold, "tooFarForFakeNade");
+                        break;
+                    }
                     s.FakeNadeDrawn = true;
                     if (!DrawGrenadeForFake())
                     {
@@ -924,7 +933,9 @@ public class DoorTacticClass : BotComponentClassBase
                     }
                     break;
                 }
-                if (stepTime > 1.3f)
+                // Only the draw sound, no pin: show it briefly and get the gun straight back up, so whoever
+                // bolts out of the room at the sound runs into a ready gun.
+                if (stepTime > FAKE_NADE_SHOW_TIME)
                 {
                     SetStep(EStep.FakeNadeHolster, "fakeNadeShown");
                 }
@@ -955,6 +966,11 @@ public class DoorTacticClass : BotComponentClassBase
                 }
                 if (!s.FakeHealStarted)
                 {
+                    if (!CloseEnoughForFake(s, "fake heal/stim"))
+                    {
+                        SetStep(EStep.Hold, "tooFarForFakeHeal");
+                        break;
+                    }
                     s.FakeHealStarted = true;
                     Bot.Mover.Stop();
                     if (!StartFakeHeal())
@@ -963,7 +979,8 @@ public class DoorTacticClass : BotComponentClassBase
                     }
                     break;
                 }
-                if (stepTime > (_fakeStimRunning ? 0.7f : 1.5f))
+                // Cancel as soon as the item is out (sound only): 1.5s was long enough for a quick heal to finish.
+                if (stepTime > (_fakeStimRunning ? FAKE_STIM_SHOW_TIME : FAKE_HEAL_SHOW_TIME))
                 {
                     SetStep(EStep.FakeHealCancel, _fakeStimRunning ? "fakeStimShown" : "fakeHealShown");
                 }
@@ -1362,6 +1379,22 @@ public class DoorTacticClass : BotComponentClassBase
         return (a - b).magnitude;
     }
 
+    /// <summary>
+    /// Fakes only work right at the frame: the point is that the enemy bolts out at the sound and runs into
+    /// the bot's gun a moment later. From further back it's just a noise and the gun isn't up in time.
+    /// </summary>
+    private bool CloseEnoughForFake(Session s, string what)
+    {
+        float dist = HorizontalDistance(Bot.Position, s.Center);
+        if (dist <= FAKE_MAX_DOOR_DIST)
+        {
+            return true;
+        }
+        Log($"{Who()} {what} skipped: {dist:0.0}m from the door (max {FAKE_MAX_DOOR_DIST:0.0}m)");
+        TacticDiagnostics.Count("trick.tooFarFromDoor");
+        return false;
+    }
+
     private bool DrawGrenadeForFake()
     {
         var grenades = BotOwner.WeaponManager?.Grenades;
@@ -1383,7 +1416,7 @@ public class DoorTacticClass : BotComponentClassBase
             TacticDiagnostics.Count(result.Value != null ? "fakeNade.drawn" : "fakeNade.drawFailed");
         };
         Player.SetInHands(nade, callback);
-        _emergencyWindowUntil = Time.time + 1.3f + EMERGENCY_WINDOW_AFTER_FAKE;
+        _emergencyWindowUntil = Time.time + FAKE_NADE_SHOW_TIME + EMERGENCY_WINDOW_AFTER_FAKE;
         return true;
     }
 
@@ -1481,7 +1514,7 @@ public class DoorTacticClass : BotComponentClassBase
         _fakeHealRunning = firstAid.Using;
         if (_fakeHealRunning)
         {
-            _emergencyWindowUntil = Time.time + 1.5f + EMERGENCY_WINDOW_AFTER_FAKE;
+            _emergencyWindowUntil = Time.time + FAKE_HEAL_SHOW_TIME + EMERGENCY_WINDOW_AFTER_FAKE;
         }
         Log($"{Who()} fake heal start: {(_fakeHealRunning ? "healing (will cancel)" : "FAILED to start")}");
         TacticDiagnostics.Count(_fakeHealRunning ? "fakeHeal.started" : "fakeHeal.failedToStart");
