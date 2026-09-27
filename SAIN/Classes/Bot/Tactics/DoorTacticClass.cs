@@ -71,6 +71,10 @@ public class DoorTacticClass : BotComponentClassBase
         NadeListen,
         ThrowNade,
         Hold,
+        WaitBlast,
+        PostBlastListen,
+        FakeRetreatRun,
+        FakeRetreatSneakBack,
     }
 
     private const float MAX_BOT_DOOR_DIST = 8f;
@@ -495,6 +499,16 @@ public class DoorTacticClass : BotComponentClassBase
         public bool FakeNadeDrawn;
         public bool CloseAttempted;
         public bool NadeThrown;
+        public int NadeCount;
+        public float NadeThrowTime;
+        public float NadeFuse;
+        public Grenade OwnNade;
+        public bool OwnNadeTracked;
+        public float BlastTime = -1f;
+        public bool PostBlastPeek;
+        public bool NadeInside;
+        public Vector3 FakeRetreatPoint;
+        public bool PeekPointOk;
         public EDoorState DoorStateAtHoldStart;
         public Vector3? LookTarget;
         public Vector3? HoldLook;
@@ -539,6 +553,7 @@ public class DoorTacticClass : BotComponentClassBase
             return null;
         }
         bool peekPointOk = SampleOnBotSide(geo.Center + geo.BotSide * PEEK_DEPTH, geo, out s.PeekPoint);
+        s.PeekPointOk = peekPointOk;
         bool closePointOk = SampleOnBotSide(geo.Center + geo.BotSide * CLOSE_DEPTH, geo, out s.ClosePoint);
         if (!closePointOk)
         {
@@ -587,6 +602,7 @@ public class DoorTacticClass : BotComponentClassBase
                     {
                         s.HasFarHold = true;
                         s.WantDoorNade = true;
+                        s.NadeInside = RollNadeInside(s);
 
                     }
                 }
@@ -751,9 +767,14 @@ public class DoorTacticClass : BotComponentClassBase
         {
             case EStep.MoveToStack:
                 s.LookTarget = s.InsidePoint;
-                if (MoveStep(s, s.Stack, false, stepTime))
+                if (MoveStep(s, s.Stack, s.PostBlastPeek, stepTime))
                 {
-                    if (s.Plan == EPlan.Peek)
+                    if (s.PostBlastPeek)
+                    {
+                        s.NeedsOpenForPeek = s.Door.Door != null && s.Door.Door.DoorState != EDoorState.Open;
+                        SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : EStep.PeekOut, "atStackAfterBlast");
+                    }
+                    else if (s.Plan == EPlan.Peek)
                     {
                         SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : EStep.PeekOut, "atStack");
                     }
@@ -763,7 +784,16 @@ public class DoorTacticClass : BotComponentClassBase
                     }
                     else if (s.WantDoorNade && !s.NadeThrown)
                     {
-                        SetStep(EStep.NadeListen, "atStack");
+                        bool shut = s.Door.Door != null && s.Door.Door.DoorState != EDoorState.Open;
+                        if (s.NadeInside && shut)
+                        {
+                            s.OpenAttempted = false;
+                            SetStep(EStep.OpenDoorFromSide, "atStackOpenForInsideNade");
+                        }
+                        else
+                        {
+                            SetStep(EStep.NadeListen, "atStack");
+                        }
                     }
                     else
                     {
@@ -796,7 +826,10 @@ public class DoorTacticClass : BotComponentClassBase
                         End("doorDidNotOpen");
                         break;
                     }
-                    SetStep(s.Plan == EPlan.Breach ? EStep.BreachReady : EStep.PeekOut, "doorOpened");
+                    EStep afterOpen = s.Plan == EPlan.Breach ? EStep.BreachReady
+                        : s.WantDoorNade && !s.NadeThrown && s.NadeInside ? EStep.NadeListen
+                        : EStep.PeekOut;
+                    SetStep(afterOpen, "doorOpened");
                 }
                 break;
 
@@ -950,7 +983,102 @@ public class DoorTacticClass : BotComponentClassBase
                 s.LookTarget = null;
                 if (MoveStep(s, s.FarHold, true, stepTime))
                 {
-                    SetStep(EStep.Hold, "backedOffFromOwnGrenade");
+                    SetStep(Settings.PostBlastFollowUp ? EStep.WaitBlast : EStep.Hold, "backedOffFromOwnGrenade");
+                }
+                break;
+
+            case EStep.WaitBlast:
+                // Out of the grenade's reach, gun on the door, until it goes off.
+                s.LookTarget = s.Center + Vector3.up * 1.2f;
+                Bot.Mover.Stop();
+                Bot.Mover.SetTargetPose(0.7f);
+                {
+                    bool gone = s.OwnNadeTracked && s.OwnNade == null;
+                    bool late = time > s.NadeThrowTime + s.NadeFuse + 1f;
+                    if (gone || late || stepTime > 12f)
+                    {
+                        s.BlastTime = time;
+                        TacticDiagnostics.Count(gone ? "door.postBlast.blast" : "door.postBlast.blastAssumed");
+                        bool peek = Random.value * 100f < Settings.PostBlastPeekChance;
+                        bool fake = !peek && Random.value * 100f < Settings.PostBlastFakeRetreatChance && FindFakeRetreatPoint(s);
+                        Log($"{Who()} door grenade #{s.NadeCount} went off ({(gone ? "tracked" : "by fuse time")}) -> "
+                            + (peek ? "rush the door, peek-shoot, pull back"
+                                : fake ? "FAKE RETREAT: run off loudly, sneak back, wait for them to come out"
+                                : $"listen {Settings.PostBlastListenTime:0.0}s for a reaction"));
+                        if (peek)
+                        {
+                            StartPostBlastPeek(s, "rolledPeek");
+                        }
+                        else if (fake)
+                        {
+                            TacticDiagnostics.Count("door.postBlast.fakeRetreat");
+                            SetStep(EStep.FakeRetreatRun, "rolledFakeRetreat");
+                        }
+                        else
+                        {
+                            SetStep(EStep.PostBlastListen, "rolledListen");
+                        }
+                    }
+                }
+                break;
+
+            case EStep.FakeRetreatRun:
+                // Sprint away from the door on purpose: the footsteps are the bait ("they ran off").
+                s.LookTarget = null;
+                if (MoveStep(s, s.FakeRetreatPoint, true, stepTime) || stepTime > 2.5f)
+                {
+                    Log($"{Who()} fake retreat: ran {HorizontalDistance(Bot.Position, s.FarHold):0.0}m off, now sneaking back");
+                    SetStep(EStep.FakeRetreatSneakBack, "ranOff");
+                }
+                break;
+
+            case EStep.FakeRetreatSneakBack:
+                // Crouched, very slow (quiet) back to the covered spot with the gun on the door, then wait long.
+                s.LookTarget = s.Center + Vector3.up * 1.2f;
+                Bot.Mover.SetTargetPose(0.5f);
+                if (MoveStep(s, s.FarHold, false, stepTime))
+                {
+                    TacticDiagnostics.Count("door.postBlast.fakeRetreatSetUp");
+                    Log($"{Who()} fake retreat: back in position, holding the door until they come out");
+                    s.HoldTime = Random.Range(25f, 45f);
+                    s.HoldPose = 0.4f;
+                    SetStep(EStep.Hold, "fakeRetreatSetUp");
+                }
+                break;
+
+            case EStep.PostBlastListen:
+                s.LookTarget = s.Center + Vector3.up * 1.2f;
+                Bot.Mover.Stop();
+                Bot.Mover.SetTargetPose(0.7f);
+                {
+                    var hearing = s.Enemy?.Hearing;
+                    if (hearing != null && hearing.LastHeardSoundTime > s.BlastTime + 0.3f)
+                    {
+                        // Someone is alive and moving in there: don't walk into it, hold the door and let them come.
+                        TacticDiagnostics.Count("door.postBlast.reactionHeard");
+                        Log($"{Who()} reaction after the blast ({hearing.LastHeardSoundType}) -> hold the door");
+                        s.HoldTime = Random.Range(8f, 15f);
+                        s.HoldPose = 0.7f;
+                        SetStep(EStep.Hold, "reactionHeard");
+                        break;
+                    }
+                    if (stepTime < Settings.PostBlastListenTime)
+                    {
+                        break;
+                    }
+                    if (s.NadeCount < Settings.MaxDoorGrenades && FindLongFuseGrenade() != null)
+                    {
+                        TacticDiagnostics.Count("door.postBlast.throwAgain");
+                        Log($"{Who()} no reaction after the blast -> another grenade ({s.NadeCount + 1}/{Settings.MaxDoorGrenades:0})");
+                        s.NadeThrown = false;
+                        s.WantDoorNade = true;
+                        s.NadeInside = RollNadeInside(s);
+                        s.OpenAttempted = false;
+                        SetStep(EStep.MoveToStack, "noReactionThrowAgain");
+                        break;
+                    }
+                    TacticDiagnostics.Count("door.postBlast.noGrenadeLeft");
+                    StartPostBlastPeek(s, "noReactionNoGrenade");
                 }
                 break;
 
@@ -1112,6 +1240,60 @@ public class DoorTacticClass : BotComponentClassBase
         }
     }
 
+    /// <summary>
+    /// Right after our door grenade: sprint back to the frame, open from the side if needed, jump peek,
+    /// and if the enemy shows up shoot briefly then pull back (End -> ShallEmergencyRetreat window).
+    /// </summary>
+    private void StartPostBlastPeek(Session s, string why)
+    {
+        if (!s.PeekPointOk)
+        {
+            TacticDiagnostics.Count("door.postBlast.noPeekPoint");
+            s.HoldTime = Random.Range(6f, 12f);
+            SetStep(EStep.Hold, $"{why}:noPeekPoint");
+            return;
+        }
+        TacticDiagnostics.Count("door.postBlast.peek");
+        s.PostBlastPeek = true;
+        s.WantFakeNade = false;
+        s.WantFakeHeal = false;
+        s.WantDoorNade = false;
+        s.Jumped = false;
+        s.JumpedBack = false;
+        s.OpenAttempted = false;
+        s.HoldTime = Random.Range(4f, 8f);
+        s.HoldPose = 0.8f;
+        SetStep(EStep.MoveToStack, why);
+    }
+
+    /// <summary>
+    /// 4-7m further back from the far hold, away from the door: far enough that the sprint is heard as leaving.
+    /// </summary>
+    private bool FindFakeRetreatPoint(Session s)
+    {
+        Vector3 away = s.FarHold - s.Center;
+        away.y = 0f;
+        away = away.sqrMagnitude > 0.01f ? away.normalized : s.BotSide;
+        foreach (float dist in new[] { 6f, 5f, 4f, 7f })
+        {
+            if (!SampleNav(s.FarHold + away * dist, out Vector3 point))
+            {
+                continue;
+            }
+            if (Bot.Mover.CanGoToPoint(point, out NavMeshPath path, true) && PathLength(path) < 14f)
+            {
+                s.FakeRetreatPoint = point;
+                return true;
+            }
+        }
+        TacticDiagnostics.Count("door.postBlast.fakeRetreatNoPoint");
+        return false;
+    }
+
+    private float _peekShotUntil;
+    private float _pullBackUntil;
+    private bool _pullBackLogged;
+
     private bool MoveStep(Session s, Vector3 target, bool sprint, float stepTime)
     {
         if (HorizontalDistance(Bot.Position, target) < ARRIVE_DIST)
@@ -1137,7 +1319,9 @@ public class DoorTacticClass : BotComponentClassBase
         }
         if (!sprint)
         {
-            Bot.Mover.SetTargetMoveSpeed(s.Plan == EPlan.Peek || s.Plan == EPlan.Overwatch ? 0.7f : 0.45f);
+            float speed = s.Step == EStep.FakeRetreatSneakBack ? 0.25f
+                : s.Plan == EPlan.Peek || s.Plan == EPlan.Overwatch ? 0.7f : 0.45f;
+            Bot.Mover.SetTargetMoveSpeed(speed);
         }
         return false;
     }
@@ -1386,11 +1570,41 @@ public class DoorTacticClass : BotComponentClassBase
         }
         grenades.SetThrowParams(longFuse);
         Log($"{Who()} door grenade picked {longFuse.ShortName.Localized()} fuse={longFuse.GetExplDelay:0.0}s");
-        // Right at the door on our side, so it lands against the door instead of bouncing back to us.
-        Vector3 target = s.Center + s.BotSide * 0.4f;
-        target.y = s.Center.y + 0.1f;
+        // Default: right at the door on our side, so it lands against the door instead of bouncing back to us.
+        // Inside: through the (opened) doorway at the enemy's last known spot, falling back to the door front.
+        Vector3 front = s.Center + s.BotSide * 0.4f;
+        front.y = s.Center.y + 0.1f;
         Vector3 from = Bot.Transform.WeaponData.WeaponRoot;
-        AIGreandeAng[] angles = [AIGreandeAng.ang5, AIGreandeAng.ang15, AIGreandeAng.ang25];
+        bool doorOpen = s.Door.Door != null && s.Door.Door.DoorState == EDoorState.Open;
+        if (s.NadeInside && doorOpen)
+        {
+            Vector3 inside = s.Center - s.BotSide * 2.5f;
+            Vector3? known = s.Enemy?.KnownPlaces.LastKnownPosition;
+            if (known != null && Vector3.Dot(known.Value - s.Center, s.BotSide) < -0.5f && HorizontalDistance(known.Value, s.Center) < 10f)
+            {
+                inside = known.Value;
+            }
+            inside.y = s.Center.y + 0.1f;
+            if (TryThrowArc(grenades, longFuse, from, inside, [AIGreandeAng.ang15, AIGreandeAng.ang25, AIGreandeAng.ang5], s))
+            {
+                Log($"{Who()} door grenade INTO the room ({HorizontalDistance(inside, s.Center):0.0}m past the door)");
+                TacticDiagnostics.Count("door.nadeInside");
+                return true;
+            }
+            Log($"{Who()} no arc into the room -> door front instead");
+            TacticDiagnostics.Count("door.nadeInsideNoArc");
+        }
+        return TryThrowArc(grenades, longFuse, from, front, [AIGreandeAng.ang5, AIGreandeAng.ang15, AIGreandeAng.ang25], s);
+    }
+
+    private bool RollNadeInside(Session s)
+    {
+        bool open = s.Door.Door != null && s.Door.Door.DoorState == EDoorState.Open;
+        return open || Random.value * 100f < Settings.DoorGrenadeInsideChance;
+    }
+
+    private bool TryThrowArc(BotGrenadeController grenades, ThrowWeap longFuse, Vector3 from, Vector3 target, AIGreandeAng[] angles, Session s)
+    {
         foreach (AIGreandeAng angle in angles)
         {
             AIGreanageThrowData data = AIGrenadeHelper.CanThrowGrenade2(from, target, grenades.MaxPower * 0.9f, angle, -1f, 0.66f);
@@ -1402,6 +1616,11 @@ public class DoorTacticClass : BotComponentClassBase
                 if (grenades.SetThrowData(data) && grenades.DoThrow())
                 {
                     _expectOwnNadeUntil = Time.time + 4f;
+                    s.NadeCount++;
+                    s.NadeThrowTime = Time.time;
+                    s.NadeFuse = longFuse.GetExplDelay;
+                    s.OwnNade = null;
+                    s.OwnNadeTracked = false;
                     return true;
                 }
             }
@@ -2089,6 +2308,17 @@ public class DoorTacticClass : BotComponentClassBase
     public bool ShallEmergencyRetreat(Enemy enemy, out string reason)
     {
         float time = Time.time;
+        if (_pullBackUntil > time && time >= _peekShotUntil)
+        {
+            if (!_pullBackLogged)
+            {
+                _pullBackLogged = true;
+                TacticDiagnostics.Count("door.postBlast.pullBack");
+                Log($"{Who()} post-blast peek shot done -> pulling back");
+            }
+            reason = "peekShotPullBack";
+            return true;
+        }
         if (_retreatUntil > time)
         {
             if (!WeaponReady() || time < _retreatUntil - (3f - EMERGENCY_MIN_RETREAT_TIME))
@@ -2213,6 +2443,14 @@ public class DoorTacticClass : BotComponentClassBase
         string resultKey = result.Contains("(") ? result.Substring(0, result.IndexOf('(')) : result.Split(':')[0];
         TacticDiagnostics.Count($"door.end.{s.Plan}.{resultKey}");
         float time = Time.time;
+        if (s.PostBlastPeek && result.StartsWith("enemySpotted"))
+        {
+            _peekShotUntil = time + Settings.PeekShotTime;
+            _pullBackUntil = _peekShotUntil + Settings.PullBackTime;
+            _pullBackLogged = false;
+            TacticDiagnostics.Count("door.postBlast.peekShot");
+            Log($"{Who()} post-blast peek: enemy seen -> shoot for {Settings.PeekShotTime:0.0}s then pull back {Settings.PullBackTime:0.0}s");
+        }
         _doorCooldowns[s.Door.Id] = time + DOOR_COOLDOWN_AFTER_SESSION;
         _nextAllowedTime = time + GLOBAL_COOLDOWN;
         if (!s.IsSupport && Settings.ResumeAfterThirdParty && IsThirdPartyResult(result) && s.Enemy != null)
@@ -2281,6 +2519,11 @@ public class DoorTacticClass : BotComponentClassBase
         }
         _expectOwnNadeUntil = 0f;
         _liveTacticNades.Add((grenade, Time.time));
+        if (_session != null)
+        {
+            _session.OwnNade = grenade;
+            _session.OwnNadeTracked = true;
+        }
         TacticDiagnostics.Count("door.ownNadeTracked");
         Log($"{Who()} own door grenade released, tracking it (no bot opens a door within {OWN_NADE_DOOR_RADIUS:0}m of it, "
             + $"bots within {OWN_NADE_DANGER_RADIUS:0}m in its line of sight retreat)");

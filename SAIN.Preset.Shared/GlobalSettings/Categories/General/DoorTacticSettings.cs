@@ -151,6 +151,53 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float DoorGrenadeChance = 50f;
 
     [DataMember]
+    [Name("Door Grenade Follow-Up")]
+    [Description("After the door grenade goes off, either rush the door and peek-shoot-pull back, or listen and throw another one if nobody reacts. Off = just hold the door like before.")]
+    public bool PostBlastFollowUp = true;
+
+    [DataMember]
+    [Name("Follow-Up Peek Chance")]
+    [Description("Percent. Right after the blast: chance to rush the door and jump peek (shoot briefly if the enemy shows, then pull back). Otherwise the bot listens first and throws again if there is no reaction; with no grenade left it peeks anyway.")]
+    [MinMax(0f, 100f, 1f)]
+    public float PostBlastPeekChance = 40f;
+
+    [DataMember]
+    [Name("Follow-Up Fake Retreat Chance")]
+    [Description("Percent, rolled when the peek roll fails. Fake retreat: sprint away from the door so the enemy hears them leave, sneak back crouched to the covered spot and hold the door until they come out. Otherwise: listen, and throw again if nobody reacts.")]
+    [MinMax(0f, 100f, 1f)]
+    public float PostBlastFakeRetreatChance = 40f;
+
+    [DataMember]
+    [Name("Door Grenade Inside Chance")]
+    [Description("Percent. Open the door from the side and throw the grenade into the room (at the enemy's last known spot) instead of in front of the closed door. If the door is already open it always goes inside. No arc into the room = door front.")]
+    [MinMax(0f, 100f, 1f)]
+    public float DoorGrenadeInsideChance = 40f;
+
+    [DataMember]
+    [Name("Max Door Grenades")]
+    [Description("How many door grenades one bot may throw at the same door (first one included).")]
+    [MinMax(1f, 3f, 1f)]
+    public float MaxDoorGrenades = 2f;
+
+    [DataMember]
+    [Name("Follow-Up Listen Time")]
+    [Description("Seconds the bot listens after the blast. Any sound from the enemy = reaction -> it holds the door instead of throwing again.")]
+    [MinMax(1f, 6f, 10f)]
+    public float PostBlastListenTime = 2.5f;
+
+    [DataMember]
+    [Name("Peek Shot Time")]
+    [Description("Seconds the bot shoots after spotting the enemy during the follow-up peek, before pulling back.")]
+    [MinMax(0.3f, 2f, 10f)]
+    public float PeekShotTime = 0.8f;
+
+    [DataMember]
+    [Name("Pull Back Time")]
+    [Description("Seconds the bot retreats after the peek shot.")]
+    [MinMax(1f, 4f, 10f)]
+    public float PullBackTime = 2f;
+
+    [DataMember]
     [Name("Chance Multiplier")]
     [Description("Multiplies every personality's chance to start a door tactic. Raise it to see tactics more often while testing.")]
     [MinMax(0f, 3f, 10f)]
