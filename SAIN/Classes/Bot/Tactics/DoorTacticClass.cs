@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Comfort.Common;
 using EFT;
 using EFT.Interactive;
+using EFT.Ballistics;
 using EFT.InventoryLogic;
 using SAIN.Components;
 using SAIN.Models.Enums;
@@ -1335,6 +1336,10 @@ public class DoorTacticClass : BotComponentClassBase
                 // The draw sound has played - that was the trick. Put it straight away, whatever step we're in
                 // (or if the tactic already ended), so a live grenade never sits in hand.
                 bool ok = BotOwner.WeaponManager?.Selector?.TakePrevWeapon() == true;
+                if (ok)
+                {
+                    _putAwayIssuedTime = Time.time;
+                }
                 Log($"{Who()} fake grenade drawn -> put away at once: TakePrevWeapon={ok}");
                 TacticDiagnostics.Count(ok ? "fakeNade.putAwayOnLand" : "fakeNade.putAwayOnLandRefused");
             }
@@ -1367,6 +1372,11 @@ public class DoorTacticClass : BotComponentClassBase
         {
             return false;
         }
+        // The put-away issued in the draw callback is still animating: don't hammer TakePrevWeapon (log showed 3 refusals).
+        if (Time.time - _putAwayIssuedTime < 1.5f)
+        {
+            return false;
+        }
         if (_nextHolsterAttempt < Time.time)
         {
             _nextHolsterAttempt = Time.time + 0.2f;
@@ -1378,6 +1388,7 @@ public class DoorTacticClass : BotComponentClassBase
     }
 
     private float _nextHolsterAttempt;
+    private float _putAwayIssuedTime = -100f;
     private bool _fakeDrawPending;
     private float _fakeDrawPendingUntil;
     private float _lastFakeNadeTime = -100f;
@@ -1512,6 +1523,11 @@ public class DoorTacticClass : BotComponentClassBase
         var weaponManager = BotOwner.WeaponManager;
         if (weaponManager == null || weaponManager.Grenades.ThrowindNow)
         {
+            return;
+        }
+        if (Time.time - _putAwayIssuedTime < 1.5f)
+        {
+            // Already being put away (fake grenade callback).
             return;
         }
         bool ok = weaponManager.Selector.TakePrevWeapon();
@@ -2184,11 +2200,47 @@ public class DoorTacticClass : BotComponentClassBase
 
     public override void Init()
     {
+        if (Player != null)
+        {
+            Player.OnPlayerDead += OnOwnDeath;
+        }
         base.Init();
+    }
+
+    /// <summary>
+    /// [Death] line: what the bot was doing when it died (2026-09-28 field report: bots stand and shoot until they die).
+    /// </summary>
+    private void OnOwnDeath(Player player, IPlayer lastAggressor, DamageInfo damage, EBodyPart part)
+    {
+        try
+        {
+            if (player != null)
+            {
+                player.OnPlayerDead -= OnOwnDeath;
+            }
+            var decision = Bot.Decision;
+            Enemy goal = Bot.GoalEnemy;
+            string enemyInfo = goal == null ? "none" : $"{(goal.IsVisible ? "visible" : "notVisible")} {goal.RealDistance:0}m";
+            TacticDiagnostics.Count($"death.{decision.CurrentCombatDecision}");
+            TacticDiagnostics.LogCloseCombat(
+                $"[Death] [{Bot.name}] [{Bot.Info.Personality}] layer={Bot.ActiveLayer} combat={decision.CurrentCombatDecision} self={decision.CurrentSelfDecision} "
+                    + $"squad={decision.CurrentSquadDecision} diamond={TacticDiagnostics.GetDiamond(Bot.ProfileId)} enemy={enemyInfo} "
+                    + $"underFire={BotOwner.Memory.IsUnderFire} pose={Player.PoseLevel:0.0} speed={Player.Velocity.magnitude:0.0} "
+                    + $"inCover={Bot.Cover.CoverInUse != null} part={part} by={lastAggressor?.Profile?.Nickname}"
+            );
+        }
+        catch (System.Exception ex)
+        {
+            Logger.LogWarning($"[Death] log failed: {ex.Message}");
+        }
     }
 
     public override void Dispose()
     {
+        if (Player != null)
+        {
+            Player.OnPlayerDead -= OnOwnDeath;
+        }
         if (_session != null)
         {
             End("disposed");

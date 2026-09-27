@@ -43,6 +43,31 @@ internal static class TacticDiagnostics
         CheckNewRaid();
     }
 
+    private static readonly Dictionary<string, string> _diamondState = new();
+
+    /// <summary>Last diamond-step state per bot, printed in the [Death] line.</summary>
+    public static void SetDiamond(string profileId, string state)
+    {
+        if (profileId != null)
+        {
+            _diamondState[profileId] = state;
+        }
+    }
+
+    public static string GetDiamond(string profileId)
+    {
+        return profileId != null && _diamondState.TryGetValue(profileId, out string state) ? state : "never";
+    }
+
+    /// <summary>[Diamond] / [Death] lines, written when F6 Close Combat diagnostic logs... use the Door Tactics log switch.</summary>
+    public static void LogCloseCombat(string message)
+    {
+        if (GlobalSettingsClass.Instance?.General?.DoorTactics?.DiagnosticLogs == true)
+        {
+            Logger.LogWarning(message);
+        }
+    }
+
     public static void Count(string key)
     {
         if (!Enabled)
@@ -135,7 +160,7 @@ internal static class TacticDiagnostics
         );
         var c = general.CloseCombat;
         Logger.LogWarning(
-            $"[Tactics] SETTINGS CloseCombat: noBackTurning={c.NoBackTurning} dist={c.Distance:0}m seenWithin={c.SeenWithin:0.0}s dash<={c.SprintIfCoverWithin:0.0}m pmcOnly={c.PmcOnly} "
+            $"[Tactics] SETTINGS CloseCombat: diamond={c.DiamondStep}/test={c.DiamondStepTestMode} tap={c.DiamondStepTapTime:0.00}s leash={c.DiamondStepSize:0.0}m maxDist={c.DiamondStepMaxDistance:0}m noBackTurning={c.NoBackTurning} dist={c.Distance:0}m seenWithin={c.SeenWithin:0.0}s dash<={c.SprintIfCoverWithin:0.0}m pmcOnly={c.PmcOnly} "
                 + $"suppDiscipline={c.SuppressionDiscipline} within={c.SuppressMaxTimeSinceContact:0.0}s keepMag={c.SuppressMinAmmoRatio:0.00} "
                 + $"burst={c.SuppressBurstRounds:0}/{c.SuppressBurstPause:0.0}s"
         );

@@ -6,6 +6,7 @@ using SAIN.Preset.Shared.GlobalSettings.Categories.General;
 using SAIN.Preset.Shared.Models.Preset.Personalities;
 using SAIN.Models.PlayerData;
 using SAIN.SAINComponent.Classes.EnemyClasses;
+using SAIN.SAINComponent.Classes.Tactics;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -40,26 +41,39 @@ public class StandAndShootAction(BotOwner bot) : BotAction(bot, nameof(StandAndS
     private bool DiamondStep(Enemy enemy)
     {
         var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
-        if (settings == null || !settings.DiamondStep || enemy == null || !enemy.IsVisible)
+        if (settings == null || !settings.DiamondStep)
         {
-            return StopDiamond();
+            return StopDiamond("off");
+        }
+        // Keep dancing through a sub-second loss of sight (enemy ducks behind a frame) instead of freezing in place.
+        if (enemy == null || (!enemy.IsVisible && !(enemy.Seen && enemy.TimeSinceSeen < 1f)))
+        {
+            return StopDiamond("enemyNotVisible");
         }
         if (!settings.DiamondStepTestMode)
         {
             if (settings.PmcOnly && !Bot.Info.Profile.IsPMC)
             {
-                return StopDiamond();
+                return StopDiamond("notPmc");
             }
             EPersonality personality = Bot.Info.Personality;
             if (personality != EPersonality.GigaChad && personality != EPersonality.Chad && personality != EPersonality.Wreckless)
             {
-                return StopDiamond();
+                return StopDiamond("personality");
             }
         }
         float dist = enemy.RealDistance;
-        if (dist > settings.DiamondStepMaxDistance || dist < 3f || Bot.Player.IsInPronePose || BotOwner.Medecine?.Using == true)
+        if (dist > settings.DiamondStepMaxDistance)
         {
-            return StopDiamond();
+            return StopDiamond("tooFar");
+        }
+        if (dist < 3f)
+        {
+            return StopDiamond("tooClose");
+        }
+        if (Bot.Player.IsInPronePose || BotOwner.Medecine?.Using == true)
+        {
+            return StopDiamond("proneOrHealing");
         }
         if (!_diamondActive)
         {
@@ -67,6 +81,9 @@ public class StandAndShootAction(BotOwner bot) : BotAction(bot, nameof(StandAndS
             _diamondCenter = Bot.Position;
             _tapEnd = 0f;
             Bot.Mover.Stop();
+            TacticDiagnostics.SetDiamond(Bot.ProfileId, "active");
+            TacticDiagnostics.Count("diamond.start");
+            TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] [{Bot.Info.Personality}] start: enemy {dist:0}m, tap {settings.DiamondStepTapTime:0.00}s");
         }
         Bot.Mover.SetTargetPose(1f);
         Bot.Mover.SetTargetMoveSpeed(1f);
@@ -83,6 +100,7 @@ public class StandAndShootAction(BotOwner bot) : BotAction(bot, nameof(StandAndS
         if (Time.time >= _tapEnd)
         {
             PickTap(settings, forward, right);
+            TacticDiagnostics.Count("diamond.tap");
         }
         if (_tapPause)
         {
@@ -107,11 +125,11 @@ public class StandAndShootAction(BotOwner bot) : BotAction(bot, nameof(StandAndS
     {
         float tap = settings.DiamondStepTapTime;
         _tapEnd = Time.time + Random.Range(tap * 0.65f, tap * 1.35f);
-        // Short stop now and then (a real player's rhythm isn't perfectly even).
-        _tapPause = Random.value < 0.1f;
+        // Very short stop now and then (a real player's rhythm isn't perfectly even).
+        _tapPause = Random.value < 0.05f;
         if (_tapPause)
         {
-            _tapEnd = Time.time + Random.Range(0.06f, 0.12f);
+            _tapEnd = Time.time + Random.Range(0.05f, 0.09f);
             return;
         }
         Vector3 offset = Bot.Position - _diamondCenter;
@@ -123,7 +141,7 @@ public class StandAndShootAction(BotOwner bot) : BotAction(bot, nameof(StandAndS
             _tapDir = -offset.normalized;
             return;
         }
-        if (Random.value < 0.75f)
+        if (Random.value < 0.6f)
         {
             // A/D, mostly alternating.
             bool left = Random.value < 0.8f ? !_lastTapLateralLeft : _lastTapLateralLeft;
@@ -136,13 +154,15 @@ public class StandAndShootAction(BotOwner bot) : BotAction(bot, nameof(StandAndS
         }
     }
 
-    private bool StopDiamond()
+    private bool StopDiamond(string why = "actionStopped")
     {
         if (_diamondActive)
         {
             _diamondActive = false;
             Bot.Player?.Move(Vector2.zero);
+            TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] stop: {why}");
         }
+        TacticDiagnostics.SetDiamond(Bot.ProfileId, $"off({why})");
         return false;
     }
 
