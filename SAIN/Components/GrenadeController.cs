@@ -86,6 +86,8 @@ public class GrenadeController(BotManagerComponent controller) : BotManagerBase(
         }
     }
 
+    private const float CLOSE_BLAST_KNOWN_DIST = 25f;
+
     private void RegisterGrenadeExplosionForSAINBots(Vector3 explosionPosition, Player player, string playerProfileID, float range)
     {
         // Play a sound with the input range.
@@ -100,6 +102,21 @@ public class GrenadeController(BotManagerComponent controller) : BotManagerBase(
                 if (distance < range)
                 {
                     Enemy enemy = bot.EnemyController.GetEnemy(playerProfileID, true);
+                    if (enemy == null && distance < CLOSE_BLAST_KNOWN_DIST && player != null)
+                    {
+                        // zzap: a frag going off 25m away is noticed by anyone. SAIN only turned the blast into an
+                        // estimated thrower position for bots that already knew the thrower, so a squad busy with
+                        // something else (field report: 4-man squad ignored the fight next door, grenades included)
+                        // didn't react. Add the thrower (hostility is checked by CheckAddEnemy -> EnemyInfo).
+                        enemy = bot.EnemyController.CheckAddEnemy(player);
+                        var mover = bot.BotOwner?.Mover;
+                        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(enemy != null ? "blast.newEnemy" : "blast.notHostile");
+                        Logger.LogWarning(
+                            $"[BlastHeard] [{bot.name}] [{bot.Info.Personality}] frag {distance:0}m away from {player.Profile?.Nickname} it didn't know: "
+                                + $"{(enemy != null ? "now known" : "not hostile/no enemy info")} | SAINLayersActive={bot.SAINLayersActive} "
+                                + $"brainLayer={bot.BotOwner?.Brain?.ActiveLayerName()} moverPaused={mover?.Pause}"
+                        );
+                    }
                     if (enemy != null)
                     {
                         float dispersion = distance / 10f;
