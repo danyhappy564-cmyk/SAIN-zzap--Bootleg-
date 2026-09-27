@@ -363,8 +363,9 @@ public class DoorTacticClass : BotComponentClassBase
                 continue;
             }
 
-            Vector3 center = data.Link.MidClose;
-            Vector3 axis = data.Link.Close2_Normal - data.Link.Close1;
+            ClosedSegment(data.Link, out Vector3 closedA, out Vector3 closedB);
+            Vector3 center = (closedA + closedB) * 0.5f;
+            Vector3 axis = closedB - closedA;
             axis.y = 0f;
             float width = axis.magnitude;
             if (width < 0.4f)
@@ -451,12 +452,64 @@ public class DoorTacticClass : BotComponentClassBase
                     {
                         continue;
                     }
+                    // Not where the leaf swings to: opening the door from there shoves the leaf into the bot's face
+                    // (it then walked into it, jittered and spun - field report + screenshot).
+                    OpenSegment(geo.Data.Link, out Vector3 openA, out Vector3 openB);
+                    if (DistanceToSegmentFlat(result, openA, openB) < 0.8f)
+                    {
+                        continue;
+                    }
                     return true;
                 }
             }
         }
         result = default;
         return false;
+    }
+
+    /// <summary>
+    /// The doorway (closed leaf) segment. Vanilla links: Close1 -> Close2_Normal. DrakiaXYZ-Waypoints adds its own
+    /// links for locked/breachable doors ("DoorLink_Custom_N") with the fields swapped: Close2_Normal is the OPEN
+    /// leaf tip and Open2 the SHUT one (Waypoints DoorLinkPatch). Using Close* there gave a doorway rotated by the
+    /// opening angle.
+    /// </summary>
+    private static void ClosedSegment(NavMeshDoorLink link, out Vector3 a, out Vector3 b)
+    {
+        if (IsWaypointsLink(link))
+        {
+            a = link.Open1;
+            b = link.Open2;
+            return;
+        }
+        a = link.Close1;
+        b = link.Close2_Normal;
+    }
+
+    private static void OpenSegment(NavMeshDoorLink link, out Vector3 a, out Vector3 b)
+    {
+        if (IsWaypointsLink(link))
+        {
+            a = link.Close1;
+            b = link.Close2_Normal;
+            return;
+        }
+        a = link.Open1;
+        b = link.Open2;
+    }
+
+    private static bool IsWaypointsLink(NavMeshDoorLink link)
+    {
+        return link != null && link.gameObject.name.StartsWith("DoorLink_Custom_");
+    }
+
+    private static float DistanceToSegmentFlat(Vector3 p, Vector3 a, Vector3 b)
+    {
+        p.y = 0f;
+        a.y = 0f;
+        b.y = 0f;
+        Vector3 ab = b - a;
+        float t = ab.sqrMagnitude < 0.0001f ? 0f : Mathf.Clamp01(Vector3.Dot(p - a, ab) / ab.sqrMagnitude);
+        return (a + ab * t - p).magnitude;
     }
 
     private static Vector3 FloorPoint(NavMeshDoorLink link, Vector3 center, Vector3 botSide)
@@ -556,6 +609,7 @@ public class DoorTacticClass : BotComponentClassBase
 
     private Session BuildSession(EPersonality personality, Enemy enemy, DoorGeometry geo, out string reason)
     {
+        bool testMode = Settings.TestModeAllPmcGigaChad && Bot.Info.Profile.IsPMC;
         bool doorOpen = geo.Data.Door.DoorState == EDoorState.Open;
         var grenades = BotOwner.WeaponManager?.Grenades;
         bool haveNade = grenades != null && grenades.HaveGrenade;
@@ -620,7 +674,7 @@ public class DoorTacticClass : BotComponentClassBase
                     s.Plan = EPlan.Peek;
                     s.FirstStep = EStep.MoveToStack;
                     s.NeedsOpenForPeek = !doorOpen;
-                    float fakeChance = (personality == EPersonality.GigaChad ? Settings.GigaChadFakeTrickChance : Settings.ChadFakeTrickChance) / 100f;
+                    float fakeChance = testMode ? 1f : (personality == EPersonality.GigaChad ? Settings.GigaChadFakeTrickChance : Settings.ChadFakeTrickChance) / 100f;
                     s.WantFakeNade = Settings.FakeGrenade && haveNade && Random.value < fakeChance;
                     s.WantFakeHeal = !s.WantFakeNade && CanFakeHeal() && Random.value < fakeChance;
                     s.HoldTime = Random.Range(3f, 6f);
@@ -632,6 +686,8 @@ public class DoorTacticClass : BotComponentClassBase
                     s.HoldTime = Random.Range(20f, 40f);
                     s.HoldPose = 0.7f;
                     s.WantFakeHeal = CanFakeHeal() && Random.value < Settings.GigaChadTrapFakeHealChance / 100f;
+                    // Trap holders fake too: grenade draw sound right at the frame, gun straight back up.
+                    s.WantFakeNade = !s.WantFakeHeal && Settings.FakeGrenade && haveNade && Random.value < (testMode ? 1f : Settings.GigaChadFakeTrickChance / 100f);
                     if (Settings.DoorGrenade && FindLongFuseGrenade() != null && Random.value < Settings.DoorGrenadeChance / 100f && FindFarHold(geo, out s.FarHold))
                     {
                         s.HasFarHold = true;
@@ -831,7 +887,7 @@ public class DoorTacticClass : BotComponentClassBase
                     }
                     else
                     {
-                        SetStep(s.WantFakeHeal ? EStep.FakeHealStart : EStep.Hold, "atStack");
+                        SetStep(s.WantFakeNade ? EStep.FakeNadeDraw : s.WantFakeHeal ? EStep.FakeHealStart : EStep.Hold, "atStack");
                     }
                 }
                 break;
@@ -851,9 +907,12 @@ public class DoorTacticClass : BotComponentClassBase
                     }
                     break;
                 }
-                if (stepTime > 1.1f)
+                // BSG never fires the completion callback for bot door animations; the door sits in Interacting
+                // until SAIN's DoorHandler watchdog finalizes it (~3s). Giving up at 1.1s aborted 6 of 14 peeks.
+                EDoorState opening = s.Door.Door != null ? s.Door.Door.DoorState : EDoorState.None;
+                if (stepTime > 1.1f && (opening == EDoorState.Open || stepTime > 4.5f))
                 {
-                    EDoorState state = s.Door.Door != null ? s.Door.Door.DoorState : EDoorState.None;
+                    EDoorState state = opening;
                     if (state != EDoorState.Open)
                     {
                         Log($"{Who()} door {s.Door.Id} still {state} after opening, giving up");

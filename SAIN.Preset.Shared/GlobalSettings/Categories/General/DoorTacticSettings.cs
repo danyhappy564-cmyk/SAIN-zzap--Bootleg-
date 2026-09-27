@@ -204,6 +204,11 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float ChanceMultiplier = 1f;
 
     [DataMember]
+    [Name("Bots Close Open Doors In Their Way")]
+    [Description("Vanilla SAIN closes any open door its path runs into (6s grace for doors it just opened). With a door that opens toward the bot that means: open, walk into the leaf, jitter/spin, close it, open it again... and bots closing open doors all over the map. Off (default): bots only open shut doors while moving; tactics still close doors on purpose.")]
+    public bool AutoCloseDoors = false;
+
+    [DataMember]
     [Name("TEST MODE: All PMCs Use GigaChad Tactics")]
     [Description("For testing only. Every PMC plans door tactics as a GigaChad (peek / trap / door grenade and its follow-ups) and the start chance is 100%. Turn it off for normal play.")]
     public bool TestModeAllPmcGigaChad = false;

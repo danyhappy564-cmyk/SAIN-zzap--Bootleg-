@@ -969,12 +969,14 @@ public class RepositionClass : BotComponentClassBase
             {
                 float rad = (a + r * 7f) * Mathf.Deg2Rad;
                 Vector3 raw = bot + new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad)) * r;
-                if (!NavMesh.SamplePosition(raw, out NavMeshHit hit, 2f, -1))
+                // Same floor only: a 2m sample / 4m height window picked spots under stairs and on the floor below,
+                // and the bot ran at the wall trying to get there (field report).
+                if (!NavMesh.SamplePosition(raw, out NavMeshHit hit, 1.2f, -1))
                 {
                     continue;
                 }
                 Vector3 p = hit.position;
-                if (Mathf.Abs(p.y - bot.y) > 4f)
+                if (Mathf.Abs(p.y - bot.y) > 1.2f || Flat(p - raw).magnitude > 1f)
                 {
                     continue;
                 }

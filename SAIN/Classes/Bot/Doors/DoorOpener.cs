@@ -4,6 +4,7 @@ using EFT.Interactive;
 using SAIN.Components;
 using SAIN.Components.PlayerComponentSpace;
 using SAIN.Helpers;
+using SAIN.Preset.Shared.GlobalSettings;
 using UnityEngine;
 
 namespace SAIN.SAINComponent.Classes.Mover;
@@ -382,7 +383,7 @@ public class DoorOpener : BotComponentClassBase
 #if DEBUG
                 Logger.LogDebug($"Found door from hit collider [PlayerStaticDoorMask] [{hit.collider.name}]");
 #endif
-                if (data.Door.DoorState == EDoorState.Open && !RecentlySelfOpened(data))
+                if (data.Door.DoorState == EDoorState.Open && AutoCloseAllowed && !RecentlySelfOpened(data))
                 {
                     interactionType = EInteractionType.Close;
                     return true;
@@ -406,7 +407,7 @@ public class DoorOpener : BotComponentClassBase
 #if DEBUG
                 Logger.LogDebug($"Found door from hit collider [DoorLayer] [{hit.collider.name}]");
 #endif
-                if (data.Door.DoorState == EDoorState.Open && !RecentlySelfOpened(data))
+                if (data.Door.DoorState == EDoorState.Open && AutoCloseAllowed && !RecentlySelfOpened(data))
                 {
                     interactionType = EInteractionType.Close;
                     return true;
@@ -447,7 +448,7 @@ public class DoorOpener : BotComponentClassBase
                 Logger.LogDebug($"hit door  [Door.collider.Raycast]");
                 DebugGizmos.DrawLine(ray.origin, hit.point, Color.red, 0.25f, 30f, true);
 #endif
-                if (data.Door.DoorState == EDoorState.Open && !RecentlySelfOpened(data))
+                if (data.Door.DoorState == EDoorState.Open && AutoCloseAllowed && !RecentlySelfOpened(data))
                 {
                     interactionType = EInteractionType.Close;
                     return true;
@@ -514,6 +515,14 @@ public class DoorOpener : BotComponentClassBase
     // minimal fix: don't reconsider closing a door for a few seconds after WE opened
     // it, regardless of how long the bot dawdles at the threshold.
     private const float JUST_OPENED_GRACE = 6f;
+
+    /// <summary>
+    /// zzap: F6 General > Door Tactics (zzap) > Bots Close Open Doors In Their Way (default off).
+    /// </summary>
+    private static bool AutoCloseAllowed
+    {
+        get { return GlobalSettingsClass.Instance?.General?.DoorTactics?.AutoCloseDoors == true; }
+    }
 
     private static bool RecentlySelfOpened(in DoorDataStruct data)
         => Time.time - data.LastCloseTime < JUST_OPENED_GRACE;

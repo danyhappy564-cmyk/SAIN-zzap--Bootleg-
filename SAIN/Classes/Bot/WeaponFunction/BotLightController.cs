@@ -28,7 +28,37 @@ public class BotLightController : BotComponentClassBase
     {
         if ((Bot.SAINLayersActive || Bot.HasEnemy) && IsLightEnabled != wantLightOn && _nextLightChangeTime < Time.time)
         {
+            // zzap: a bot whose weapon has no usable light (laser only, IR, or nothing that turns on) never reaches
+            // IsEnable == true, so SAIN re-sent TurnOn every ~1s and the player heard a tactical-device click loop
+            // from bots with no visible light. After 2 TurnOn calls that didn't take, stop trying for 60s.
+            if (wantLightOn && _lightOnFailures >= 2)
+            {
+                if (Time.time < _lightRetryAfter)
+                {
+                    return;
+                }
+                _lightOnFailures = 0;
+            }
             _nextLightChangeTime = Time.time + _changelightFreq * UnityEngine.Random.Range(0.66f, 1.33f);
+            if (wantLightOn && _lastTurnOnTime > 0f && !IsLightEnabled)
+            {
+                _lightOnFailures++;
+                if (_lightOnFailures >= 2)
+                {
+                    _lightRetryAfter = Time.time + 60f;
+                    SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("light.turnOnFailedBackoff");
+                    return;
+                }
+            }
+            if (wantLightOn)
+            {
+                _lastTurnOnTime = Time.time;
+            }
+            else
+            {
+                _lastTurnOnTime = 0f;
+                _lightOnFailures = 0;
+            }
             setLight(wantLightOn);
         }
     }
@@ -39,6 +69,9 @@ public class BotLightController : BotComponentClassBase
     }
 
     private float _nextLightChangeTime;
+    private float _lastTurnOnTime;
+    private int _lightOnFailures;
+    private float _lightRetryAfter;
     private float _changelightFreq = 1f;
 
     private void setLight(bool value)
