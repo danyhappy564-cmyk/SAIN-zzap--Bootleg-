@@ -332,17 +332,8 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
             return false;
         }
 
-        if (grenades.DoThrow())
-        {
-            Bot.Reposition.OnSainThrowStarted(Bot.GoalEnemy, _lastThrowTarget, _lastThrowFuse);
-            return true;
-        }
-
-        return false;
+        return grenades.DoThrow();
     }
-
-    private Vector3 _lastThrowTarget;
-    private float _lastThrowFuse = -1f;
 
     private bool CanThrowAGrenade(Vector3 from, Vector3 target, params AIGreandeAng[] possibleAngles)
     {
@@ -410,8 +401,7 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
         }
 
         AIGreanageThrowData chosen = _validThrowsBuffer[chosenIndex];
-        _lastThrowTarget = target;
-        _lastThrowFuse = Bot.Reposition.ApplyFuseChoice(ref chosen, from, target);
+        Bot.Reposition.ApplyFuseChoice(ref chosen, from, target);
         BotOwner.WeaponManager.Grenades.SetThrowData(chosen);
         return true;
     }

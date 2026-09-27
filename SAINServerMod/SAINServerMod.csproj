@@ -21,6 +21,10 @@
     <None Update="Data\**">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <!-- zzap presets (zzap / zzap TEST) - PresetService lists <mod folder>/Presets/*.json as custom presets. -->
+    <None Include="Presets\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <!-- Build script-->
   <Target Name="CleanUnwantedFiles" AfterTargets="Build">

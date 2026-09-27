@@ -64,6 +64,28 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float SuppressBurstPause = 3f;
 
     [DataMember]
+    [Name("Diamond Step While Shooting")]
+    [Description("GigaChad/Chad/Wreckless: while shooting at a visible enemy, keep moving in a small diamond around the spot - left, right, a step forward or back (ADAD with W/S mixed in) - instead of standing still. The gun stays on the enemy the whole time.")]
+    public bool DiamondStep = true;
+
+    [DataMember]
+    [Name("Diamond Step Max Distance")]
+    [Description("Meters. Only when the enemy is closer than this (and at least 3m away). Further out the bot stands and shoots as usual.")]
+    [MinMax(5f, 80f, 1f)]
+    public float DiamondStepMaxDistance = 40f;
+
+    [DataMember]
+    [Name("Diamond Step Size")]
+    [Description("Meters from the center spot to each side of the diamond. Forward/back steps are 60% of this.")]
+    [MinMax(0.5f, 3f, 10f)]
+    public float DiamondStepSize = 1.2f;
+
+    [DataMember]
+    [Name("TEST MODE: Diamond Step For Everyone")]
+    [Description("For testing only. Every bot (every personality, scavs too) diamond-steps while shooting.")]
+    public bool DiamondStepTestMode = false;
+
+    [DataMember]
     [Name("PMC Only")]
     [Description("Apply everything above only to PMCs. Scavs keep vanilla behaviour.")]
     public bool PmcOnly = true;

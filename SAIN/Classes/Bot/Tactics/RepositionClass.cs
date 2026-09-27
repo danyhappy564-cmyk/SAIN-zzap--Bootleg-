@@ -16,12 +16,8 @@ namespace SAIN.SAINComponent.Classes.Tactics;
 /// <summary>
 /// zzap fork: repositioning around grenades and contact (ECombatDecision.Reposition, SAIN combat layer, so ORBIT is
 /// unaffected). From Korean veteran-player advice:
-///   NadeFlank - indoors, after throwing a frag at the enemy, move to a flanking angle as it goes off (the blast
-///               covers the footsteps), then hold that angle.
 ///   Relocate  - outdoors, the enemy got first contact: once in cover and patched up (SAIN heals first), throw a
 ///               frag at them if possible and move to an angle they can't see.
-///   Disengage - outdoors, the bot opened the fight but emptied a magazine without the kill: after the reload,
-///               break line of sight and move back instead of re-peeking the same spot.
 ///   BaitPeek  - from cover, aggressive personalities step out and straight back once or twice to draw fire; if the
 ///               enemy empties their gun, SAIN's own rush-on-reload (EnemyDecisionClass.shallRushEnemy) takes over.
 /// Plus fuse selection for SAIN's normal frag throws (ApplyFuseChoice).
@@ -32,12 +28,9 @@ public class RepositionClass : BotComponentClassBase
     public enum EMode
     {
         None,
-        NadeFlank,
         Relocate,
-        Disengage,
         BaitPeek,
         FakeReload,
-        GhostFlank,
     }
 
     private enum EPhase
@@ -51,9 +44,6 @@ public class RepositionClass : BotComponentClassBase
         BaitBack,
         BaitWait,
         MagCheck,
-        GhostNoise,
-        GhostNoiseBack,
-        Sneak,
         Hold,
     }
 
@@ -92,8 +82,6 @@ public class RepositionClass : BotComponentClassBase
         public bool BaitJumped;
         public bool BaitJumpedBack;
         public bool DrewFire;
-        public Vector3 Noise;
-        public int NoiseLeft = 2;
     }
 
     private Session _session;
@@ -136,7 +124,6 @@ public class RepositionClass : BotComponentClassBase
     private float _expectOwnNadeUntil;
     private float _expectFuse;
     private Vector3 _expectTarget;
-    private bool _expectFlank;
 
     public override void Init()
     {
@@ -170,10 +157,9 @@ public class RepositionClass : BotComponentClassBase
         Session s = _session;
         if (s != null && (s.Phase == EPhase.WaitThrow || s.Phase == EPhase.WaitBlast))
         {
-            // Released now: the blast is fuse seconds away. Flank moves just before it (the bang masks the steps),
-            // relocate moves right away (the fuse keeps their head down, the bang masks the end of the move).
-            s.MoveAt = s.Mode == EMode.NadeFlank ? Time.time + Mathf.Max(0.3f, _expectFuse - 0.6f) : Time.time + 0.2f;
-            SetPhase(s, s.Mode == EMode.NadeFlank ? EPhase.WaitBlast : EPhase.WaitBlast);
+            // Released now: relocate moves right away (the fuse keeps their head down, the bang masks the end of the move).
+            s.MoveAt = Time.time + 0.2f;
+            SetPhase(s, EPhase.WaitBlast);
             Log($"{Who()} own frag released (fuse {_expectFuse:0.0}s) -> moving in {s.MoveAt - Time.time:0.0}s");
         }
     }
@@ -203,37 +189,6 @@ public class RepositionClass : BotComponentClassBase
         TacticDiagnostics.Count(shortest ? "nade.fuse.short" : "nade.fuse.long");
         Log($"{Who()} frag throw {dist:0}m {(indoors ? "indoors" : "outdoors")} -> {(shortest ? "SHORT" : "LONG")} fuse {pick.ShortName.Localized()} {pick.GetExplDelay:0.0}s");
         return pick.GetExplDelay;
-    }
-
-    /// <summary>
-    /// Called by GrenadeThrowDecider after a successful DoThrow of SAIN's normal throw.
-    /// </summary>
-    public void OnSainThrowStarted(Enemy enemy, Vector3 target, float fuse)
-    {
-        if (!Applies || !Settings.NadeFlank || _session != null || enemy == null || !Bot.Memory.Location.IsIndoors)
-        {
-            return;
-        }
-        if (Bot.DoorTactic.Active || Bot.SquadCombat.Active)
-        {
-            return;
-        }
-        if (!Roll(Settings.NadeFlankChance))
-        {
-            TacticDiagnostics.Count("repo.rollFailed.NadeFlank");
-            return;
-        }
-        Vector3? known = enemy.KnownPlaces.LastKnownPosition;
-        Vector3 enemyPos = known ?? target;
-        if (!FindPoint(EMode.NadeFlank, enemyPos, out Vector3 point, out string why))
-        {
-            TacticDiagnostics.Count($"repo.noPoint.NadeFlank.{why}");
-            Log($"{Who()} grenade flank: no flanking spot ({why})");
-            return;
-        }
-        _expectOwnNadeUntil = Time.time + 4f;
-        _expectFuse = fuse > 0f ? fuse : 4f;
-        Start(EMode.NadeFlank, enemy, point, enemyPos + Vector3.up * 1.3f, EPhase.WaitThrow, "own frag thrown indoors, flank as it goes off");
     }
 
     /// <summary>
@@ -281,10 +236,6 @@ public class RepositionClass : BotComponentClassBase
 
     private readonly Dictionary<string, EContact> _contact = new();
     private readonly HashSet<string> _relocateRolled = new();
-    private string _disengageArmedFor;
-    private float _disengageArmedUntil;
-    private bool _wasReloading;
-    private float _lastAmmoRatio = 1f;
 
     /// <summary>
     /// Called by EnemyDecisionClass for the goal enemy before anything else (also while reloading).
@@ -313,26 +264,6 @@ public class RepositionClass : BotComponentClassBase
             }
         }
 
-        bool reloading = BotOwner.WeaponManager?.Reload?.Reloading == true;
-        if (!reloading)
-        {
-            _lastAmmoRatio = SAINBotSuppressClass.CalcAmmoRatio(BotOwner, out _);
-        }
-        if (reloading && !_wasReloading)
-        {
-            // Magazine run dry on an enemy this bot engaged first, still alive, seen just now, outdoors.
-            bool emptied = _lastAmmoRatio < 0.2f;
-            bool first = _contact.TryGetValue(id, out EContact c) && c == EContact.BotFirst;
-            bool alive = enemy.EnemyPlayer?.HealthController?.IsAlive == true;
-            if (Settings.Disengage && emptied && first && alive && enemy.Seen && enemy.TimeSinceSeen < 6f && !Bot.Memory.Location.IsIndoors)
-            {
-                _disengageArmedFor = id;
-                _disengageArmedUntil = Time.time + 12f;
-                TacticDiagnostics.Count("repo.disengage.armed");
-                Log($"{Who()} emptied a magazine on {enemy.EnemyPlayer?.Profile?.Nickname} without the kill -> disengage after reload");
-            }
-        }
-        _wasReloading = reloading;
     }
 
     // ---------------------------------------------------------------- decision
@@ -354,7 +285,7 @@ public class RepositionClass : BotComponentClassBase
                 reason = "otherEnemyVisible";
                 return false;
             }
-            bool movingAway = (s.Mode == EMode.Relocate || s.Mode == EMode.Disengage) && s.Phase == EPhase.Move;
+            bool movingAway = s.Mode == EMode.Relocate && s.Phase == EPhase.Move;
             if (BotOwner.Memory.IsUnderFire && !movingAway)
             {
                 End("underFire");
@@ -369,14 +300,13 @@ public class RepositionClass : BotComponentClassBase
             }
             if (BotOwner.WeaponManager?.Grenades?.ThrowindNow == true && s.Mode != EMode.Relocate)
             {
-                // SAIN's own throw (grenade flank) finishes under SAIN's ThrowGrenade decision.
                 reason = "throwingNow";
                 return false;
             }
             if (enemy.IsVisible)
             {
                 float dist = (enemy.EnemyPosition - Bot.Position).magnitude;
-                bool keepMoving = (s.Mode == EMode.Relocate || s.Mode == EMode.Disengage) && s.Phase == EPhase.Move && dist > 20f;
+                bool keepMoving = s.Mode == EMode.Relocate && s.Phase == EPhase.Move && dist > 20f;
                 if (!keepMoving)
                 {
                     End("enemySpotted");
@@ -419,8 +349,7 @@ public class RepositionClass : BotComponentClassBase
         Vector3 enemyPos = known.Value;
         float enemyDist = (enemyPos - Bot.Position).magnitude;
 
-        if (TryStartDisengage(enemy, enemyPos, enemyDist, out reason)
-            || TryStartRelocate(enemy, enemyPos, enemyDist, out reason)
+        if (TryStartRelocate(enemy, enemyPos, enemyDist, out reason)
             || TryStartCoverTrick(enemy, enemyPos, enemyDist, out reason))
         {
             return true;
@@ -484,36 +413,6 @@ public class RepositionClass : BotComponentClassBase
         return false;
     }
 
-    private bool TryStartDisengage(Enemy enemy, Vector3 enemyPos, float enemyDist, out string reason)
-    {
-        reason = "noDisengage";
-        if (_disengageArmedFor != enemy.EnemyProfileId || Time.time > _disengageArmedUntil)
-        {
-            return false;
-        }
-        _disengageArmedFor = null;
-        if (enemyDist < Settings.DisengageMinDistance)
-        {
-            TacticDiagnostics.Count("repo.disengage.tooClose");
-            reason = "disengageTooClose";
-            return false;
-        }
-        if (!Roll(Settings.DisengageChance))
-        {
-            TacticDiagnostics.Count("repo.rollFailed.Disengage");
-            return false;
-        }
-        if (!FindPoint(EMode.Disengage, enemyPos, out Vector3 point, out string why))
-        {
-            TacticDiagnostics.Count($"repo.noPoint.Disengage.{why}");
-            Log($"{Who()} disengage: no spot out of their sight ({why})");
-            return false;
-        }
-        Start(EMode.Disengage, enemy, point, enemyPos + Vector3.up * 1.3f, EPhase.Move, "one magazine, no kill -> break line of sight and back off");
-        reason = "disengage";
-        return true;
-    }
-
     private bool TryStartRelocate(Enemy enemy, Vector3 enemyPos, float enemyDist, out string reason)
     {
         reason = "noRelocate";
@@ -551,7 +450,7 @@ public class RepositionClass : BotComponentClassBase
     }
 
     /// <summary>
-    /// From cover, at most every 20s: bait peek (aggressive personalities), fake reload (mag check) or ghost flank,
+    /// From cover, at most every 20s: bait peek (aggressive personalities) or fake reload (mag check),
     /// tried in random order, each with its own chance.
     /// </summary>
     private bool TryStartCoverTrick(Enemy enemy, Vector3 enemyPos, float enemyDist, out string reason)
@@ -566,34 +465,11 @@ public class RepositionClass : BotComponentClassBase
             return false;
         }
         _nextBaitRoll = Time.time + (Settings.TestMode ? 8f : BAIT_ROLL_INTERVAL);
-        int first = Random.Range(0, 3);
-        for (int k = 0; k < 3; k++)
+        if (Random.value < 0.5f)
         {
-            switch ((first + k) % 3)
-            {
-                case 0:
-                    if (TryStartBait(enemy, enemyPos, out reason))
-                    {
-                        return true;
-                    }
-                    break;
-
-                case 1:
-                    if (TryStartFakeReload(enemy, enemyPos, out reason))
-                    {
-                        return true;
-                    }
-                    break;
-
-                default:
-                    if (TryStartGhost(enemy, enemyPos, enemyDist, out reason))
-                    {
-                        return true;
-                    }
-                    break;
-            }
+            return TryStartBait(enemy, enemyPos, out reason) || TryStartFakeReload(enemy, enemyPos, out reason);
         }
-        return false;
+        return TryStartFakeReload(enemy, enemyPos, out reason) || TryStartBait(enemy, enemyPos, out reason);
     }
 
     private bool TryStartBait(Enemy enemy, Vector3 enemyPos, out string reason)
@@ -657,44 +533,6 @@ public class RepositionClass : BotComponentClassBase
         return true;
     }
 
-    private bool TryStartGhost(Enemy enemy, Vector3 enemyPos, float enemyDist, out string reason)
-    {
-        reason = "noGhost";
-        if (!Settings.GhostFlank || enemyDist < 8f || enemyDist > 35f)
-        {
-            return false;
-        }
-        if (!Roll(Settings.GhostFlankChance))
-        {
-            TacticDiagnostics.Count("repo.rollFailed.GhostFlank");
-            return false;
-        }
-        if (!FindPoint(EMode.GhostFlank, enemyPos, out Vector3 point, out string why))
-        {
-            TacticDiagnostics.Count($"repo.noPoint.GhostFlank.{why}");
-            Log($"{Who()} ghost flank: no other angle on them ({why})");
-            return false;
-        }
-        // Noise spot: 2-3m back and forth inside the current cover area.
-        Vector3 away = Flat(Bot.Position - enemyPos).normalized;
-        Vector3 noise = Bot.Position + away * 2.5f;
-        if (NavMesh.SamplePosition(noise, out NavMeshHit hit, 1f, -1))
-        {
-            noise = hit.position;
-        }
-        else
-        {
-            noise = Bot.Position;
-        }
-        Start(EMode.GhostFlank, enemy, point, enemyPos + Vector3.up * 1.3f, EPhase.GhostNoise, "loud steps in cover, then creep to another angle");
-        _session.Home = Bot.Position;
-        _session.Noise = noise;
-        _session.HoldTime = Random.Range(8f, 14f);
-        _session.HoldPose = 0.8f;
-        reason = "ghost";
-        return true;
-    }
-
     // ---------------------------------------------------------------- execution
 
     private void Start(EMode mode, Enemy enemy, Vector3 target, Vector3 look, EPhase phase, string why)
@@ -712,7 +550,7 @@ public class RepositionClass : BotComponentClassBase
             PhaseTime = Time.time,
             MoveAt = Time.time + 6f,
             HoldTime = mode == EMode.BaitPeek ? 2.5f : Random.Range(5f, 10f),
-            HoldPose = mode == EMode.Relocate || mode == EMode.Disengage ? 0.8f : 1f,
+            HoldPose = mode == EMode.Relocate ? 0.8f : 1f,
         };
         TacticDiagnostics.Count($"repo.start.{mode}");
         Log($"{Who()} START {mode}: {why} (spot {Flat(target - Bot.Position).magnitude:0.0}m away)");
@@ -847,37 +685,6 @@ public class RepositionClass : BotComponentClassBase
                 Bot.Mover.Stop();
                 if (phaseTime > 1.8f)
                 {
-                    SetPhase(s, EPhase.Hold);
-                }
-                break;
-
-            case EPhase.GhostNoise:
-                // Sprinting is the loudest footstep sound: dash to the noise spot and back.
-                if (MoveTo(s, s.Noise, true, phaseTime) || phaseTime > 1.5f)
-                {
-                    SetPhase(s, EPhase.GhostNoiseBack);
-                }
-                break;
-
-            case EPhase.GhostNoiseBack:
-                if (MoveTo(s, s.Home, true, phaseTime) || phaseTime > 1.5f)
-                {
-                    s.NoiseLeft--;
-                    SetPhase(s, s.NoiseLeft > 0 ? EPhase.GhostNoise : EPhase.Sneak);
-                    if (s.NoiseLeft <= 0)
-                    {
-                        TacticDiagnostics.Count("repo.ghost.noiseDone");
-                        Log($"{Who()} ghost flank: noise made, creeping to the other angle");
-                    }
-                }
-                break;
-
-            case EPhase.Sneak:
-                Bot.Mover.SetTargetPose(0.6f);
-                if (MoveTo(s, s.Target, false, phaseTime, 0.2f))
-                {
-                    TacticDiagnostics.Count("repo.arrived.GhostFlank");
-                    Log($"{Who()} ghost flank in position after {time - s.StartTime:0.0}s");
                     SetPhase(s, EPhase.Hold);
                 }
                 break;
@@ -1017,9 +824,7 @@ public class RepositionClass : BotComponentClassBase
     private readonly List<(Vector3 point, float score)> _candidates = new();
 
     /// <summary>
-    /// NadeFlank: 4-12m away, bearing on the enemy changed >= 40 degrees, can see the enemy spot (a flanking angle).
     /// Relocate: 5-17m, bearing changed >= 25 degrees, the enemy spot can NOT see it, not much closer to them.
-    /// Disengage: 8-23m, the enemy spot can NOT see it, at least 5m further from them.
     /// </summary>
     private bool FindPoint(EMode mode, Vector3 enemyPos, out Vector3 result, out string why)
     {
@@ -1027,10 +832,9 @@ public class RepositionClass : BotComponentClassBase
         Vector3 bot = Bot.Position;
         Vector3 fromEnemy = Flat(bot - enemyPos);
         float curDist = fromEnemy.magnitude;
-        bool flank = mode == EMode.NadeFlank || mode == EMode.GhostFlank;
-        float minR = mode == EMode.NadeFlank ? 4f : mode == EMode.Relocate || mode == EMode.GhostFlank ? 5f : 8f;
-        float maxR = mode == EMode.NadeFlank ? 12f : mode == EMode.Relocate || mode == EMode.GhostFlank ? 17f : 23f;
-        float minBearing = flank ? 40f : mode == EMode.Relocate ? 25f : 0f;
+        const float minR = 5f;
+        const float maxR = 17f;
+        const float minBearing = 25f;
         Vector3 enemyEye = enemyPos + Vector3.up * 1.5f;
 
         _candidates.Clear();
@@ -1066,30 +870,24 @@ public class RepositionClass : BotComponentClassBase
                     geometry++;
                     continue;
                 }
-                if (mode == EMode.Relocate && pe.magnitude < curDist * 0.7f)
-                {
-                    geometry++;
-                    continue;
-                }
-                if (mode == EMode.Disengage && pe.magnitude < curDist + 5f)
+                if (pe.magnitude < curDist * 0.7f)
                 {
                     geometry++;
                     continue;
                 }
                 bool blocked = Physics.Linecast(enemyEye, p + Vector3.up * 1.3f, LayersMaskController.HighPolyWithTerrainMask);
-                bool wantSeen = flank;
-                if (wantSeen == blocked)
+                if (!blocked)
                 {
                     losWrong++;
                     continue;
                 }
-                float score = Flat(p - bot).magnitude - (flank ? bearing * 0.05f : 0f);
+                float score = Flat(p - bot).magnitude;
                 _candidates.Add((p, score));
             }
         }
         if (_candidates.Count == 0)
         {
-            why = sampled == 0 ? "noNavmesh" : losWrong > 0 ? (flank ? "noAngleOnEnemy" : "allInTheirSight") : "geometry";
+            why = sampled == 0 ? "noNavmesh" : losWrong > 0 ? "allInTheirSight" : "geometry";
             return false;
         }
         _candidates.Sort((x, y) => x.score.CompareTo(y.score));

@@ -22,29 +22,18 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
 
     [DataMember]
     [Name("Fake Grenade")]
-    [Description("GigaChad/Chad: after a peek, draw a grenade (audible) and put it away again. If the enemy rushes out before the gun is back up, the bot retreats to cover.")]
+    [Description("GigaChad/Chad at the door frame: draw a grenade (the sound is the bait) and put it away the moment it is in hand. Only when the room enemy was heard/located within 8s and is within 10m of the door; running footsteps cancel it at any point. If the enemy rushes out before the gun is back up, the bot retreats to cover.")]
     public bool FakeGrenade = true;
 
     [DataMember]
     [Name("Fake Heal / Stim")]
-    [Description("GigaChad/Chad: start a heal (only when actually hurt, cancelled after 1.5s) or a stim injection (cancelled after 0.7s, before it goes in) next to the door to bait a push. Cancelled at once if the enemy is heard coming out.")]
+    [Description("GigaChad/Chad at the door frame: start a heal (only when actually hurt) or a stim injection and cancel it the moment the item is in hand (0.3-0.4s cap), so it never actually goes in. Same conditions as the fake grenade; running footsteps cancel it.")]
     public bool FakeHeal = true;
 
     [DataMember]
     [Name("Room Trap")]
-    [Description("GigaChad/SnappingTurtle close the door on the room and hold it (taunting only if the personality taunts). Rat holds beside the door silently.")]
+    [Description("GigaChad/SnappingTurtle stack beside the door and hold it (the door is left as it is). Rat holds beside the door silently.")]
     public bool RoomTrap = true;
-
-    [DataMember]
-    [Name("Door Grenade")]
-    [Description("GigaChad: after closing the door, crouch beside the frame, listen, then gently toss a long fuse grenade right at the door and back off. Skipped if the enemy is heard coming out (sprint/jump/door sound).")]
-    public bool DoorGrenade = true;
-
-    [DataMember]
-    [Name("Door Grenade Min Fuse")]
-    [Description("Seconds. Only frag grenades with at least this fuse are used for the door grenade (M67 type). Impact grenades are never used.")]
-    [MinMax(3f, 8f, 10f)]
-    public float DoorGrenadeMinFuse = 4.5f;
 
     [DataMember]
     [Name("Emergency Retreat Distance")]
@@ -54,7 +43,7 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
 
     [DataMember]
     [Name("Squad And Flank Checks")]
-    [Description("One bot per door; abort if a teammate is inside the room or pushing through the door, or if another enemy shows up on the bot's side (flank). Door grenades are never thrown within 6m of a teammate.")]
+    [Description("One bot per door; abort if a teammate is inside the room or pushing through the door, or if another enemy shows up on the bot's side (flank).")]
     public bool SquadChecks = true;
 
     [DataMember]
@@ -75,19 +64,8 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float ResumeWindow = 90f;
 
     [DataMember]
-    [Name("Squad Breach")]
-    [Description("GigaChad/Chad with teammates nearby: open the door, everyone who has a grenade throws one into the room, then they rush in together right after the blast while one teammate watches the door.")]
-    public bool SquadBreach = true;
-
-    [DataMember]
-    [Name("Squad Breach Chance")]
-    [Description("Percent. When a GigaChad/Chad starts a door tactic with a teammate available and a grenade in the rig, chance it picks the squad breach over the solo tactics.")]
-    [MinMax(0f, 100f, 1f)]
-    public float SquadBreachChance = 50f;
-
-    [DataMember]
     [Name("Squad Roles")]
-    [Description("When a bot starts a door tactic, the nearest teammate who knows the same enemy takes Overwatch (holds a cross angle on the door from the other side, back far enough to stay clear of a door grenade) and the next one takes Rear Guard (watches behind the group).")]
+    [Description("When a bot starts a door tactic, the nearest teammate who knows the same enemy takes Overwatch (holds a cross angle on the door from the other side) and the next one takes Rear Guard (watches behind the group).")]
     public bool SquadRoles = true;
 
     [DataMember]
@@ -110,7 +88,7 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
 
     [DataMember]
     [Name("SnappingTurtle Chance")]
-    [Description("Percent. Chance a SnappingTurtle (camper) traps the room: closes the door and holds it.")]
+    [Description("Percent. Chance a SnappingTurtle (camper) traps the room: holds the door from beside the frame.")]
     [MinMax(0f, 100f, 1f)]
     public float SnappingTurtleChance = 60f;
 
@@ -145,59 +123,6 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float GigaChadTrapFakeHealChance = 30f;
 
     [DataMember]
-    [Name("GigaChad Door Grenade Chance")]
-    [Description("Percent. After a GigaChad traps a room, chance it backs off and throws a long fuse grenade at the door.")]
-    [MinMax(0f, 100f, 1f)]
-    public float DoorGrenadeChance = 50f;
-
-    [DataMember]
-    [Name("Door Grenade Follow-Up")]
-    [Description("After the door grenade goes off, either rush the door and peek-shoot-pull back, or listen and throw another one if nobody reacts. Off = just hold the door like before.")]
-    public bool PostBlastFollowUp = true;
-
-    [DataMember]
-    [Name("Follow-Up Peek Chance")]
-    [Description("Percent. Right after the blast: chance to rush the door and jump peek (shoot briefly if the enemy shows, then pull back). Otherwise the bot listens first and throws again if there is no reaction; with no grenade left it peeks anyway.")]
-    [MinMax(0f, 100f, 1f)]
-    public float PostBlastPeekChance = 40f;
-
-    [DataMember]
-    [Name("Follow-Up Fake Retreat Chance")]
-    [Description("Percent, rolled when the peek roll fails. Fake retreat: sprint away from the door so the enemy hears them leave, sneak back crouched to the covered spot and hold the door until they come out. Otherwise: listen, and throw again if nobody reacts.")]
-    [MinMax(0f, 100f, 1f)]
-    public float PostBlastFakeRetreatChance = 40f;
-
-    [DataMember]
-    [Name("Door Grenade Inside Chance")]
-    [Description("Percent. Open the door from the side and throw the grenade into the room (at the enemy's last known spot) instead of in front of the closed door. If the door is already open it always goes inside. No arc into the room = door front.")]
-    [MinMax(0f, 100f, 1f)]
-    public float DoorGrenadeInsideChance = 40f;
-
-    [DataMember]
-    [Name("Max Door Grenades")]
-    [Description("How many door grenades one bot may throw at the same door (first one included).")]
-    [MinMax(1f, 3f, 1f)]
-    public float MaxDoorGrenades = 2f;
-
-    [DataMember]
-    [Name("Follow-Up Listen Time")]
-    [Description("Seconds the bot listens after the blast. Any sound from the enemy = reaction -> it holds the door instead of throwing again.")]
-    [MinMax(1f, 6f, 10f)]
-    public float PostBlastListenTime = 2.5f;
-
-    [DataMember]
-    [Name("Peek Shot Time")]
-    [Description("Seconds the bot shoots after spotting the enemy during the follow-up peek, before pulling back.")]
-    [MinMax(0.3f, 2f, 10f)]
-    public float PeekShotTime = 0.8f;
-
-    [DataMember]
-    [Name("Pull Back Time")]
-    [Description("Seconds the bot retreats after the peek shot.")]
-    [MinMax(1f, 4f, 10f)]
-    public float PullBackTime = 2f;
-
-    [DataMember]
     [Name("Chance Multiplier")]
     [Description("Multiplies every personality's chance to start a door tactic. Raise it to see tactics more often while testing.")]
     [MinMax(0f, 3f, 10f)]
@@ -211,17 +136,17 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
 
     [DataMember]
     [Name("Step Peeks After Jump Peek")]
-    [Description("After the jump peek, 2-3 quick short steps into the doorway line and back (diamond-step style), alternating stance and the corner of the room being checked, before holding. Only when the door is open.")]
+    [Description("After the jump peek, 2-3 quick short steps into the doorway line and back alternating stance and the corner of the room being checked, before holding. Only when the door is open.")]
     public bool StepPeek = true;
 
     [DataMember]
     [Name("Bots Close Open Doors In Their Way")]
-    [Description("Vanilla SAIN closes any open door its path runs into (6s grace for doors it just opened). With a door that opens toward the bot that means: open, walk into the leaf, jitter/spin, close it, open it again... and bots closing open doors all over the map. Off (default): bots only open shut doors while moving; tactics still close doors on purpose.")]
+    [Description("Vanilla SAIN closes any open door its path runs into (6s grace for doors it just opened). With a door that opens toward the bot that means: open, walk into the leaf, jitter/spin, close it, open it again... and bots closing open doors all over the map. Off (default): bots only open shut doors while moving.")]
     public bool AutoCloseDoors = false;
 
     [DataMember]
     [Name("TEST MODE: All PMCs Use GigaChad Tactics")]
-    [Description("For testing only. Every PMC plans door tactics as a GigaChad (peek / trap / door grenade and its follow-ups) and the start chance is 100%. Turn it off for normal play.")]
+    [Description("For testing only. Every PMC plans door tactics as a GigaChad (peek / trap / fakes) and the start chance is 100%. Turn it off for normal play.")]
     public bool TestModeAllPmcGigaChad = false;
 
     [DataMember]

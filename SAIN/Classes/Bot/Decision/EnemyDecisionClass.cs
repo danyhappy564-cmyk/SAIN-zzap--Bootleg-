@@ -77,12 +77,6 @@ public class EnemyDecisionClass : BotBase
             return true;
         }
 
-        if (Bot.DoorTactic.ShallAvoidTacticGrenade(out reason))
-        {
-            result = ECombatDecision.Retreat;
-            return true;
-        }
-
         if (Bot.Reposition.ShallUse(enemy, knownEnemies, out reason))
         {
             result = ECombatDecision.Reposition;

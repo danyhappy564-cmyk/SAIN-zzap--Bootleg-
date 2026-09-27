@@ -89,6 +89,11 @@ public class TalkSettings : SAINSettingsBase<TalkSettings>, ISAINSettings
     )]
     public bool DisableBotTalkPatching = false;
 
+    [DataMember]
+    [Name("Bot Pain Voice On Hit (zzap)")]
+    [Description("zzap fork: bots groan / shout \"I'm hit\" (OnBeingHurt / OnAgony) every time they take a hit. Off (default): no pain voice lines from bots. Death sounds are unaffected.")]
+    public bool BotPainVoiceOnHit = false;
+
     public override void Init(List<ISAINSettings> list)
     {
         list.Add(this);

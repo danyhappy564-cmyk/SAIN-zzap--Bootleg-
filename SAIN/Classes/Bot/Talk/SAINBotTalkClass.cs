@@ -82,6 +82,11 @@ public class SAINBotTalkClass : BotComponentClassBase
             return;
         }
 
+        if (!SAINPlugin.LoadedPreset.GlobalSettings.Talk.BotPainVoiceOnHit)
+        {
+            return;
+        }
+
         if (EFTMath.RandomBool(25) && _nextGetHitTime < Time.time && GroupTalk.FriendIsClose)
         {
             _nextGetHitTime = Time.time + 1f;

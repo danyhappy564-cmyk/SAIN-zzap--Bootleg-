@@ -26,6 +26,11 @@ public class PlayerHurtPatch : ModulePatch
             return;
         }
 
+        if (!SAINPlugin.LoadedPreset.GlobalSettings.Talk.BotPainVoiceOnHit)
+        {
+            return;
+        }
+
         if (!SAINEnableClass.GetSAIN(__instance.ProfileId, out BotComponent bot) || !bot.Talk.PlayerInEarshot)
         {
             return;
@@ -50,6 +55,11 @@ public class PlayerTalkPatch : ModulePatch
     [PatchPrefix]
     public static bool PatchPrefix(Player __instance, EPhraseTrigger phrase, ETagStatus mask, bool aggressive)
     {
+        if (__instance.IsAI && IsPainPhrase(phrase) && !SAINPlugin.LoadedPreset.GlobalSettings.Talk.BotPainVoiceOnHit)
+        {
+            // zzap: no "ugh / I'm hit" from bots on every hit (F6 Talk > Bot Pain Voice On Hit).
+            return false;
+        }
         switch (phrase)
         {
             case EPhraseTrigger.OnDeath:
@@ -76,6 +86,11 @@ public class PlayerTalkPatch : ModulePatch
         BotManagerComponent.Instance?.BotHearing.PlayerTalked(phrase, mask, __instance);
         return true;
     }
+
+    public static bool IsPainPhrase(EPhraseTrigger phrase)
+    {
+        return phrase == EPhraseTrigger.OnBeingHurt || phrase == EPhraseTrigger.OnAgony;
+    }
 }
 
 public class BotTalkPatch : ModulePatch
@@ -95,6 +110,10 @@ public class BotTalkPatch : ModulePatch
         if (__instance._owner?.HealthController?.IsAlive == false)
         {
             return true;
+        }
+        if (PlayerTalkPatch.IsPainPhrase(type) && !SAINPlugin.LoadedPreset.GlobalSettings.Talk.BotPainVoiceOnHit)
+        {
+            return false;
         }
         switch (type)
         {

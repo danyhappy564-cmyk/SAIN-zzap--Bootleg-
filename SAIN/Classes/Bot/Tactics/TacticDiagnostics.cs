@@ -112,13 +112,11 @@ internal static class TacticDiagnostics
         var d = general.DoorTactics;
         var f = general.FreezeAmbush;
         Logger.LogWarning(
-            $"[Tactics] SETTINGS DoorTactics: enabled={d.Enabled} jumpPeek={d.JumpPeek} fakeNade={d.FakeGrenade} fakeHeal={d.FakeHeal} "
-                + $"roomTrap={d.RoomTrap} doorNade={d.DoorGrenade} minFuse={d.DoorGrenadeMinFuse:0.0}s retreatDist={d.EmergencyRetreatDistance:0}m "
+            $"[Tactics] SETTINGS DoorTactics: enabled={d.Enabled} jumpPeek={d.JumpPeek} roomTrap={d.RoomTrap} fakeNade={d.FakeGrenade} fakeHeal={d.FakeHeal} retreatDist={d.EmergencyRetreatDistance:0}m "
+                + $"trick%: giga={d.GigaChadFakeTrickChance:0} chad={d.ChadFakeTrickChance:0} trapHeal={d.GigaChadTrapFakeHealChance:0} "
                 + $"chance%: giga={d.GigaChadChance:0} chad={d.ChadChance:0} turtle={d.SnappingTurtleChance:0} rat={d.RatChance:0} "
-                + $"peekVsTrap={d.GigaChadPeekChance:0} trickGiga={d.GigaChadFakeTrickChance:0} trickChad={d.ChadFakeTrickChance:0} "
-                + $"trapHeal={d.GigaChadTrapFakeHealChance:0} doorNadeChance={d.DoorGrenadeChance:0} x{d.ChanceMultiplier:0.0} "
-                + $"TESTMODE={d.TestModeAllPmcGigaChad} followUp={d.PostBlastFollowUp} peek%={d.PostBlastPeekChance:0} fakeRetreat%={d.PostBlastFakeRetreatChance:0} inside%={d.DoorGrenadeInsideChance:0} maxNades={d.MaxDoorGrenades:0} listen={d.PostBlastListenTime:0.0}s "
-                + $"shot/pullBack={d.PeekShotTime:0.0}/{d.PullBackTime:0.0}s logs={d.DiagnosticLogs}/{d.VerboseLogs}"
+                + $"peekVsTrap={d.GigaChadPeekChance:0} runBy%={d.RunByChance:0} stepPeek={d.StepPeek} autoClose={d.AutoCloseDoors} x{d.ChanceMultiplier:0.0} "
+                + $"TESTMODE={d.TestModeAllPmcGigaChad} logs={d.DiagnosticLogs}/{d.VerboseLogs}"
         );
         Logger.LogWarning(
             $"[Tactics] SETTINGS FreezeAmbush: maxDist={f.MaxDistance:0}m outdoors={f.AllowOutdoors} time={f.MinDuration:0}-{f.MaxDuration:0}s "
@@ -132,9 +130,8 @@ internal static class TacticDiagnostics
         );
         var r = general.Reposition;
         Logger.LogWarning(
-            $"[Tactics] SETTINGS Reposition: TESTMODE={r.TestMode} enabled={r.Enabled} fuse={r.FuseSelection}(<{r.ShortFuseDistance:0}m short) flank={r.NadeFlank}/{r.NadeFlankChance:0}% "
-                + $"relocate={r.Relocate}/{r.RelocateChance:0}% disengage={r.Disengage}/{r.DisengageChance:0}%(>{r.DisengageMinDistance:0}m) "
-                + $"bait={r.BaitPeek}/{r.BaitPeekChance:0}% fakeReload={r.FakeReload}/{r.FakeReloadChance:0}% ghost={r.GhostFlank}/{r.GhostFlankChance:0}% pmcOnly={r.PmcOnly} logs={r.DiagnosticLogs}"
+            $"[Tactics] SETTINGS Reposition: TESTMODE={r.TestMode} enabled={r.Enabled} fuse={r.FuseSelection}(<{r.ShortFuseDistance:0}m short) "
+                + $"relocate={r.Relocate}/{r.RelocateChance:0}% bait={r.BaitPeek}/{r.BaitPeekChance:0}% fakeReload={r.FakeReload}/{r.FakeReloadChance:0}% pmcOnly={r.PmcOnly} logs={r.DiagnosticLogs}"
         );
         var c = general.CloseCombat;
         Logger.LogWarning(
