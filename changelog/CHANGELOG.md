@@ -1,4 +1,4 @@
-﻿# 변경 이력 (SAIN-zzap--Bootleg-)
+# 변경 이력 (SAIN-zzap--Bootleg-)
 
 최신이 위. 시간은 KST.
 
