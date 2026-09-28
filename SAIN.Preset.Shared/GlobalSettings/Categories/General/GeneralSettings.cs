@@ -64,8 +64,13 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
 
     [DataMember]
     [Name("Reposition (zzap)")]
-    [Description("Grenade blast flank, relocate after being spotted, disengage after one magazine, bait peeks, fuse selection.")]
+    [Description("Relocate after being spotted, bait peeks, fake reload, fuse selection.")]
     public RepositionSettings Reposition = new();
+
+    [DataMember]
+    [Name("Player Style Recorder (zzap)")]
+    [Description("Records how you play each raid (log + file) for bot adaptation later. Recording only.")]
+    public PlayerStyleSettings PlayerStyle = new();
 
     [DataMember]
     public ExtractSettings Extract = new();
@@ -101,6 +106,7 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
         list.Add(SquadCombat);
         list.Add(CloseCombat);
         list.Add(Reposition);
+        list.Add(PlayerStyle);
         list.Add(Extract);
         list.Add(Flashlight);
         list.Add(LootingBots);

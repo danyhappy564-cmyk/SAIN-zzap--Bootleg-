@@ -69,6 +69,7 @@ public class BotManagerComponent : MonoBehaviour
     public BotSpawnController BotSpawnController { get; private set; }
     public BotSquads BotSquads { get; private set; }
     public BotHearingClass BotHearing { get; private set; }
+    public PlayerStyleRecorder PlayerStyle { get; private set; }
 
     public void PlayerEnviromentChanged(string profileID, IndoorTrigger trigger)
     {
@@ -87,6 +88,7 @@ public class BotManagerComponent : MonoBehaviour
         BotHearing = new BotHearingClass(this);
         BotJobs = new BotJobsClass(this);
         GrenadeController = new GrenadeController(this);
+        PlayerStyle = new PlayerStyleRecorder(this);
         GameWorld.OnDispose += Dispose;
     }
 
@@ -97,6 +99,7 @@ public class BotManagerComponent : MonoBehaviour
         TimeVision.Update(currentTime, deltaTime);
         WeatherVision.Update(currentTime, deltaTime);
         BotSquads.Update(currentTime, deltaTime);
+        PlayerStyle?.Update();
 
         HashSet<BotComponent> BotsArray = BotSpawnController.SAINBots;
         foreach (BotComponent BotComponent in BotsArray)
@@ -137,6 +140,7 @@ public class BotManagerComponent : MonoBehaviour
         try
         {
             GameWorld.OnDispose -= Dispose;
+            PlayerStyle?.Dispose();
             StopAllCoroutines();
             BotJobs.Dispose();
             BotSpawnController.UnSubscribe();

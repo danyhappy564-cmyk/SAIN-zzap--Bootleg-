@@ -2288,6 +2288,9 @@ public class DoorTacticClass : BotComponentClassBase
             Enemy goal = Bot.GoalEnemy;
             string enemyInfo = goal == null ? "none" : $"{(goal.IsVisible ? "visible" : "notVisible")} {goal.RealDistance:0}m";
             TacticDiagnostics.Count($"death.{decision.CurrentCombatDecision}");
+            bool sawKiller = goal != null && lastAggressor != null && goal.EnemyProfileId == lastAggressor.ProfileId && goal.Seen;
+            SAIN.Components.BotControllerSpace.Classes.PlayerStyleRecorder.OnBotKilled(
+                Bot, lastAggressor, part, decision.CurrentCombatDecision.ToString(), sawKiller);
             TacticDiagnostics.LogCloseCombat(
                 $"[Death] [{Bot.name}] [{Bot.Info.Personality}] layer={Bot.ActiveLayer} combat={decision.CurrentCombatDecision} self={decision.CurrentSelfDecision} "
                     + $"squad={decision.CurrentSquadDecision} diamond={TacticDiagnostics.GetDiamond(Bot.ProfileId)} enemy={enemyInfo} "
