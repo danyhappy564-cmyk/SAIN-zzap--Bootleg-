@@ -47,7 +47,7 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 | 권총 전환 | 교전 중 탄창이 비고 적이 30m 안에 보이면 장전 대신 권총 | PMC | 〃 `Pistol Swap When Empty` |
 | 빠른 장전 | 교전 중엔 R 두 번처럼 탄창을 버리고 빠르게 장전 | PMC | 〃 `Quick Reload In Combat` |
 | 장거리 무기 전환 | 2번 슬롯 DMR/저격총을 80m 넘는 적에게 사용, 가까워지면 주무기로 | PMC | 〃 `Long-Range Weapon Swap` |
-| 등 안 돌리기 | 가까운 적 앞에서 엄폐로 뛸 때 등을 보이지 않고 조준한 채 걸어서 이동 (3m 안 엄폐물은 대시) | PMC | 〃 `No Back Turning Near Enemy` |
+| 등 안 돌리기 | 12m 안 적 앞에서 엄폐로 갈 때 등을 보이지 않고 조준한 채 걸어서 이동 (8m 안 엄폐물은 대시, 더 먼 적이면 그냥 뛰어감) | PMC | 〃 `No Back Turning Near Enemy` |
 | 제압사격 절제 | 안 보이는 적에게 난사하다 탄창 비우는 것 방지 (짧은 점사, 탄 60% 이상 유지) | PMC | 〃 `Suppression Discipline` |
 | 재배치 | 먼저 맞았으면 엄폐 → 치료 → 수류탄 → 적이 못 보는 각으로 이동 | PMC | `General > Reposition (zzap)` |
 | 미끼 피킹 | 엄폐에서 앞 점프로 정보 확인 후 복귀, 이후 짧은 사격 피킹 좌우 교대 | 공격형 성격 | 〃 `Bait Peek` |

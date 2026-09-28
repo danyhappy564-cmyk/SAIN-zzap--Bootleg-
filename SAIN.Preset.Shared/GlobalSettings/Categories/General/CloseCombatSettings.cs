@@ -18,9 +18,9 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
 
     [DataMember]
     [Name("Close Distance")]
-    [Description("Meters. Enemy (last known position) closer than this counts as a close standoff.")]
+    [Description("Meters. Enemy (last known position) closer than this counts as a close standoff. 2026-09-28: 30 -> 12 - walking to cover facing the enemy at 9-30m kept bots slow and in the open (33 of 71 deaths); further out a sprint to cover is safer.")]
     [MinMax(5f, 60f, 1f)]
-    public float Distance = 30f;
+    public float Distance = 12f;
 
     [DataMember]
     [Name("Seen Within")]
@@ -30,9 +30,9 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
 
     [DataMember]
     [Name("Sprint If Cover Within")]
-    [Description("Meters. Exception: if the cover the bot is heading to is this close, it may dash there (a short sprint into cover is what players do too). 0 = never.")]
-    [MinMax(0f, 8f, 10f)]
-    public float SprintIfCoverWithin = 3f;
+    [Description("Meters. Exception: if the cover the bot is heading to is this close, it dashes there (a short sprint into cover is what players do too; 2026-09-28: 3 -> 8). 0 = never.")]
+    [MinMax(0f, 15f, 10f)]
+    public float SprintIfCoverWithin = 8f;
 
     [DataMember]
     [Name("Suppression Discipline")]
