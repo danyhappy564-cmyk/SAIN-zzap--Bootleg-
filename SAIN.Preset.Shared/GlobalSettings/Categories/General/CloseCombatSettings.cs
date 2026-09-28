@@ -151,6 +151,47 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float LeanRockCloseDistance = 7f;
 
     [DataMember]
+    [Name("Corner Chase")]
+    [Description("The enemy breaks sight around a corner close by (within the window below): pushy bots (GigaChad 90%, Wreckless 85%, Chad 75%, Normal 40%) follow and take the corner one of four ways - prefire (only when sure he is right there and the magazine has enough left), jump shot (headroom needed), lean in (lean held toward the corner side) or a slow wide pie.")]
+    public bool CornerChase = true;
+
+    [DataMember]
+    [Name("Corner Chase Window")]
+    [Description("Seconds since the enemy was last seen in which a chase can start.")]
+    [MinMax(1f, 20f, 10f)]
+    public float CornerChaseWindow = 6f;
+
+    [DataMember]
+    [Name("Corner Chase Max Distance")]
+    [Description("Meters of path to the enemy.")]
+    [MinMax(3f, 40f, 1f)]
+    public float CornerChaseMaxDistance = 15f;
+
+    [DataMember]
+    [Name("Corner Chase Prefire Chance")]
+    [Description("Percent, when the bot is sure the enemy is at the corner and has the rounds.")]
+    [MinMax(0f, 100f, 1f)]
+    public float CornerChasePrefireChance = 60f;
+
+    [DataMember]
+    [Name("Corner Chase Prefire Min Rounds")]
+    [Description("Rounds in the magazine needed to prefire (also at least 40% of the magazine). Prefire stops at 30% left - there is no reloading once inside.")]
+    [MinMax(1f, 60f, 1f)]
+    public float CornerChasePrefireMinRounds = 10f;
+
+    [DataMember]
+    [Name("Corner Chase Jump Shot Chance")]
+    [Description("Percent, GigaChad/Chad/Wreckless with headroom.")]
+    [MinMax(0f, 100f, 1f)]
+    public float CornerChaseJumpChance = 30f;
+
+    [DataMember]
+    [Name("Corner Chase Pie Speed")]
+    [Description("Move speed (0-1) while slicing the corner slowly.")]
+    [MinMax(0.1f, 1f, 100f)]
+    public float CornerChasePieSpeed = 0.35f;
+
+    [DataMember]
     [Name("Retreat Head Down")]
     [Description("While sprinting away with the back to an enemy that sees the bot or shot at it in the last 3s, look down at the floor like players do - the head drops out of the easy line of fire.")]
     public bool RetreatHeadDown = true;

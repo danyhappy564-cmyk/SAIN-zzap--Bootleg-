@@ -419,6 +419,12 @@ public class EnemyDecisionClass : BotBase
             reason = "heardFromPeaceCharge";
             return true;
         }
+        // zzap: the enemy just broke sight around a corner in a close fight -> follow him (CornerChase).
+        if (SAIN.SAINComponent.Classes.Tactics.CornerChase.ShallChase(Bot, enemy, out string chaseReason))
+        {
+            reason = chaseReason;
+            return true;
+        }
         if (!Bot.Info.PersonalitySettings.Rush.CanRushEnemyReloadHeal)
         {
             reason = "cantRush";

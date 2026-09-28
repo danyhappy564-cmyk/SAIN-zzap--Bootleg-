@@ -3,6 +3,7 @@ using EFT;
 using SAIN.Models.Enums;
 using SAIN.Preset.Shared.GlobalSettings;
 using SAIN.SAINComponent.Classes.EnemyClasses;
+using SAIN.SAINComponent.Classes.Tactics;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -26,12 +27,21 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
         }
         else if (_enemy.InLineOfSight)
         {
+            _chase?.Reset();
             enemyInSight();
         }
         else
         {
-            checkUpdateMove();
-            checkJump();
+            // zzap: corner chase (lean in / slow pie / jump shot / prefire) once the enemy's corner is close.
+            _chase ??= new CornerChase(Bot);
+            if (!_chase.Tick(_enemy))
+            {
+                checkUpdateMove();
+            }
+            if (_chase.Style == CornerChase.EStyle.None)
+            {
+                checkJump();
+            }
         }
     }
 
@@ -50,6 +60,12 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
     {
         if (!Shoot.ShootAnyVisibleEnemies(_enemy))
         {
+            if (_chase?.LookPoint != null)
+            {
+                // Corner chase: eyes (and the prefire) on the corner he went around.
+                Bot.Steering.LookToPoint(_chase.LookPoint.Value);
+                return;
+            }
             Bot.Suppression.TrySuppressAnyEnemy(_enemy, Bot.EnemyController.KnownEnemies);
         }
         if (!Bot.Steering.SteerByPriority(_enemy, false))
@@ -173,9 +189,11 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
 
     private Enemy _enemy;
     private bool _shallTryJump = false;
+    private CornerChase _chase;
 
     public override void Stop()
     {
+        _chase?.Reset();
         base.Stop();
         Bot.Mover.DogFight.ResetDogFightStatus();
     }
