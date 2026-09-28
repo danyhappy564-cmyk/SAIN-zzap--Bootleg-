@@ -31,6 +31,16 @@ public class PlayerStyleSettings : SAINSettingsBase<PlayerStyleSettings>, ISAINS
     public bool AdaptEnabled = true;
 
     [DataMember]
+    [Name("Learn From Outcomes")]
+    [Description("Every response a bot makes to the player (push, hold, grenade, flank... in sight or not, by range and own health) is scored by what happened: hit the player = win, killed by the player = loss. Saved per profile across raids (<profile>.learned.json). With adaptation on, responses that worked better than average against this player get more likely, the ones that failed less. Always recorded; only applied with Adapt on.")]
+    public bool LearnFromOutcomes = true;
+
+    [DataMember]
+    [Name("Ignore Player Gear")]
+    [Description("Bots don't judge the human player as weak or strong from his armor/helmet/gun (it may be dev-tool or stacked gear). His state (hurt, healing/reloading, alone) and the learned outcomes still count.")]
+    public bool IgnorePlayerGear = true;
+
+    [DataMember]
     [Name("Use Test Raids For Adaptation")]
     [Description("Raids detected as test sessions (god mode / infinite ammo, e.g. DevTools) are tagged in the record. On: still used for the style scores (movement and fighting style are the same). Off: skipped.")]
     public bool AdaptUseTestRaids = true;

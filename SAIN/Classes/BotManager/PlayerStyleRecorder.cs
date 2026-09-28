@@ -365,6 +365,7 @@ public sealed class PlayerStyleRecorder
 
     private void OnBeingHit(DamageInfo damage, EBodyPart part, float absorbed)
     {
+        PlayerOutcomeLearner.OnPlayerHit(damage.Player?.iPlayer?.ProfileId);
         _d.HitsTaken++;
         _d.DamageTaken += Mathf.Max(0f, damage.Damage);
         // A PMC has 440 HP in total - soaking well over that and still standing = invincible.
@@ -513,6 +514,7 @@ public sealed class PlayerStyleRecorder
             Logger.LogWarning($"[PlayerStyle] key recorder end failed: {ex.Message}");
         }
         _d.EndReason = why;
+        PlayerOutcomeLearner.Save(why);
         Logger.LogWarning($"[PlayerStyle] RAID SUMMARY ({why}): {Summary()}");
         try
         {
@@ -576,6 +578,7 @@ public sealed class PlayerStyleRecorder
                 Logger.LogWarning($"[PlayerStyle] dev/cheat mod installed: {_d.DevToolsPlugins} - god mode / infinite ammo are detected while playing and the raid gets tagged");
             }
             PlayerAdaptation.Load(Dir, _d.ProfileId);
+            PlayerOutcomeLearner.Load(Dir, _d.ProfileId);
             Logger.LogWarning($"[PlayerStyle] recording {_d.Nickname} on {_d.Map} -> {RecordFile} (checkpoint every {GlobalSettingsClass.Instance.General.PlayerStyle.LogEveryMinutes:0} min: {CheckpointFile})");
             var settings = GlobalSettingsClass.Instance.General.PlayerStyle;
             if (settings.RecordKeys)
@@ -595,6 +598,7 @@ public sealed class PlayerStyleRecorder
     /// <summary>Mid-raid safety net: the current record so far, overwritten each time.</summary>
     private void SaveCheckpoint()
     {
+        PlayerOutcomeLearner.Save("checkpoint");
         try
         {
             _d.EndReason = "checkpoint";

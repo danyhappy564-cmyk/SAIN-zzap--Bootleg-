@@ -182,6 +182,17 @@ public static class HiddenEnemyUtility
             (EStance.Search, search),
             (EStance.FallBack, fallBack),
         };
+        // Learned against this player (outcomes of past responses in this kind of situation), when adaptation is on.
+        for (int i = 0; i < list.Count; i++)
+        {
+            float bonus = SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Bonus(bot, enemy,
+                SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Key("H", list[i].stance.ToString(), path, bot));
+            if (Mathf.Abs(bonus) > 0.02f)
+            {
+                list[i] = (list[i].stance, list[i].score + bonus);
+                why += $" | learned {list[i].stance} {bonus:+0.00;-0.00}";
+            }
+        }
         list.Sort((x, y) => y.Item2.CompareTo(x.Item2));
         // Close call: sometimes take the second best, more for reckless personalities - bots shouldn't be predictable.
         float margin = (_mixMargin.TryGetValue(bot.Info.Personality, out float mm) ? mm : 0.1f) * settings.UtilityMixMargin;

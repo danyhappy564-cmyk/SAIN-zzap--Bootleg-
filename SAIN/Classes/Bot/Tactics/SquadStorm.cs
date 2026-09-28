@@ -142,6 +142,50 @@ public static class SquadStorm
         var parts = new List<string>();
         float score = 0f;
         Player p = enemy.EnemyPlayer;
+        // The human player's kit may be anything (dev tools, stacked gear) - judging him by it misleads the bots. When set,
+        // his gear counts as neutral and only his state (hurt, busy, alone) and the learned outcomes decide.
+        bool ignoreGear = !enemy.IsAI && GlobalSettingsClass.Instance?.General?.PlayerStyle?.IgnorePlayerGear == true;
+        if (ignoreGear)
+        {
+            score += 0.1f;
+            parts.Add("player gear ignored");
+        }
+        else
+        {
+            score += GearWeakness(enemy, p, parts);
+        }
+        switch (p.HealthStatus)
+        {
+            case ETagStatus.Injured:
+                score += 0.05f;
+                parts.Add("hurt");
+                break;
+            case ETagStatus.BadlyInjured:
+                score += 0.2f;
+                parts.Add("badly hurt");
+                break;
+            case ETagStatus.Dying:
+                score += 0.35f;
+                parts.Add("dying");
+                break;
+        }
+        if (enemy.Status.VulnerableAction != EEnemyAction.None)
+        {
+            score += 0.15f;
+            parts.Add($"busy ({enemy.Status.VulnerableAction})");
+        }
+        if (Alone(bot, enemy))
+        {
+            score += 0.1f;
+            parts.Add("alone");
+        }
+        why = parts.Count > 0 ? string.Join(", ", parts) : "well geared";
+        return Mathf.Clamp01(score);
+    }
+
+    private static float GearWeakness(Enemy enemy, Player p, List<string> parts)
+    {
+        float score = 0f;
         var equipment = p.Inventory?.Equipment;
         float body = HighestClass(equipment, EquipmentSlot.ArmorVest);
         if (body <= 0f)
@@ -190,33 +234,7 @@ public static class SquadStorm
             score += 0.05f;
             parts.Add("smg");
         }
-        switch (p.HealthStatus)
-        {
-            case ETagStatus.Injured:
-                score += 0.05f;
-                parts.Add("hurt");
-                break;
-            case ETagStatus.BadlyInjured:
-                score += 0.2f;
-                parts.Add("badly hurt");
-                break;
-            case ETagStatus.Dying:
-                score += 0.35f;
-                parts.Add("dying");
-                break;
-        }
-        if (enemy.Status.VulnerableAction != EEnemyAction.None)
-        {
-            score += 0.15f;
-            parts.Add($"busy ({enemy.Status.VulnerableAction})");
-        }
-        if (Alone(bot, enemy))
-        {
-            score += 0.1f;
-            parts.Add("alone");
-        }
-        why = parts.Count > 0 ? string.Join(", ", parts) : "well geared";
-        return Mathf.Clamp01(score);
+        return score;
     }
 
     private static bool Alone(BotComponent bot, Enemy enemy)

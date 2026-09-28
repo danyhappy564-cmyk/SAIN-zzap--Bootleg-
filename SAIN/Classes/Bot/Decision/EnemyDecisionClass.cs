@@ -359,6 +359,8 @@ public class EnemyDecisionClass : BotBase
                     TacticDiagnostics.Count($"utility.fellTo.{stance}");
                 }
                 TacticDiagnostics.Count($"utility.do.{result}");
+                SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Begin(Bot, enemy,
+                    SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Key("H", stance.ToString(), enemy.Path.PathLength, Bot));
                 reason = $"utility{stance}";
                 return true;
             }
@@ -402,6 +404,8 @@ public class EnemyDecisionClass : BotBase
             if (result != ECombatDecision.None)
             {
                 TacticDiagnostics.Count($"utilityV.do.{result}");
+                SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Begin(Bot, enemy,
+                    SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Key("V", stance.ToString(), enemy.RealDistance, Bot));
                 reason = $"utilityV{stance}";
                 return true;
             }

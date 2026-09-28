@@ -159,6 +159,16 @@ public static class VisibleEnemyUtility
             (EStance.Cover, coverScore),
             (EStance.Push, push),
         };
+        for (int i = 0; i < list.Count; i++)
+        {
+            float bonus = SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Bonus(bot, enemy,
+                SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Key("V", list[i].stance.ToString(), dist, bot));
+            if (Mathf.Abs(bonus) > 0.02f)
+            {
+                list[i] = (list[i].stance, list[i].score + bonus);
+                why += $" | learned {list[i].stance} {bonus:+0.00;-0.00}";
+            }
+        }
         list.Sort((x, y) => y.score.CompareTo(x.score));
         if (UtilityMistake.Apply(bot, list, "visible"))
         {
