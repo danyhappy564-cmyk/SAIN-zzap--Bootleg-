@@ -172,6 +172,17 @@ public class SelfActionDecisionClass : BotBase
     private float _reloadCheckBlockedUntil;
     private static bool _loggedReloadFault;
 
+    /// <summary>zzap: post-combat top-up (no enemy around, so the normal reload decision never runs).</summary>
+    public bool ReloadNow()
+    {
+        var reload = BotOwner?.WeaponManager?.Reload;
+        if (reload == null || reload.Reloading || Time.time < _reloadCheckBlockedUntil)
+        {
+            return false;
+        }
+        return TryReload(BotOwner, reload);
+    }
+
     private bool TryReload(BotOwner botOwner, BotReload reload)
     {
         // 2026-09-15 raid log: 901 identical exceptions in seven minutes, roughly two a

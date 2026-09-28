@@ -39,6 +39,9 @@ internal class CombatSquadLayer(BotOwner botOwner, int priority) : SAINLayer(bot
             case ESquadDecision.PushSuppressedEnemy:
                 return new Action(typeof(RushEnemyAction), $"{LastActionDecision}");
 
+            case ESquadDecision.PostCombat:
+                return new Action(typeof(PostCombatAction), $"{LastActionDecision}");
+
             default:
                 return new Action(typeof(RegroupAction), $"DEFAULT!");
         }

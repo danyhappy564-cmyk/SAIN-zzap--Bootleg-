@@ -45,8 +45,24 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
         base.Init();
     }
 
+    // zzap: last time the SAIN combat layer was the running layer (post-combat window, see PostCombatAction).
+    private float _lastCombatLayerTime = -100f;
+    private float _combatLayerSince = -1f;
+
     public override void ManualUpdate()
     {
+        if (Bot.ActiveLayer == ESAINLayer.Combat)
+        {
+            if (_combatLayerSince < 0f)
+            {
+                _combatLayerSince = Time.time;
+            }
+            _lastCombatLayerTime = Time.time;
+        }
+        else if (Bot.ActiveLayer != ESAINLayer.Squad && Bot.ActiveLayer != ESAINLayer.AvoidThreat)
+        {
+            _combatLayerSince = -1f;
+        }
         if (_nextGetDecisionTime < Time.time)
         {
             _nextGetDecisionTime = Time.time + DECISION_FREQUENCY;
@@ -188,7 +204,7 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
 
         if (enemy == null)
         {
-            SetDecisions(ECombatDecision.None, ESquadDecision.None, ESelfActionType.None, enemy);
+            SetDecisions(ECombatDecision.None, ShallPostCombat() ? ESquadDecision.PostCombat : ESquadDecision.None, ESelfActionType.None, enemy);
             return;
         }
         BaseClass.EnemyDecisions.DebugShallSearch = null;
@@ -253,7 +269,22 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
             SetDecisions(combatDecision, ESquadDecision.None, ESelfActionType.None, enemy);
             return;
         }
-        SetDecisions(ECombatDecision.None, ESquadDecision.None, ESelfActionType.None, enemy);
+        SetDecisions(ECombatDecision.None, ShallPostCombat() ? ESquadDecision.PostCombat : ESquadDecision.None, ESelfActionType.None, enemy);
+    }
+
+    /// <summary>
+    /// Inside the post-combat window: the combat layer ran for 3s+ (a real fight, not a blip) and stopped less than
+    /// PostCombatTime ago (default 14s - ORBIT takes over at 15s), not under fire.
+    /// </summary>
+    private bool ShallPostCombat()
+    {
+        var settings = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.SquadCombat;
+        if (settings == null || !settings.PostCombat || BotOwner.Memory.IsUnderFire || _combatLayerSince < 0f)
+        {
+            return false;
+        }
+        float since = Time.time - _lastCombatLayerTime;
+        return since < settings.PostCombatTime && _lastCombatLayerTime - _combatLayerSince >= 3f;
     }
 
     private void SetDecisions(ECombatDecision solo, ESquadDecision squad, ESelfActionType self, Enemy enemy)

@@ -94,6 +94,7 @@ public enum ESquadDecision
     Help,
     Search,
     GroupSearch,
+    PostCombat,
 }
 
 public enum SAINSoundType

@@ -39,6 +39,17 @@ public class SquadCombatSettings : SAINSettingsBase<SquadCombatSettings>, ISAINS
     public float CrossfireIndoorMinAngle = 20f;
 
     [DataMember]
+    [Name("Post-Combat Tidy-Up")]
+    [Description("Right after a real fight (combat layer 3s+) ends: top the magazine up, rejoin the squad leader if 25m+ away, otherwise hold half-crouched with the gun on the last threat. Runs in the SAIN squad layer, so ORBIT (which waits 15s after the combat layer) takes over on time - it fills the gap where the bot used to fall to BSG's vanilla layers.")]
+    public bool PostCombat = true;
+
+    [DataMember]
+    [Name("Post-Combat Time")]
+    [Description("Seconds after the combat layer ended. Keep it under 15 so ORBIT takes over right when it wants to.")]
+    [MinMax(3f, 30f, 1f)]
+    public float PostCombatTime = 14f;
+
+    [DataMember]
     [Name("Squad Storm Weak Enemy")]
     [Description("A squad (2+ alive within 35m) sizes up its enemy every 20s from his gear and state - no/low armor, no helmet, pistol or no gun out, hurt, busy healing/reloading, alone. Weak enough: the squad storms him together (Chad/GigaChad/Wreckless always join, Normal 80%, Timmy 60%, Rat/Turtle 35%, Coward 10%).")]
     public bool SquadStorm = true;
