@@ -631,6 +631,63 @@ public class EnemyDecisionClass : BotBase
     /// step) while the enemy is this close and visible, the gun has rounds and the bot isn't healing/reloading.
     /// Cowards still run. F6 General > Close Combat (zzap) > Fight Close Instead Of Cover.
     /// </summary>
+    /// <summary>
+    /// zzap audit (4 raids of [Death] logs, 2026-09-28): the biggest single cause was SeekCover with the enemy visible at
+    /// 10-20m (26 deaths), bots sprinting 4-5 m/s across open ground to a cover point far away - shot in the back. When
+    /// being shot at by a visible enemy within the commit distance and no cover is close, pushy bots fight it out
+    /// (diamond step) instead; Normal only when the nearest cover is really far.
+    /// </summary>
+    private bool ExposedCommit(CloseCombatSettings settings, Enemy enemy)
+    {
+        if (!settings.ExposedCommit || !enemy.IsVisible || !BotOwner.Memory.IsUnderFire || enemy.RealDistance > settings.ExposedCommitDistance)
+        {
+            return false;
+        }
+        EPersonality personality = Bot.Info.Personality;
+        float needCover;
+        switch (personality)
+        {
+            case EPersonality.GigaChad:
+            case EPersonality.Chad:
+            case EPersonality.Wreckless:
+                needCover = settings.ExposedCommitCoverDistance;
+                break;
+            case EPersonality.Normal:
+                needCover = settings.ExposedCommitCoverDistance * 2f;
+                break;
+            default:
+                return false;
+        }
+        if (Bot.Memory.Health.HealthStatus == ETagStatus.Dying)
+        {
+            return false;
+        }
+        float nearest = float.MaxValue;
+        var points = Bot.Cover.CoverPoints;
+        if (points != null)
+        {
+            Vector3 pos = Bot.Position;
+            foreach (var point in points)
+            {
+                if (point == null)
+                {
+                    continue;
+                }
+                float d = (point.Position - pos).magnitude;
+                if (d < nearest)
+                {
+                    nearest = d;
+                }
+            }
+        }
+        if (nearest <= needCover)
+        {
+            return false;
+        }
+        TacticDiagnostics.Count($"close.exposedCommit.{personality}");
+        return true;
+    }
+
     private bool ShallFightCloseInsteadOfCover(Enemy enemy)
     {
         var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
@@ -643,7 +700,11 @@ public class EnemyDecisionClass : BotBase
             return false;
         }
         float closeFightDistance = settings.CloseFightDistance + SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.CloseFightBonus(Bot, enemy);
-        if (Bot.Info.Personality == EPersonality.Coward || enemy.RealDistance > closeFightDistance)
+        if (Bot.Info.Personality == EPersonality.Coward)
+        {
+            return false;
+        }
+        if (enemy.RealDistance > closeFightDistance && !ExposedCommit(settings, enemy))
         {
             return false;
         }

@@ -151,6 +151,23 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float LeanRockCloseDistance = 7f;
 
     [DataMember]
+    [Name("Fight Instead Of Running Across The Open")]
+    [Description("Being shot at by a visible enemy within the distance below and no cover point close: GigaChad/Chad/Wreckless (Normal only when cover is twice as far) keep fighting with the diamond step instead of sprinting across open ground to far cover. Raid logs: that run was the biggest single cause of death (SeekCover, enemy visible 10-20m).")]
+    public bool ExposedCommit = true;
+
+    [DataMember]
+    [Name("Exposed Commit Distance")]
+    [Description("Meters to the enemy.")]
+    [MinMax(8f, 40f, 1f)]
+    public float ExposedCommitDistance = 22f;
+
+    [DataMember]
+    [Name("Exposed Commit Cover Distance")]
+    [Description("Meters. Nearest known cover point further than this = too far to run to under fire.")]
+    [MinMax(2f, 20f, 1f)]
+    public float ExposedCommitCoverDistance = 6f;
+
+    [DataMember]
     [Name("Corner Chase")]
     [Description("The enemy breaks sight around a corner close by (within the window below): pushy bots (GigaChad 90%, Wreckless 85%, Chad 75%, Normal 40%) follow and take the corner one of four ways - prefire (only when sure he is right there and the magazine has enough left), jump shot (headroom needed), lean in (lean held toward the corner side) or a slow wide pie.")]
     public bool CornerChase = true;

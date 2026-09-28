@@ -86,7 +86,12 @@ public class EnemyListController : BotSubClass<SAINEnemyController>, IBotClass
 
     public override void Dispose()
     {
-        GameWorldComponent.Instance.PlayerTracker.OnPlayerRemoved -= RemoveEnemy;
+        // zzap: at raid end the GameWorldComponent can be gone already - the NRE here skipped the rest of the cleanup.
+        var tracker = GameWorldComponent.Instance?.PlayerTracker;
+        if (tracker != null)
+        {
+            tracker.OnPlayerRemoved -= RemoveEnemy;
+        }
         BotMemory memory = BotOwner?.Memory;
         if (memory != null)
         {

@@ -153,6 +153,7 @@
       "DoorTactics": {
         "TestModeAllPmcGigaChad": true,
         "RunByChance": 100,
+        "RoomClearChance": 60,
         "DiagnosticLogs": true,
         "VerboseLogs": true
       },
