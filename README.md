@@ -57,6 +57,7 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 | 분대 교전 | 크로스파이어 각, 엄호, 동료 사망 시 트레이드 | 분대 | `General > Squad Combat (zzap)` |
 | 정지 매복 | 적이 가까울 때 멈춰서 코너 조준 (맞으면 즉시 해제) | Rat / SnappingTurtle / Coward (zzap 프리셋 기준) | `General > Freeze Ambush (zzap)` |
 | 폭발음 반응 | 25m 안 수류탄 폭발이면 모르던 봇도 던진 사람을 적으로 인식 | 전원 | 자동 |
+| 플레이어 스타일 대응 | 기록된 내 스타일(공격성·버니합·기울이기·수류탄)에 맞춰 봇이 코너 대기·근접 교전·기울이기·간격을 조절, 성격마다 강도 다름 (데이터 쌓일수록 강해짐, TEST 프리셋 제외) | 사람 플레이어 상대 | `General > Player Style Recorder (zzap)` |
 | 플레이 스타일 기록 | 내 플레이 방식(이동·피킹·사격·재장전·킬/사망)과 키 입력(누른 키·시간, Control.ini 키 설정 반영)을 레이드마다 기록 — 나중에 봇이 대응하도록 (지금은 기록만) | 플레이어 | `General > Player Style Recorder (zzap)` |
 | 피격 음성 끔 | 맞을 때마다 내던 "윽 / 맞았다" 음성 제거 | 전원 | `Talk > Bot Pain Voice On Hit (zzap)` |
 

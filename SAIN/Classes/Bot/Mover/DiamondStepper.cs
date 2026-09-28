@@ -78,7 +78,8 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         if (!_diamondActive)
         {
             _diamondActive = true;
-            _leanSpam = settings.LeanSpam && Random.value * 100f < settings.LeanSpamChance;
+            float leanChance = settings.LeanSpamChance + SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.LeanSpamBonus(Bot, enemy);
+            _leanSpam = settings.LeanSpam && Random.value * 100f < leanChance;
             if (_leanSpam)
             {
                 TacticDiagnostics.Count("diamond.leanSpam");

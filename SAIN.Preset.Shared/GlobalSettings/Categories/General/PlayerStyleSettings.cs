@@ -26,6 +26,29 @@ public class PlayerStyleSettings : SAINSettingsBase<PlayerStyleSettings>, ISAINS
     public bool KeyTimeline = true;
 
     [DataMember]
+    [Name("Adapt Bots To Player Style")]
+    [Description("Stage 2: at raid start, read this profile's recorded raids and adapt bots against the player's style (aggressive runner -> hold corners and fight close, bunny hopper -> hold the approach corner, lean peeker -> more lean rocking back, grenade user -> spread out). How much each personality adapts differs (Rats/Turtles hold, Chads fight, Cowards barely). Only against the human player.")]
+    public bool AdaptEnabled = true;
+
+    [DataMember]
+    [Name("Adapt Strength")]
+    [Description("0-1. Overall strength of the adaptation (1 = full, 0.5 = half).")]
+    [MinMax(0f, 1f, 100f)]
+    public float AdaptStrength = 1f;
+
+    [DataMember]
+    [Name("Adapt Full Confidence (min)")]
+    [Description("Minutes of recorded play needed for the full effect. Less data = proportionally weaker adaptation (min 25% once 10 min are recorded).")]
+    [MinMax(10f, 300f, 1f)]
+    public float AdaptFullConfidenceMinutes = 60f;
+
+    [DataMember]
+    [Name("Adapt Raids Used")]
+    [Description("How many of the most recent recorded raids the style is computed from.")]
+    [MinMax(1f, 50f, 1f)]
+    public float AdaptRaids = 10f;
+
+    [DataMember]
     [Name("Log Summary Every (min)")]
     [Description("Minutes. Also print the running [PlayerStyle] summary during the raid this often. 0 = only at raid end.")]
     [MinMax(0f, 30f, 1f)]

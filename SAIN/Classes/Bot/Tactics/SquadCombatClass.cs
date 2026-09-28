@@ -468,7 +468,8 @@ public class SquadCombatClass : BotComponentClassBase
 
     private bool TooCloseToTeammates(Vector3 point)
     {
-        float min = Settings.MinSpacing;
+        // zzap stage 2: against a grenade-heavy player keep more room between squadmates.
+        float min = Settings.MinSpacing + SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.SpacingBonus(Bot, Bot.GoalEnemy);
         foreach (var member in Bot.Squad.Members.Values)
         {
             if (member == null || ReferenceEquals(member, Bot) || member.IsDead)

@@ -480,6 +480,7 @@ public sealed class PlayerStyleRecorder
                 }
                 File.Delete(CheckpointFile);
             }
+            PlayerAdaptation.Load(Dir, _d.ProfileId);
             Logger.LogWarning($"[PlayerStyle] recording {_d.Nickname} on {_d.Map} -> {RecordFile} (checkpoint every {GlobalSettingsClass.Instance.General.PlayerStyle.LogEveryMinutes:0} min: {CheckpointFile})");
             var settings = GlobalSettingsClass.Instance.General.PlayerStyle;
             if (settings.RecordKeys)

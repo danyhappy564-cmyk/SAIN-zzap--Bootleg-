@@ -123,6 +123,13 @@ public class EnemyDecisionClass : BotBase
             return true;
         }
 
+        // zzap stage 2: against a recorded aggressive / bunny-hopping player, hold the corner he's heard coming around.
+        if (SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.ShallHoldCorner(Bot, enemy, out reason))
+        {
+            result = ECombatDecision.Freeze;
+            return true;
+        }
+
         if (canTakeAggressiveAction)
         {
             bool shallRush = shallRushEnemy(enemy, out reason);
@@ -629,7 +636,8 @@ public class EnemyDecisionClass : BotBase
         {
             return false;
         }
-        if (Bot.Info.Personality == EPersonality.Coward || enemy.RealDistance > settings.CloseFightDistance)
+        float closeFightDistance = settings.CloseFightDistance + SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.CloseFightBonus(Bot, enemy);
+        if (Bot.Info.Personality == EPersonality.Coward || enemy.RealDistance > closeFightDistance)
         {
             return false;
         }
