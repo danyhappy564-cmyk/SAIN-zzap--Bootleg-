@@ -325,6 +325,17 @@ public class GameWorldComponent : MonoBehaviour
 
         try
         {
+            // zzap: save the player style record first - BotManagerComponent's own GameWorld.OnDispose handler was never
+            // reached in the field (two 15-min raids, no RAID SUMMARY), this is the path that does run.
+            SAINBotController?.PlayerStyle?.Dispose();
+        }
+        catch (Exception e)
+        {
+            Logger.LogError($"[PlayerStyle] save on raid end failed: {e}");
+        }
+
+        try
+        {
             ComponentHelpers.DestroyComponent(SAINBotController);
         }
         catch (Exception e)

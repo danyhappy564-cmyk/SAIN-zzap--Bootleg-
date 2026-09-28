@@ -39,7 +39,9 @@ public sealed class PlayerStyleRecorder
     private bool _wasLeaning;
     private bool _wasCrouched;
     private bool _wasSprinting;
-    private bool _wasReloading;
+    private EFT.InventoryLogic.Weapon _lastWeapon;
+    private EFT.InventoryLogic.Magazine _lastMag;
+    private int _lastRounds;
     private Vector3 _campAnchor;
     private float _campStart = -1f;
 
@@ -48,6 +50,11 @@ public sealed class PlayerStyleRecorder
     public PlayerStyleRecorder(BotManagerComponent manager)
     {
         _manager = manager;
+        // A previous raid's recorder that never got its end-of-raid save: write it now.
+        if (Instance != null && !Instance._written)
+        {
+            Instance.Dispose("nextRaidStart");
+        }
         Instance = this;
         _d.StartedUtc = DateTime.UtcNow.ToString("o");
     }
@@ -125,7 +132,6 @@ public sealed class PlayerStyleRecorder
         bool grounded = mc.IsGrounded;
         var fc = _player.HandsController as Player.FirearmController;
         bool aiming = fc != null && fc.IsAiming;
-        bool reloading = fc != null && fc.IsInReloadOperation();
 
         _d.Seconds += dt;
         if (speed > 0.6f) _d.MovingSec += dt;
@@ -141,18 +147,11 @@ public sealed class PlayerStyleRecorder
         if (!_wasLeaning && leaning) _d.LeanPeeks++;
         if (_wasCrouched != crouched) _d.CrouchToggles++;
         if (!_wasSprinting && sprinting) _d.SprintBursts++;
-        if (!_wasReloading && reloading)
-        {
-            _d.Reloads++;
-            int left = fc.Item?.GetCurrentMagazineCount() ?? 0;
-            if (left <= 0) _d.ReloadsEmpty++;
-            _d.ReloadRoundsLeftSum += left;
-        }
+        TrackReload(fc);
         _wasGrounded = grounded;
         _wasLeaning = leaning;
         _wasCrouched = crouched;
         _wasSprinting = sprinting;
-        _wasReloading = reloading;
 
         Vector3 pos = _player.Position;
         Vector3 flat = pos - _campAnchor;
@@ -173,6 +172,44 @@ public sealed class PlayerStyleRecorder
             }
             _nextLog = time + every * 60f;
         }
+    }
+
+    /// <summary>
+    /// First field test counted 0 reloads in 1342 shots with IsInReloadOperation() - the player's controller doesn't
+    /// report it that way. Watch the gun instead: a different magazine object in the same gun (mag swap, incl. quick
+    /// reload) or the loaded count jumping up by 2+ (internal/tube reload) = one reload, with the rounds left before it.
+    /// </summary>
+    private void TrackReload(Player.FirearmController fc)
+    {
+        var weapon = fc?.Item;
+        if (weapon == null)
+        {
+            _lastWeapon = null;
+            return;
+        }
+        var mag = weapon.GetCurrentMagazine();
+        int rounds = (mag?.Count ?? 0) + weapon.ChamberAmmoCount;
+        if (weapon == _lastWeapon)
+        {
+            bool swapped = mag != null && _lastMag != null && mag != _lastMag;
+            bool refilled = mag != null && mag == _lastMag && rounds >= _lastRounds + 2;
+            if (swapped || refilled)
+            {
+                _d.Reloads++;
+                if (_lastRounds <= 0)
+                {
+                    _d.ReloadsEmpty++;
+                }
+                _d.ReloadRoundsLeftSum += Mathf.Max(0, _lastRounds);
+            }
+        }
+        // While the old mag is out, keep the last count from before it came out.
+        if (mag != null || weapon != _lastWeapon)
+        {
+            _lastMag = mag;
+            _lastRounds = rounds;
+        }
+        _lastWeapon = weapon;
     }
 
     private void CloseCampSegment(float time)
@@ -271,6 +308,18 @@ public sealed class PlayerStyleRecorder
 
     public void Dispose()
     {
+        Dispose("raidEnd");
+    }
+
+    private bool _disposed;
+
+    public void Dispose(string why)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        _disposed = true;
         try
         {
             if (_player != null)
@@ -285,7 +334,7 @@ public sealed class PlayerStyleRecorder
             {
                 _manager.GrenadeController.OnGrenadeThrown -= OnGrenadeThrown;
             }
-            Write("raidEnd");
+            Write(why);
         }
         catch (Exception ex)
         {

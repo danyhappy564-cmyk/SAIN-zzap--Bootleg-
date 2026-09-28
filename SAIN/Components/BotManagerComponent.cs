@@ -132,6 +132,12 @@ public class BotManagerComponent : MonoBehaviour
         }
     }
 
+    private void OnDestroy()
+    {
+        // zzap: last-chance save of the player style record if neither dispose path ran.
+        PlayerStyle?.Dispose();
+    }
+
     // Instance ids, so a bot is named once rather than once a frame.
     private readonly HashSet<int> _reportedBotFaults = [];
 
