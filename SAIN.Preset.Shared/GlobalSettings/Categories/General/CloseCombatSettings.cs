@@ -151,6 +151,23 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float LeanRockCloseDistance = 7f;
 
     [DataMember]
+    [Name("Retreat Head Down")]
+    [Description("While sprinting away with the back to an enemy that sees the bot or shot at it in the last 3s, look down at the floor like players do - the head drops out of the easy line of fire.")]
+    public bool RetreatHeadDown = true;
+
+    [DataMember]
+    [Name("Retreat Head Down Angle")]
+    [Description("Degrees below the horizon.")]
+    [MinMax(10f, 70f, 1f)]
+    public float RetreatHeadDownPitch = 40f;
+
+    [DataMember]
+    [Name("Retreat Head Down Max Distance")]
+    [Description("Meters. Enemy further than this = run normally.")]
+    [MinMax(10f, 200f, 1f)]
+    public float RetreatHeadDownMaxDistance = 80f;
+
+    [DataMember]
     [Name("Fight Close Instead Of Cover")]
     [Description("When the enemy is visible and this close, keep shooting (with the diamond step) instead of walking off to cover - at point-blank range the walk just gets the bot shot. Not while healing/reloading or under 20% magazine; Cowards still run.")]
     public bool CloseFight = true;

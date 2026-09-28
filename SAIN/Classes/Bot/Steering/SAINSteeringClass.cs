@@ -231,7 +231,58 @@ public class SAINSteeringClass : BotComponentClassBase
 
     internal void TickPlayerSteering()
     {
-        PlayerComponent.CharacterController.SetTargetLookDirection(_targetLookDirection, BotOwner, Bot);
+        Vector3 dir = _targetLookDirection;
+        if (ShallHideHeadRunning(dir, out float pitch))
+        {
+            Vector3 flat = new(dir.x, 0f, dir.z);
+            if (flat.sqrMagnitude > 0.01f)
+            {
+                float rad = pitch * Mathf.Deg2Rad;
+                dir = flat.normalized * Mathf.Cos(rad) + Vector3.down * Mathf.Sin(rad);
+            }
+        }
+        PlayerComponent.CharacterController.SetTargetLookDirection(dir, BotOwner, Bot);
+    }
+
+    // zzap: players running away under fire (back to the enemy) look at the floor while they sprint - the head drops and
+    // is a much smaller target from behind (user tip, live servers). Bots now do the same while sprinting away from an
+    // enemy that sees them or shot at them in the last 3s. F6: General > Close Combat (zzap) > Retreat Head Down.
+    private bool _headDown;
+
+    private bool ShallHideHeadRunning(Vector3 lookDir, out float pitch)
+    {
+        pitch = 0f;
+        bool result = false;
+        var settings = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat;
+        Enemy enemy = Bot.GoalEnemy;
+        if (settings != null && settings.RetreatHeadDown && enemy != null && Bot.Player.IsSprintEnabled)
+        {
+            float lastShot = enemy.Status.TimeLastShotAtMe;
+            bool exposed = enemy.IsVisible || (enemy.Seen && enemy.TimeSinceSeen < 2f) || (lastShot > 0f && Time.time - lastShot < 3f);
+            if (exposed && enemy.RealDistance < settings.RetreatHeadDownMaxDistance)
+            {
+                Vector3 toEnemy = enemy.EnemyPosition - Bot.Position;
+                toEnemy.y = 0f;
+                Vector3 flatLook = new(lookDir.x, 0f, lookDir.z);
+                result = toEnemy.sqrMagnitude > 0.01f && flatLook.sqrMagnitude > 0.01f && Vector3.Angle(flatLook, toEnemy) > 110f;
+            }
+        }
+        if (result)
+        {
+            pitch = settings.RetreatHeadDownPitch;
+        }
+        if (result != _headDown)
+        {
+            _headDown = result;
+            if (result)
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("retreat.headDown");
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+                    $"[HeadDown] [{Bot.name}] sprinting away from {enemy.EnemyPlayer?.Profile?.Nickname} ({enemy.RealDistance:0}m) -> looking {pitch:0} deg down"
+                );
+            }
+        }
+        return result;
     }
 
     private Vector3 _targetLookDirection = Vector3.forward;
