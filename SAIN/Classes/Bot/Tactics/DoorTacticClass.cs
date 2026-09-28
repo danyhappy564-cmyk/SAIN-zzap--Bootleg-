@@ -1394,6 +1394,13 @@ public class DoorTacticClass : BotComponentClassBase
         {
             _fakeDrawPending = false;
             Log($"{Who()} fake grenade drawn: {(result.Value != null ? "in hands" : "FAILED")}");
+            if (!Alive())
+            {
+                // Killed during the draw: never change the hands of a corpse (2026-09-28: standing corpse right when a
+                // fake grenade was being drawn - a weapon swap landing on a dead player can stop the ragdoll).
+                TacticDiagnostics.Count("fakeNade.drawLandedDead");
+                return;
+            }
             if (result.Value != null)
             {
                 // The draw sound has played - that was the trick. Put it straight away, whatever step we're in
@@ -1417,8 +1424,18 @@ public class DoorTacticClass : BotComponentClassBase
     /// Puts the weapon back if a grenade is in hands and no real throw is running. Returns true
     /// once the hands no longer hold a grenade.
     /// </summary>
+    /// <summary>The bot's player is alive (hands/weapon changes must never be issued to a corpse).</summary>
+    private bool Alive()
+    {
+        return Player != null && Player.HealthController?.IsAlive == true;
+    }
+
     private bool RestoreWeaponIfHoldingGrenade()
     {
+        if (!Alive())
+        {
+            return true;
+        }
         // Field log: the holster step ran while the draw animation was still in progress (hands not a grenade yet),
         // "succeeded" at once, then the draw finished and the bot stood 5s with a live grenade in hand - and SAIN's
         // normal throw logic threw it at the player who rushed in. Wait until the draw has landed (callback) first.
@@ -1547,6 +1564,12 @@ public class DoorTacticClass : BotComponentClassBase
 
     private void CancelFakeHeal(string why)
     {
+        if (!Alive())
+        {
+            _fakeStimRunning = false;
+            _fakeHealRunning = false;
+            return;
+        }
         if (_fakeStimRunning)
         {
             _fakeStimRunning = false;
@@ -1579,7 +1602,7 @@ public class DoorTacticClass : BotComponentClassBase
     /// </summary>
     private void ForceRestoreWeapon()
     {
-        if (Player.HandsController is not IGrenadeController)
+        if (!Alive() || Player.HandsController is not IGrenadeController)
         {
             return;
         }
@@ -1602,7 +1625,7 @@ public class DoorTacticClass : BotComponentClassBase
                 1f,
                 () =>
                 {
-                    if (Player != null && Player.HandsController is IGrenadeController && !weaponManager.Grenades.ThrowindNow)
+                    if (Alive() && Player.HandsController is IGrenadeController && !weaponManager.Grenades.ThrowindNow)
                     {
                         Log($"{Who()} retry put away grenade: TakePrevWeapon={weaponManager.Selector.TakePrevWeapon()}");
                     }

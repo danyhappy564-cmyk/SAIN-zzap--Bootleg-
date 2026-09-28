@@ -68,6 +68,12 @@ public sealed class PlayerKeyRecorder
 
     public KeyStats Stats { get; } = new();
 
+    /// <summary>Raised on every key press with the action name (e.g. "Reload", "Jump").</summary>
+    public event Action<string> Pressed;
+
+    private int _lastLean = -1;
+    private float _lastLeanTime = -10f;
+
     public PlayerKeyRecorder(string dir, string profileId, float raidStartTime, bool timeline)
     {
         _t0 = raidStartTime;
@@ -234,10 +240,21 @@ public sealed class PlayerKeyRecorder
             _lastLateral = i;
             _lastLateralTime = now;
         }
-        else if (name == "Jump" && IsDown("Sprint"))
+        else if (name == "LeanL" || name == "LeanR")
         {
-            Stats.SprintJumps++;
+            // Q<->E spam (lean left/right alternated within 0.4s), and how much of it happens with the trigger down.
+            if (_lastLean >= 0 && _lastLean != i && now - _lastLeanTime < 0.4f)
+            {
+                Stats.LeanSwitches++;
+                if (IsDown("Fire"))
+                {
+                    Stats.LeanSwitchesWhileFiring++;
+                }
+            }
+            _lastLean = i;
+            _lastLeanTime = now;
         }
+        Pressed?.Invoke(name);
     }
 
     private void Release(int i, float now)
@@ -337,7 +354,8 @@ public sealed class PlayerKeyRecorder
         }
         return $"keys: A/D switches/min={s.AdSwitches / min:0.0} A/D avgHold={lateralAvg:0}ms A/D taps={s.Keys["A"].Taps + s.Keys["D"].Taps} "
             + $"jump/min={s.Keys["Jump"].Presses / min:0.0} sprintJumps={s.SprintJumps} crouch/min={s.Keys["Crouch"].Presses / min:0.0} "
-            + $"lean/min={(s.Keys["LeanL"].Presses + s.Keys["LeanR"].Presses) / min:0.0} leanHold L/R={Avg("LeanL")}/{Avg("LeanR")} "
+            + $"lean/min={(s.Keys["LeanL"].Presses + s.Keys["LeanR"].Presses) / min:0.0} leanHold L/R={Avg("LeanL")}/{Avg("LeanR")} Q-E switches={s.LeanSwitches} (while firing {s.LeanSwitchesWhileFiring}) "
+            + $"reloads(R)={s.ReloadsByKey} (empty {s.ReloadsByKeyEmpty}, avg left {(s.ReloadsByKey > 0 ? s.ReloadsByKeyRoundsLeftSum / (float)s.ReloadsByKey : 0f):0.0}) "
             + $"fire taps/holds={s.FireTaps}/{s.FireHolds} aim hold={Avg("Aim")} reloadKey={s.Keys["Reload"].Presses} "
             + $"timeline={(s.TimelineFile != null ? Path.GetFileName(s.TimelineFile) : "off")}";
     }
@@ -357,6 +375,11 @@ public sealed class KeyStats
     public int LateralPresses;
     public float LateralHoldSumMs;
     public int SprintJumps;
+    public int LeanSwitches;
+    public int LeanSwitchesWhileFiring;
+    public int ReloadsByKey;
+    public int ReloadsByKeyEmpty;
+    public int ReloadsByKeyRoundsLeftSum;
     public int FireTaps;
     public int FireHolds;
     public string TimelineFile;

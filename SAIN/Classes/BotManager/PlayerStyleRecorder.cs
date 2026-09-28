@@ -172,7 +172,10 @@ public sealed class PlayerStyleRecorder
         if (!_wasLeaning && leaning) _d.LeanPeeks++;
         if (_wasCrouched != crouched) _d.CrouchToggles++;
         if (!_wasSprinting && sprinting) _d.SprintBursts++;
-        TrackReload(fc);
+        if (_keys == null)
+        {
+            TrackReload(fc);
+        }
         _wasGrounded = grounded;
         _wasLeaning = leaning;
         _wasCrouched = crouched;
@@ -218,8 +221,8 @@ public sealed class PlayerStyleRecorder
         if (weapon == _lastWeapon)
         {
             bool swapped = mag != null && _lastMag != null && mag != _lastMag;
-            bool refilled = mag != null && mag == _lastMag && rounds >= _lastRounds + 2;
-            if (swapped || refilled)
+            // (Count jumps in the same magazine are ignored: an infinite-ammo mod refills it - 197 "reloads" for 2 R presses.)
+            if (swapped)
             {
                 _d.Reloads++;
                 if (_lastRounds <= 0)
@@ -236,6 +239,37 @@ public sealed class PlayerStyleRecorder
             _lastRounds = rounds;
         }
         _lastWeapon = weapon;
+    }
+
+    private void OnKeyPressed(string action)
+    {
+        if (_player == null)
+        {
+            return;
+        }
+        var stats = _keys.Stats;
+        if (action == "Reload")
+        {
+            var weapon = (_player.HandsController as Player.FirearmController)?.Item;
+            if (weapon != null)
+            {
+                int left = (weapon.GetCurrentMagazine()?.Count ?? 0) + weapon.ChamberAmmoCount;
+                stats.ReloadsByKey++;
+                stats.ReloadsByKeyRoundsLeftSum += left;
+                if (left <= 0)
+                {
+                    stats.ReloadsByKeyEmpty++;
+                }
+                _d.Reloads = stats.ReloadsByKey;
+                _d.ReloadsEmpty = stats.ReloadsByKeyEmpty;
+                _d.ReloadRoundsLeftSum = stats.ReloadsByKeyRoundsLeftSum;
+            }
+        }
+        else if (action == "Jump" && _player.IsSprintEnabled)
+        {
+            // Sprint is toggled with a Shift tap by this player, so the key isn't held - use the sprint state.
+            stats.SprintJumps++;
+        }
     }
 
     private void CloseCampSegment(float time)
@@ -374,10 +408,16 @@ public sealed class PlayerStyleRecorder
 
     private void Write(string why)
     {
-        if (_written || !Enabled || _player == null || _d.Seconds < 30f)
+        if (_written)
         {
             return;
         }
+        if (!Enabled || _player == null || _d.Seconds < 30f)
+        {
+            Logger.LogWarning($"[PlayerStyle] not saving ({why}): enabled={Enabled} player={(_player != null)} recorded={_d.Seconds:0}s (min 30s)");
+            return;
+        }
+        Logger.LogWarning($"[PlayerStyle] saving ({why})...");
         _written = true;
         CloseCampSegment(Time.time);
         try
@@ -446,6 +486,7 @@ public sealed class PlayerStyleRecorder
             {
                 _keys = new PlayerKeyRecorder(Dir, _d.ProfileId, _d.RaidStartTime, settings.KeyTimeline);
                 _d.Keys = _keys.Stats;
+                _keys.Pressed += OnKeyPressed;
                 Logger.LogWarning($"[PlayerStyle] key recording on, binds from {_keys.BindSource}, timeline {(_keys.Stats.TimelineFile ?? "off")}");
             }
         }
