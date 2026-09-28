@@ -90,6 +90,19 @@ public abstract class SAINLayer : CustomLayer
     {
         var newLayerName = layer.Name();
 
+        // zzap: one tracker per bot (only the combat layer instance reports) - SAIN combat <-> ORBIT handoff timing.
+        if (ELayer == ESAINLayer.Combat)
+        {
+            try
+            {
+                SAIN.SAINComponent.Classes.Tactics.LayerHandoff.OnLayerChanged(
+                    BotOwner.ProfileId, BotOwner.name, newLayerName, Bot != null ? Bot.Decision.CurrentCombatDecision.ToString() : "?");
+            }
+            catch
+            {
+            }
+        }
+
         var mover = BotOwner.Mover;
 
         if (newLayerName == LayerName)
