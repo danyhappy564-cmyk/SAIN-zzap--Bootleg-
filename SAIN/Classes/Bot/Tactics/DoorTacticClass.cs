@@ -2746,6 +2746,8 @@ public class DoorTacticClass : BotComponentClassBase
             {
                 TacticDiagnostics.Count($"death.teamKill.{decision.CurrentCombatDecision}");
             }
+            float decisionAge = Time.time - decision.ChangeDecisionTime;
+            BattleStats.OnBotDied(Bot, lastAggressor, decisionAge, teamKill);
             bool sawKiller = goal != null && lastAggressor != null && goal.EnemyProfileId == lastAggressor.ProfileId && goal.Seen;
             SAIN.Components.BotControllerSpace.Classes.PlayerStyleRecorder.OnBotKilled(
                 Bot, lastAggressor, part, decision.CurrentCombatDecision.ToString(), sawKiller);
@@ -2753,7 +2755,8 @@ public class DoorTacticClass : BotComponentClassBase
                 $"[Death] [{Bot.name}] [{Bot.Info.Personality}] layer={Bot.ActiveLayer} combat={decision.CurrentCombatDecision} self={decision.CurrentSelfDecision} "
                     + $"squad={decision.CurrentSquadDecision} diamond={TacticDiagnostics.GetDiamond(Bot.ProfileId)} enemy={enemyInfo} "
                     + $"underFire={BotOwner.Memory.IsUnderFire} pose={Player.PoseLevel:0.0} speed={Player.Velocity.magnitude:0.0} "
-                    + $"inCover={Bot.Cover.CoverInUse != null} part={part} by={lastAggressor?.Profile?.Nickname}"
+                    + $"inCover={Bot.Cover.CoverInUse != null} part={part} by={lastAggressor?.Profile?.Nickname} "
+                    + $"why={decision.EnemyDecisions?.LastReason} decisionAge={decisionAge:0.0}s"
                     + (teamKill ? " TEAMKILL" : "")
             );
         }

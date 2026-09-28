@@ -360,7 +360,9 @@ public class SelfActionDecisionClass : BotBase
             {
                 bool canFirstAid = TimeSinceShot >= 0.66f && CanUseFirstAid;
                 bool canStim = GetCanUseStims();
-                bool canSurgery = Bot.Medical.Surgery.CheckCanStartUsingKit();
+                // Only offer surgery when the same rule that keeps it going (checkContinueSurgery) passes, or it starts and
+                // is cancelled at once.
+                bool canSurgery = Bot.Medical.Surgery.CheckAreaClearForSurgery();
                 if (!canFirstAid && !canStim && !canSurgery)
                 {
                     return false;
@@ -403,7 +405,7 @@ public class SelfActionDecisionClass : BotBase
             //    Decision = ESelfActionType.FirstAid;
             //    return true;
             //}
-            if (Bot.Medical.Surgery.CheckCanStartUsingKit())
+            if (Bot.Medical.Surgery.CheckAreaClearForSurgery())
             {
                 Decision = ESelfActionType.Surgery;
                 return true;

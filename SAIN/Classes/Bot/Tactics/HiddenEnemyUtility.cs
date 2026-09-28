@@ -177,7 +177,7 @@ public static class HiddenEnemyUtility
         if (numbers < 0f) sb.Append("he has friends near; ");
         if (pushyPlayer) sb.Append("this player pushes; ");
         if (closingOnLongGun) sb.Append($"he's closing on my long gun (ideal {load.IdealRange:0}m) - keep distance; ");
-        sb.Append($"path {path:0}m, {bot.Info.Personality} [{load.Summary}]");
+        sb.Append(path < 10000f ? $"path {path:0}m, " : "no path yet, ").Append($"{bot.Info.Personality} [{load.Summary}]");
         why = sb.ToString();
 
         var list = new List<(EStance stance, float score)>

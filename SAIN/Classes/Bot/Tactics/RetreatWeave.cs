@@ -22,6 +22,18 @@ public static class RetreatWeave
         public float NextSwitch;
         public float AppliedAngle;
         public float AppliedUntil;
+        public bool BlockedThisSwing;
+    }
+
+    private static Vector3 Bend(Vector3 flat, float angle)
+    {
+        return Quaternion.AngleAxis(angle, Vector3.up) * flat.normalized;
+    }
+
+    private static bool Blocked(BotComponent bot, Vector3 dir)
+    {
+        return NavMesh.Raycast(bot.Position, bot.Position + dir * 1.5f, out _, -1)
+            || Physics.Raycast(bot.Position + Vector3.up * 1.1f, dir, 1.2f, LayersMaskController.HighPolyWithTerrainMask);
     }
 
     /// <summary>The yaw offset (degrees) the look should carry this frame so the view swings with the run.</summary>
@@ -54,6 +66,7 @@ public static class RetreatWeave
         {
             st.Sign = -st.Sign;
             st.NextSwitch = time + Random.Range(0.45f, 0.8f);
+            st.BlockedThisSwing = false;
             TacticDiagnostics.Count("retreat.weave");
             if (Random.value * 100f < settings.RetreatWeaveJumpChance && bot.Player.MovementContext.IsGrounded
                 && !Physics.Raycast(bot.Position + Vector3.up * 1.7f, Vector3.up, 0.7f, LayersMaskController.HighPolyWithTerrainMask)
@@ -68,14 +81,28 @@ public static class RetreatWeave
         {
             return;
         }
-        Vector3 bent = Quaternion.AngleAxis(st.Sign * settings.RetreatWeaveAngle, Vector3.up) * flat.normalized;
-        // Never bend into a wall or a door frame (navmesh edge or anything solid at chest height within 1.2m).
-        if (NavMesh.Raycast(bot.Position, bot.Position + bent * 1.5f, out _, -1)
-            || Physics.Raycast(bot.Position + Vector3.up * 1.1f, bent, 1.2f, LayersMaskController.HighPolyWithTerrainMask))
+        Vector3 bent = Bend(flat, st.Sign * settings.RetreatWeaveAngle);
+        // Never bend into a wall or a door frame (navmesh edge or anything solid at chest height within 1.2m). In a
+        // corridor one side is often a wall: swing to the open side early instead of giving up the swing (field
+        // 2026-09-29: 1725 blocked frames vs 157 swings - nearly no visible weave indoors on Factory).
+        if (Blocked(bot, bent))
         {
-            TacticDiagnostics.Count("retreat.weaveBlocked");
-            st.AppliedUntil = 0f;
-            return;
+            Vector3 other = Bend(flat, -st.Sign * settings.RetreatWeaveAngle);
+            if (Blocked(bot, other))
+            {
+                if (!st.BlockedThisSwing)
+                {
+                    st.BlockedThisSwing = true;
+                    TacticDiagnostics.Count("retreat.weaveBlocked");
+                }
+                st.AppliedUntil = 0f;
+                return;
+            }
+            st.Sign = -st.Sign;
+            st.NextSwitch = time + Random.Range(0.45f, 0.8f);
+            st.BlockedThisSwing = false;
+            TacticDiagnostics.Count("retreat.weaveFlipOpenSide");
+            bent = other;
         }
         direction = bent;
         st.AppliedAngle = st.Sign * settings.RetreatWeaveAngle;

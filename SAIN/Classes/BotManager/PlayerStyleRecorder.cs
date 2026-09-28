@@ -212,6 +212,7 @@ public sealed class PlayerStyleRecorder
             _campStart = time;
         }
 
+        SAIN.SAINComponent.Classes.Tactics.BattleStats.Tick();
         float every = GlobalSettingsClass.Instance.General.PlayerStyle.LogEveryMinutes;
         if (every > 0f && time > _nextLog)
         {
@@ -531,6 +532,7 @@ public sealed class PlayerStyleRecorder
         PlayerOutcomeLearner.Save(why);
         Logger.LogWarning($"[PlayerStyle] RAID SUMMARY ({why}): {Summary()}");
         SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line($"[PlayerStyle] RAID SUMMARY ({why}): {Summary()}");
+        SAIN.SAINComponent.Classes.Tactics.BattleStats.Report(why);
         SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.JournalSummary();
         SAIN.SAINComponent.Classes.Tactics.RaidJournal.End(why);
         try

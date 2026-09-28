@@ -127,11 +127,19 @@ public static class VisibleEnemyUtility
         bool tooClose = ratio < 0.35f && load.Long > 0.7f;
         bool tooFar = ratio > 2f && load.Cqb > 0.7f;
 
+        // Running to cover in his sight = seconds of back turned and no shooting back (field 2026-09-29 bot-vs-bot sim: 17 of
+        // 54 deaths were bots that switched Shoot -> Cover the moment they were hit, 3-8m from cover, and were shot in the
+        // back on the way). A player only breaks off when cover is a step or two away; otherwise he trades, and he never
+        // turns his back on someone who is nearly dead.
+        float closeness = Mathf.Clamp01((4f - cover) / 3f); // 1 at <= 1m, 0 at >= 4m
+        float runCost = cover > 12f ? 0f : Mathf.Clamp(cover / 3.5f, 0f, 3f) * 0.15f * lk; // > 12m handled below
+        bool finishHim = weak >= 0.45f && dist < 30f && ammo >= 0.15f;
         float shoot = 0.45f + (looking ? 0f : 0.25f) + 0.15f * weak + (busy ? 0.15f : 0f) + 0.1f * numbers + (goodRange ? 0.15f : 0f)
-            - (tooClose ? 0.15f : 0f) - (tooFar ? 0.2f : 0f) - 0.3f * exposure * lk - (hit ? 0.2f : 0f) - (ammo < 0.15f ? (cover <= 8f ? 0.4f : 0.15f) : 0f) - 0.2f * (1f - health);
-        float coverScore = 0.1f + 0.35f * (1f - health) + (ammo < 0.25f ? 0.35f : 0f) + (hit ? 0.25f : 0f) + 0.3f * exposure * lk
-            + 0.15f * (1f - aggr) + (cover <= 6f ? 0.15f : 0f) - (cover > 12f && dist < 25f ? 0.35f : 0f) - (looking ? 0f : 0.2f)
-            + (tooClose ? 0.3f : 0f) + (tooFar ? 0.2f : 0f);
+            - (tooClose ? 0.15f : 0f) - (tooFar ? 0.2f : 0f) - 0.3f * exposure * lk - (hit ? 0.2f * closeness : 0f) - (ammo < 0.15f ? (cover <= 8f ? 0.4f : 0.15f) : 0f) - 0.2f * (1f - health)
+            + (finishHim ? 0.2f : 0f);
+        float coverScore = 0.1f + 0.35f * (1f - health) + (ammo < 0.25f ? 0.35f : 0f) + (hit ? 0.1f + 0.15f * closeness : 0f) + 0.3f * exposure * lk
+            + 0.15f * (1f - aggr) + 0.2f * Mathf.Clamp01((6f - cover) / 5f) - runCost - (cover > 12f && dist < 25f ? 0.35f : 0f) - (looking ? 0f : 0.2f)
+            + (tooClose ? 0.3f : 0f) + (tooFar ? 0.2f : 0f) - (finishHim ? 0.15f : 0f);
         float push = 0.1f + 0.3f * weak + (busy ? 0.35f : 0f) + 0.2f * aggr + 0.15f * numbers + (dist < 12f ? 0.15f : 0f)
             - 0.3f * (1f - health) - (ammo < 0.4f ? 0.3f : 0f) - (dist > 30f ? 0.25f : 0f) - (looking && !busy ? 0.1f : 0f)
             + 0.15f * load.Cqb - 0.25f * load.Long - (tooClose ? 0.3f : 0f);
@@ -149,7 +157,9 @@ public static class VisibleEnemyUtility
         if (health < 1f) sb.Append($"I'm {hs}; ");
         if (ammo < 0.25f) sb.Append($"mag {ammo:P0}; ");
         if (cover > 12f && dist < 25f) sb.Append($"cover {cover:0}m away - too far to run; ");
+        else if (runCost > 0.1f) sb.Append($"cover {cover:0.0}m - {cover / 3.5f:0.0}s back turned to get there; ");
         else if (cover <= 6f) sb.Append($"cover {cover:0.0}m; ");
+        if (finishHim) sb.Append("he's nearly done - finish him; ");
         if (tooClose) sb.Append($"too close for my long gun (ideal {load.IdealRange:0}m) - break off; ");
         if (tooFar) sb.Append($"too far for my close-range gun (ideal {load.IdealRange:0}m); ");
         if (goodRange) sb.Append("my gun's range; ");

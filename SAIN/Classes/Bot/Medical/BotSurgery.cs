@@ -32,7 +32,11 @@ public class BotSurgery : BotBase
 
     public bool CheckAreaClearForSurgery()
     {
-        return CheckCanStartUsingKit() && CheckEnemies();
+        // zzap: store the result - AreaClearForSurgery was never assigned, so it always read false: a started surgery was
+        // cancelled on the next tick and restarted 2s later, over and over (field 2026-09-29: self=Surgery every 2s with an
+        // enemy 8m away), and the surgery action never actually operated.
+        AreaClearForSurgery = CheckCanStartUsingKit() && CheckEnemies();
+        return AreaClearForSurgery;
     }
 
     public bool CheckCanStartUsingKit()

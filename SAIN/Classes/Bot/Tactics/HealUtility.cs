@@ -31,7 +31,10 @@ public static class HealUtility
     public static bool Applies(BotComponent bot)
     {
         var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
-        return settings != null && settings.UtilityHeal && !bot.EnemyController.AtPeace && bot.EnemyController.KnownEnemies.Count > 0;
+        // Not EnemyController.AtPeace: despite the name it is TRUE once the bot knows an enemy (the peace toggle is set on
+        // the first known enemy and never reset), so gating on !AtPeace kept this off in every fight (field 2026-09-29:
+        // 0 [Heal] lines in a 16 min raid with 88 surgery starts).
+        return settings != null && settings.UtilityHeal && bot.EnemyController.KnownEnemies.Count > 0;
     }
 
     public static List<(EChoice choice, float score)> Rank(BotComponent bot, bool canFirstAid, bool canStim, bool canSurgery)
