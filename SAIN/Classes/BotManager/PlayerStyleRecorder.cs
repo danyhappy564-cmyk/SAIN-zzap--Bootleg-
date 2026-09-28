@@ -129,6 +129,7 @@ public sealed class PlayerStyleRecorder
             _d.Nickname = main.Profile?.Nickname;
             _d.Map = _manager.GameWorld?.LocationId;
             _player.OnPlayerDead += OnPlayerDead;
+            _player.BeingHitAction += OnBeingHit;
             _campAnchor = main.Position;
             _campStart = Time.time;
             _d.RaidStartTime = Time.time;
@@ -152,6 +153,10 @@ public sealed class PlayerStyleRecorder
         if (time < _nextSample)
         {
             return;
+        }
+        if (!_d.GodMode && _player.ActiveHealthController != null && _player.ActiveHealthController.DamageCoeff <= 0f)
+        {
+            MarkTest(ref _d.GodMode, "god mode (damage multiplier 0)");
         }
         float dt = _lastSample > 0f ? Mathf.Min(time - _lastSample, 1f) : SAMPLE_INTERVAL;
         _lastSample = time;
@@ -321,11 +326,80 @@ public sealed class PlayerStyleRecorder
             return;
         }
         _d.Shots++;
+        TrackAmmoUse();
         if (_player.Velocity.magnitude > 0.6f) _d.ShotsMoving++;
         if (_shotSource != null && _shotSource.IsAiming) _d.ShotsAds++;
         if (Mathf.Abs(_player.MovementContext.Tilt) > 0.1f) _d.ShotsLeaning++;
         if (!_player.MovementContext.IsGrounded) _d.ShotsInAir++;
         if (_player.PoseLevel < 0.7f || _player.IsInPronePose) _d.ShotsLow++;
+    }
+
+    // ---- test-session detection (DevTools-style god mode / infinite ammo). The user tests invincible with endless ammo but
+    // plays his normal style, so these raids stay in the style data (F6 Use Test Raids For Adaptation) - only tagged, so
+    // kills/deaths can be read with that in mind.
+    private EFT.InventoryLogic.Magazine _shotMag;
+    private int _shotRounds = -1;
+
+    private void TrackAmmoUse()
+    {
+        var weapon = _shotSource?.Item;
+        var mag = weapon?.GetCurrentMagazine();
+        if (mag == null)
+        {
+            _shotMag = null;
+            _shotRounds = -1;
+            return;
+        }
+        int rounds = mag.Count;
+        if (mag == _shotMag && _shotRounds >= 0 && rounds >= _shotRounds)
+        {
+            _d.ShotsNoAmmoUse++;
+            if (!_d.InfiniteAmmo && _d.ShotsNoAmmoUse >= 15 && _d.ShotsNoAmmoUse * 2 >= _d.Shots)
+            {
+                MarkTest(ref _d.InfiniteAmmo, $"infinite ammo ({_d.ShotsNoAmmoUse} of {_d.Shots} shots used no round)");
+            }
+        }
+        _shotMag = mag;
+        _shotRounds = rounds;
+    }
+
+    private void OnBeingHit(DamageInfo damage, EBodyPart part, float absorbed)
+    {
+        _d.HitsTaken++;
+        _d.DamageTaken += Mathf.Max(0f, damage.Damage);
+        // A PMC has 440 HP in total - soaking well over that and still standing = invincible.
+        if (!_d.GodMode && _d.DamageTaken > 1000f && _d.HitsTaken >= 15 && _player != null && _player.HealthController?.IsAlive == true)
+        {
+            MarkTest(ref _d.GodMode, $"god mode (took {_d.DamageTaken:0} damage in {_d.HitsTaken} hits, still alive)");
+        }
+    }
+
+    private void MarkTest(ref bool flag, string why)
+    {
+        flag = true;
+        _d.TestSession = true;
+        _d.TestReasons = string.IsNullOrEmpty(_d.TestReasons) ? why : $"{_d.TestReasons}; {why}";
+        Logger.LogWarning($"[PlayerStyle] test session detected: {why} - style still recorded (movement/fighting style is the same), kills/deaths are not real");
+    }
+
+    private static string FindDevToolsPlugins()
+    {
+        var names = new List<string>();
+        try
+        {
+            foreach (var kv in BepInEx.Bootstrap.Chainloader.PluginInfos)
+            {
+                string text = $"{kv.Key} {kv.Value?.Metadata?.Name}".ToLowerInvariant();
+                if (text.Contains("devtool") || text.Contains("godmode") || text.Contains("god mode") || text.Contains("cheat") || text.Contains("trainer"))
+                {
+                    names.Add(kv.Value?.Metadata?.Name ?? kv.Key);
+                }
+            }
+        }
+        catch
+        {
+        }
+        return names.Count > 0 ? string.Join(", ", names) : null;
     }
 
     private void OnGrenadeThrown(Grenade grenade, Vector3 dangerPoint, string profileId)
@@ -394,6 +468,7 @@ public sealed class PlayerStyleRecorder
             if (!ReferenceEquals(_player, null))
             {
                 _player.OnPlayerDead -= OnPlayerDead;
+                _player.BeingHitAction -= OnBeingHit;
             }
             if (_shotSource != null)
             {
@@ -495,6 +570,11 @@ public sealed class PlayerStyleRecorder
             _d.BotsNoInertia = ClassicMovementInterop.BotsNoInertia;
             _d.BotsQuickTilt = ClassicMovementInterop.BotsQuickTilt;
             Logger.LogWarning($"[ClassicMovement] {ClassicMovementInterop.Describe()}");
+            _d.DevToolsPlugins = FindDevToolsPlugins();
+            if (_d.DevToolsPlugins != null)
+            {
+                Logger.LogWarning($"[PlayerStyle] dev/cheat mod installed: {_d.DevToolsPlugins} - god mode / infinite ammo are detected while playing and the raid gets tagged");
+            }
             PlayerAdaptation.Load(Dir, _d.ProfileId);
             Logger.LogWarning($"[PlayerStyle] recording {_d.Nickname} on {_d.Map} -> {RecordFile} (checkpoint every {GlobalSettingsClass.Instance.General.PlayerStyle.LogEveryMinutes:0} min: {CheckpointFile})");
             var settings = GlobalSettingsClass.Instance.General.PlayerStyle;
@@ -545,6 +625,11 @@ public sealed class PlayerStyleRecorder
         {
             sb.Append(" | ").Append(_keys.Summary(d.Seconds));
         }
+        if (d.TestSession)
+        {
+            sb.Append($" | TEST SESSION: {d.TestReasons}");
+        }
+        sb.Append($" | hits taken={d.HitsTaken} ({d.DamageTaken:0} dmg)");
         if (d.Died)
         {
             sb.Append($" | DIED {d.DeathDistance:0}m part={d.DeathPart} by={d.KilledBy} ({d.KilledByPersonality}, {d.KilledByDecision})");
@@ -621,5 +706,14 @@ public sealed class PlayerStyleRecorder
         public bool PlayerNoInertia;
         public bool BotsNoInertia;
         public bool BotsQuickTilt;
+        // Test-session tags (DevTools god mode / infinite ammo).
+        public bool TestSession;
+        public string TestReasons;
+        public bool GodMode;
+        public bool InfiniteAmmo;
+        public string DevToolsPlugins;
+        public int HitsTaken;
+        public float DamageTaken;
+        public int ShotsNoAmmoUse;
     }
 }

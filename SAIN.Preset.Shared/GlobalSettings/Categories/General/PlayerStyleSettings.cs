@@ -31,6 +31,11 @@ public class PlayerStyleSettings : SAINSettingsBase<PlayerStyleSettings>, ISAINS
     public bool AdaptEnabled = true;
 
     [DataMember]
+    [Name("Use Test Raids For Adaptation")]
+    [Description("Raids detected as test sessions (god mode / infinite ammo, e.g. DevTools) are tagged in the record. On: still used for the style scores (movement and fighting style are the same). Off: skipped.")]
+    public bool AdaptUseTestRaids = true;
+
+    [DataMember]
     [Name("Adapt Strength")]
     [Description("0-1. Overall strength of the adaptation (1 = full, 0.5 = half).")]
     [MinMax(0f, 1f, 100f)]

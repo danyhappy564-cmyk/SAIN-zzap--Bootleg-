@@ -95,6 +95,7 @@ public static class PlayerAdaptation
                 }
             }
             int take = Mathf.Max(1, Mathf.RoundToInt(settings.AdaptRaids));
+            int testRaids = 0;
             float sec = 0f, moving = 0f, shots = 0f, shotsMoving = 0f, jumps = 0f, leanSw = 0f, leanPeeks = 0f, nades = 0f, camp = 0f;
             int used = 0;
             for (int i = lines.Count - 1; i >= 0 && used < take; i--)
@@ -112,6 +113,15 @@ public static class PlayerAdaptation
                 if (s < 60f)
                 {
                     continue;
+                }
+                // Test raids (god mode / infinite ammo) are the same movement and fighting style - used unless turned off.
+                if ((bool?)r["TestSession"] == true)
+                {
+                    if (!settings.AdaptUseTestRaids)
+                    {
+                        continue;
+                    }
+                    testRaids++;
                 }
                 used++;
                 sec += s;
@@ -143,7 +153,7 @@ public static class PlayerAdaptation
             Confidence = min < 10f ? 0f : Mathf.Max(0.25f, Mathf.Clamp01(min / settings.AdaptFullConfidenceMinutes));
             Active = Confidence > 0f;
             Logger.LogWarning(
-                $"[Adapt] {(Active ? "ON" : "OFF (under 10 min recorded)")}: {used} raids / {min:0} min, confidence {Confidence:0.00}, strength {settings.AdaptStrength:0.00} | "
+                $"[Adapt] {(Active ? "ON" : "OFF (under 10 min recorded)")}: {used} raids ({testRaids} tagged test) / {min:0} min, confidence {Confidence:0.00}, strength {settings.AdaptStrength:0.00} | "
                     + $"aggression {Aggression:0.00} (moving {moveRatio:P0}, shots on the move {movingShots:P0}) bunnyHop {BunnyHop:0.00} ({jumps / min:0.0}/min) "
                     + $"leanPeek {LeanPeek:0.00} grenade {Grenade:0.00} ({nades / min * 10f:0.0}/10min) camper {Camper:0.00} | "
                     + $"effects at full personality factor: hold corner {Chance(Mathf.Max(Aggression, BunnyHop)):P0}, close fight +{6f * Weight(Aggression):0.0}m, "
