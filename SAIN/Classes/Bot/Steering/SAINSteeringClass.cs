@@ -240,6 +240,12 @@ public class SAINSteeringClass : BotComponentClassBase
         if (ShallHideHeadRunning(dir, out float pitch))
         {
             Vector3 flat = new(dir.x, 0f, dir.z);
+            // Retreat weave: swing the view with the run, like a player moving the mouse left/right while sprinting.
+            float yaw = SAIN.SAINComponent.Classes.Tactics.RetreatWeave.LookYaw(Bot);
+            if (yaw != 0f)
+            {
+                flat = Quaternion.AngleAxis(yaw, Vector3.up) * flat;
+            }
             if (flat.sqrMagnitude > 0.01f)
             {
                 float rad = pitch * Mathf.Deg2Rad;
@@ -333,12 +339,19 @@ public class SAINSteeringClass : BotComponentClassBase
         {
             float lastShot = enemy.Status.TimeLastShotAtMe;
             bool exposed = enemy.IsVisible || (enemy.Seen && enemy.TimeSinceSeen < 2f) || (lastShot > 0f && Time.time - lastShot < 3f);
-            if (exposed && enemy.RealDistance < settings.RetreatHeadDownMaxDistance)
+            // User: keep it up the whole way to cover, not just the moment he's shooting. Once started, a run to cover /
+            // retreat keeps it until the bot gets there (enemy seen or shooting in the last 10s).
+            var decision = Bot.Decision.CurrentCombatDecision;
+            bool runningToCover = (decision == ECombatDecision.SeekCover || decision == ECombatDecision.Retreat || decision == ECombatDecision.RunAway)
+                && Bot.Cover.CoverInUse == null
+                && ((enemy.Seen && enemy.TimeSinceSeen < 10f) || (lastShot > 0f && Time.time - lastShot < 10f));
+            if ((exposed || (runningToCover && _headDown)) && enemy.RealDistance < settings.RetreatHeadDownMaxDistance)
             {
                 Vector3 toEnemy = enemy.EnemyPosition - Bot.Position;
                 toEnemy.y = 0f;
                 Vector3 flatLook = new(lookDir.x, 0f, lookDir.z);
-                result = toEnemy.sqrMagnitude > 0.01f && flatLook.sqrMagnitude > 0.01f && Vector3.Angle(flatLook, toEnemy) > 110f;
+                float limit = runningToCover ? 90f : 110f;
+                result = toEnemy.sqrMagnitude > 0.01f && flatLook.sqrMagnitude > 0.01f && Vector3.Angle(flatLook, toEnemy) > limit;
             }
         }
         // Keep it at least 0.8s once started - at 40 deg for a split second it wasn't noticeable (field report).

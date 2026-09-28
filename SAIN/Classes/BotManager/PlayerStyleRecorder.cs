@@ -589,9 +589,19 @@ public sealed class PlayerStyleRecorder
             _d.BotsNoInertia = ClassicMovementInterop.BotsNoInertia;
             _d.BotsQuickTilt = ClassicMovementInterop.BotsQuickTilt;
             Logger.LogWarning($"[ClassicMovement] {ClassicMovementInterop.Describe()}");
+            // Which SAIN.dll is actually running (field test ran an old build without noticing - the log alone must tell).
+            string build = "?";
+            try
+            {
+                build = System.IO.File.GetLastWriteTime(typeof(PlayerStyleRecorder).Assembly.Location).ToString("yyyy-MM-dd HH:mm");
+            }
+            catch
+            {
+            }
+            Logger.LogWarning($"[zzap] SAIN.dll built {build} (compare with the changelog's newest entry)");
             var g = GlobalSettingsClass.Instance.General;
             SAIN.SAINComponent.Classes.Tactics.RaidJournal.Start(_d.Map,
-                $"# player {_d.Nickname} ({_d.ProfileId}) | preset {SAINPlugin.LoadedPreset?.Info?.Name} | utility hidden={g.CloseCombat.UtilityHiddenEnemy} visible={g.CloseCombat.UtilityVisibleEnemy} "
+                $"# SAIN.dll built {build} | player {_d.Nickname} ({_d.ProfileId}) | preset {SAINPlugin.LoadedPreset?.Info?.Name} | utility hidden={g.CloseCombat.UtilityHiddenEnemy} visible={g.CloseCombat.UtilityVisibleEnemy} "
                     + $"reload={g.CloseCombat.UtilityReload} heal={g.CloseCombat.UtilityHeal} mistakes={g.CloseCombat.UtilityMistakes} | adapt={g.PlayerStyle.AdaptEnabled} learn={g.PlayerStyle.LearnFromOutcomes} "
                     + $"ignorePlayerGear={g.PlayerStyle.IgnorePlayerGear} | classic movement: {ClassicMovementInterop.Describe()}");
             _d.DevToolsPlugins = FindDevToolsPlugins();

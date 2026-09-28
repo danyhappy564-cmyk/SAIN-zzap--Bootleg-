@@ -8,9 +8,11 @@ namespace SAIN.SAINComponent.Classes.Tactics;
 
 /// <summary>
 /// zzap fork: weave while running away under fire (user 2026-09-29: "when running away, zig-zag left/right, sometimes a
-/// jump mixed in"). Same trigger as Retreat Head Down (sprinting with the back to an enemy that sees the bot or just shot
-/// at it): the run direction swings 30 deg left/right every 0.45-0.8s, and on some switches the bot hops (headroom only).
-/// Hooked into PlayerMovementController.SetTargetMoveDirection; never steers into a wall/ledge (NavMesh check).
+/// jump mixed in"). Same trigger as Retreat Head Down (running to cover with the back to the enemy): like a player holding
+/// W + sprint and swinging the MOUSE left/right (not A/D), the view yaw swings 30 deg left/right every 0.45-0.8s and the
+/// run follows the view; on some switches the bot hops (headroom only). The move direction is bent here
+/// (PlayerMovementController.SetTargetMoveDirection) and the look by the same angle (SAINSteeringClass via LookYaw).
+/// Never swings toward a wall / door frame (navmesh edge or anything solid at chest height).
 /// </summary>
 public static class RetreatWeave
 {
@@ -18,6 +20,18 @@ public static class RetreatWeave
     {
         public float Sign = 1f;
         public float NextSwitch;
+        public float AppliedAngle;
+        public float AppliedUntil;
+    }
+
+    /// <summary>The yaw offset (degrees) the look should carry this frame so the view swings with the run.</summary>
+    public static float LookYaw(BotComponent bot)
+    {
+        if (bot != null && _states.TryGetValue(bot.ProfileId, out State st) && Time.time < st.AppliedUntil)
+        {
+            return st.AppliedAngle;
+        }
+        return 0f;
     }
 
     private static readonly Dictionary<string, State> _states = new();
@@ -55,11 +69,17 @@ public static class RetreatWeave
             return;
         }
         Vector3 bent = Quaternion.AngleAxis(st.Sign * settings.RetreatWeaveAngle, Vector3.up) * flat.normalized;
-        if (NavMesh.Raycast(bot.Position, bot.Position + bent * 1.5f, out _, -1))
+        // Never bend into a wall or a door frame (navmesh edge or anything solid at chest height within 1.2m).
+        if (NavMesh.Raycast(bot.Position, bot.Position + bent * 1.5f, out _, -1)
+            || Physics.Raycast(bot.Position + Vector3.up * 1.1f, bent, 1.2f, LayersMaskController.HighPolyWithTerrainMask))
         {
+            TacticDiagnostics.Count("retreat.weaveBlocked");
+            st.AppliedUntil = 0f;
             return;
         }
         direction = bent;
+        st.AppliedAngle = st.Sign * settings.RetreatWeaveAngle;
+        st.AppliedUntil = time + 0.2f;
     }
 
     public static void Clear()

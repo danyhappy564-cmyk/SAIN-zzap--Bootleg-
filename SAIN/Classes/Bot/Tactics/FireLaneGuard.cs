@@ -47,8 +47,12 @@ public static class FireLaneGuard
         {
             return true;
         }
-        // Never hold a bot that is getting away from a grenade.
-        if (bot.Decision.CurrentCombatDecision == ECombatDecision.AvoidGrenade)
+        // 2026-09-29 raid: 58 holds / 50 step-outs -> bots froze in doorways and died standing, or rubbed into walls.
+        // Never interfere while the bot itself is in the fight or getting out of one: under fire, its enemy in sight, or
+        // escaping (grenade, cover, retreat, run away).
+        var decision = bot.Decision.CurrentCombatDecision;
+        if (decision == ECombatDecision.AvoidGrenade || decision == ECombatDecision.SeekCover || decision == ECombatDecision.Retreat
+            || decision == ECombatDecision.RunAway || bot.BotOwner.Memory.IsUnderFire || bot.GoalEnemy?.IsVisible == true)
         {
             return true;
         }
@@ -77,10 +81,10 @@ public static class FireLaneGuard
             {
                 _heldSince[id] = since = time;
             }
-            if (time - since > 1.5f)
+            if (time - since > 0.8f)
             {
                 _heldSince.Remove(id);
-                _freeUntil[id] = time + 1f;
+                _freeUntil[id] = time + 2f;
                 TacticDiagnostics.Count("squad.fireLane.giveUp");
                 _cache.Remove(id);
                 return true;
@@ -145,6 +149,15 @@ public static class FireLaneGuard
                 {
                     side = -side;
                 }
+                // Only step out to a side that is actually open (field test: stepping straight into a wall and rubbing on it).
+                if (!SideOpen(bot, side))
+                {
+                    if (!SideOpen(bot, -side))
+                    {
+                        continue;
+                    }
+                    side = -side;
+                }
                 direction = side;
                 what = $"in {member.name}'s line of fire ({now:0.0}m) -> step out sideways";
                 return true;
@@ -175,13 +188,23 @@ public static class FireLaneGuard
         {
             return false;
         }
-        bool shooting = member.BotOwner?.ShootData?.Shooting == true;
-        if (!shooting && !enemy.IsVisible)
+        // Only a mate actually firing makes a lane (merely seeing the enemy held bots up for nothing).
+        if (member.BotOwner?.ShootData?.Shooting != true || !enemy.IsVisible)
         {
             return false;
         }
         to = enemy.EnemyPosition + Vector3.up * 1.2f;
         return (to - from).sqrMagnitude > 1f;
+    }
+
+    private static bool SideOpen(BotComponent bot, Vector3 side)
+    {
+        Vector3 from = bot.Position;
+        if (UnityEngine.AI.NavMesh.Raycast(from, from + side * 1.2f, out _, -1))
+        {
+            return false;
+        }
+        return !Physics.Raycast(from + Vector3.up * 1.1f, side, 0.9f, LayersMaskController.HighPolyWithTerrainMask);
     }
 
     private static float DistanceToSegment(Vector3 p, Vector3 a, Vector3 b, out float t)
