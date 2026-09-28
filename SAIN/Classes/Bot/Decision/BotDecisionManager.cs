@@ -284,7 +284,16 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
             return false;
         }
         float since = Time.time - _lastCombatLayerTime;
-        return since < settings.PostCombatTime && _lastCombatLayerTime - _combatLayerSince >= 3f;
+        if (_lastCombatLayerTime - _combatLayerSince < 3f)
+        {
+            return false;
+        }
+        // Healing keeps it going (up to 60s): ORBIT waits for meds to finish anyway, so this costs no handoff time.
+        if (since < 60f && BotOwner.Medecine?.Using == true)
+        {
+            return true;
+        }
+        return since < settings.PostCombatTime;
     }
 
     private void SetDecisions(ECombatDecision solo, ESquadDecision squad, ESelfActionType self, Enemy enemy)

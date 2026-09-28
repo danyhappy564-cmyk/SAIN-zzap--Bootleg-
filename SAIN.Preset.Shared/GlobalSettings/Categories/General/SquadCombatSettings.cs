@@ -44,6 +44,11 @@ public class SquadCombatSettings : SAINSettingsBase<SquadCombatSettings>, ISAINS
     public bool PostCombat = true;
 
     [DataMember]
+    [Name("Post-Combat Heal")]
+    [Description("During the post-combat tidy-up SAIN heals the bot itself (first aid for bleeding/damage, then surgery for a blacked limb), crouched in place and still watching the last threat. The tidy-up lasts until the meds are done (max 60s) - ORBIT waits for healing anyway.")]
+    public bool PostCombatHeal = true;
+
+    [DataMember]
     [Name("Post-Combat Time")]
     [Description("Seconds after the combat layer ended. Keep it under 15 so ORBIT takes over right when it wants to.")]
     [MinMax(3f, 30f, 1f)]

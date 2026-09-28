@@ -11,12 +11,14 @@ namespace SAIN.Layers.Combat.Squad;
 /// zzap fork: post-combat tidy-up (ESquadDecision.PostCombat, SAIN squad layer 22). Fills the gap between the SAIN combat
 /// layer ending and ORBIT taking over - ORBIT waits 15s after "SAIN : Combat Layer" goes inactive, and in between the bot
 /// fell to BSG's vanilla layers. Runs in the SQUAD layer on purpose: ORBIT's 15s timer only watches the combat layer, so
-/// this doesn't delay the handoff. For up to 14s: top the magazine up (under 70%), rejoin the squad leader if 25m+ away,
-/// otherwise hold half-crouched with the gun on the last threat, glancing around it. Any enemy seen = normal combat again.
+/// this doesn't delay the handoff. For up to 14s: top the magazine up (under 70%), heal (bleeding/hurt first aid, then
+/// surgery if a limb is blacked - stays until the meds are done; ORBIT waits for healing anyway), rejoin the squad leader if
+/// 25m+ away, otherwise hold half-crouched with the gun on the last threat, glancing around it. Any enemy seen = combat.
 /// </summary>
 internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombatAction)), IBotAction
 {
     private bool _reloadTried;
+    private float _nextHealTry;
     private float _nextMove;
     private float _nextGlance;
     private Vector3 _glanceOffset;
@@ -51,6 +53,10 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
                 TacticDiagnostics.Count("postCombat.reload");
             }
         }
+        if (TickHeal())
+        {
+            return;
+        }
         var leader = Bot.Squad.LeaderComponent;
         if (!Bot.Squad.IAmLeader && leader != null && !leader.IsDead && (leader.Position - Bot.Position).magnitude > 25f)
         {
@@ -68,6 +74,47 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         }
         Bot.Mover.Stop();
         Bot.Mover.SetTargetPose(0.75f);
+    }
+
+    /// <summary>Heal in place (crouched, gun still on the threat while the meds animation allows). True while healing.</summary>
+    private bool TickHeal()
+    {
+        var med = BotOwner.Medecine;
+        if (med == null || BotOwner.WeaponManager?.Reload?.Reloading == true)
+        {
+            return false;
+        }
+        if (med.Using)
+        {
+            Bot.Mover.Stop();
+            Bot.Mover.SetTargetPose(0.6f);
+            return true;
+        }
+        if (_nextHealTry > Time.time || !SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance.General.SquadCombat.PostCombatHeal)
+        {
+            return false;
+        }
+        _nextHealTry = Time.time + 1f;
+        bool started = false;
+        string what = null;
+        if (med.FirstAid?.ShallStartUse() == true)
+        {
+            started = Bot.SelfActions.DoFirstAid();
+            what = "first aid";
+        }
+        else if (med.SurgicalKit?.ShallStartUse() == true)
+        {
+            started = Bot.SelfActions.DoSurgery();
+            what = "surgery";
+        }
+        if (started)
+        {
+            Bot.Mover.Stop();
+            Bot.Mover.SetTargetPose(0.6f);
+            TacticDiagnostics.Count($"postCombat.heal.{(what == "surgery" ? "surgery" : "firstAid")}");
+            TacticDiagnostics.LogCloseCombat($"[PostCombat] [{Bot.name}] healing: {what} ({Bot.Memory.Health.HealthStatus})");
+        }
+        return started;
     }
 
     public override void OnSteeringTicked()
