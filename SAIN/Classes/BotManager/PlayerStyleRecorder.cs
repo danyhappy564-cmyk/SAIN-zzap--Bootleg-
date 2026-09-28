@@ -107,6 +107,7 @@ public sealed class PlayerStyleRecorder
             {
                 _manager.GrenadeController.OnGrenadeThrown += OnGrenadeThrown;
             }
+            StartFiles();
         }
         if (_player.HealthController?.IsAlive != true)
         {
@@ -169,6 +170,7 @@ public sealed class PlayerStyleRecorder
             if (_nextLog > 0f)
             {
                 Logger.LogWarning($"[PlayerStyle] RUNNING: {Summary()}");
+                SaveCheckpoint();
             }
             _nextLog = time + every * 60f;
         }
@@ -358,15 +360,73 @@ public sealed class PlayerStyleRecorder
         Logger.LogWarning($"[PlayerStyle] RAID SUMMARY ({why}): {Summary()}");
         try
         {
-            string dir = Path.Combine(BepInEx.Paths.ConfigPath, "SAIN-zzap", "PlayerStyle");
-            Directory.CreateDirectory(dir);
-            string file = Path.Combine(dir, $"{_d.ProfileId}.jsonl");
-            File.AppendAllText(file, JsonConvert.SerializeObject(_d, Formatting.None) + Environment.NewLine);
-            Logger.LogWarning($"[PlayerStyle] saved to {file}");
+            Directory.CreateDirectory(Dir);
+            File.AppendAllText(RecordFile, JsonConvert.SerializeObject(_d, Formatting.None) + Environment.NewLine);
+            if (File.Exists(CheckpointFile))
+            {
+                File.Delete(CheckpointFile);
+            }
+            Logger.LogWarning($"[PlayerStyle] saved to {RecordFile}");
         }
         catch (Exception ex)
         {
             Logger.LogWarning($"[PlayerStyle] could not save: {ex.Message}");
+        }
+    }
+
+    private static string Dir
+    {
+        get { return Path.Combine(BepInEx.Paths.ConfigPath, "SAIN-zzap", "PlayerStyle"); }
+    }
+
+    private string RecordFile
+    {
+        get { return Path.Combine(Dir, $"{_d.ProfileId}.jsonl"); }
+    }
+
+    private string CheckpointFile
+    {
+        get { return Path.Combine(Dir, $"{_d.ProfileId}.current.json"); }
+    }
+
+    /// <summary>
+    /// Raid start: create the folder right away (so it can be checked mid-raid), say where the file goes, and recover a
+    /// checkpoint a previous raid left behind if its end-of-raid save never happened.
+    /// </summary>
+    private void StartFiles()
+    {
+        try
+        {
+            Directory.CreateDirectory(Dir);
+            if (File.Exists(CheckpointFile))
+            {
+                string leftover = File.ReadAllText(CheckpointFile).Trim();
+                if (leftover.Length > 0)
+                {
+                    File.AppendAllText(RecordFile, leftover + Environment.NewLine);
+                    Logger.LogWarning($"[PlayerStyle] previous raid was not saved at its end - recovered its last checkpoint into {RecordFile}");
+                }
+                File.Delete(CheckpointFile);
+            }
+            Logger.LogWarning($"[PlayerStyle] recording {_d.Nickname} on {_d.Map} -> {RecordFile} (checkpoint every {GlobalSettingsClass.Instance.General.PlayerStyle.LogEveryMinutes:0} min: {CheckpointFile})");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning($"[PlayerStyle] could not prepare {Dir}: {ex.Message}");
+        }
+    }
+
+    /// <summary>Mid-raid safety net: the current record so far, overwritten each time.</summary>
+    private void SaveCheckpoint()
+    {
+        try
+        {
+            _d.EndReason = "checkpoint";
+            File.WriteAllText(CheckpointFile, JsonConvert.SerializeObject(_d, Formatting.None));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning($"[PlayerStyle] checkpoint failed: {ex.Message}");
         }
     }
 
