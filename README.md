@@ -50,6 +50,9 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 | 재장전 타이밍 (유틸리티 AI) | 교전 중 탄창 80% 미만이면 지금 장전 / 계속 쏘기 / 권총 전환을 기대 이득으로 — 적이 나를 보는 중이면 참고 쏘기, 적이 안 보이거나 엄폐 중이면 장전, 적이 장전 중이면 그 틈에 쏘기, 탄 10% 이하+적 30m 안이면 권총. 탄창 버리는 빠른 장전은 급할 때만, 여유 있고 30% 넘게 남았으면 탄창 챙기는 장전. `[Reload]` 로그 | PMC | `General > Close Combat (zzap)` `Utility Reload Timing` |
 | 치료 타이밍 (유틸리티 AI) | 적이 있을 때 응급 치료·스팀·수술·기다리기를 기대 이득으로 — 적이 보이거나 다가오거나 방금 맞았으면 기다림, 엄폐 중이고 가장 가까운 위협이 오래됐거나 멀면 치료, 중상이면 교전 중에도 스팀, 수술은 정말 안전할 때만. `[Heal]` 로그 | 전원 | `General > Close Combat (zzap)` `Utility Heal Timing` |
 | 장비 기반 교전 방식 | 든 총(저격·볼트액션·DMR·소총·SMG·샷건, 스코프/도트, 자동 사격·연사력)으로 선호 교전 거리와 근접/원거리 강점을 계산, 가진 수류탄·치료템 개수까지 이득 계산에 반영 — 저격총은 거리 유지(적이 다가오면 빠짐, 밀지 않음), SMG·샷건은 붙어서 싸우고 먼 교전은 피함, 수류탄 많으면 더 던지고, 치료템 많으면 더 쉽게 치료 | 전원 | 자동 (유틸리티 판단에 포함) |
+| 두려움 | 성격 기본값(Coward 0.35 ~ GigaChad·Wreckless 0) + 근처 동료 사망, 플레이어 연속 킬, 부상, 수적 열세, 제압당함 — 용감함에 따라 반영(렉리스 조금, 겁쟁이 크게). 두려울수록 후퇴·지키기, 0.75 넘으면 패닉 | 전원 | `General > Close Combat (zzap)` `Fear` |
+| 결과로 배우기 (플레이어 대응) | 플레이어 상대로 한 판단마다 결과 기록(맞힘=성공, 죽음=실패), 판을 넘어 누적 → 이 플레이어에게 잘 먹힌 대응을 더 자주. 플레이어 장비로는 판단 안 함(데브툴·사기 장비 대비) | 사람 플레이어 상대 | `General > Player Style Recorder (zzap)` `Learn From Outcomes` / `Ignore Player Gear` |
+| 레이드 일지 | 판마다 시간 찍힌 파일 하나(`BepInEx/config/SAIN-zzap/Journal/`): 모든 봇의 판단 변경과 이유, 전술 로그 전부, 플레이어 위치·피격·킬(2초마다), 끝에 집계 — 레이드 뒤 분석용 | 전체 | 〃 `Raid Journal` |
 | 사람 같은 실수 | 모든 이득 계산 판단에서 가끔 최선 대신 2·3순위 선택 — Timmy 12%, Wreckless 8%, Coward 6%, Normal 5%, Chad 4%, Rat·Turtle 3%, GigaChad 2% (TEST 프리셋은 끔). 로그에 `(mistake)` | 전원 | 〃 `Utility Mistakes` |
 | 근접 교전 우선 | 적이 8m 안에서 보이면 엄폐로 걸어가지 않고 계속 싸움 (치료·재장전 중 제외) | PMC (Coward 제외) | `General > Close Combat (zzap)` |
 | 개활지 질주 대신 교전 | 22m 안에서 보이는 적에게 맞고 있는데 6m 안에 엄폐물이 없으면 멀리 뛰어가다 등에 맞지 않고 그 자리에서 다이아몬드 스텝으로 교전 (Normal은 엄폐물이 12m 넘게 멀 때만) | GigaChad / Chad / Wreckless / Normal | 〃 `Fight Instead Of Running Across The Open` |
