@@ -23,6 +23,7 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
     private float _nextGlance;
     private Vector3 _glanceOffset;
     private Vector3? _threat;
+    private Vector3? _coverSpot;
 
     public override void Start()
     {
@@ -30,7 +31,22 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         _reloadTried = false;
         _nextMove = 0f;
         Enemy enemy = Bot.GoalEnemy;
-        _threat = enemy?.KnownPlaces.LastKnownPosition;
+        _threat = enemy?.KnownPlaces.LastKnownPosition ?? Bot.Decision.LastFightThreat;
+        _coverSpot = null;
+        if (Bot.Cover.CoverInUse == null && Bot.Cover.CoverPoints != null)
+        {
+            // Not in cover: tidy up behind the nearest cover within 8m instead of standing in the open.
+            float best = 8f;
+            foreach (var p in Bot.Cover.CoverPoints)
+            {
+                float d = p == null ? 99f : (p.Position - Bot.Position).magnitude;
+                if (d > 1f && d < best)
+                {
+                    best = d;
+                    _coverSpot = p.Position;
+                }
+            }
+        }
         if (_threat == null && Bot.Memory.UnderFireFromPosition != Vector3.zero)
         {
             _threat = Bot.Memory.UnderFireFromPosition;
@@ -39,7 +55,8 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         TacticDiagnostics.LogCloseCombat(
             $"[PostCombat] [{Bot.name}] [{Bot.Info.Personality}] combat over -> tidy up until ORBIT takes over (ammo {SAINBotSuppressClass.CalcAmmoRatio(BotOwner, out _):P0}, "
                 + $"leader {(Bot.Squad.IAmLeader || Bot.Squad.LeaderComponent == null ? "-" : $"{(Bot.Squad.LeaderComponent.Position - Bot.Position).magnitude:0}m")}, "
-                + $"watching {(_threat != null ? $"last threat {(_threat.Value - Bot.Position).magnitude:0}m" : "around")})"
+                + $"watching {(_threat != null ? $"last threat {(_threat.Value - Bot.Position).magnitude:0}m" : "around")}"
+                + $"{(_coverSpot != null ? $", to cover {(_coverSpot.Value - Bot.Position).magnitude:0}m" : "")})"
         );
     }
 
@@ -70,6 +87,24 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
             }
             Bot.Mover.SetTargetPose(1f);
             Bot.Mover.SetTargetMoveSpeed(0.8f);
+            return;
+        }
+        if (_coverSpot != null && (_coverSpot.Value - Bot.Position).magnitude > 1f)
+        {
+            if (_nextMove < Time.time)
+            {
+                _nextMove = Time.time + 1f;
+                if (!Bot.Mover.WalkToPoint(_coverSpot.Value))
+                {
+                    _coverSpot = null;
+                }
+                else
+                {
+                    TacticDiagnostics.Count("postCombat.toCover");
+                }
+            }
+            Bot.Mover.SetTargetPose(0.75f);
+            Bot.Mover.SetTargetMoveSpeed(0.6f);
             return;
         }
         Bot.Mover.Stop();
@@ -124,7 +159,7 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         {
             return;
         }
-        if (Bot.Mover.Moving)
+        if (Bot.Mover.Moving && (_coverSpot == null || _threat == null))
         {
             Bot.Steering.LookToMovingDirection();
             return;

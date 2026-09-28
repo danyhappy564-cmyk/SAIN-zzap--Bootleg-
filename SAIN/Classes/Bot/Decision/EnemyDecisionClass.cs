@@ -324,7 +324,13 @@ public class EnemyDecisionClass : BotBase
                     break;
 
                 case HiddenEnemyUtility.EStance.Hold:
-                    result = ECombatDecision.Freeze;
+                    // Hold only when it is really wanted (the pick, or about as good) - it can always run, so as a
+                    // fallback for a stance that couldn't start it swallowed everything (2nd sim: 10k fall-throughs to
+                    // Hold = bots camping for no reason). Otherwise the old chain decides (search / engage / cover).
+                    if (stance == top || score >= ranked[0].score - 0.12f)
+                    {
+                        result = ECombatDecision.Freeze;
+                    }
                     break;
 
                 case HiddenEnemyUtility.EStance.Flank:

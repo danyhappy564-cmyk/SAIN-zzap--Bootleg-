@@ -231,7 +231,7 @@ public sealed class CornerChase(BotComponent bot)
                 Bot.Mover.SetTargetMoveSpeed(0.6f);
                 if (lastKnown != null && cornerDist < 4f)
                 {
-                    Vector3 target = lastKnown.Value + Vector3.up * 1.2f;
+                    Vector3 target = SAIN.SAINComponent.Classes.Mover.SAINSteeringClass.ClampPitch(Bot.Transform.WeaponRoot, lastKnown.Value + Vector3.up * 1.2f, Bot.Transform.LookDirection);
                     LookPoint = target;
                     TickPrefire(settings, enemy, target);
                 }

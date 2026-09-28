@@ -238,6 +238,13 @@ public class SAINEnemyController : BotComponentClassBase
         {
             return dogFightEnemy;
         }
+        // zzap: whoever is hurting the bot right now (even unseen, from behind) can take the target - SAIN only weighed
+        // visible enemies while any was visible, and kept a hidden target through being shot by someone else.
+        Enemy threat = SAIN.SAINComponent.Classes.Tactics.ThreatPicker.Pick(Bot, KnownEnemies, _goalEnemy);
+        if (threat != null)
+        {
+            return threat;
+        }
         const float CHANGE_ENEMY_DIST_RATIO_SHOOTER = 0.75f;
         const float CHANGE_ENEMY_DIST_RATIO_NON_SHOOTER = 0.33f;
         const float CHANGE_ENEMY_KNOWN_KNOWN_DIST_RATIO = 0.5f;

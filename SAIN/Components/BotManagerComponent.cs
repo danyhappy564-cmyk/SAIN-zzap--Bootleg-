@@ -155,6 +155,7 @@ public class BotManagerComponent : MonoBehaviour
         SAIN.SAINComponent.Classes.Tactics.LoadoutProfile.Clear();
         SAIN.SAINComponent.Classes.Tactics.FearModel.Clear();
         SAIN.SAINComponent.Classes.Tactics.BattleStats.Clear();
+        SAIN.SAINComponent.Classes.Tactics.ThreatPicker.Clear();
         SAIN.SAINComponent.Classes.Tactics.RaidJournal.End("botManagerDestroyed");
     }
 

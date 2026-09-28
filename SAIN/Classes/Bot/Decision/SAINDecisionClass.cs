@@ -45,6 +45,16 @@ public class SAINDecisionClass : BotComponentClassBase
         get { return DecisionManager.ChangeDecisionTime; }
     }
 
+    public float TimeSinceCombatLayer
+    {
+        get { return DecisionManager.TimeSinceCombatLayer; }
+    }
+
+    public UnityEngine.Vector3? LastFightThreat
+    {
+        get { return DecisionManager.LastFightThreat; }
+    }
+
     public float TimeSinceChangeDecision
     {
         get { return DecisionManager.TimeSinceChangeDecision; }

@@ -42,6 +42,7 @@ public static class HiddenEnemyUtility
         public List<(EStance stance, float score)> Ranked;
         public float Until;
         public string EnemyId;
+        public float HoldSince = -1f;
     }
 
     private static readonly Dictionary<string, Memory> _memory = new();
@@ -94,8 +95,11 @@ public static class HiddenEnemyUtility
         {
             return m.Ranked;
         }
-        var ranked = Score(bot, enemy, settings, out string why, out float hold);
-        _memory[id] = new Memory { Ranked = ranked, Until = time + hold, EnemyId = enemy.EnemyProfileId };
+        // How long the bot has already been holding against this enemy (hold fatigue, see Score).
+        float heldFor = m != null && m.EnemyId == enemy.EnemyProfileId && m.HoldSince > 0f ? time - m.HoldSince : 0f;
+        var ranked = Score(bot, enemy, settings, heldFor, out string why, out float hold);
+        float holdSince = ranked[0].stance == EStance.Hold ? (heldFor > 0f ? m.HoldSince : time) : -1f;
+        _memory[id] = new Memory { Ranked = ranked, Until = time + hold, EnemyId = enemy.EnemyProfileId, HoldSince = holdSince };
         TacticDiagnostics.Count($"utility.top.{ranked[0].stance}");
         TacticDiagnostics.LogCloseCombat(
             $"[Utility] [{bot.name}] [{bot.Info.Personality}] enemy {enemy.EnemyPlayer?.Profile?.Nickname} hidden -> "
@@ -104,7 +108,7 @@ public static class HiddenEnemyUtility
         return ranked;
     }
 
-    private static List<(EStance stance, float score)> Score(BotComponent bot, Enemy enemy, CloseCombatSettings settings, out string why, out float commit)
+    private static List<(EStance stance, float score)> Score(BotComponent bot, Enemy enemy, CloseCombatSettings settings, float heldFor, out string why, out float commit)
     {
         var sb = new StringBuilder();
         float time = Time.time;
@@ -163,7 +167,15 @@ public static class HiddenEnemyUtility
         flank -= 0.1f * fear;
         hold += 0.2f * fear;
         fallBack += 0.5f * fear + (fear > 0.75f ? 0.4f : 0f);
+        // Hold fatigue: an ambush pays off in the first seconds; holding on and on with nothing coming just hands him the
+        // clock (2nd sim 2026-09-29: bots camping for no reason - Hold was the pick ~70% of the time).
+        float fatigue = Mathf.Clamp((heldFor - 10f) * 0.03f, 0f, 0.45f);
+        if (!coming)
+        {
+            hold -= fatigue;
+        }
         if (fearWhy.Length > 0) sb.Append(fearWhy).Append("; ");
+        if (fatigue > 0f && !coming) sb.Append($"held {heldFor:0}s already, nothing came; ");
         if (weak >= 0.3f) sb.Append($"he's weak ({weakWhy}); ");
         if (busy) sb.Append($"he's {enemy.Status.VulnerableAction}; ");
         if (holdsAngle) sb.Append("he's holding an angle on us; ");
@@ -201,12 +213,39 @@ public static class HiddenEnemyUtility
             }
         }
         list.Sort((x, y) => y.Item2.CompareTo(x.Item2));
-        // Close call: sometimes take the second best, more for reckless personalities - bots shouldn't be predictable.
-        float margin = (_mixMargin.TryGetValue(bot.Info.Personality, out float mm) ? mm : 0.1f) * settings.UtilityMixMargin;
-        if (list[0].Item2 - list[1].Item2 < margin && Random.value < 0.35f)
+        // Weighted dice over the top 3 (user 2026-09-29: "plain probability may have felt better" - scores alone made every
+        // bot do the same thing): p ~ exp((score - best) / T), T per personality (Wreckless loose ... Rat/Coward tight) x the
+        // F6 mix setting. A much worse option is still very unlikely; close ones really get mixed.
+        float temp = (_mixMargin.TryGetValue(bot.Info.Personality, out float mm) ? mm : 0.1f) * settings.UtilityMixMargin;
+        if (temp > 0.001f)
         {
-            (list[0], list[1]) = (list[1], list[0]);
-            why += " | close call, took the 2nd";
+            int n = Mathf.Min(3, list.Count);
+            float[] w = new float[n];
+            float sum = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                w[i] = list[i].Item2 > 0.05f || i == 0 ? Mathf.Exp((list[i].Item2 - list[0].Item2) / temp) : 0f;
+                sum += w[i];
+            }
+            float roll = Random.value * sum;
+            int pick = 0;
+            for (int i = 0; i < n; i++)
+            {
+                roll -= w[i];
+                if (roll <= 0f)
+                {
+                    pick = i;
+                    break;
+                }
+            }
+            if (pick > 0)
+            {
+                var chosen = list[pick];
+                list.RemoveAt(pick);
+                list.Insert(0, chosen);
+                why += $" | dice: took #{pick + 1} (p {w[pick] / sum:0.00})";
+                TacticDiagnostics.Count($"utility.dice.{pick + 1}");
+            }
         }
         if (UtilityMistake.Apply(bot, list, "hidden"))
         {

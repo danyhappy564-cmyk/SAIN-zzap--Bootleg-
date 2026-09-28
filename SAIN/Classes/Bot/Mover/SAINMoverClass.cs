@@ -378,8 +378,11 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
 
     private bool WantsPatrolStance()
     {
+        // zzap: not for 25s after a fight - SAIN lowered the gun the moment the goal enemy was gone (i.e. right after the kill),
+        // so bots stood there gun down while his friends were still around (field 2026-09-29).
         return !Player.MovementContext.IsSprintEnabled
             && Bot.GoalEnemy == null
+            && Bot.Decision.TimeSinceCombatLayer > 25f
             && (BotOwner.Mover.CurrentState != EBotMoverState.NearDoor && !BotOwner.DoorOpener.Interacting) // Door interact animations won't play
             && (Player.HandsController is Player.FirearmController fireCont && !fireCont.IsInRemoveOperation()); // Gets stuck indefinitely in operation
     }

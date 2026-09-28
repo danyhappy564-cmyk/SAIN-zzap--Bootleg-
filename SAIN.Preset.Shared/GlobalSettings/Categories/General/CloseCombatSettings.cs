@@ -211,9 +211,14 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
 
     [DataMember]
     [Name("Utility Mix Margin")]
-    [Description("Multiplier on how close two scores must be for a bot to sometimes take the second best (per personality: Wreckless 0.2 ... Rat 0.05). 0 = always the best.")]
+    [Description("How much chance mixes into the hidden-enemy choice (weighted dice: the higher a stance scores, the likelier - per personality: Wreckless loosest ... Rat/Coward tightest). 0 = always the best score, 1 = default, 2+ = very unpredictable.")]
     [MinMax(0f, 3f, 10f)]
     public float UtilityMixMargin = 1f;
+
+    [DataMember]
+    [Name("Threat Targeting")]
+    [Description("Pick the target by threat, not by who was seen first: an enemy hitting / shooting at the bot right now (even unseen, from behind) beats the one it was aiming at, weighted by distance, being in sight and looking at it; the current target keeps a bonus so it doesn't flip. [Threat] logs switches.")]
+    public bool ThreatTargeting = true;
 
     [DataMember]
     [Name("Grenade Judgment")]

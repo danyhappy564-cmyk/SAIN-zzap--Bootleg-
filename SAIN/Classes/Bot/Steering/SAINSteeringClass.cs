@@ -306,7 +306,7 @@ public class SAINSteeringClass : BotComponentClassBase
             Bot.Mover.Lean.FastLean(side);
             Bot.Mover.Lean.HoldLean(0.3f);
         }
-        Vector3 target = corner + Vector3.up * 1.3f;
+        Vector3 target = ClampPitch(Bot.Transform.WeaponRoot, corner + Vector3.up * 1.3f, Bot.Transform.LookDirection);
         direction = (target - Bot.Transform.WeaponRoot).normalized;
         if (Time.time > _nextPreAimLog)
         {
@@ -316,6 +316,27 @@ public class SAINSteeringClass : BotComponentClassBase
                 $"[PreAim] [{Bot.name}] {decision}: corner {dist:0.0}m toward {enemy.EnemyPlayer?.Profile?.Nickname} (known {enemy.TimeSinceLastKnownUpdated:0}s ago) -> aim at it, lean {side}");
         }
         return true;
+    }
+
+    /// <summary>
+    /// zzap: keep a tactical look point (corner pre-aim, freeze corner watch, prefire) within +-25 deg of level. The
+    /// enemy's next path corner is often on a staircase or a platform right next to the bot, and aiming at "corner +
+    /// 1.3m" from 1-2m away made bots stare at the ceiling / sky while clearing (field 2026-09-29, Factory ground floor).
+    /// A player checks a corner at head height; to cover a staircase he tilts a little, never straight up.
+    /// </summary>
+    public static Vector3 ClampPitch(Vector3 from, Vector3 target, Vector3 forward, float maxDeg = 25f)
+    {
+        Vector3 d = target - from;
+        Vector3 flat = new(d.x, 0f, d.z);
+        float h = flat.magnitude;
+        if (h < 0.3f)
+        {
+            // Right under / over the point: nothing sensible to aim at up there - keep looking ahead, level.
+            Vector3 f = new(forward.x, 0f, forward.z);
+            return from + (f.sqrMagnitude > 0.001f ? f.normalized : Vector3.forward) * 2f;
+        }
+        float maxRise = Mathf.Max(h, 1.5f) * Mathf.Tan(maxDeg * Mathf.Deg2Rad);
+        return new Vector3(target.x, from.y + Mathf.Clamp(d.y, -maxRise, maxRise), target.z);
     }
 
     public bool HeadDownActive

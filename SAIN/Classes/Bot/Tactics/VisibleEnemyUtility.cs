@@ -137,8 +137,11 @@ public static class VisibleEnemyUtility
         float shoot = 0.45f + (looking ? 0f : 0.25f) + 0.15f * weak + (busy ? 0.15f : 0f) + 0.1f * numbers + (goodRange ? 0.15f : 0f)
             - (tooClose ? 0.15f : 0f) - (tooFar ? 0.2f : 0f) - 0.3f * exposure * lk - (hit ? 0.2f * closeness : 0f) - (ammo < 0.15f ? (cover <= 8f ? 0.4f : 0.15f) : 0f) - 0.2f * (1f - health)
             + (finishHim ? 0.2f : 0f);
-        float coverScore = 0.1f + 0.35f * (1f - health) + (ammo < 0.25f ? 0.35f : 0f) + (hit ? 0.1f + 0.15f * closeness : 0f) + 0.3f * exposure * lk
-            + 0.15f * (1f - aggr) + 0.2f * Mathf.Clamp01((6f - cover) / 5f) - runCost - (cover > 12f && dist < 25f ? 0.35f : 0f) - (looking ? 0f : 0.2f)
+        // Hurt wants out of sight - but only as much as there is cover to get to (2nd sim: dying bots with no cover in 99m still
+        // "ran for cover" = ran across the open and died).
+        float reachable = Mathf.Clamp01((6f - cover) / 5f);
+        float coverScore = 0.1f + 0.35f * (1f - health) * (0.4f + 0.6f * reachable) + (ammo < 0.25f ? 0.35f : 0f) + (hit ? 0.1f + 0.15f * closeness : 0f) + 0.3f * exposure * lk
+            + 0.15f * (1f - aggr) + 0.2f * reachable - runCost - (cover > 12f ? (dist < 25f ? 0.7f : 0.35f) : 0f) - (looking ? 0f : 0.2f)
             + (tooClose ? 0.3f : 0f) + (tooFar ? 0.2f : 0f) - (finishHim ? 0.15f : 0f);
         float push = 0.1f + 0.3f * weak + (busy ? 0.35f : 0f) + 0.2f * aggr + 0.15f * numbers + (dist < 12f ? 0.15f : 0f)
             - 0.3f * (1f - health) - (ammo < 0.4f ? 0.3f : 0f) - (dist > 30f ? 0.25f : 0f) - (looking && !busy ? 0.1f : 0f)

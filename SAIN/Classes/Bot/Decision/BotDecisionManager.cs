@@ -49,6 +49,15 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
     private float _lastCombatLayerTime = -100f;
     private float _combatLayerSince = -1f;
 
+    /// <summary>zzap: seconds since the SAIN combat layer last ran (gun stays up, post-combat watch).</summary>
+    public float TimeSinceCombatLayer
+    {
+        get { return Time.time - _lastCombatLayerTime; }
+    }
+
+    /// <summary>zzap: where the last fight's enemy was last known - watched after he's dead / gone (his friends come from there).</summary>
+    public Vector3? LastFightThreat { get; private set; }
+
     public override void ManualUpdate()
     {
         if (Bot.ActiveLayer == ESAINLayer.Combat)
@@ -58,6 +67,11 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
                 _combatLayerSince = Time.time;
             }
             _lastCombatLayerTime = Time.time;
+            Vector3? known = Bot.GoalEnemy?.KnownPlaces.LastKnownPosition;
+            if (known != null)
+            {
+                LastFightThreat = known;
+            }
         }
         else if (Bot.ActiveLayer != ESAINLayer.Squad && Bot.ActiveLayer != ESAINLayer.AvoidThreat)
         {
@@ -284,7 +298,8 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
             return false;
         }
         float since = Time.time - _lastCombatLayerTime;
-        if (_lastCombatLayerTime - _combatLayerSince < 3f)
+        // 1.5s (was 3s): a quick kill is still a fight - the bot must not drop its gun and stand there (field 2026-09-29).
+        if (_lastCombatLayerTime - _combatLayerSince < 1.5f)
         {
             return false;
         }
