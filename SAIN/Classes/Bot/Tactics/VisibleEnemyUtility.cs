@@ -120,14 +120,21 @@ public static class VisibleEnemyUtility
         float cover = NearestCover(bot);
         float aggr = _aggression.TryGetValue(bot.Info.Personality, out float a) ? a : 0.5f;
         float numbers = Mathf.Clamp(MatesOnHim(bot, enemy), 0, 2) / 2f;
-        float fit = WeaponFit(bot, dist);
+        // Loadout: how far this bot wants to fight (bolt/scoped sniper far, SMG/shotgun close) and how well it does up close.
+        var load = LoadoutProfile.Of(bot);
+        float ratio = dist / Mathf.Max(load.IdealRange, 1f);
+        bool goodRange = ratio > 0.5f && ratio < 1.6f;
+        bool tooClose = ratio < 0.35f && load.Long > 0.7f;
+        bool tooFar = ratio > 2f && load.Cqb > 0.7f;
 
-        float shoot = 0.45f + (looking ? 0f : 0.25f) + 0.15f * weak + (busy ? 0.15f : 0f) + 0.1f * numbers + 0.1f * fit
-            - 0.3f * exposure * lk - (hit ? 0.2f : 0f) - (ammo < 0.15f ? (cover <= 8f ? 0.4f : 0.15f) : 0f) - 0.2f * (1f - health);
+        float shoot = 0.45f + (looking ? 0f : 0.25f) + 0.15f * weak + (busy ? 0.15f : 0f) + 0.1f * numbers + (goodRange ? 0.15f : 0f)
+            - (tooClose ? 0.15f : 0f) - (tooFar ? 0.2f : 0f) - 0.3f * exposure * lk - (hit ? 0.2f : 0f) - (ammo < 0.15f ? (cover <= 8f ? 0.4f : 0.15f) : 0f) - 0.2f * (1f - health);
         float coverScore = 0.1f + 0.35f * (1f - health) + (ammo < 0.25f ? 0.35f : 0f) + (hit ? 0.25f : 0f) + 0.3f * exposure * lk
-            + 0.15f * (1f - aggr) + (cover <= 6f ? 0.15f : 0f) - (cover > 12f && dist < 25f ? 0.35f : 0f) - (looking ? 0f : 0.2f);
+            + 0.15f * (1f - aggr) + (cover <= 6f ? 0.15f : 0f) - (cover > 12f && dist < 25f ? 0.35f : 0f) - (looking ? 0f : 0.2f)
+            + (tooClose ? 0.3f : 0f) + (tooFar ? 0.2f : 0f);
         float push = 0.1f + 0.3f * weak + (busy ? 0.35f : 0f) + 0.2f * aggr + 0.15f * numbers + (dist < 12f ? 0.15f : 0f)
-            - 0.3f * (1f - health) - (ammo < 0.4f ? 0.3f : 0f) - (dist > 30f ? 0.25f : 0f) - (looking && !busy ? 0.1f : 0f);
+            - 0.3f * (1f - health) - (ammo < 0.4f ? 0.3f : 0f) - (dist > 30f ? 0.25f : 0f) - (looking && !busy ? 0.1f : 0f)
+            + 0.15f * load.Cqb - 0.25f * load.Long - (tooClose ? 0.3f : 0f);
 
         if (!looking) sb.Append("he isn't looking at me; ");
         if (busy) sb.Append($"he's {enemy.Status.VulnerableAction}; ");
@@ -138,7 +145,10 @@ public static class VisibleEnemyUtility
         if (ammo < 0.25f) sb.Append($"mag {ammo:P0}; ");
         if (cover > 12f && dist < 25f) sb.Append($"cover {cover:0}m away - too far to run; ");
         else if (cover <= 6f) sb.Append($"cover {cover:0.0}m; ");
-        if (fit < 0.5f) sb.Append("my gun doesn't suit this range; ");
+        if (tooClose) sb.Append($"too close for my long gun (ideal {load.IdealRange:0}m) - break off; ");
+        if (tooFar) sb.Append($"too far for my close-range gun (ideal {load.IdealRange:0}m); ");
+        if (goodRange) sb.Append("my gun's range; ");
+        sb.Append($"[{load.Summary}] ");
         if (numbers > 0f) sb.Append("mates on him; ");
         sb.Append($"{dist:0}m, {bot.Info.Personality}");
         why = sb.ToString();
@@ -179,28 +189,6 @@ public static class VisibleEnemyUtility
             }
         }
         return nearest;
-    }
-
-    private static float WeaponFit(BotComponent bot, float dist)
-    {
-        var info = bot.PlayerComponent?.Equipment?.CurrentWeaponInfo;
-        if (info == null)
-        {
-            return 0.5f;
-        }
-        switch (info.WeaponClass)
-        {
-            case EWeaponClass.shotgun:
-            case EWeaponClass.pistol:
-                return dist > 30f ? 0f : dist < 15f ? 1f : 0.5f;
-            case EWeaponClass.smg:
-                return dist > 45f ? 0.2f : 1f;
-            case EWeaponClass.sniperRifle:
-            case EWeaponClass.marksmanRifle:
-                return dist < 10f ? 0.2f : 1f;
-            default:
-                return 1f;
-        }
     }
 
     private static int MatesOnHim(BotComponent bot, Enemy enemy)

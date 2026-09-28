@@ -143,16 +143,19 @@ public static class HiddenEnemyUtility
         bool pushyPlayer = SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.AgainstPlayer(enemy)
             && SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.Aggression > 0.6f;
 
-        float push = 0.25f + 0.3f * weak + (busy ? 0.25f : 0f) + 0.15f * numbers + 0.15f * aggr + 0.1f * quiet
+        var load = LoadoutProfile.Of(bot);
+        // A long gun wants distance: an enemy closing inside 40% of its ideal range is a reason to back off.
+        bool closingOnLongGun = load.Long > 0.7f && path < load.IdealRange * 0.4f;
+        float push = 0.15f * load.Cqb - 0.3f * load.Long + 0.25f + 0.3f * weak + (busy ? 0.25f : 0f) + 0.15f * numbers + 0.15f * aggr + 0.1f * quiet
             - (holdsAngle ? 0.35f : 0f) + (justLost ? 0.15f : 0f) - 0.35f * (1f - health) - (ammo < 0.5f ? 0.3f : 0f) - 0.15f * dist;
         float nade = nadeReady
-            ? 0.3f + 0.4f * quiet + (busy ? 0.15f : 0f) + (indoor ? 0.1f : 0f) + (holdsAngle ? 0.1f : 0f) - 0.25f * info
+            ? 0.3f + 0.05f * Mathf.Min(load.Grenades, 3) + (load.Grenades >= 3 ? 0.1f : 0f) + 0.4f * quiet + (busy ? 0.15f : 0f) + (indoor ? 0.1f : 0f) + (holdsAngle ? 0.1f : 0f) - 0.25f * info
             : 0f;
-        float hold = 0.25f + (coming ? 0.35f : 0f) + 0.25f * (1f - health) + (holdsAngle ? 0.1f : 0f) + 0.15f * (1f - aggr) - (justLost ? 0.05f : 0f)
+        float hold = 0.2f * load.Long + 0.25f + (coming ? 0.35f : 0f) + 0.25f * (1f - health) + (holdsAngle ? 0.1f : 0f) + 0.15f * (1f - aggr) - (justLost ? 0.05f : 0f)
             + (inCover ? 0.1f : 0f) + (pushyPlayer ? 0.15f : 0f) - 0.3f * quiet;
         float flank = 0.2f + (holdsAngle ? 0.3f : 0f) + 0.15f * Mathf.Max(0f, numbers) + 0.1f * quiet - 0.2f * (1f - health);
-        float search = 0.15f + 0.35f * info + 0.1f * aggr - 0.2f * (1f - health);
-        float fallBack = 0.05f + 0.45f * (1f - health) + (ammo < 0.25f ? 0.3f : 0f) + (numbers < 0f ? 0.25f * -numbers : 0f);
+        float search = -0.15f * load.Long + 0.15f + 0.35f * info + 0.1f * aggr - 0.2f * (1f - health);
+        float fallBack = (closingOnLongGun ? 0.35f : 0f) + 0.05f + 0.45f * (1f - health) + (ammo < 0.25f ? 0.3f : 0f) + (numbers < 0f ? 0.25f * -numbers : 0f);
 
         if (weak >= 0.3f) sb.Append($"he's weak ({weakWhy}); ");
         if (busy) sb.Append($"he's {enemy.Status.VulnerableAction}; ");
@@ -166,7 +169,8 @@ public static class HiddenEnemyUtility
         if (numbers > 0f) sb.Append("we outnumber him; ");
         if (numbers < 0f) sb.Append("he has friends near; ");
         if (pushyPlayer) sb.Append("this player pushes; ");
-        sb.Append($"path {path:0}m, {bot.Info.Personality}");
+        if (closingOnLongGun) sb.Append($"he's closing on my long gun (ideal {load.IdealRange:0}m) - keep distance; ");
+        sb.Append($"path {path:0}m, {bot.Info.Personality} [{load.Summary}]");
         why = sb.ToString();
 
         var list = new List<(EStance stance, float score)>

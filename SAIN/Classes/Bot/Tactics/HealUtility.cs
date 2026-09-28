@@ -77,8 +77,11 @@ public static class HealUtility
         }
         float safe = Mathf.Clamp01((nearestAge - 3f) / 15f) * 0.5f + Mathf.Clamp01((nearestPath - 10f) / 30f) * 0.5f;
 
+        // Plenty of meds -> heal more readily; the last one is worth saving for something serious.
+        var load = LoadoutProfile.Of(bot);
+        float medBias = load.Meds >= 3 ? 0.1f : load.Meds <= 1 && health > 0.35f ? -0.1f : 0f;
         float firstAid = canFirstAid
-            ? 0.2f + 0.5f * (1f - health) + (inCover ? 0.2f : 0f) + 0.3f * safe - (anyVisible ? 0.6f : 0f) - (coming ? 0.35f : 0f) - (hit ? 0.3f : 0f)
+            ? medBias + 0.2f + 0.5f * (1f - health) + (inCover ? 0.2f : 0f) + 0.3f * safe - (anyVisible ? 0.6f : 0f) - (coming ? 0.35f : 0f) - (hit ? 0.3f : 0f)
             : -1f;
         float stim = canStim && health <= 0.35f
             ? 0.3f + 0.4f * (1f - health) + (anyVisible ? 0.1f : 0f) - (bot.Medical.TimeSinceShot < 0.5f ? 0.2f : 0f)
@@ -105,7 +108,7 @@ public static class HealUtility
             TacticDiagnostics.LogCloseCombat(
                 $"[Heal] [{bot.name}] {list[0].choice}{(mistake ? " (mistake)" : "")} {list[0].score:0.00} > {list[1].choice} {list[1].score:0.00} | "
                     + $"{hs}; {(anyVisible ? "enemy in sight; " : "")}{(coming ? "someone coming; " : "")}{(hit ? "just hit; " : "")}{(inCover ? "in cover; " : "")}"
-                    + $"nearest threat {nearestPath:0}m / {nearestAge:0}s ago");
+                    + $"nearest threat {nearestPath:0}m / {nearestAge:0}s ago; meds {load.Meds}");
         }
         TacticDiagnostics.Count($"heal.pick.{list[0].choice}");
         return list;

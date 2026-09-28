@@ -152,6 +152,7 @@ public class BotManagerComponent : MonoBehaviour
         SAIN.SAINComponent.Classes.Tactics.VisibleEnemyUtility.Clear();
         SAIN.SAINComponent.Classes.Tactics.ReloadUtility.Clear();
         SAIN.SAINComponent.Classes.Tactics.HealUtility.Clear();
+        SAIN.SAINComponent.Classes.Tactics.LoadoutProfile.Clear();
     }
 
     // Instance ids, so a bot is named once rather than once a frame.
