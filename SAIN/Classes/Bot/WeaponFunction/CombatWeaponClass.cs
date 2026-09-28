@@ -49,6 +49,32 @@ public class CombatWeaponClass : BotComponentClassBase
     /// <summary>
     /// Called from the reload decision right before a reload starts. True = the pistol is coming out instead.
     /// </summary>
+    /// <summary>A loaded pistol we could switch to right now (not already in hands).</summary>
+    public bool PistolReady()
+    {
+        var wm = BotOwner.WeaponManager;
+        if (!Applies || !Settings.PistolSwap || wm?.Selector == null || wm.Selector.EquipmentSlot == EquipmentSlot.Holster)
+        {
+            return false;
+        }
+        var pistol = wm.PistolWeaponInfo;
+        return pistol != null && pistol.BulletCount > 0;
+    }
+
+    /// <summary>ReloadUtility picked the pistol (mag nearly empty, enemy in sight within 30m).</summary>
+    public bool SwapToPistol(Enemy enemy, float ammoRatio)
+    {
+        if (!PistolReady() || !ForceChange(EquipmentSlot.Holster))
+        {
+            TacticDiagnostics.Count("weapon.pistolSwap.refused");
+            return false;
+        }
+        _pistolByUs = true;
+        TacticDiagnostics.Count("weapon.pistolSwap");
+        TacticDiagnostics.LogCloseCombat($"[Weapon] [{Bot.name}] mag {ammoRatio:P0}, enemy {enemy.RealDistance:0}m in sight -> PISTOL instead of reload");
+        return true;
+    }
+
     public bool TrySwapInsteadOfReload(Enemy enemy)
     {
         var s = Settings;

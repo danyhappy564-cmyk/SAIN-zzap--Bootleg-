@@ -178,6 +178,11 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public bool UtilityVisibleEnemy = true;
 
     [DataMember]
+    [Name("Utility Reload Timing")]
+    [Description("In a fight with the magazine under 80%: reload now / keep shooting / switch to pistol by expected gain (mag left, is he looking at me, in sight, in cover, distance, he's reloading/healing, just got hit, loaded pistol). And the quick reload (drop the mag) only when urgent - with time and 30%+ left, a normal reload keeps the rounds. [Reload] logs why.")]
+    public bool UtilityReload = true;
+
+    [DataMember]
     [Name("Utility Mix Margin")]
     [Description("Multiplier on how close two scores must be for a bot to sometimes take the second best (per personality: Wreckless 0.2 ... Rat 0.05). 0 = always the best.")]
     [MinMax(0f, 3f, 10f)]

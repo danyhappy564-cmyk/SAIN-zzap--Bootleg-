@@ -45,6 +45,18 @@ public class QuickReloadPatch : ModulePatch
         {
             return true;
         }
+        // zzap reload utility: drop the magazine only when it's urgent (shot at, enemy in sight, or seen <3s ago within 35m).
+        // With time and 30%+ still in the mag, a normal reload keeps those rounds (tactical reload).
+        bool urgent = owner.Memory.IsUnderFire || (enemy != null && (enemy.IsVisible || (enemy.Seen && enemy.TimeSinceSeen < 3f && enemy.RealDistance < 35f)));
+        if (!urgent && settings.UtilityReload)
+        {
+            float ratio = SAIN.SAINComponent.Classes.WeaponFunction.SAINBotSuppressClass.CalcAmmoRatio(owner, out _);
+            if (ratio >= 0.3f)
+            {
+                TacticDiagnostics.Count("weapon.tacticalReloadKeepMag");
+                return true;
+            }
+        }
         __instance._reloadType = BotReload.EReloadType.MagReload;
         controller.QuickReloadMag(
             foundMag,

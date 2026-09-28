@@ -138,6 +138,36 @@ public class SelfActionDecisionClass : BotBase
         _nextGetRatioTime = Time.time + 0.025f;
         _ammoRatio = getAmmoRatio(reload);
 
+        // zzap: reload timing by expected gain in a fight (reload now / keep shooting / pistol).
+        if (SAIN.SAINComponent.Classes.Tactics.ReloadUtility.Applies(enemy, _ammoRatio) && Bot.CombatWeapon != null)
+        {
+            bool pistolReady = Bot.CombatWeapon.PistolReady();
+            foreach (var (choice, score) in SAIN.SAINComponent.Classes.Tactics.ReloadUtility.Rank(Bot, enemy, _ammoRatio, pistolReady))
+            {
+                switch (choice)
+                {
+                    case SAIN.SAINComponent.Classes.Tactics.ReloadUtility.EChoice.Hold:
+                        return false;
+
+                    case SAIN.SAINComponent.Classes.Tactics.ReloadUtility.EChoice.Pistol:
+                        if (Bot.CombatWeapon.SwapToPistol(enemy, _ammoRatio))
+                        {
+                            _lastReloadTime = Time.time;
+                            return false;
+                        }
+                        break;
+
+                    case SAIN.SAINComponent.Classes.Tactics.ReloadUtility.EChoice.Reload:
+                        if (TryReload(botOwner, reload))
+                        {
+                            return true;
+                        }
+                        break;
+                }
+            }
+            return false;
+        }
+
         if (CheckReloadRatiosCanReload(enemy, RELOAD_AMMORATIO_MIN_PEACE, RELOAD_AMMORATIO_MAX, _ammoRatio))
         {
             // zzap: dry mid-fight with the enemy close -> pistol instead of a reload.
