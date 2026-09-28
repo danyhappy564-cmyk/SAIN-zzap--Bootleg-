@@ -94,6 +94,12 @@ public class EnemyDecisionClass : BotBase
         }
 #endif
 
+        // zzap: enemy in sight -> shoot / cover / push by expected gain (falls through to SAIN's own logic when it doesn't apply).
+        if (TryVisibleUtility(enemy, out result, out reason))
+        {
+            return true;
+        }
+
         bool shallShoot = shallStandAndShoot(enemy, out reason, knownEnemies);
 #if DEBUG
         if (SAINPlugin.DebugMode)
@@ -358,6 +364,48 @@ public class EnemyDecisionClass : BotBase
             }
         }
         TacticDiagnostics.Count("utility.noneRunnable");
+        return false;
+    }
+
+    private bool TryVisibleUtility(Enemy enemy, out ECombatDecision result, out string reason)
+    {
+        result = ECombatDecision.None;
+        reason = string.Empty;
+        var ranked = VisibleEnemyUtility.Rank(Bot, enemy, Bot.Info.HoldGroundDelay);
+        if (ranked == null)
+        {
+            return false;
+        }
+        foreach (var (stance, score) in ranked)
+        {
+            switch (stance)
+            {
+                case VisibleEnemyUtility.EStance.Shoot:
+                    if (Bot.Decision.CurrentCombatDecision != ECombatDecision.StandAndShoot)
+                    {
+                        Bot.Info.CalcHoldGroundDelay();
+                    }
+                    result = ECombatDecision.StandAndShoot;
+                    break;
+
+                case VisibleEnemyUtility.EStance.Cover:
+                    result = ECombatDecision.SeekCover;
+                    break;
+
+                case VisibleEnemyUtility.EStance.Push:
+                    if (enemy.Path.PathToEnemyStatus == NavMeshPathStatus.PathComplete && enemy.RealDistance < 25f)
+                    {
+                        result = ECombatDecision.RushEnemy;
+                    }
+                    break;
+            }
+            if (result != ECombatDecision.None)
+            {
+                TacticDiagnostics.Count($"utilityV.do.{result}");
+                reason = $"utilityV{stance}";
+                return true;
+            }
+        }
         return false;
     }
 

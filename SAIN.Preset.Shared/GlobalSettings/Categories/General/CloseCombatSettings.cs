@@ -173,6 +173,11 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public bool UtilityHiddenEnemy = true;
 
     [DataMember]
+    [Name("Utility Decision For Enemy In Sight")]
+    [Description("Enemy in sight: keep shooting / break line of sight to cover / push, by expected gain (is he looking at me, exposure time, just got hit, health, magazine, how far the nearest cover is, his gear and whether he's reloading/healing, my gun vs range, mates on him, personality). Replaces SAIN's fixed 'hold ground N seconds then cover'. [UtilityV] logs the scores and reasons.")]
+    public bool UtilityVisibleEnemy = true;
+
+    [DataMember]
     [Name("Utility Mix Margin")]
     [Description("Multiplier on how close two scores must be for a bot to sometimes take the second best (per personality: Wreckless 0.2 ... Rat 0.05). 0 = always the best.")]
     [MinMax(0f, 3f, 10f)]
