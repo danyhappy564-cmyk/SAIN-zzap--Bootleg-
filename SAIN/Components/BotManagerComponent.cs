@@ -143,6 +143,7 @@ public class BotManagerComponent : MonoBehaviour
     {
         // zzap: last-chance save of the player style record if neither dispose path ran.
         PlayerStyle?.Dispose();
+        SAIN.SAINComponent.Classes.Tactics.OwnGrenadeTracker.Clear();
     }
 
     // Instance ids, so a bot is named once rather than once a frame.

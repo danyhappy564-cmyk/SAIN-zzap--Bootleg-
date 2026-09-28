@@ -142,6 +142,13 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         {
             return true;
         }
+        // Never tap toward our own live grenade.
+        if (OwnGrenadeTracker.Threatens(Bot.ProfileId, Bot.Position + _tapDir * 1f) && OwnGrenadeTracker.Live(Bot.ProfileId, out Vector3 nade)
+            && Vector3.Dot(_tapDir, nade - Bot.Position) > 0f)
+        {
+            _tapDir = -_tapDir;
+            TacticDiagnostics.Count("diamond.avoidOwnNade");
+        }
         // Never walk off a ledge / into a wall mid-tap: if the next 0.5m is blocked, flip the tap.
         if (NavMesh.Raycast(Bot.Position, Bot.Position + _tapDir * 0.5f, out _, -1))
         {

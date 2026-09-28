@@ -26,6 +26,10 @@ namespace SAIN.SAINComponent.Classes.Tactics;
 ///            run-by peek, optional step peeks, then hold the doorway for a few seconds.
 ///   Trap   - GigaChad/SnappingTurtle: stack beside the door and hold it (the door is left as it is).
 ///   Ambush - Rat: stack beside the door crouched and silent, wait for the enemy to come out.
+///   Clear  - GigaChad/Chad/Wreckless/Normal: go in instead of creeping through the doorway muzzle first (user: players
+///            wait in the room corner for that). Stack, open from the side, then 0-2 fake grenade draws mixed in (the
+///            enemy can't tell if a real one comes - running out cancels it, gun back on the door), then either a real
+///            grenade into the room and the dash in right after the blast, or straight away a short hard dash inside.
 ///
 /// Any time the enemy becomes visible SAIN's normal decisions (StandAndShoot first) take over and
 /// the tactic ends. Every start, step change and result is logged as [DoorTactic] when
@@ -41,6 +45,7 @@ public class DoorTacticClass : BotComponentClassBase
         Ambush,
         Overwatch,
         RearGuard,
+        Clear,
     }
 
     public enum EStep
@@ -61,6 +66,11 @@ public class DoorTacticClass : BotComponentClassBase
         RunByAcross,
         RunByTurn,
         RunByBack,
+        ClearFakeDraw,
+        ClearFakeHolster,
+        ClearThrow,
+        ClearWait,
+        ClearDash,
     }
 
     private const float MAX_BOT_DOOR_DIST = 8f;
@@ -296,6 +306,10 @@ public class DoorTacticClass : BotComponentClassBase
                 return Settings.SnappingTurtleChance / 100f;
             case EPersonality.Rat:
                 return Settings.RatChance / 100f;
+            case EPersonality.Wreckless:
+                return Settings.RoomClear ? Settings.RoomClearWrecklessChance / 100f : 0f;
+            case EPersonality.Normal:
+                return Settings.RoomClear ? Settings.RoomClearNormalChance / 100f : 0f;
             default:
                 return 0f;
         }
@@ -570,6 +584,14 @@ public class DoorTacticClass : BotComponentClassBase
         public BotComponent Leader;
         public Vector3 OverwatchPoint;
         public float LeaderGoneTime = -1f;
+        public bool ClearReal;
+        public int ClearFakesLeft;
+        public float ClearNextAt;
+        public float BlastTime;
+        public Vector3 RushPoint;
+        public Vector3 RushLook;
+        public bool FledOwnNade;
+        public bool NadeSeenLive;
         public readonly HashSet<string> SupportIds = new();
     }
 
@@ -606,6 +628,15 @@ public class DoorTacticClass : BotComponentClassBase
         }
         bool peekPointOk = SampleOnBotSide(geo.Center + geo.BotSide * PEEK_DEPTH, geo, out s.PeekPoint);
         s.PeekPointOk = peekPointOk;
+
+        bool clearPersonality = personality == EPersonality.Wreckless || personality == EPersonality.Normal
+            || ((personality == EPersonality.GigaChad || personality == EPersonality.Chad) && Random.value * 100f < Settings.RoomClearChance);
+        if (Settings.RoomClear && clearPersonality)
+        {
+            BuildClear(s, geo, enemy, haveNade, doorOpen);
+            reason = string.Empty;
+            return s;
+        }
 
         switch (personality)
         {
@@ -677,6 +708,31 @@ public class DoorTacticClass : BotComponentClassBase
     /// Hold the door from beside the frame. The door is left as it is: closing it and then running off with a
     /// door grenade was removed (field test: bots "closed the door and ran far away" for no visible reason).
     /// </summary>
+    private void BuildClear(Session s, DoorGeometry geo, Enemy enemy, bool haveNade, bool doorOpen)
+    {
+        s.Plan = EPlan.Clear;
+        s.FirstStep = EStep.MoveToStack;
+        s.NeedsOpenForPeek = !doorOpen;
+        s.ClearReal = haveNade && Random.value * 100f < Settings.RoomClearGrenadeChance;
+        // Fakes: 0 / 1 / 2 draws (30 / 45 / 25%). With a real grenade the enemy learns nothing from the draw sound;
+        // with no real one the fake alone freezes him in his corner and the dash comes instead.
+        float r = Random.value;
+        s.ClearFakesLeft = !haveNade || !Settings.FakeGrenade ? 0 : r < 0.3f ? 0 : r < 0.75f ? 1 : 2;
+        s.HoldTime = Random.Range(2f, 4f);
+        s.HoldPose = 1f;
+        // Dash point: 3m into the room, stepped 1m away from the side the enemy was last known on so the bot doesn't
+        // land on top of him and has an angle on his corner.
+        Vector3? known = enemy.KnownPlaces.LastKnownPosition;
+        float away = 0f;
+        if (known != null)
+        {
+            away = -Mathf.Sign(Vector3.Dot(known.Value - geo.Center, geo.Axis));
+        }
+        Vector3 raw = geo.Center - geo.BotSide * 3f + geo.Axis * away;
+        s.RushPoint = SampleNav(raw, out Vector3 point) ? point : geo.Center - geo.BotSide * 2f;
+        s.RushLook = known != null ? known.Value + Vector3.up * 1.2f : s.InsidePoint;
+    }
+
     private static void BuildTrap(Session s)
     {
         s.Plan = EPlan.Trap;
@@ -758,7 +814,11 @@ public class DoorTacticClass : BotComponentClassBase
                 s.LookTarget = s.InsidePoint;
                 if (MoveStep(s, s.Stack, false, stepTime))
                 {
-                    if (s.Plan == EPlan.Peek)
+                    if (s.Plan == EPlan.Clear)
+                    {
+                        SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : ClearEntry(s), "atStack");
+                    }
+                    else if (s.Plan == EPlan.Peek)
                     {
                         SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : PeekEntry(s), "atStack");
                     }
@@ -796,7 +856,7 @@ public class DoorTacticClass : BotComponentClassBase
                         End("doorDidNotOpen");
                         break;
                     }
-                    SetStep(PeekEntry(s), "doorOpened");
+                    SetStep(s.Plan == EPlan.Clear ? ClearEntry(s) : PeekEntry(s), "doorOpened");
                 }
                 break;
 
@@ -999,6 +1059,142 @@ public class DoorTacticClass : BotComponentClassBase
                 SetStep(EStep.Hold, "fakeHealCancelled");
                 break;
 
+            case EStep.ClearFakeDraw:
+                // Fake before the (maybe) real throw. Someone running out = cancel, gun up (SAIN fights once he shows).
+                s.LookTarget = s.InsidePoint;
+                Bot.Mover.Stop();
+                if (EnemyComingOut(s, out string heardClear))
+                {
+                    Log($"{Who()} room clear: heard {heardClear} during the fake -> cancel, gun on the door");
+                    TacticDiagnostics.Count("door.clear.fakeCancelledOnSound");
+                    s.ClearFakesLeft = 0;
+                    s.ClearReal = false;
+                    SetStep(s.FakeNadeDrawn ? EStep.ClearFakeHolster : EStep.Hold, "heardComingOut");
+                    break;
+                }
+                if (!s.FakeNadeDrawn)
+                {
+                    s.FakeNadeDrawn = true;
+                    if (!DrawGrenadeForFake())
+                    {
+                        s.ClearFakesLeft = 0;
+                        SetStep(ClearEntry(s), "fakeDrawFailed");
+                    }
+                    break;
+                }
+                if (!_fakeDrawPending || stepTime > FAKE_NADE_SHOW_TIME)
+                {
+                    SetStep(EStep.ClearFakeHolster, "fakeShown");
+                }
+                break;
+
+            case EStep.ClearFakeHolster:
+                s.LookTarget = s.InsidePoint;
+                Bot.Mover.Stop();
+                if (RestoreWeaponIfHoldingGrenade() || stepTime > 3f)
+                {
+                    if (s.ClearNextAt <= 0f)
+                    {
+                        // A beat between fakes / before the real one, irregular so it can't be timed.
+                        s.ClearNextAt = Time.time + Random.Range(0.4f, 1.2f);
+                        s.ClearFakesLeft--;
+                        TacticDiagnostics.Count("door.clear.fake");
+                    }
+                    if (Time.time >= s.ClearNextAt)
+                    {
+                        s.ClearNextAt = 0f;
+                        s.FakeNadeDrawn = false;
+                        SetStep(ClearEntry(s), "fakeDone");
+                    }
+                }
+                break;
+
+            case EStep.ClearThrow:
+                s.LookTarget = s.RushLook;
+                Bot.Mover.Stop();
+                if (stepTime < 0.25f)
+                {
+                    break;
+                }
+                // Right after a fake the weapon is still coming back up - give the grenade manager a moment.
+                var nadeManager = BotOwner.WeaponManager?.Grenades;
+                if (stepTime < 1.5f && nadeManager != null && (!nadeManager.ReadyToThrow || Player.HandsController is IGrenadeController))
+                {
+                    break;
+                }
+                Vector3 nadeTarget = s.RushLook - Vector3.up * 1.2f;
+                s.ClearReal = false;
+                if (!SafeToThrowFromHere(nadeTarget, out string safeWhy))
+                {
+                    Log($"{Who()} room clear: grenade NOT thrown, own blast could reach me ({safeWhy}) -> dash");
+                    TacticDiagnostics.Count("door.clear.nadeUnsafe");
+                    SetStep(EStep.ClearDash, "nadeUnsafe");
+                    break;
+                }
+                float fuse = ThrowIntoRoom(s, nadeTarget, "clear");
+                if (fuse > 0f)
+                {
+                    s.BlastTime = Time.time + fuse + 0.3f;
+                    SetStep(EStep.ClearWait, "nadeOut");
+                }
+                else
+                {
+                    SetStep(EStep.ClearDash, "noThrowDashAnyway");
+                }
+                break;
+
+            case EStep.ClearWait:
+                // Out of the doorway line until our own grenade pops (tracked for real, the fuse estimate is the
+                // fallback), then straight in. If it bounced back toward us: get clear first.
+                s.LookTarget = s.InsidePoint;
+                bool live = OwnGrenadeTracker.Live(Bot.ProfileId, out Vector3 nadePos);
+                if (live && OwnGrenadeTracker.Threatens(Bot.ProfileId, Bot.Position))
+                {
+                    Vector3 away = Bot.Position - nadePos;
+                    away.y = 0f;
+                    Vector3 fleeRaw = Bot.Position + (away.sqrMagnitude > 0.01f ? away.normalized : s.BotSide) * 5f;
+                    if (SampleNav(fleeRaw, out Vector3 flee))
+                    {
+                        Bot.Mover.RunToPoint(flee, true, 0.5f, ESprintUrgency.High);
+                    }
+                    if (!s.FledOwnNade)
+                    {
+                        s.FledOwnNade = true;
+                        Log($"{Who()} room clear: own grenade {(nadePos - Bot.Position).magnitude:0.0}m away with no cover -> moving off");
+                        TacticDiagnostics.Count("door.clear.fledOwnNade");
+                    }
+                    break;
+                }
+                Bot.Mover.Stop();
+                bool blown = s.NadeSeenLive && !live;
+                if (live)
+                {
+                    s.NadeSeenLive = true;
+                }
+                if (blown || (!live && Time.time >= s.BlastTime) || stepTime > 8f)
+                {
+                    if (OwnGrenadeTracker.Threatens(Bot.ProfileId, s.RushPoint))
+                    {
+                        break;
+                    }
+                    SetStep(EStep.ClearDash, blown ? "blastDetected" : "fuseTime");
+                }
+                break;
+
+            case EStep.ClearDash:
+                // Short hard dash through the frame (no door slowdown, full speed) instead of walking in muzzle first.
+                Bot.Mover.IgnoreDoorSlow = true;
+                Bot.Mover.SetTargetPose(1f);
+                Bot.Mover.SetTargetMoveSpeed(1f);
+                s.LookTarget = s.RushLook;
+                if (MoveStep(s, s.RushPoint, true, stepTime) || stepTime > 3f)
+                {
+                    Bot.Mover.IgnoreDoorSlow = false;
+                    TacticDiagnostics.Count("door.clear.entered");
+                    End("roomEntered");
+                }
+                break;
+
             case EStep.MoveToOverwatch:
                 s.LookTarget = s.Center + Vector3.up * 1.2f;
                 if (MoveStep(s, s.OverwatchPoint, false, stepTime))
@@ -1024,6 +1220,94 @@ public class DoorTacticClass : BotComponentClassBase
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    /// Only throw if the bot can't be caught by it at the stack: the target is at least 6m away, or a wall is between the
+    /// target and the bot's chest (the stack is beside the frame, so normally the wall covers it).
+    /// </summary>
+    private bool SafeToThrowFromHere(Vector3 target, out string why)
+    {
+        float dist = (target - Bot.Position).magnitude;
+        bool wall = Physics.Linecast(target + Vector3.up * 0.3f, Bot.Position + Vector3.up * 1.2f, LayersMaskController.HighPolyWithTerrainMask);
+        why = $"target {dist:0.0}m, wall between {wall}";
+        return dist >= OwnGrenadeTracker.DANGER_RADIUS || wall;
+    }
+
+    /// <summary>
+    /// Throws whatever grenade the bot would normally use (frag first, then flash) into the room.
+    /// Never when a teammate is on the room side within 6m of the target; teammates stacked on our side
+    /// are behind the wall. Returns the fuse time, or 0 when nothing was thrown. (Restored from the removed breach.)
+    /// </summary>
+    private float ThrowIntoRoom(Session s, Vector3 target, string label)
+    {
+        var grenades = BotOwner.WeaponManager?.Grenades;
+        if (grenades == null || grenades.ThrowindNow || !grenades.HaveGrenade || !grenades.ReadyToThrow)
+        {
+            TacticDiagnostics.Count($"door.breach.{label}.noGrenade");
+            return 0f;
+        }
+        var members = Bot.Squad.Members;
+        if (members != null)
+        {
+            foreach (var member in members.Values)
+            {
+                if (member == null || ReferenceEquals(member, Bot) || member.IsDead)
+                {
+                    continue;
+                }
+                bool roomSide = Vector3.Dot(member.Position - s.Center, s.BotSide) < 0f;
+                if (roomSide && HorizontalDistance(member.Position, target) < 6f)
+                {
+                    Log($"{Who()} {label} grenade cancelled: teammate {member.name} is inside the room near the target");
+                    TacticDiagnostics.Count($"door.breach.{label}.teammateInRoom");
+                    return 0f;
+                }
+            }
+        }
+        grenades.CheckGrenade();
+        ThrowWeap nade = grenades.grenade;
+        if (nade == null)
+        {
+            TacticDiagnostics.Count($"door.breach.{label}.noGrenade");
+            return 0f;
+        }
+        Vector3 from = Bot.Transform.WeaponData.WeaponRoot;
+        Vector3 aim = target + Vector3.up * 0.25f;
+        AIGreandeAng[] angles = [AIGreandeAng.ang25, AIGreandeAng.ang35, AIGreandeAng.ang15, AIGreandeAng.ang45];
+        foreach (AIGreandeAng angle in angles)
+        {
+            AIGreanageThrowData data = AIGrenadeHelper.CanThrowGrenade2(from, aim, grenades.MaxPower * 0.9f, angle, -1f, 0.66f);
+            if (!data.CanThrow)
+            {
+                continue;
+            }
+            data.GrenadeType = null;
+            grenades.SetThrowParams(nade);
+            if (grenades.SetThrowData(data) && grenades.DoThrow())
+            {
+                TacticDiagnostics.Count($"door.breach.{label}.thrown");
+                Log($"{Who()} {label} grenade {nade.ShortName.Localized()} ({nade.ThrowType}, fuse {nade.GetExplDelay:0.0}s) into the room");
+                return Mathf.Max(nade.GetExplDelay, 1f);
+            }
+        }
+        TacticDiagnostics.Count($"door.breach.{label}.noArc");
+        return 0f;
+    }
+
+    /// <summary>Room clear: next fake, the real grenade, or the dash.</summary>
+    private EStep ClearEntry(Session s)
+    {
+        if (s.ClearFakesLeft > 0)
+        {
+            return EStep.ClearFakeDraw;
+        }
+        if (s.ClearReal)
+        {
+            return EStep.ClearThrow;
+        }
+        TacticDiagnostics.Count("door.clear.dash");
+        return EStep.ClearDash;
     }
 
     /// <summary>

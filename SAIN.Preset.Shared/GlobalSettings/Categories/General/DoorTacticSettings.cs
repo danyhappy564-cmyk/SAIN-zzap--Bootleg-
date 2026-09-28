@@ -129,6 +129,35 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float ChanceMultiplier = 1f;
 
     [DataMember]
+    [Name("Room Clear")]
+    [Description("Going into the enemy's room instead of creeping through the doorway muzzle first (players wait in the corner for that): stack beside the frame, open it from the side, 0-2 fake grenade draws mixed in (someone running out cancels), then a real grenade and the dash right after its blast, or straight a short hard dash inside. The bot never throws where its own blast could reach it and waits for the real explosion.")]
+    public bool RoomClear = true;
+
+    [DataMember]
+    [Name("Room Clear Chance (GigaChad/Chad)")]
+    [Description("Percent. When a GigaChad/Chad starts a door tactic, chance it clears the room instead of peek/trap.")]
+    [MinMax(0f, 100f, 1f)]
+    public float RoomClearChance = 45f;
+
+    [DataMember]
+    [Name("Room Clear Chance Wreckless")]
+    [Description("Percent. Chance a Wreckless clears a room with an enemy behind a nearby door (its only door tactic).")]
+    [MinMax(0f, 100f, 1f)]
+    public float RoomClearWrecklessChance = 60f;
+
+    [DataMember]
+    [Name("Room Clear Chance Normal")]
+    [Description("Percent. Chance a Normal bot clears a room with an enemy behind a nearby door.")]
+    [MinMax(0f, 100f, 1f)]
+    public float RoomClearNormalChance = 25f;
+
+    [DataMember]
+    [Name("Room Clear Real Grenade Chance")]
+    [Description("Percent, when the bot has a grenade. Otherwise (or when unsafe) it dashes in without one - possibly after a fake.")]
+    [MinMax(0f, 100f, 1f)]
+    public float RoomClearGrenadeChance = 55f;
+
+    [DataMember]
     [Name("Run-By Peek Chance")]
     [Description("Percent. Instead of the jump peek: sprint along the corridor straight past the open doorway glancing in, turn around, run past it once more back to the frame, then settle in. Always used when a jump isn't safe there (low ceiling, step/stairs).")]
     [MinMax(0f, 100f, 1f)]

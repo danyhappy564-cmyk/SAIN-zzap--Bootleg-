@@ -156,6 +156,14 @@ public sealed class CornerChase(BotComponent bot)
         {
             return false;
         }
+        LookPoint = corner + Bot.Steering.WeaponRootOffset;
+        if (OwnGrenadeTracker.Threatens(Bot.ProfileId, corner) || OwnGrenadeTracker.Threatens(Bot.ProfileId, Bot.Position))
+        {
+            // Our own grenade is live by the corner: hold the angle until it goes off.
+            Bot.Mover.Stop();
+            TacticDiagnostics.Count("chase.waitOwnNade");
+            return true;
+        }
         LeanSetting side = Bot.Mover.Lean.FindLeanFromBlindCornerAngle(enemy);
         if (side != LeanSetting.None)
         {

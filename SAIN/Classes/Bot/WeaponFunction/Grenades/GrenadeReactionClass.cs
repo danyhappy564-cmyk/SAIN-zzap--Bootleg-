@@ -702,7 +702,13 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
 
     public void EnemyGrenadeThrown(Grenade grenade, Vector3 dangerPoint, string profileId)
     {
-        if (Bot == null || profileId == Bot.ProfileId || !Bot.BotActive)
+        if (Bot != null && profileId == Bot.ProfileId)
+        {
+            // zzap: remember our own grenade (fuse timing, never walk into it).
+            SAIN.SAINComponent.Classes.Tactics.OwnGrenadeTracker.Add(profileId, grenade, dangerPoint);
+            return;
+        }
+        if (Bot == null || !Bot.BotActive)
         {
             return;
         }
