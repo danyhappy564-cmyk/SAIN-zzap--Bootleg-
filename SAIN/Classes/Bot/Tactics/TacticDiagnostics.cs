@@ -160,7 +160,7 @@ internal static class TacticDiagnostics
         );
         var c = general.CloseCombat;
         Logger.LogWarning(
-            $"[Tactics] SETTINGS CloseCombat: diamond={c.DiamondStep}/test={c.DiamondStepTestMode} tap={c.DiamondStepTapTime:0.00}s leash={c.DiamondStepSize:0.0}m maxDist={c.DiamondStepMaxDistance:0}m pistolSwap={c.PistolSwap}(<{c.PistolSwapMaxDistance:0}m) quickReload={c.QuickReload} longRange={c.SniperSwap}(>{c.SniperSwapMinDistance:0}m, back<{c.SniperSwapBackDistance:0}m) noBackTurning={c.NoBackTurning} dist={c.Distance:0}m seenWithin={c.SeenWithin:0.0}s dash<={c.SprintIfCoverWithin:0.0}m pmcOnly={c.PmcOnly} "
+            $"[Tactics] SETTINGS CloseCombat: diamond={c.DiamondStep}/test={c.DiamondStepTestMode} tap={c.DiamondStepTapTime:0.00}s leash={c.DiamondStepSize:0.0}m maxDist={c.DiamondStepMaxDistance:0}m closeFight={c.CloseFight}(<{c.CloseFightDistance:0}m) pistolSwap={c.PistolSwap}(<{c.PistolSwapMaxDistance:0}m) quickReload={c.QuickReload} longRange={c.SniperSwap}(>{c.SniperSwapMinDistance:0}m, back<{c.SniperSwapBackDistance:0}m) noBackTurning={c.NoBackTurning} dist={c.Distance:0}m seenWithin={c.SeenWithin:0.0}s dash<={c.SprintIfCoverWithin:0.0}m pmcOnly={c.PmcOnly} "
                 + $"suppDiscipline={c.SuppressionDiscipline} within={c.SuppressMaxTimeSinceContact:0.0}s keepMag={c.SuppressMinAmmoRatio:0.00} "
                 + $"burst={c.SuppressBurstRounds:0}/{c.SuppressBurstPause:0.0}s"
         );

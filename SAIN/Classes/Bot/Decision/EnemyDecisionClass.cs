@@ -3,7 +3,10 @@ using EFT;
 using SAIN.Components;
 using SAIN.Models.Enums;
 using SAIN.Preset.Shared.Enums;
+using SAIN.Preset.Shared.GlobalSettings;
 using SAIN.Preset.Shared.GlobalSettings.Categories.General;
+using SAIN.Preset.Shared.Models.Preset.Personalities;
+using SAIN.SAINComponent.Classes.WeaponFunction;
 using SAIN.Preset.Shared.Models.Enums;
 using SAIN.SAINComponent.Classes.EnemyClasses;
 using SAIN.SAINComponent.Classes.Search;
@@ -609,6 +612,42 @@ public class EnemyDecisionClass : BotBase
         return shallSearch;
     }
 
+    /// <summary>
+    /// zzap (2026-09-28 log: 15 of 42 deaths were bots walking to cover with the enemy visible 1-7m away): at point-blank
+    /// range, walking away is just getting shot in the back of the head slowly. Keep fighting (StandAndShoot -> diamond
+    /// step) while the enemy is this close and visible, the gun has rounds and the bot isn't healing/reloading.
+    /// Cowards still run. F6 General > Close Combat (zzap) > Fight Close Instead Of Cover.
+    /// </summary>
+    private bool ShallFightCloseInsteadOfCover(Enemy enemy)
+    {
+        var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
+        if (settings == null || !settings.CloseFight)
+        {
+            return false;
+        }
+        if (settings.PmcOnly && !Bot.Info.Profile.IsPMC)
+        {
+            return false;
+        }
+        if (Bot.Info.Personality == EPersonality.Coward || enemy.RealDistance > settings.CloseFightDistance)
+        {
+            return false;
+        }
+        if (Bot.Decision.CurrentSelfDecision != ESelfActionType.None)
+        {
+            return false;
+        }
+        if (SAINBotSuppressClass.CalcAmmoRatio(BotOwner, out _) < 0.2f)
+        {
+            return false;
+        }
+        if (Bot.Decision.CurrentCombatDecision != ECombatDecision.StandAndShoot)
+        {
+            TacticDiagnostics.Count("close.fightInsteadOfCover");
+        }
+        return true;
+    }
+
     private bool shallStandAndShoot(Enemy enemy, out string reason, EnemyList KnownEnemies)
     {
         if (!enemy.IsVisible)
@@ -646,6 +685,11 @@ public class EnemyDecisionClass : BotBase
                 reason = "shootZombie";
                 return true;
             }
+        }
+        if (ShallFightCloseInsteadOfCover(enemy))
+        {
+            reason = "closeFightNoCoverRun";
+            return true;
         }
         bool searchingForEnemy = enemy.Events.OnSearch.Value;
         float holdGroundInterval = Bot.Info.HoldGroundDelay;

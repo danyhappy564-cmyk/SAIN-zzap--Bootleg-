@@ -65,7 +65,7 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
 
     [DataMember]
     [Name("Diamond Step While Shooting")]
-    [Description("GigaChad/Chad/Wreckless: while shooting at a visible enemy, tap-dance around the spot - quick W/A/S/D taps (A/D 60%, mostly alternating; W/S 40%) with a rare tiny stop - instead of standing still. The gun stays on the enemy the whole time.")]
+    [Description("GigaChad/Chad/Wreckless/Normal: while shooting at a visible enemy, tap-dance around the spot - quick W/A/S/D taps (A/D 60%, mostly alternating; W/S 40%) with a rare tiny stop - instead of standing still. The gun stays on the enemy the whole time.")]
     public bool DiamondStep = true;
 
     [DataMember]
@@ -90,6 +90,17 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     [Name("TEST MODE: Diamond Step For Everyone")]
     [Description("For testing only. Every bot (every personality, scavs too) diamond-steps while shooting.")]
     public bool DiamondStepTestMode = false;
+
+    [DataMember]
+    [Name("Fight Close Instead Of Cover")]
+    [Description("When the enemy is visible and this close, keep shooting (with the diamond step) instead of walking off to cover - at point-blank range the walk just gets the bot shot. Not while healing/reloading or under 20% magazine; Cowards still run.")]
+    public bool CloseFight = true;
+
+    [DataMember]
+    [Name("Fight Close Distance")]
+    [Description("Meters. Enemy closer than this = fight it out.")]
+    [MinMax(2f, 25f, 1f)]
+    public float CloseFightDistance = 8f;
 
     [DataMember]
     [Name("Pistol Swap When Empty")]
