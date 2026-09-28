@@ -147,7 +147,8 @@ public static class PlayerAdaptation
                     + $"aggression {Aggression:0.00} (moving {moveRatio:P0}, shots on the move {movingShots:P0}) bunnyHop {BunnyHop:0.00} ({jumps / min:0.0}/min) "
                     + $"leanPeek {LeanPeek:0.00} grenade {Grenade:0.00} ({nades / min * 10f:0.0}/10min) camper {Camper:0.00} | "
                     + $"effects at full personality factor: hold corner {Chance(Mathf.Max(Aggression, BunnyHop)):P0}, close fight +{6f * Weight(Aggression):0.0}m, "
-                    + $"lean spam +{30f * Weight(LeanPeek):0}%, spacing +{3f * Weight(Grenade):0.0}m"
+                    + $"lean spam +{30f * Weight(LeanPeek):0}%, spacing +{3f * Weight(Grenade):0.0}m | movement: player no-inertia {ClassicMovementInterop.PlayerNoInertia}, "
+                    + $"bots no-inertia {ClassicMovementInterop.BotsNoInertia} -> corner hold x{MovementAdvantage:0.00}"
             );
         }
         catch (Exception ex)
@@ -155,6 +156,15 @@ public static class PlayerAdaptation
             Active = false;
             Logger.LogWarning($"[Adapt] could not read the style record: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Classic Movement gives the player inertia-less strafing while the bots keep vanilla inertia: moving gunfights favour
+    /// him, holding an angle takes that away - so corner holds are weighted up (x1.25) in that setup.
+    /// </summary>
+    private static float MovementAdvantage
+    {
+        get { return ClassicMovementInterop.PlayerNoInertia && !ClassicMovementInterop.BotsNoInertia ? 1.25f : 1f; }
     }
 
     private static float Weight(float score)
@@ -241,7 +251,7 @@ public static class PlayerAdaptation
             return false;
         }
         _nextRoll[id] = time + 6f;
-        float chance = Chance(Mathf.Max(Aggression, BunnyHop)) * Factor(bot, ECounter.HoldCorner);
+        float chance = Chance(Mathf.Max(Aggression, BunnyHop)) * Factor(bot, ECounter.HoldCorner) * MovementAdvantage;
         if (UnityEngine.Random.value >= chance)
         {
             TacticDiagnostics.Count("adapt.holdCorner.rollFailed");

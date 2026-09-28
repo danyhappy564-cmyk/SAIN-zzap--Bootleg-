@@ -480,6 +480,12 @@ public sealed class PlayerStyleRecorder
                 }
                 File.Delete(CheckpointFile);
             }
+            ClassicMovementInterop.Refresh();
+            _d.ClassicMovement = ClassicMovementInterop.Installed;
+            _d.PlayerNoInertia = ClassicMovementInterop.PlayerNoInertia;
+            _d.BotsNoInertia = ClassicMovementInterop.BotsNoInertia;
+            _d.BotsQuickTilt = ClassicMovementInterop.BotsQuickTilt;
+            Logger.LogWarning($"[ClassicMovement] {ClassicMovementInterop.Describe()}");
             PlayerAdaptation.Load(Dir, _d.ProfileId);
             Logger.LogWarning($"[PlayerStyle] recording {_d.Nickname} on {_d.Map} -> {RecordFile} (checkpoint every {GlobalSettingsClass.Instance.General.PlayerStyle.LogEveryMinutes:0} min: {CheckpointFile})");
             var settings = GlobalSettingsClass.Instance.General.PlayerStyle;
@@ -602,5 +608,9 @@ public sealed class PlayerStyleRecorder
         public string KilledByPersonality;
         public string KilledByDecision;
         public KeyStats Keys;
+        public bool ClassicMovement;
+        public bool PlayerNoInertia;
+        public bool BotsNoInertia;
+        public bool BotsQuickTilt;
     }
 }
