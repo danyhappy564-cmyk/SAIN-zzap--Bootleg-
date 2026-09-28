@@ -25,6 +25,12 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
     // The leash keeps it around the spot where the shooting started. Steering keeps aiming the whole time.
     private Vector3 _diamondCenter;
     private bool _diamondActive;
+
+    /// <summary>Bots moving without inertia (Classic Movement, BotsUseOldMovement) get the slower, player-like tap.</summary>
+    private static float TapTime(CloseCombatSettings settings)
+    {
+        return ClassicMovementInterop.BotsNoInertia ? settings.DiamondStepTapTimeNoInertia : settings.DiamondStepTapTime;
+    }
     private bool _leanSpam;
     private Vector3 _tapDir;
     private float _tapEnd;
@@ -89,7 +95,9 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             Bot.Mover.Stop();
             TacticDiagnostics.SetDiamond(Bot.ProfileId, "active");
             TacticDiagnostics.Count("diamond.start");
-            TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] [{Bot.Info.Personality}] start ({_owner}): enemy {dist:0}m, tap {settings.DiamondStepTapTime:0.00}s");
+            TacticDiagnostics.LogCloseCombat(
+                $"[Diamond] [{Bot.name}] [{Bot.Info.Personality}] start ({_owner}): enemy {dist:0}m, tap {TapTime(settings):0.00}s ({(ClassicMovementInterop.BotsNoInertia ? "no-inertia bots" : "inertia")})"
+            );
         }
         Bot.Mover.SetTargetPose(1f);
         Bot.Mover.SetTargetMoveSpeed(1f);
@@ -136,7 +144,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
 
     private void PickTap(CloseCombatSettings settings, Vector3 forward, Vector3 right)
     {
-        float tap = settings.DiamondStepTapTime;
+        float tap = TapTime(settings);
         _tapEnd = Time.time + Random.Range(tap * 0.65f, tap * 1.35f);
         // Very short stop now and then (a real player's rhythm isn't perfectly even).
         _tapPause = Random.value < 0.05f;

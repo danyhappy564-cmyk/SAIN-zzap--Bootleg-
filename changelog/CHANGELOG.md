@@ -2,6 +2,9 @@
 
 최신이 위. 시간은 KST.
 
+- 2026-09-29 00:56 — **다이아몬드 스텝 탭 시간을 봇 관성 여부에 따라 자동 선택.** Classic Movement의 `BotsUseOldMovement`를 켠 사람(봇도 관성 없음)과
+  끈 사람이 섞여 있음 → 감지해서, 관성 있는 봇은 기존 0.13초, 관성 없는 봇은 **0.3초**(누르는 즉시 방향이 꺾여 0.13초는 덜덜 떠는 것처럼 보임;
+  기록된 사용자 템포는 A↔D 약 0.5초). F6 `Close Combat (zzap)` → `Diamond Step Tap Time (No-Inertia Bots)`. `[Diamond]` 로그에 어느 쪽인지 표시.
 - 2026-09-29 00:52 — **Classic Movement(Boogle) 모드 자동 감지.** 많이 쓰는 모드라 설치 여부와 설정을 레이드 시작 때 직접 읽음(플러그인 `com.boogle.classicmovement`의
   서버 설정 `ModConfig`를 리플렉션으로). 로그 `[ClassicMovement] installed ... player no-inertia / bots no-inertia / quick lean` 한 줄.
   확인한 사실: 관성 없는 이동은 `BotsUseOldMovement`가 꺼져 있으면 **플레이어만**, 빠른 기울이기·수풀 감속 제거·조준 감속·속도 스무딩 패치는 **봇에도** 적용됨.

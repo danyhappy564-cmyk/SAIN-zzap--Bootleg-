@@ -87,6 +87,12 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float DiamondStepTapTime = 0.13f;
 
     [DataMember]
+    [Name("Diamond Step Tap Time (No-Inertia Bots)")]
+    [Description("Seconds per tap used instead of the one above when Classic Movement gives bots inertia-less movement (BotsUseOldMovement on, detected automatically). Without inertia every tap turns instantly, so 0.13s looks like jittering - closer to a player's rhythm (the recorded player: ~0.5s between A/D switches) reads right.")]
+    [MinMax(0.08f, 0.8f, 100f)]
+    public float DiamondStepTapTimeNoInertia = 0.3f;
+
+    [DataMember]
     [Name("TEST MODE: Diamond Step For Everyone")]
     [Description("For testing only. Every bot (every personality, scavs too) diamond-steps while shooting.")]
     public bool DiamondStepTestMode = false;
