@@ -21,7 +21,60 @@ public class BotLightController : BotComponentClassBase
         {
             return;
         }
+        if (ShallStayDark(out string why))
+        {
+            // zzap light discipline: holding an angle with the enemy out of sight -> light AND laser off (both are one
+            // tactical device toggle). 2026-09-29 field report: bots holding inside a room lit up the doorway and gave
+            // themselves away. The moment the enemy shows up the normal logic turns it on to blind him.
+            wantLightOn = false;
+            if (IsLightEnabled && _nextDarkForce < Time.time)
+            {
+                _nextDarkForce = Time.time + 0.5f;
+                setLight(false);
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"light.dark.{why}");
+            }
+            return;
+        }
         updateLightToggle();
+    }
+
+    private float _nextDarkForce;
+    private float _darkUntil;
+    private string _darkWhy;
+
+    /// <summary>Keep light and laser off for a while (a tactic holding an angle / ambushing asks every tick).</summary>
+    public void RequestDark(float seconds, string why)
+    {
+        _darkUntil = Mathf.Max(_darkUntil, Time.time + seconds);
+        _darkWhy = why;
+    }
+
+    private bool ShallStayDark(out string why)
+    {
+        why = null;
+        var settings = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat;
+        if (settings == null || !settings.LightDiscipline)
+        {
+            return false;
+        }
+        Enemy enemy = Bot.GoalEnemy;
+        if (enemy != null && enemy.IsVisible)
+        {
+            return false;
+        }
+        if (Time.time < _darkUntil)
+        {
+            why = _darkWhy ?? "requested";
+            return true;
+        }
+        // Holding still (or creeping) while an enemy is known nearby but out of sight = an ambush / angle hold.
+        if (enemy != null && (enemy.Seen || enemy.Heard) && enemy.TimeSinceLastKnownUpdated < 60f && enemy.RealDistance < 60f
+            && Player.Velocity.magnitude < 1.2f && Bot.Decision.CurrentCombatDecision != ECombatDecision.Search)
+        {
+            why = "holdingAngle";
+            return true;
+        }
+        return false;
     }
 
     private void updateLightToggle()

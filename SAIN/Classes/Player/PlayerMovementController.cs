@@ -223,6 +223,8 @@ public class PlayerMovementController
             player.EnableSprint(false);
             return;
         }
+        // zzap: zig-zag while running away under fire.
+        SAIN.SAINComponent.Classes.Tactics.RetreatWeave.Filter(playerComp.BotComponent, ref direction);
         float playerSpeed = player.Speed;
 
         float destinationDistance = (finalMoveDestination - playerComp.Position).magnitude;

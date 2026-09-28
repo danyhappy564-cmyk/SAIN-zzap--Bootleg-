@@ -168,6 +168,16 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float ExposedCommitCoverDistance = 6f;
 
     [DataMember]
+    [Name("Light Discipline")]
+    [Description("Flashlight and laser off while holding an angle / ambushing with the enemy out of sight (standing or creeping, enemy known within 60m in the last 60s) and whenever a tactic holds a spot. Turned on only when the enemy shows up, to blind him. Field report: bots holding inside a room lit up the doorway.")]
+    public bool LightDiscipline = true;
+
+    [DataMember]
+    [Name("Corner Pre-Aim")]
+    [Description("Moving toward a known enemy who is out of sight: within 6m of the corner/doorway he'd appear from, stop sprinting, aim at that corner before rounding it and hold the lean to that side - no more stepping out half the body first and only then turning to look.")]
+    public bool CornerPreAim = true;
+
+    [DataMember]
     [Name("Corner Chase")]
     [Description("The enemy breaks sight around a corner close by (within the window below): pushy bots (GigaChad 90%, Wreckless 85%, Chad 75%, Normal 40%) follow and take the corner one of four ways - prefire (only when sure he is right there and the magazine has enough left), jump shot (headroom needed), lean in (lean held toward the corner side) or a slow wide pie.")]
     public bool CornerChase = true;
@@ -217,7 +227,24 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     [Name("Retreat Head Down Angle")]
     [Description("Degrees below the horizon.")]
     [MinMax(10f, 70f, 1f)]
-    public float RetreatHeadDownPitch = 40f;
+    public float RetreatHeadDownPitch = 55f;
+
+    [DataMember]
+    [Name("Retreat Weave")]
+    [Description("Same trigger as Retreat Head Down: the run swings left/right every 0.45-0.8s instead of a straight line, sometimes with a hop.")]
+    public bool RetreatWeave = true;
+
+    [DataMember]
+    [Name("Retreat Weave Angle")]
+    [Description("Degrees off the run line.")]
+    [MinMax(5f, 60f, 1f)]
+    public float RetreatWeaveAngle = 30f;
+
+    [DataMember]
+    [Name("Retreat Weave Jump Chance")]
+    [Description("Percent per left/right switch (headroom needed).")]
+    [MinMax(0f, 100f, 1f)]
+    public float RetreatWeaveJumpChance = 12f;
 
     [DataMember]
     [Name("Retreat Head Down Max Distance")]

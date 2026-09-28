@@ -2,6 +2,7 @@
 using SAIN.Components;
 using SAIN.Components.PlayerComponentSpace;
 using SAIN.Models.Enums;
+using SAIN.Preset.Shared.Enums;
 using SAIN.SAINComponent.Classes.EnemyClasses;
 using UnityEngine;
 
@@ -232,6 +233,10 @@ public class SAINSteeringClass : BotComponentClassBase
     internal void TickPlayerSteering()
     {
         Vector3 dir = _targetLookDirection;
+        if (CornerPreAim(out Vector3 preAim))
+        {
+            dir = preAim;
+        }
         if (ShallHideHeadRunning(dir, out float pitch))
         {
             Vector3 flat = new(dir.x, 0f, dir.z);
@@ -244,10 +249,79 @@ public class SAINSteeringClass : BotComponentClassBase
         PlayerComponent.CharacterController.SetTargetLookDirection(dir, BotOwner, Bot);
     }
 
+    // zzap: corner pre-aim (2026-09-29 field report: bots opened a door / rounded a corner with half the body out and only
+    // then turned toward the player - an easy kill for someone holding it). Moving toward a known enemy out of sight:
+    // within 6m of the corner/doorway he'd appear from (SAIN's blind corner on the path to him), stop sprinting, aim at
+    // that corner at chest height and hold the lean to its side, so the first thing out is the muzzle on the angle and as
+    // little body as possible.
+    private float _nextPreAimLog;
+
+    private bool CornerPreAim(out Vector3 direction)
+    {
+        direction = default;
+        var settings = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat;
+        Enemy enemy = Bot.GoalEnemy;
+        if (settings == null || !settings.CornerPreAim || enemy == null || enemy.IsVisible || !(enemy.Seen || enemy.Heard))
+        {
+            return false;
+        }
+        if (enemy.TimeSinceLastKnownUpdated > 30f || _headDown)
+        {
+            return false;
+        }
+        var decision = Bot.Decision.CurrentCombatDecision;
+        if (decision == ECombatDecision.AvoidGrenade || decision == ECombatDecision.Retreat || decision == ECombatDecision.RunAway
+            || decision == ECombatDecision.DoorTactic)
+        {
+            return false;
+        }
+        if (Bot.Player.Velocity.magnitude < 0.5f)
+        {
+            return false;
+        }
+        Vector3? cornerOpt = enemy.VisiblePathPoint;
+        if (cornerOpt == null)
+        {
+            return false;
+        }
+        Vector3 corner = cornerOpt.Value;
+        float dist = (corner - Bot.Position).magnitude;
+        if (dist > 6f || dist < 0.6f)
+        {
+            return false;
+        }
+        if (Bot.Mover.Running)
+        {
+            Bot.Mover.ActivePath?.RequestEndSprint(ESprintUrgency.None, "corner pre-aim");
+        }
+        var side = Bot.Mover.Lean.FindLeanFromBlindCornerAngle(enemy);
+        if (side != SAIN.Preset.Shared.Enums.LeanSetting.None)
+        {
+            Bot.Mover.Lean.FastLean(side);
+            Bot.Mover.Lean.HoldLean(0.3f);
+        }
+        Vector3 target = corner + Vector3.up * 1.3f;
+        direction = (target - Bot.Transform.WeaponRoot).normalized;
+        if (Time.time > _nextPreAimLog)
+        {
+            _nextPreAimLog = Time.time + 5f;
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("corner.preAim");
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+                $"[PreAim] [{Bot.name}] {decision}: corner {dist:0.0}m toward {enemy.EnemyPlayer?.Profile?.Nickname} (known {enemy.TimeSinceLastKnownUpdated:0}s ago) -> aim at it, lean {side}");
+        }
+        return true;
+    }
+
+    public bool HeadDownActive
+    {
+        get { return _headDown; }
+    }
+
     // zzap: players running away under fire (back to the enemy) look at the floor while they sprint - the head drops and
     // is a much smaller target from behind (user tip, live servers). Bots now do the same while sprinting away from an
     // enemy that sees them or shot at them in the last 3s. F6: General > Close Combat (zzap) > Retreat Head Down.
     private bool _headDown;
+    private float _headDownUntil;
 
     private bool ShallHideHeadRunning(Vector3 lookDir, out float pitch)
     {
@@ -267,9 +341,18 @@ public class SAINSteeringClass : BotComponentClassBase
                 result = toEnemy.sqrMagnitude > 0.01f && flatLook.sqrMagnitude > 0.01f && Vector3.Angle(flatLook, toEnemy) > 110f;
             }
         }
+        // Keep it at least 0.8s once started - at 40 deg for a split second it wasn't noticeable (field report).
+        if (!result && _headDown && Time.time < _headDownUntil && Bot.Player.IsSprintEnabled)
+        {
+            result = true;
+        }
         if (result)
         {
             pitch = settings.RetreatHeadDownPitch;
+            if (!_headDown)
+            {
+                _headDownUntil = Time.time + 0.8f;
+            }
         }
         if (result != _headDown)
         {
