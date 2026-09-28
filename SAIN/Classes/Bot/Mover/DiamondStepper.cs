@@ -1,9 +1,11 @@
 using SAIN.Components;
+using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.GlobalSettings;
 using SAIN.Preset.Shared.GlobalSettings.Categories.General;
 using SAIN.Preset.Shared.Models.Preset.Personalities;
 using SAIN.SAINComponent.Classes.EnemyClasses;
 using SAIN.SAINComponent.Classes.Tactics;
+using EFT;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -114,6 +116,22 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         }
         forward.Normalize();
         Vector3 right = Vector3.Cross(Vector3.up, forward);
+        if (_leanSpam)
+        {
+            // Hold the lean toward the side the enemy is moving (as seen from the bot), Q/E mixed in - more up close.
+            LeanSetting side = LeanSetting.None;
+            Player enemyPlayer = enemy.EnemyPlayer;
+            if (enemyPlayer != null)
+            {
+                float lateral = Vector3.Dot(enemyPlayer.Velocity, right);
+                if (Mathf.Abs(lateral) > settings.LeanFollowEnemySpeed)
+                {
+                    side = lateral < 0f ? LeanSetting.Left : LeanSetting.Right;
+                }
+            }
+            float rock = dist <= settings.LeanRockCloseDistance ? settings.LeanRockChanceClose : settings.LeanRockChanceFar;
+            Bot.Mover.Lean.SetLeanPreference(side, rock / 100f, settings.LeanHoldMin, settings.LeanHoldMax);
+        }
 
         if (Time.time >= _tapEnd)
         {

@@ -28,6 +28,10 @@ public sealed class PlayerStyleRecorder
 
     private readonly BotManagerComponent _manager;
     private Player _player;
+
+    // Set once the main player was found. At GameWorld.Dispose the Player object is already destroyed (Unity-null), so
+    // the end-of-raid save must not test _player (it did: "not saving ... player=False").
+    private bool _playerFound;
     private Player.FirearmController _shotSource;
     private float _nextSample;
     private float _lastSample;
@@ -112,7 +116,7 @@ public sealed class PlayerStyleRecorder
 
     private void Tick()
     {
-        if (_player == null)
+        if (!_playerFound)
         {
             Player main = _manager.GameWorld?.MainPlayer;
             if (main == null)
@@ -120,6 +124,7 @@ public sealed class PlayerStyleRecorder
                 return;
             }
             _player = main;
+            _playerFound = true;
             _d.ProfileId = main.ProfileId;
             _d.Nickname = main.Profile?.Nickname;
             _d.Map = _manager.GameWorld?.LocationId;
@@ -132,6 +137,10 @@ public sealed class PlayerStyleRecorder
                 _manager.GrenadeController.OnGrenadeThrown += OnGrenadeThrown;
             }
             StartFiles();
+        }
+        if (_player == null)
+        {
+            return;
         }
         if (_player.HealthController?.IsAlive != true)
         {
@@ -382,7 +391,7 @@ public sealed class PlayerStyleRecorder
         _disposed = true;
         try
         {
-            if (_player != null)
+            if (!ReferenceEquals(_player, null))
             {
                 _player.OnPlayerDead -= OnPlayerDead;
             }
@@ -412,9 +421,9 @@ public sealed class PlayerStyleRecorder
         {
             return;
         }
-        if (!Enabled || _player == null || _d.Seconds < 30f)
+        if (!Enabled || !_playerFound || _d.Seconds < 30f)
         {
-            Logger.LogWarning($"[PlayerStyle] not saving ({why}): enabled={Enabled} player={(_player != null)} recorded={_d.Seconds:0}s (min 30s)");
+            Logger.LogWarning($"[PlayerStyle] not saving ({why}): enabled={Enabled} player={_playerFound} recorded={_d.Seconds:0}s (min 30s)");
             return;
         }
         Logger.LogWarning($"[PlayerStyle] saving ({why})...");

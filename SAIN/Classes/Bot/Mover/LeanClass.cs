@@ -5,6 +5,7 @@ using SAIN.Components;
 using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.GlobalSettings;
 using SAIN.SAINComponent.Classes.EnemyClasses;
+using SAIN.SAINComponent.Classes.Tactics;
 using UnityEngine;
 
 namespace SAIN.SAINComponent.Classes.Mover;
@@ -45,11 +46,37 @@ public class LeanClass : BotBase
         SetTilt();
     }
 
-    // zzap: Q/E lean spam while shooting (the player's own style from the key recorder: left/right alternated about every
-    // 0.13s with the trigger down). Driven by DiamondStepper. Bypasses the 0.2s smoothing so each lean actually snaps.
+    // zzap: combat lean while shooting, driven by DiamondStepper. Bypasses the 0.2s smoothing so each lean actually snaps.
+    // v1 was pure Q/E alternation every 0.13s and looked silly ("too much QE only"). The player's own key timeline
+    // (2026-09-29) shows mostly holds of 0.3-1s leaning to the side the fight moves, with short Q/E bursts mixed in:
+    // 28 of 30 medium lean holds while firing were toward the strafe side. So: hold toward the side the enemy is moving
+    // (from the bot's view), switch when he reverses, and now and then rock Q/E 2-4 times (more often up close).
     private bool _spam;
     private float _spamInterval = 0.13f;
     private float _spamNext;
+    private LeanSetting _prefSide = LeanSetting.None;
+    private float _rockChance = 0.3f;
+    private float _holdMin = 0.35f;
+    private float _holdMax = 1f;
+    private int _rockLeft;
+
+    /// <summary>Every tick while the combat lean runs: the side to hold (None = keep the current one) and the Q/E mix.</summary>
+    public void SetLeanPreference(LeanSetting side, float rockChance, float holdMin, float holdMax)
+    {
+        _rockChance = Mathf.Clamp01(rockChance);
+        _holdMin = Mathf.Max(0.1f, holdMin);
+        _holdMax = Mathf.Max(_holdMin, holdMax);
+        if (side == LeanSetting.None || side == _prefSide)
+        {
+            return;
+        }
+        _prefSide = side;
+        // The enemy reversed: leave a hold on the wrong side after a human-ish reaction, but let a Q/E burst finish.
+        if (_spam && _rockLeft == 0 && LeanDirection != side)
+        {
+            _spamNext = Mathf.Min(_spamNext, Time.time + UnityEngine.Random.Range(0.12f, 0.25f));
+        }
+    }
 
     public bool LeanSpamActive
     {
@@ -65,6 +92,8 @@ public class LeanClass : BotBase
         }
         _spam = active;
         _spamNext = 0f;
+        _rockLeft = 0;
+        _prefSide = LeanSetting.None;
         if (!active)
         {
             FastLean(LeanSetting.None);
@@ -81,8 +110,33 @@ public class LeanClass : BotBase
         }
         if (time >= _spamNext)
         {
-            FastLean(LeanDirection == LeanSetting.Left ? LeanSetting.Right : LeanSetting.Left);
-            _spamNext = time + _spamInterval * UnityEngine.Random.Range(0.7f, 1.3f);
+            LeanSetting other = LeanDirection == LeanSetting.Left ? LeanSetting.Right : LeanSetting.Left;
+            if (_rockLeft > 0)
+            {
+                _rockLeft--;
+                FastLean(other);
+                _spamNext = time + _spamInterval * UnityEngine.Random.Range(0.7f, 1.3f);
+            }
+            else if (LeanDirection != LeanSetting.None && UnityEngine.Random.value < _rockChance)
+            {
+                // Q/E burst: 2-4 quick switches, then back to a hold.
+                _rockLeft = UnityEngine.Random.Range(1, 4);
+                FastLean(other);
+                _spamNext = time + _spamInterval * UnityEngine.Random.Range(0.7f, 1.3f);
+                TacticDiagnostics.Count("lean.rock");
+            }
+            else
+            {
+                LeanSetting side = _prefSide;
+                if (side == LeanSetting.None)
+                {
+                    // No clear direction to follow: keep the side, sometimes swap it.
+                    side = LeanDirection == LeanSetting.None || UnityEngine.Random.value < 0.3f ? other : LeanDirection;
+                }
+                FastLean(side);
+                _spamNext = time + UnityEngine.Random.Range(_holdMin, _holdMax);
+                TacticDiagnostics.Count(_prefSide == LeanSetting.None ? "lean.hold.free" : "lean.hold.follow");
+            }
         }
         float tilt = LeanDirection == LeanSetting.Left ? -5f : LeanDirection == LeanSetting.Right ? 5f : 0f;
         Player.MovementContext.SetTilt(tilt);

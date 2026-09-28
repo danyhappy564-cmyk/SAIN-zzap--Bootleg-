@@ -98,21 +98,57 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public bool DiamondStepTestMode = false;
 
     [DataMember]
-    [Name("Lean Spam While Shooting")]
-    [Description("Diamond-stepping bots also rock left/right (Q/E) while shooting a visible enemy, like the player does - the head keeps moving out of the crosshair.")]
+    [Name("Lean While Shooting")]
+    [Description("Diamond-stepping bots also lean while shooting a visible enemy, like the player does: hold the lean toward the side the enemy is moving (0.35-1s), switch when he reverses, and mix in short Q/E bursts (more often up close).")]
     public bool LeanSpam = true;
 
     [DataMember]
-    [Name("Lean Spam Chance")]
+    [Name("Lean While Shooting Chance")]
     [Description("Percent, rolled once per engagement (each time the diamond step starts).")]
     [MinMax(0f, 100f, 1f)]
     public float LeanSpamChance = 60f;
 
     [DataMember]
-    [Name("Lean Spam Interval")]
-    [Description("Seconds between left and right (randomized 0.7x-1.3x). The player's own measured rhythm was ~0.13s.")]
+    [Name("Lean Q/E Burst Interval")]
+    [Description("Seconds between left and right inside a Q/E burst (randomized 0.7x-1.3x). The player's own measured rhythm was ~0.13s.")]
     [MinMax(0.06f, 0.5f, 100f)]
     public float LeanSpamInterval = 0.13f;
+
+    [DataMember]
+    [Name("Lean Hold Min")]
+    [Description("Seconds. Shortest lean hold between Q/E bursts.")]
+    [MinMax(0.1f, 3f, 100f)]
+    public float LeanHoldMin = 0.35f;
+
+    [DataMember]
+    [Name("Lean Hold Max")]
+    [Description("Seconds. Longest lean hold between Q/E bursts.")]
+    [MinMax(0.1f, 3f, 100f)]
+    public float LeanHoldMax = 1f;
+
+    [DataMember]
+    [Name("Lean Follows Enemy Above Speed")]
+    [Description("m/s. When the enemy moves sideways (from the bot's view) faster than this, the lean is held toward that side. Slower = keep the side, sometimes swap.")]
+    [MinMax(0.1f, 5f, 10f)]
+    public float LeanFollowEnemySpeed = 0.8f;
+
+    [DataMember]
+    [Name("Lean Q/E Burst Chance Close")]
+    [Description("Percent, each time a hold ends while the enemy is within the close distance below: do a Q/E burst (2-4 switches) instead of another hold.")]
+    [MinMax(0f, 100f, 1f)]
+    public float LeanRockChanceClose = 45f;
+
+    [DataMember]
+    [Name("Lean Q/E Burst Chance Far")]
+    [Description("Percent, same beyond the close distance.")]
+    [MinMax(0f, 100f, 1f)]
+    public float LeanRockChanceFar = 15f;
+
+    [DataMember]
+    [Name("Lean Q/E Burst Close Distance")]
+    [Description("Meters.")]
+    [MinMax(1f, 30f, 1f)]
+    public float LeanRockCloseDistance = 7f;
 
     [DataMember]
     [Name("Fight Close Instead Of Cover")]
