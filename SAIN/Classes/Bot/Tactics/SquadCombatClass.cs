@@ -81,6 +81,7 @@ public class SquadCombatClass : BotComponentClassBase
         public float StartTime;
         public float ArriveTime;
         public float NextMoveOrder;
+        public float HoldPose = 0.8f;
     }
 
     private Session _session;
@@ -362,13 +363,25 @@ public class SquadCombatClass : BotComponentClassBase
             return false;
         }
         Vector3 enemyPos = engaging.GoalEnemy.EnemyPosition;
-        if (!FindAnglePoint(enemy, enemyPos, engaging.Position, out Vector3 point, out string why))
+        // zzap 2026-09-29: 17 of the crossfire attempts in one Factory raid found no spot (noLineOfSight) - the ring of points
+        // 10-40m around the enemy lands behind walls indoors. Indoors: first hold the room's OTHER entrance (one mate fights
+        // at the front door, this one blocks the back), then short-range angles incl. crouch height and "one step out" spots.
+        bool indoor = Bot.Player.Environment == EnvironmentType.Indoor || engaging.GoalEnemy.EnemyPlayer?.Environment == EnvironmentType.Indoor;
+        if (indoor && Settings.CrossfireBackDoor && FindOtherEntrance(enemyPos, engaging, out Vector3 hold, out Vector3 doorway, out float doorDist))
+        {
+            Start(EMode.Crossfire, enemy, hold, doorway + Vector3.up * 1.2f, engaging, $"crossfire with {engaging.name}: holding the other entrance {doorDist:0.0}m from the enemy");
+            TacticDiagnostics.Count("squad.crossfire.backDoor");
+            reason = "crossfireBackDoor";
+            return true;
+        }
+        if (!FindAnglePoint(enemy, enemyPos, engaging.Position, out Vector3 point, out string why, indoor, out float pose))
         {
             reason = $"noCrossfirePoint({why})";
-            TacticDiagnostics.Count($"squad.crossfire.noPoint.{why}");
+            TacticDiagnostics.Count($"squad.crossfire.noPoint.{(indoor ? "indoor" : "outdoor")}.{why}");
             return false;
         }
-        Start(EMode.Crossfire, enemy, point, enemyPos + Vector3.up * 1.3f, engaging, $"crossfire with {engaging.name}");
+        Start(EMode.Crossfire, enemy, point, enemyPos + Vector3.up * 1.3f, engaging, $"crossfire with {engaging.name} ({(indoor ? "indoor" : "outdoor")}, pose {pose:0.0})");
+        _session.HoldPose = pose;
         reason = "crossfire";
         return true;
     }
@@ -380,8 +393,15 @@ public class SquadCombatClass : BotComponentClassBase
     /// </summary>
     private bool FindAnglePoint(Enemy enemy, Vector3 enemyPos, Vector3 reference, out Vector3 result, out string why)
     {
+        return FindAnglePoint(enemy, enemyPos, reference, out result, out why, false, out _);
+    }
+
+    private bool FindAnglePoint(Enemy enemy, Vector3 enemyPos, Vector3 reference, out Vector3 result, out string why, bool indoor, out float pose)
+    {
         result = default;
         why = "none";
+        pose = 0.8f;
+        float bestPose = 0.8f;
         Vector3 fromEnemy = Flat(reference - enemyPos);
         if (fromEnemy.sqrMagnitude < 1f)
         {
@@ -389,7 +409,7 @@ public class SquadCombatClass : BotComponentClassBase
         }
         float range = Mathf.Clamp(Flat(Bot.Position - enemyPos).magnitude, 10f, 40f);
         float baseAngle = Mathf.Atan2(fromEnemy.z, fromEnemy.x) * Mathf.Rad2Deg;
-        float minAngle = Settings.CrossfireMinAngle;
+        float minAngle = indoor ? Mathf.Min(Settings.CrossfireMinAngle, Settings.CrossfireIndoorMinAngle) : Settings.CrossfireMinAngle;
         float bestPath = float.MaxValue;
         int tested = 0;
         int noLos = 0;
@@ -399,15 +419,14 @@ public class SquadCombatClass : BotComponentClassBase
         // Candidates: (1) rotated around the enemy at three ranges, (2) sidesteps from where we stand.
         // A single ring at our own range mostly landed inside buildings/walls in the first test (Customs dorms).
         _candidates.Clear();
-        foreach (float scale in RING_SCALES)
+        foreach (float radius in RingRadii(range, indoor))
         {
-            float r = Mathf.Max(range * scale, 8f);
             for (float offset = minAngle; offset <= 120f; offset += 15f)
             {
                 for (int sign = -1; sign <= 1; sign += 2)
                 {
                     float angle = (baseAngle + offset * sign) * Mathf.Deg2Rad;
-                    _candidates.Add(enemyPos + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * r);
+                    _candidates.Add(enemyPos + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius);
                 }
             }
         }
@@ -440,7 +459,7 @@ public class SquadCombatClass : BotComponentClassBase
                 tooClose++;
                 continue;
             }
-            if (Physics.Linecast(point + Vector3.up * 1.5f, enemyPos + Vector3.up * 1.3f, LayersMaskController.HighPolyWithTerrainMask))
+            if (!SightFrom(point, enemyPos, out float candPose))
             {
                 noLos++;
                 continue;
@@ -456,15 +475,160 @@ public class SquadCombatClass : BotComponentClassBase
             }
             bestPath = length;
             result = point;
+            bestPose = candPose;
         }
         if (bestPath < float.MaxValue)
         {
+            pose = bestPose;
             _claimedPoints.Add((result, Time.time + CROSSFIRE_HOLD_MAX));
             return true;
         }
         why = tested == 0 ? "noNavmesh" : tooClose == tested ? "bunched" : noLos > 0 ? "noLineOfSight" : "noPath";
         return false;
     }
+
+    private static IEnumerable<float> RingRadii(float range, bool indoor)
+    {
+        if (indoor)
+        {
+            yield return 4f;
+            yield return 6f;
+            yield return 8f;
+            yield return Mathf.Clamp(range * 0.7f, 8f, 14f);
+            yield break;
+        }
+        foreach (float scale in RING_SCALES)
+        {
+            yield return Mathf.Max(range * scale, 8f);
+        }
+    }
+
+    /// <summary>
+    /// Can the enemy be engaged from here: standing (pose 1), crouched (0.55), or by stepping 1m out sideways from the
+    /// spot (hold behind the corner, pose 0.8). Enemy chest height.
+    /// </summary>
+    private static bool SightFrom(Vector3 point, Vector3 enemyPos, out float pose)
+    {
+        int mask = LayersMaskController.HighPolyWithTerrainMask;
+        Vector3 target = enemyPos + Vector3.up * 1.3f;
+        pose = 1f;
+        if (!Physics.Linecast(point + Vector3.up * 1.5f, target, mask))
+        {
+            return true;
+        }
+        pose = 0.55f;
+        if (!Physics.Linecast(point + Vector3.up * 0.95f, target, mask))
+        {
+            return true;
+        }
+        Vector3 toEnemy = Flat(enemyPos - point);
+        if (toEnemy.sqrMagnitude > 0.01f)
+        {
+            Vector3 lateral = Vector3.Cross(Vector3.up, toEnemy.normalized);
+            for (int sign = -1; sign <= 1; sign += 2)
+            {
+                Vector3 step = point + lateral * sign;
+                if (NavMesh.SamplePosition(step, out NavMeshHit hit, 0.4f, -1) && !Physics.Linecast(hit.position + Vector3.up * 1.5f, target, mask))
+                {
+                    pose = 0.8f;
+                    TacticDiagnostics.Count("squad.crossfire.stepOutAngle");
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private readonly NavMeshPath _entryPath = new();
+
+    /// <summary>
+    /// Indoors: a spot watching a second way into the enemy's room. The teammate's route ends through one doorway (the last
+    /// path corner before the enemy); try points around the enemy whose own route in ends through a doorway 3m+ away from
+    /// that one, and hold 2.5m back from that doorway, watching it. Limited to 24 path calculations.
+    /// </summary>
+    private bool FindOtherEntrance(Vector3 enemyPos, BotComponent mate, out Vector3 hold, out Vector3 doorway, out float doorDist)
+    {
+        hold = default;
+        doorway = default;
+        doorDist = 0f;
+        if (!SampleNav(enemyPos, out Vector3 enemyNav) || !SampleNav(mate.Position, out Vector3 mateNav))
+        {
+            return false;
+        }
+        if (!NavMesh.CalculatePath(mateNav, enemyNav, -1, _entryPath) || _entryPath.corners.Length < 3)
+        {
+            TacticDiagnostics.Count("squad.crossfire.backDoor.mateDirect");
+            return false;
+        }
+        Vector3 entryA = _entryPath.corners[_entryPath.corners.Length - 2];
+        CleanClaims();
+        float best = float.MaxValue;
+        int calcs = 0;
+        foreach (float radius in _entranceRadii)
+        {
+            for (int i = 0; i < 12 && calcs < 24; i++)
+            {
+                float angle = i * 30f * Mathf.Deg2Rad;
+                Vector3 raw = enemyPos + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius;
+                if (!NavMesh.SamplePosition(raw, out NavMeshHit hit, 1f, -1))
+                {
+                    continue;
+                }
+                Vector3 cand = hit.position;
+                if (Flat(cand - entryA).magnitude < 4f || Flat(cand - mate.Position).magnitude < 4f)
+                {
+                    continue;
+                }
+                calcs++;
+                if (!NavMesh.CalculatePath(cand, enemyNav, -1, _entryPath) || _entryPath.status != NavMeshPathStatus.PathComplete)
+                {
+                    continue;
+                }
+                var corners = _entryPath.corners;
+                if (corners.Length < 3 || PathLength(_entryPath) > 15f)
+                {
+                    continue;
+                }
+                Vector3 entryB = corners[corners.Length - 2];
+                if (Flat(entryB - entryA).magnitude < 3f)
+                {
+                    continue;
+                }
+                Vector3 back = Flat(corners[corners.Length - 3] - entryB);
+                float backLen = Mathf.Min(2.5f, back.magnitude);
+                if (backLen < 0.8f || !SampleNav(entryB + back.normalized * backLen, out Vector3 spot))
+                {
+                    continue;
+                }
+                if (Physics.Linecast(spot + Vector3.up * 1.5f, entryB + Vector3.up * 1.2f, LayersMaskController.HighPolyWithTerrainMask))
+                {
+                    continue;
+                }
+                if (TooCloseToTeammates(spot) || !Bot.Mover.CanGoToPoint(spot, out NavMeshPath path, true))
+                {
+                    continue;
+                }
+                float length = PathLength(path);
+                if (length > MAX_PATH_LENGTH || length >= best)
+                {
+                    continue;
+                }
+                best = length;
+                hold = spot;
+                doorway = entryB;
+                doorDist = Flat(entryB - enemyPos).magnitude;
+            }
+        }
+        if (best < float.MaxValue)
+        {
+            _claimedPoints.Add((hold, Time.time + CROSSFIRE_HOLD_MAX));
+            return true;
+        }
+        TacticDiagnostics.Count("squad.crossfire.backDoor.none");
+        return false;
+    }
+
+    private static readonly float[] _entranceRadii = { 5f, 8f, 11f };
 
     private bool TooCloseToTeammates(Vector3 point)
     {
@@ -609,7 +773,7 @@ public class SquadCombatClass : BotComponentClassBase
         }
 
         Bot.Mover.Stop();
-        Bot.Mover.SetTargetPose(0.8f);
+        Bot.Mover.SetTargetPose(s.HoldPose);
     }
 
     public void OnActionStopped()

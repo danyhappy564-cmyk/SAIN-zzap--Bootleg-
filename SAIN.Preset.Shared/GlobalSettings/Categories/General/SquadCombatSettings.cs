@@ -17,6 +17,17 @@ public class SquadCombatSettings : SAINSettingsBase<SquadCombatSettings>, ISAINS
     public bool Enabled = true;
 
     [DataMember]
+    [Name("Crossfire: Hold The Other Entrance Indoors")]
+    [Description("Indoors, instead of a spot in the open around the enemy (usually behind walls), the crossfire bot first looks for a second way into the enemy's room and holds it, watching the doorway - one mate fights at the front door, this one blocks the back.")]
+    public bool CrossfireBackDoor = true;
+
+    [DataMember]
+    [Name("Crossfire Indoor Min Angle")]
+    [Description("Degrees. Indoors the angle to the engaging teammate can be smaller (rooms are small); points 4-14m from the enemy, crouch-height sight and 'one step out' corner spots count too.")]
+    [MinMax(5f, 90f, 1f)]
+    public float CrossfireIndoorMinAngle = 20f;
+
+    [DataMember]
     [Name("Squad Storm Weak Enemy")]
     [Description("A squad (2+ alive within 35m) sizes up its enemy every 20s from his gear and state - no/low armor, no helmet, pistol or no gun out, hurt, busy healing/reloading, alone. Weak enough: the squad storms him together (Chad/GigaChad/Wreckless always join, Normal 80%, Timmy 60%, Rat/Turtle 35%, Coward 10%).")]
     public bool SquadStorm = true;
