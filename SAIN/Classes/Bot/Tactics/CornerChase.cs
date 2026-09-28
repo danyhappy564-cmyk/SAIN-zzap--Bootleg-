@@ -239,26 +239,91 @@ public sealed class CornerChase(BotComponent bot)
         bool ammoOk = rounds >= needed;
         bool headroom = !Physics.Raycast(Bot.Position + Vector3.up * 1.7f, Vector3.up, 0.7f, LayersMaskController.HighPolyWithTerrainMask);
 
-        if (confident && ammoOk && Random.value * 100f < settings.CornerChasePrefireChance)
+        // Situation-weighted pick (user 2026-09-29: "not just a random roll - in which situation is which move better, and
+        // why"). Each style gets a weight from what the bot knows; the log lists the weights and the reasons.
+        float ammoRatio = max > 0 ? rounds / (float)max : 0f;
+        var health = Bot.Memory.Health.HealthStatus;
+        bool hurt = health == ETagStatus.Injured || health == ETagStatus.BadlyInjured || health == ETagStatus.Dying;
+        float lastShotAtMe = enemy.Status.TimeLastShotAtMe;
+        bool heHoldsAngle = lastShotAtMe > 0f && Time.time - lastShotAtMe < 3f;
+        float weakness = SquadStorm.Weakness(Bot, enemy, out string weakWhy);
+        bool fleeing = false;
+        if (enemy.EnemyPlayer != null && lastKnown != null)
         {
-            _style = EStyle.Prefire;
+            Vector3 away = lastKnown.Value - Bot.Position;
+            away.y = 0f;
+            fleeing = away.sqrMagnitude > 0.01f && Vector3.Dot(enemy.EnemyPlayer.Velocity, away.normalized) > 1.5f;
         }
-        else if (pusher && headroom && Random.value * 100f < settings.CornerChaseJumpChance)
+        var reasons = new System.Text.StringBuilder();
+        float wPrefire = 0f, wJump = 0f, wLean = 1f, wPie = 1f;
+        if (confident && ammoOk)
         {
-            _style = EStyle.JumpShot;
+            wPrefire = 1.5f * settings.CornerChasePrefireChance / 60f;
+            reasons.Append("sure he's at the corner + mag ok -> prefire; ");
+            if (enemy.TimeSinceSeen < 1.5f)
+            {
+                wPrefire += 1.5f;
+                reasons.Append("saw him <1.5s ago -> prefire++; ");
+            }
+            if (heHoldsAngle)
+            {
+                wPrefire += 1f;
+                reasons.Append("he was shooting at me -> he's holding it, prefire+; ");
+            }
         }
-        else if (personality == EPersonality.GigaChad || personality == EPersonality.Wreckless || Random.value < 0.5f)
+        if (headroom && pusher)
         {
-            _style = EStyle.LeanIn;
+            wJump = 1f * settings.CornerChaseJumpChance / 30f;
+            if (heHoldsAngle)
+            {
+                wJump += 1.5f;
+                reasons.Append("he holds the angle -> jump shot beats a held angle; ");
+            }
+            if (hurt)
+            {
+                wJump *= 0.4f;
+            }
         }
-        else
+        if (!hurt && ammoRatio > 0.6f)
         {
-            _style = EStyle.Pie;
+            wLean += 1f;
+            reasons.Append("healthy + ammo -> lean in; ");
         }
+        if (fleeing)
+        {
+            wLean += 1.5f;
+            reasons.Append("he's running away -> push fast (lean in); ");
+        }
+        if (personality == EPersonality.GigaChad || personality == EPersonality.Wreckless)
+        {
+            wLean += 1f;
+        }
+        if (hurt || ammoRatio < 0.6f)
+        {
+            wPie += 2f;
+            reasons.Append("hurt/low ammo -> slow pie; ");
+        }
+        if (weakness < 0.2f)
+        {
+            wPie += 1.5f;
+            reasons.Append($"he's well geared ({weakWhy}) -> careful pie; ");
+        }
+        else if (weakness >= 0.5f)
+        {
+            wLean += 1f;
+            reasons.Append($"he's weak ({weakWhy}) -> push; ");
+        }
+        if (personality == EPersonality.Normal)
+        {
+            wPie += 0.5f;
+        }
+        float total = wPrefire + wJump + wLean + wPie;
+        float roll = Random.value * total;
+        _style = roll < wPrefire ? EStyle.Prefire : roll < wPrefire + wJump ? EStyle.JumpShot : roll < wPrefire + wJump + wLean ? EStyle.LeanIn : EStyle.Pie;
         TacticDiagnostics.Count($"chase.style.{_style}");
         TacticDiagnostics.LogCloseCombat(
             $"[Chase] [{Bot.name}] [{personality}] enemy broke sight {enemy.TimeSinceSeen:0.0}s ago, corner {(corner != null ? (corner.Value - Bot.Position).magnitude : -1f):0.0}m {_side} -> {_style} "
-                + $"(sure he's there {confident}, mag {rounds}/{max} need {needed}, headroom {headroom})"
+                + $"(weights prefire {wPrefire:0.0} / jump {wJump:0.0} / lean {wLean:0.0} / pie {wPie:0.0}; mag {rounds}/{max}, headroom {headroom}) because: {reasons}"
         );
     }
 

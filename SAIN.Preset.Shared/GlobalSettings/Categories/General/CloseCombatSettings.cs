@@ -168,6 +168,23 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float ExposedCommitCoverDistance = 6f;
 
     [DataMember]
+    [Name("Grenade Judgment")]
+    [Description("A grenade only when the enemy is out of sight, his position is recent (info age below), and the thrower is safe: not being shot, the enemy's path to it is long enough that he can't rush it during the throw, not badly hurt, no other enemy in sight. Then weighed by situation: +30% he's been camping in one spot 6s+, +10% indoors, +15% healing/reloading, -20% info over 10s old (base 50%). [Nade] logs why.")]
+    public bool GrenadeDiscipline = true;
+
+    [DataMember]
+    [Name("Grenade Max Info Age")]
+    [Description("Seconds since the enemy's position was last updated (seen/heard).")]
+    [MinMax(3f, 120f, 1f)]
+    public float GrenadeMaxInfoAge = 20f;
+
+    [DataMember]
+    [Name("Grenade Min Rush Distance")]
+    [Description("Meters of path from the enemy to the thrower - closer and he could push it during the throw.")]
+    [MinMax(0f, 40f, 1f)]
+    public float GrenadeMinRushDistance = 10f;
+
+    [DataMember]
     [Name("Light Discipline")]
     [Description("Flashlight and laser off while holding an angle / ambushing with the enemy out of sight (standing or creeping, enemy known within 60m in the last 60s) and whenever a tactic holds a spot. Turned on only when the enemy shows up, to blind him. Field report: bots holding inside a room lit up the doorway.")]
     public bool LightDiscipline = true;

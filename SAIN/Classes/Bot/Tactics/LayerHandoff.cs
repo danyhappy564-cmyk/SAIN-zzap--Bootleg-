@@ -24,7 +24,15 @@ public static class LayerHandoff
         public float CombatEndedAt = -1f;
         public string EndDecision;
         public bool Waiting;
+        public float CreatedAt;
         public readonly List<(string layer, float seconds)> Between = new();
+    }
+
+    // Close-quarters (DogFight, grenade escape) and flash layers are SAIN fighting too; ORBIT's timer restarts there but it
+    // can't take over (they outrank it), so leaving the combat layer for them isn't "combat ended" (first log counted 150+).
+    private static bool IsFighting(string layer)
+    {
+        return layer == SainCombat || layer.StartsWith("SAIN : Avoid") || layer.StartsWith("SAIN : Flash");
     }
 
     private static readonly Dictionary<string, State> _states = new();
@@ -38,7 +46,7 @@ public static class LayerHandoff
         float now = Time.time;
         if (!_states.TryGetValue(profileId, out State st))
         {
-            st = new State { Layer = newLayer, Since = now };
+            st = new State { Layer = newLayer, Since = now, CreatedAt = now };
             _states[profileId] = st;
             return;
         }
@@ -49,7 +57,13 @@ public static class LayerHandoff
         }
         float prevTime = now - st.Since;
 
-        if (prev == SainCombat)
+        if (IsFighting(prev) && IsFighting(newLayer))
+        {
+            st.Layer = newLayer;
+            st.Since = now;
+            return;
+        }
+        if (IsFighting(prev))
         {
             st.CombatEndedAt = now;
             st.EndDecision = lastDecision;
@@ -70,7 +84,7 @@ public static class LayerHandoff
             TacticDiagnostics.LogCloseCombat($"[Handoff] [{botName}] combat ended ({st.EndDecision}) -> ORBIT after {gap:0.0}s{Gap(st)}");
             st.Waiting = false;
         }
-        else if (st.Waiting && newLayer == SainCombat)
+        else if (st.Waiting && IsFighting(newLayer))
         {
             float gap = now - st.CombatEndedAt;
             TacticDiagnostics.Count(gap < 15f ? "handoff.combatResumedBeforeOrbit" : "handoff.combatResumedLate");
@@ -81,10 +95,12 @@ public static class LayerHandoff
             st.Waiting = false;
         }
 
-        if (prev == Orbit && newLayer == SainCombat)
+        if (prev == Orbit && IsFighting(newLayer))
         {
-            TacticDiagnostics.Count(prevTime < 5f ? "handoff.orbitFlipFlop" : "handoff.orbitToCombat");
-            if (prevTime < 5f)
+            // Right after spawn ORBIT always has the bot first - a quick switch to a fight then is not a flip-flop.
+            bool flip = prevTime < 5f && now - st.CreatedAt > 20f;
+            TacticDiagnostics.Count(flip ? "handoff.orbitFlipFlop" : "handoff.orbitToCombat");
+            if (flip)
             {
                 TacticDiagnostics.LogCloseCombat($"[Handoff] [{botName}] ORBIT had it only {prevTime:0.0}s -> back to SAIN combat");
             }

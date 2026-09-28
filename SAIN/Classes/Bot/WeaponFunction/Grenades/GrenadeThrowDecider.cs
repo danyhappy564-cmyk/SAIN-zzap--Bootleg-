@@ -113,6 +113,10 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
         {
             return false;
         }
+        if (!Judge(enemy, out reason))
+        {
+            return false;
+        }
         var grenades = BotOwner.WeaponManager.Grenades;
         if (!grenades.HaveGrenade)
         {
@@ -136,6 +140,129 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
         }
         reason = "noGoodTarget";
         return false;
+    }
+
+    // ---- zzap grenade judgment (user 2026-09-29, how players decide on live servers): throw when the enemy is NOT seen,
+    // his position is roughly known (recent info - "he must have moved there"), and the thrower is really safe (not being
+    // shot, the enemy can't rush him during the throw, not badly hurt, no other enemy in sight). Then weigh the situation
+    // instead of a flat roll: a camper who hasn't moved, someone indoors (nowhere to run), someone healing/reloading are
+    // worth a grenade; old info isn't. Every throw / skip logs why as [Nade].
+    private string _stillEnemyId;
+    private Vector3 _stillPos;
+    private float _stillSince;
+    private float _nextJudgeLog;
+
+    private bool Judge(Enemy enemy, out string reason)
+    {
+        var settings = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat;
+        if (settings == null || !settings.GrenadeDiscipline)
+        {
+            reason = string.Empty;
+            return true;
+        }
+        Vector3? known = enemy.KnownPlaces.LastKnownPosition;
+        float time = Time.time;
+        if (known != null)
+        {
+            if (_stillEnemyId != enemy.EnemyProfileId || (known.Value - _stillPos).sqrMagnitude > 1.5f * 1.5f)
+            {
+                _stillEnemyId = enemy.EnemyProfileId;
+                _stillPos = known.Value;
+                _stillSince = time;
+            }
+        }
+        float infoAge = enemy.TimeSinceLastKnownUpdated;
+        string block = null;
+        if (infoAge > settings.GrenadeMaxInfoAge)
+        {
+            block = $"infoStale({infoAge:0}s)";
+        }
+        else if (BotOwner.Memory.IsUnderFire)
+        {
+            block = "underFire";
+        }
+        else if (enemy.Path.PathLength < settings.GrenadeMinRushDistance)
+        {
+            block = $"enemyCouldRushMe({enemy.Path.PathLength:0}m path)";
+        }
+        else if (Bot.Memory.Health.HealthStatus == ETagStatus.BadlyInjured || Bot.Memory.Health.HealthStatus == ETagStatus.Dying)
+        {
+            block = "imHurt";
+        }
+        else if (OtherEnemyVisible(enemy))
+        {
+            block = "otherEnemyVisible";
+        }
+        if (block != null)
+        {
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"nade.blocked.{block.Split('(')[0]}");
+            LogJudge($"no: {block}");
+            _nextPossibleAttempt = time + 2f;
+            reason = $"notSafe:{block}";
+            return false;
+        }
+        float chance = 0.5f;
+        var why = new System.Text.StringBuilder();
+        float still = time - _stillSince;
+        if (still > 6f)
+        {
+            chance += 0.3f;
+            why.Append($"camping {still:0}s +30 ");
+        }
+        if (enemy.EnemyPlayer?.Environment == EnvironmentType.Indoor)
+        {
+            chance += 0.1f;
+            why.Append("indoors +10 ");
+        }
+        if (enemy.Status.VulnerableAction != SAIN.Models.Enums.EEnemyAction.None)
+        {
+            chance += 0.15f;
+            why.Append($"{enemy.Status.VulnerableAction} +15 ");
+        }
+        if (infoAge > 10f)
+        {
+            chance -= 0.2f;
+            why.Append($"info {infoAge:0}s old -20 ");
+        }
+        chance = Mathf.Clamp(chance, 0.1f, 0.95f);
+        bool go = Random.value < chance;
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(go ? "nade.judge.throw" : "nade.judge.hold");
+        LogJudge($"{(go ? "THROW" : "hold")} ({chance:P0}: base 50 {why}) at {enemy.EnemyPlayer?.Profile?.Nickname} {enemy.KnownPlaces.BotDistanceFromLastKnown:0}m, info {infoAge:0.0}s, path {enemy.Path.PathLength:0}m");
+        if (!go)
+        {
+            _nextPossibleAttempt = time + Random.Range(3f, 6f);
+            reason = "judgedNotWorthIt";
+            return false;
+        }
+        reason = string.Empty;
+        return true;
+    }
+
+    private bool OtherEnemyVisible(Enemy goal)
+    {
+        var known = Bot.EnemyController?.KnownEnemies;
+        if (known == null)
+        {
+            return false;
+        }
+        foreach (Enemy other in known)
+        {
+            if (other != null && !ReferenceEquals(other, goal) && other.IsVisible)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void LogJudge(string text)
+    {
+        if (Time.time < _nextJudgeLog)
+        {
+            return;
+        }
+        _nextJudgeLog = Time.time + 3f;
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat($"[Nade] [{Bot.name}] [{Bot.Info.Personality}] {text}");
     }
 
     private bool CheckCanThrow(out string reason)

@@ -250,7 +250,15 @@ public class DoorTacticClass : BotComponentClassBase
         }
 
         bool resuming = resumeCandidate && _resumeDoorId == geo.Data.Id;
-        float chance = testMode ? 1f : Mathf.Clamp01(baseChance * Settings.ChanceMultiplier);
+        // zzap stalemate: the enemy has gone quiet in a room for 10-60s (camping behind a closed door - field report: bots
+        // just held far away until a third party showed up) -> much more likely to act on the door now.
+        float quiet = enemy.TimeSinceLastKnownUpdated;
+        bool stalemate = quiet >= 10f && quiet <= 60f;
+        float chance = testMode ? 1f : Mathf.Clamp01(baseChance * Settings.ChanceMultiplier * (stalemate ? 1.8f : 1f));
+        if (stalemate)
+        {
+            TacticDiagnostics.Count("door.stalemateBoost");
+        }
         if (resuming)
         {
             _resumeUntil = 0f;
@@ -630,7 +638,7 @@ public class DoorTacticClass : BotComponentClassBase
         s.PeekPointOk = peekPointOk;
 
         bool clearPersonality = personality == EPersonality.Wreckless || personality == EPersonality.Normal
-            || ((personality == EPersonality.GigaChad || personality == EPersonality.Chad) && Random.value * 100f < Settings.RoomClearChance);
+            || ((personality == EPersonality.GigaChad || personality == EPersonality.Chad) && Random.value * 100f < Settings.RoomClearChance * (enemy.TimeSinceLastKnownUpdated >= 10f ? 1.5f : 1f));
         if (Settings.RoomClear && clearPersonality)
         {
             BuildClear(s, geo, enemy, haveNade, doorOpen);
@@ -713,11 +721,62 @@ public class DoorTacticClass : BotComponentClassBase
         s.Plan = EPlan.Clear;
         s.FirstStep = EStep.MoveToStack;
         s.NeedsOpenForPeek = !doorOpen;
-        s.ClearReal = haveNade && Random.value * 100f < Settings.RoomClearGrenadeChance;
-        // Fakes: 0 / 1 / 2 draws (30 / 45 / 25%). With a real grenade the enemy learns nothing from the draw sound;
-        // with no real one the fake alone freezes him in his corner and the dash comes instead.
-        float r = Random.value;
-        s.ClearFakesLeft = !haveNade || !Settings.FakeGrenade ? 0 : r < 0.3f ? 0 : r < 0.75f ? 1 : 2;
+        // Situation-weighted (user 2026-09-29: "weight each move by the situation, and say why"):
+        //   grenade - he's gone quiet in there (camping), deep in the room, or holding right behind the door;
+        //   dash    - he's moving/repositioning (not set up yet), weak, or we're a healthy pusher;
+        //   fakes   - more when he's camping (bait him out / keep him guessing), none when he's on the move.
+        var hearing = enemy.Hearing;
+        bool moving = hearing != null && Time.time - hearing.LastHeardSoundTime < 2f
+            && (hearing.LastHeardSoundType == SAINSoundType.FootStep || hearing.LastHeardSoundType == SAINSoundType.Sprint);
+        bool camping = !moving && enemy.TimeSinceLastKnownUpdated > 3f;
+        float weakness = SquadStorm.Weakness(Bot, enemy, out string weakWhy);
+        var health = Bot.Memory.Health.HealthStatus;
+        bool healthy = health == ETagStatus.Healthy;
+        var why = new System.Text.StringBuilder();
+        float wNade = haveNade ? Settings.RoomClearGrenadeChance / 55f : 0f;
+        float wDash = 1f;
+        if (haveNade)
+        {
+            if (camping)
+            {
+                wNade += 1.5f;
+                why.Append("he's gone quiet in there -> grenade; ");
+            }
+            if (geo.EnemyDepth >= 2.5f)
+            {
+                wNade += 1f;
+                why.Append($"deep in the room ({geo.EnemyDepth:0.0}m) -> grenade; ");
+            }
+            else if (geo.EnemyDepth < 1.5f && camping)
+            {
+                wNade += 1f;
+                why.Append("holding right behind the door -> never dash into that, grenade; ");
+                wDash *= 0.3f;
+            }
+        }
+        if (moving)
+        {
+            wDash += 1.5f;
+            why.Append("he's moving (not set up) -> dash now; ");
+        }
+        if (weakness >= 0.5f)
+        {
+            wDash += 1f;
+            why.Append($"he's weak ({weakWhy}) -> dash; ");
+        }
+        if (healthy && Bot.Info.PersonalitySettings.Rush.CanRushEnemyReloadHeal)
+        {
+            wDash += 0.5f;
+        }
+        s.ClearReal = haveNade && Random.value * (wNade + wDash) < wNade;
+        int fakes = 0;
+        if (haveNade && Settings.FakeGrenade && !moving)
+        {
+            float r = Random.value;
+            fakes = camping ? (r < 0.2f ? 0 : r < 0.65f ? 1 : 2) : (r < 0.5f ? 0 : 1);
+        }
+        s.ClearFakesLeft = fakes;
+        Log($"{Who()} room clear plan: {(s.ClearReal ? "REAL grenade then dash" : "dash")} after {fakes} fake(s) (weights grenade {wNade:0.0} / dash {wDash:0.0}) because: {(why.Length > 0 ? why.ToString() : "nothing special")}");
         s.HoldTime = Random.Range(2f, 4f);
         s.HoldPose = 1f;
         // Dash point: 3m into the room, stepped 1m away from the side the enemy was last known on so the bot doesn't
@@ -1116,9 +1175,10 @@ public class DoorTacticClass : BotComponentClassBase
                 {
                     break;
                 }
-                // Right after a fake the weapon is still coming back up - give the grenade manager a moment.
+                // Right after a fake the weapon is still coming back up - give the grenade manager a moment
+                // (2026-09-29 log: 1.5s wasn't enough, the real throw fell through to "no grenade, dash anyway").
                 var nadeManager = BotOwner.WeaponManager?.Grenades;
-                if (stepTime < 1.5f && nadeManager != null && (!nadeManager.ReadyToThrow || Player.HandsController is IGrenadeController))
+                if (stepTime < 3f && nadeManager != null && (!nadeManager.ReadyToThrow || Player.HandsController is IGrenadeController))
                 {
                     break;
                 }
