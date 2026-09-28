@@ -132,6 +132,13 @@ public class BotManagerComponent : MonoBehaviour
         }
     }
 
+    private void Update()
+    {
+        // zzap: key recording needs every frame; the world tick path above is per frame too, but Unity's Update is the
+        // one input is guaranteed to be current in.
+        PlayerStyle?.PollKeys();
+    }
+
     private void OnDestroy()
     {
         // zzap: last-chance save of the player style record if neither dispose path ran.

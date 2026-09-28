@@ -46,6 +46,30 @@ public sealed class PlayerStyleRecorder
     private float _campStart = -1f;
 
     private readonly StyleData _d = new();
+    private PlayerKeyRecorder _keys;
+
+    /// <summary>Every frame, from BotManagerComponent.Update (Unity), so key presses are timed to the frame.</summary>
+    public void PollKeys()
+    {
+        if (_keys == null || _written || _player == null || _player.HealthController?.IsAlive != true)
+        {
+            return;
+        }
+        try
+        {
+            _keys.Poll();
+        }
+        catch (Exception ex)
+        {
+            if (!_keyErrorLogged)
+            {
+                _keyErrorLogged = true;
+                Logger.LogWarning($"[PlayerStyle] key recorder error (logged once): {ex}");
+            }
+        }
+    }
+
+    private bool _keyErrorLogged;
 
     public PlayerStyleRecorder(BotManagerComponent manager)
     {
@@ -356,6 +380,14 @@ public sealed class PlayerStyleRecorder
         }
         _written = true;
         CloseCampSegment(Time.time);
+        try
+        {
+            _keys?.End();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning($"[PlayerStyle] key recorder end failed: {ex.Message}");
+        }
         _d.EndReason = why;
         Logger.LogWarning($"[PlayerStyle] RAID SUMMARY ({why}): {Summary()}");
         try
@@ -409,6 +441,13 @@ public sealed class PlayerStyleRecorder
                 File.Delete(CheckpointFile);
             }
             Logger.LogWarning($"[PlayerStyle] recording {_d.Nickname} on {_d.Map} -> {RecordFile} (checkpoint every {GlobalSettingsClass.Instance.General.PlayerStyle.LogEveryMinutes:0} min: {CheckpointFile})");
+            var settings = GlobalSettingsClass.Instance.General.PlayerStyle;
+            if (settings.RecordKeys)
+            {
+                _keys = new PlayerKeyRecorder(Dir, _d.ProfileId, _d.RaidStartTime, settings.KeyTimeline);
+                _d.Keys = _keys.Stats;
+                Logger.LogWarning($"[PlayerStyle] key recording on, binds from {_keys.BindSource}, timeline {(_keys.Stats.TimelineFile ?? "off")}");
+            }
         }
         catch (Exception ex)
         {
@@ -422,6 +461,7 @@ public sealed class PlayerStyleRecorder
         try
         {
             _d.EndReason = "checkpoint";
+            _keys?.Flush();
             File.WriteAllText(CheckpointFile, JsonConvert.SerializeObject(_d, Formatting.None));
         }
         catch (Exception ex)
@@ -444,6 +484,10 @@ public sealed class PlayerStyleRecorder
         sb.Append($"reloads={d.Reloads} (empty {d.ReloadsEmpty}, avg left {(d.Reloads > 0 ? d.ReloadRoundsLeftSum / (float)d.Reloads : 0f):0.0}) grenades={d.Grenades} | ");
         sb.Append($"kills={d.Kills} avgDist={(d.Kills > 0 ? d.KillDistanceSum / d.Kills : 0f):0}m (<10:{d.KillsUnder10m} 10-30:{d.Kills10to30m} 30-80:{d.Kills30to80m} 80+:{d.KillsOver80m}) head={d.KillsHead} unseenByVictim={d.KillsUnseen} ");
         sb.Append($"victimDoing=[{string.Join(", ", FormatDict(d.KillsByVictimDecision))}]");
+        if (_keys != null)
+        {
+            sb.Append(" | ").Append(_keys.Summary(d.Seconds));
+        }
         if (d.Died)
         {
             sb.Append($" | DIED {d.DeathDistance:0}m part={d.DeathPart} by={d.KilledBy} ({d.KilledByPersonality}, {d.KilledByDecision})");
@@ -515,5 +559,6 @@ public sealed class PlayerStyleRecorder
         public string KilledBy;
         public string KilledByPersonality;
         public string KilledByDecision;
+        public KeyStats Keys;
     }
 }

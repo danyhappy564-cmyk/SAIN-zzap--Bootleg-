@@ -16,6 +16,16 @@ public class PlayerStyleSettings : SAINSettingsBase<PlayerStyleSettings>, ISAINS
     public bool Enabled = true;
 
     [DataMember]
+    [Name("Record Keys")]
+    [Description("Also record the player's game keys (press/release and hold time) - A/D switching, jump, crouch, lean, fire taps vs holds. Binds are read from SPT's Control.ini. Only while in a raid, not while the cursor is visible (inventory/menus).")]
+    public bool RecordKeys = true;
+
+    [DataMember]
+    [Name("Key Timeline File")]
+    [Description("Write every key press/release with its time to <profile>_<date>.keys.csv next to the style record (appended every 2s). Off = only the key statistics.")]
+    public bool KeyTimeline = true;
+
+    [DataMember]
     [Name("Log Summary Every (min)")]
     [Description("Minutes. Also print the running [PlayerStyle] summary during the raid this often. 0 = only at raid end.")]
     [MinMax(0f, 30f, 1f)]
