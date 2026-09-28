@@ -43,6 +43,7 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 | 분대 역할 | 한 명이 문 전술을 하면 동료는 오버워치(교차 각) / 후방 경계 | 분대 | 〃 `Squad Roles` |
 | 제3자 감지 | 문 전술 중 다른 적이 보이거나 25m 안에서 소리 나면 즉시 문을 버리고 대응 | 전원 | 자동 |
 | 다이아몬드 스텝 | 사격 중·근접 난전(DogFight) 중 WASD를 와다다 누르듯 짧게 끊어 움직임 (탭 0.13초, 좌우 60% · 앞뒤 40%) | GigaChad / Chad / Wreckless / Normal |
+| 기울이기 연타 | 다이아몬드 스텝 중 사격할 때 Q/E를 0.13초 간격으로 번갈아 (교전마다 60%) | 다이아몬드 스텝 대상 | `General > Close Combat (zzap)` |
 | 근접 교전 우선 | 적이 8m 안에서 보이면 엄폐로 걸어가지 않고 계속 싸움 (치료·재장전 중 제외) | PMC (Coward 제외) | `General > Close Combat (zzap)` |
 | 권총 전환 | 교전 중 탄창이 비고 적이 30m 안에 보이면 장전 대신 권총 | PMC | 〃 `Pistol Swap When Empty` |
 | 빠른 장전 | 교전 중엔 R 두 번처럼 탄창을 버리고 빠르게 장전 | PMC | 〃 `Quick Reload In Combat` |

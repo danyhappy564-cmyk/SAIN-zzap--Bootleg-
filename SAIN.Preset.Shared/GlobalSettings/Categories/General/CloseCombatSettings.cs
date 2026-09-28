@@ -92,6 +92,23 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public bool DiamondStepTestMode = false;
 
     [DataMember]
+    [Name("Lean Spam While Shooting")]
+    [Description("Diamond-stepping bots also rock left/right (Q/E) while shooting a visible enemy, like the player does - the head keeps moving out of the crosshair.")]
+    public bool LeanSpam = true;
+
+    [DataMember]
+    [Name("Lean Spam Chance")]
+    [Description("Percent, rolled once per engagement (each time the diamond step starts).")]
+    [MinMax(0f, 100f, 1f)]
+    public float LeanSpamChance = 60f;
+
+    [DataMember]
+    [Name("Lean Spam Interval")]
+    [Description("Seconds between left and right (randomized 0.7x-1.3x). The player's own measured rhythm was ~0.13s.")]
+    [MinMax(0.06f, 0.5f, 100f)]
+    public float LeanSpamInterval = 0.13f;
+
+    [DataMember]
     [Name("Fight Close Instead Of Cover")]
     [Description("When the enemy is visible and this close, keep shooting (with the diamond step) instead of walking off to cover - at point-blank range the walk just gets the bot shot. Not while healing/reloading or under 20% magazine; Cowards still run.")]
     public bool CloseFight = true;

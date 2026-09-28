@@ -25,6 +25,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
     // The leash keeps it around the spot where the shooting started. Steering keeps aiming the whole time.
     private Vector3 _diamondCenter;
     private bool _diamondActive;
+    private bool _leanSpam;
     private Vector3 _tapDir;
     private float _tapEnd;
     private bool _tapPause;
@@ -35,6 +36,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
     {
         if (Bot.Player?.HealthController?.IsAlive != true)
         {
+            Bot.Mover?.Lean?.SetLeanSpam(false, 0.13f);
             _diamondActive = false;
             return false;
         }
@@ -76,6 +78,11 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         if (!_diamondActive)
         {
             _diamondActive = true;
+            _leanSpam = settings.LeanSpam && Random.value * 100f < settings.LeanSpamChance;
+            if (_leanSpam)
+            {
+                TacticDiagnostics.Count("diamond.leanSpam");
+            }
             _diamondCenter = Bot.Position;
             _tapEnd = 0f;
             Bot.Mover.Stop();
@@ -85,6 +92,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         }
         Bot.Mover.SetTargetPose(1f);
         Bot.Mover.SetTargetMoveSpeed(1f);
+        Bot.Mover.Lean.SetLeanSpam(_leanSpam && enemy.IsVisible, settings.LeanSpamInterval);
 
         Vector3 forward = enemy.EnemyPosition - Bot.Position;
         forward.y = 0f;
@@ -157,6 +165,10 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
 
     public bool Stop(string why = "actionStopped")
     {
+        if (Bot.Mover?.Lean != null && Bot.Mover.Lean.LeanSpamActive)
+        {
+            Bot.Mover.Lean.SetLeanSpam(false, 0.13f);
+        }
         if (_diamondActive)
         {
             _diamondActive = false;

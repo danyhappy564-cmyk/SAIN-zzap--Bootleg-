@@ -36,8 +36,56 @@ public class LeanClass : BotBase
     public override void ManualUpdate()
     {
         float time = Time.time;
+        if (_spam)
+        {
+            TickLeanSpam(time);
+            return;
+        }
         UpdateLeanSetting(time);
         SetTilt();
+    }
+
+    // zzap: Q/E lean spam while shooting (the player's own style from the key recorder: left/right alternated about every
+    // 0.13s with the trigger down). Driven by DiamondStepper. Bypasses the 0.2s smoothing so each lean actually snaps.
+    private bool _spam;
+    private float _spamInterval = 0.13f;
+    private float _spamNext;
+
+    public bool LeanSpamActive
+    {
+        get { return _spam; }
+    }
+
+    public void SetLeanSpam(bool active, float interval)
+    {
+        _spamInterval = Mathf.Max(0.06f, interval);
+        if (active == _spam)
+        {
+            return;
+        }
+        _spam = active;
+        _spamNext = 0f;
+        if (!active)
+        {
+            FastLean(LeanSetting.None);
+            LeanAngleValue.Set(0f);
+        }
+    }
+
+    private void TickLeanSpam(float time)
+    {
+        if (Player.IsSprintEnabled)
+        {
+            Player.MovementContext.SetTilt(0);
+            return;
+        }
+        if (time >= _spamNext)
+        {
+            FastLean(LeanDirection == LeanSetting.Left ? LeanSetting.Right : LeanSetting.Left);
+            _spamNext = time + _spamInterval * UnityEngine.Random.Range(0.7f, 1.3f);
+        }
+        float tilt = LeanDirection == LeanSetting.Left ? -5f : LeanDirection == LeanSetting.Right ? 5f : 0f;
+        Player.MovementContext.SetTilt(tilt);
     }
 
     private void SetTilt()
