@@ -53,6 +53,7 @@ public static class ReloadUtility
 
         var list = new List<(EChoice choice, float score)> { (EChoice.Reload, reload), (EChoice.Hold, hold), (EChoice.Pistol, pistol) };
         list.Sort((x, y) => y.score.CompareTo(x.score));
+        bool mistake = UtilityMistake.Apply(bot, list, "reload");
 
         string id = bot.ProfileId;
         if (!_nextLog.TryGetValue(id, out float next) || Time.time > next)
@@ -61,7 +62,7 @@ public static class ReloadUtility
             string why = $"mag {r:P0}; {(visible ? (looking ? "he's looking at me" : "he isn't looking") : "he's out of sight")}; "
                 + $"{dist:0}m; {(inCover ? "in cover; " : "")}{(busy ? $"he's {enemy.Status.VulnerableAction}; " : "")}{(hit ? "just hit; " : "")}pistol {(pistolReady ? "ready" : "no")}";
             TacticDiagnostics.LogCloseCombat(
-                $"[Reload] [{bot.name}] {list[0].choice} {list[0].score:0.00} > {list[1].choice} {list[1].score:0.00} > {list[2].choice} {list[2].score:0.00} | {why}");
+                $"[Reload] [{bot.name}] {list[0].choice}{(mistake ? " (mistake)" : "")} {list[0].score:0.00} > {list[1].choice} {list[1].score:0.00} > {list[2].choice} {list[2].score:0.00} | {why}");
         }
         TacticDiagnostics.Count($"reload.pick.{list[0].choice}");
         return list;

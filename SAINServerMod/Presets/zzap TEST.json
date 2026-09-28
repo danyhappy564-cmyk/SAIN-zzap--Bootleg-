@@ -162,7 +162,8 @@
         "DiagnosticLogs": true
       },
       "CloseCombat": {
-        "DiamondStepTestMode": true
+        "DiamondStepTestMode": true,
+        "UtilityMistakes": false
       },
       "PlayerStyle": {
         "AdaptEnabled": false

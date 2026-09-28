@@ -186,6 +186,10 @@ public static class HiddenEnemyUtility
             (list[0], list[1]) = (list[1], list[0]);
             why += " | close call, took the 2nd";
         }
+        if (UtilityMistake.Apply(bot, list, "hidden"))
+        {
+            why += " | (mistake)";
+        }
         commit = list[0].Item1 == EStance.Hold ? Random.Range(4f, 7f) : Random.Range(2.5f, 4f);
         return list;
     }

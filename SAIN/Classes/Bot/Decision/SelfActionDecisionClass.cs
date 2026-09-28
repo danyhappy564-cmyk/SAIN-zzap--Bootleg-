@@ -355,6 +355,39 @@ public class SelfActionDecisionClass : BotBase
                 return false;
             }
             _nextCheckHealTime = Time.time + 2f;
+            // zzap: heal timing by expected gain while enemies are around (first aid / stim / surgery / wait).
+            if (SAIN.SAINComponent.Classes.Tactics.HealUtility.Applies(Bot))
+            {
+                bool canFirstAid = TimeSinceShot >= 0.66f && CanUseFirstAid;
+                bool canStim = GetCanUseStims();
+                bool canSurgery = Bot.Medical.Surgery.CheckCanStartUsingKit();
+                if (!canFirstAid && !canStim && !canSurgery)
+                {
+                    return false;
+                }
+                foreach (var (choice, score) in SAIN.SAINComponent.Classes.Tactics.HealUtility.Rank(Bot, canFirstAid, canStim, canSurgery))
+                {
+                    if (score < 0f)
+                    {
+                        continue;
+                    }
+                    switch (choice)
+                    {
+                        case SAIN.SAINComponent.Classes.Tactics.HealUtility.EChoice.Wait:
+                            return false;
+                        case SAIN.SAINComponent.Classes.Tactics.HealUtility.EChoice.Stim:
+                            Decision = ESelfActionType.Stims;
+                            return true;
+                        case SAIN.SAINComponent.Classes.Tactics.HealUtility.EChoice.FirstAid:
+                            Decision = ESelfActionType.FirstAid;
+                            return true;
+                        case SAIN.SAINComponent.Classes.Tactics.HealUtility.EChoice.Surgery:
+                            Decision = ESelfActionType.Surgery;
+                            return true;
+                    }
+                }
+                return false;
+            }
             if (startUseStims())
             {
                 Decision = ESelfActionType.Stims;

@@ -23,7 +23,7 @@ namespace SAIN.SAINComponent.Classes.Tactics;
 ///   Push   - close in (SAIN rush -> dog fight): he's reloading/healing, weak, we outnumber him, he's close, aggressive
 ///            personality; not hurt, not low on ammo, not far.
 /// Replaces SAIN's fixed "hold ground N seconds then cover" (that time is still used as the exposure clock).
-/// Kept 1-1.8s (re-decided at once when hit). [UtilityV] logs the scores and reasons, counted as utilityV.*.
+/// Kept 2-3s (re-decided at once when hit). [UtilityV] logs the scores and reasons, counted as utilityV.*.
 /// </summary>
 public static class VisibleEnemyUtility
 {
@@ -83,7 +83,8 @@ public static class VisibleEnemyUtility
         }
         m.Ranked = ranked;
         m.EnemyId = enemy.EnemyProfileId;
-        m.Until = time + Random.Range(1f, 1.8f);
+        // 2-3s (was 1-1.8s - user: longer so bots don't look like they flip back and forth; roll back if it feels sluggish).
+        m.Until = time + Random.Range(2f, 3f);
         TacticDiagnostics.Count($"utilityV.top.{ranked[0].stance}");
         if (ranked[0].stance != m.LastTop || time > m.NextLog)
         {
@@ -149,6 +150,10 @@ public static class VisibleEnemyUtility
             (EStance.Push, push),
         };
         list.Sort((x, y) => y.score.CompareTo(x.score));
+        if (UtilityMistake.Apply(bot, list, "visible"))
+        {
+            why += " | (mistake)";
+        }
         return list;
     }
 

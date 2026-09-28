@@ -183,6 +183,22 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public bool UtilityReload = true;
 
     [DataMember]
+    [Name("Utility Heal Timing")]
+    [Description("With enemies around: first aid / stim / surgery / wait by expected gain (health, bleeding, in cover, enemy in sight, someone coming, just hit, how old and far the nearest threat is). [Heal] logs why.")]
+    public bool UtilityHeal = true;
+
+    [DataMember]
+    [Name("Utility Mistakes")]
+    [Description("Human mistakes: now and then a bot takes its 2nd/3rd best option instead of the best - Timmy 12%, Wreckless 8%, Coward 6%, Normal 5%, Chad 4%, Rat/SnappingTurtle 3%, GigaChad 2%. Off in the zzap TEST preset.")]
+    public bool UtilityMistakes = true;
+
+    [DataMember]
+    [Name("Utility Mistake Multiplier")]
+    [Description("Multiplies every personality's mistake chance.")]
+    [MinMax(0f, 3f, 10f)]
+    public float UtilityMistakeMultiplier = 1f;
+
+    [DataMember]
     [Name("Utility Mix Margin")]
     [Description("Multiplier on how close two scores must be for a bot to sometimes take the second best (per personality: Wreckless 0.2 ... Rat 0.05). 0 = always the best.")]
     [MinMax(0f, 3f, 10f)]
