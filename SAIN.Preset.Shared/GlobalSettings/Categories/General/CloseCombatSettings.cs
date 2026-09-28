@@ -199,6 +199,17 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float UtilityMistakeMultiplier = 1f;
 
     [DataMember]
+    [Name("Fear")]
+    [Description("Per-personality fear in the utility decisions: base (Coward 0.35, Timmy/Rat 0.2, Normal/Turtle 0.1, Chad 0.05, GigaChad/Wreckless 0) plus a squadmate dying nearby, the player's kill streak, being hurt, outnumbered or pinned down - scaled by bravery (Wreckless barely, Coward a lot). Fear favors falling back / holding over pushing; above 0.75 it's panic.")]
+    public bool Fear = true;
+
+    [DataMember]
+    [Name("Fear Multiplier")]
+    [Description("Multiplies every bot's fear (0 = fearless).")]
+    [MinMax(0f, 3f, 10f)]
+    public float FearMultiplier = 1f;
+
+    [DataMember]
     [Name("Utility Mix Margin")]
     [Description("Multiplier on how close two scores must be for a bot to sometimes take the second best (per personality: Wreckless 0.2 ... Rat 0.05). 0 = always the best.")]
     [MinMax(0f, 3f, 10f)]

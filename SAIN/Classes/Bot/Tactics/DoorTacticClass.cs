@@ -2740,6 +2740,7 @@ public class DoorTacticClass : BotComponentClassBase
             string enemyInfo = goal == null ? "none" : $"{(goal.IsVisible ? "visible" : "notVisible")} {goal.RealDistance:0}m";
             TacticDiagnostics.Count($"death.{decision.CurrentCombatDecision}");
             SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.OnBotKilled(Bot.ProfileId, lastAggressor?.ProfileId);
+            FearModel.OnBotDied(Bot);
             bool teamKill = lastAggressor != null && Bot.Squad?.Members?.ContainsKey(lastAggressor.ProfileId) == true;
             if (teamKill)
             {
@@ -2792,6 +2793,7 @@ public class DoorTacticClass : BotComponentClassBase
 
     private static void Log(string message)
     {
+        RaidJournal.Line(message);
         if (Settings.DiagnosticLogs)
         {
             Logger.LogWarning(message);

@@ -929,6 +929,7 @@ public class SquadCombatClass : BotComponentClassBase
 
     private static void Log(string message)
     {
+        RaidJournal.Line(message);
         if (Settings.DiagnosticLogs)
         {
             Logger.LogWarning(message);

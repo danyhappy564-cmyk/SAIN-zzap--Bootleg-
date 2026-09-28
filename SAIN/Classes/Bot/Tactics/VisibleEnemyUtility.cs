@@ -136,6 +136,11 @@ public static class VisibleEnemyUtility
             - 0.3f * (1f - health) - (ammo < 0.4f ? 0.3f : 0f) - (dist > 30f ? 0.25f : 0f) - (looking && !busy ? 0.1f : 0f)
             + 0.15f * load.Cqb - 0.25f * load.Long - (tooClose ? 0.3f : 0f);
 
+        float fear = FearModel.Fear(bot, enemy, health, false, out string fearWhy);
+        push -= 0.4f * fear;
+        shoot -= 0.1f * fear;
+        coverScore += 0.4f * fear + (fear > 0.75f ? 0.3f : 0f);
+        if (fearWhy.Length > 0) sb.Append(fearWhy).Append("; ");
         if (!looking) sb.Append("he isn't looking at me; ");
         if (busy) sb.Append($"he's {enemy.Status.VulnerableAction}; ");
         if (weak >= 0.3f) sb.Append($"he's weak ({weakWhy}); ");

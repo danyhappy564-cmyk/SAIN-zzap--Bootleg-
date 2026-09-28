@@ -157,6 +157,13 @@ public static class HiddenEnemyUtility
         float search = -0.15f * load.Long + 0.15f + 0.35f * info + 0.1f * aggr - 0.2f * (1f - health);
         float fallBack = (closingOnLongGun ? 0.35f : 0f) + 0.05f + 0.45f * (1f - health) + (ammo < 0.25f ? 0.3f : 0f) + (numbers < 0f ? 0.25f * -numbers : 0f);
 
+        // Fear (personality + mates dying, the player's streak, hurt, outnumbered, pinned): toward falling back / holding.
+        float fear = FearModel.Fear(bot, enemy, health, numbers < 0f, out string fearWhy);
+        push -= 0.4f * fear;
+        flank -= 0.1f * fear;
+        hold += 0.2f * fear;
+        fallBack += 0.5f * fear + (fear > 0.75f ? 0.4f : 0f);
+        if (fearWhy.Length > 0) sb.Append(fearWhy).Append("; ");
         if (weak >= 0.3f) sb.Append($"he's weak ({weakWhy}); ");
         if (busy) sb.Append($"he's {enemy.Status.VulnerableAction}; ");
         if (holdsAngle) sb.Append("he's holding an angle on us; ");

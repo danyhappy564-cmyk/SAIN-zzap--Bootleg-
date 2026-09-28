@@ -63,10 +63,11 @@ public class EnemyDecisionClass : BotBase
         if (weaponManager == null || !weaponManager.HaveBullets || weaponManager.Reload.Reloading)
         {
             result = ECombatDecision.Retreat;
+            LastReason = "noBulletsOrReloading";
             return true;
         }
 
-        string reason = string.Empty;
+        LastReason = string.Empty;
 #if DEBUG
         if (SAINPlugin.DebugMode)
         {
@@ -74,37 +75,37 @@ public class EnemyDecisionClass : BotBase
         }
 #endif
 
-        if (Bot.DoorTactic.ShallEmergencyRetreat(enemy, out reason) || Bot.Reposition.ShallPullBack(out reason))
+        if (Bot.DoorTactic.ShallEmergencyRetreat(enemy, out LastReason) || Bot.Reposition.ShallPullBack(out LastReason))
         {
             result = ECombatDecision.Retreat;
             return true;
         }
 
-        if (Bot.Reposition.ShallUse(enemy, knownEnemies, out reason))
+        if (Bot.Reposition.ShallUse(enemy, knownEnemies, out LastReason))
         {
             result = ECombatDecision.Reposition;
             return true;
         }
 
-        bool canTakeAggressiveAction = CanBeAggressive(ref reason);
+        bool canTakeAggressiveAction = CanBeAggressive(ref LastReason);
 #if DEBUG
         if (SAINPlugin.DebugMode)
         {
-            DecisionReasons.AppendLine($"2. CanTakeAggroActions?: [{canTakeAggressiveAction}, {reason}]");
+            DecisionReasons.AppendLine($"2. CanTakeAggroActions?: [{canTakeAggressiveAction}, {LastReason}]");
         }
 #endif
 
         // zzap: enemy in sight -> shoot / cover / push by expected gain (falls through to SAIN's own logic when it doesn't apply).
-        if (TryVisibleUtility(enemy, out result, out reason))
+        if (TryVisibleUtility(enemy, out result, out LastReason))
         {
             return true;
         }
 
-        bool shallShoot = shallStandAndShoot(enemy, out reason, knownEnemies);
+        bool shallShoot = shallStandAndShoot(enemy, out LastReason, knownEnemies);
 #if DEBUG
         if (SAINPlugin.DebugMode)
         {
-            DecisionReasons.AppendLine($"2. Shall Shoot: [{shallShoot}, {reason}]");
+            DecisionReasons.AppendLine($"2. Shall Shoot: [{shallShoot}, {LastReason}]");
         }
 #endif
         if (shallShoot)
@@ -116,11 +117,11 @@ public class EnemyDecisionClass : BotBase
             result = ECombatDecision.StandAndShoot;
             return true;
         }
-        bool shallShootDistant = shallShootDistantEnemy(enemy, out reason);
+        bool shallShootDistant = shallShootDistantEnemy(enemy, out LastReason);
 #if DEBUG
         if (SAINPlugin.DebugMode)
         {
-            DecisionReasons.AppendLine($"3. Shall Shoot Distant: [{shallShootDistant}, {reason}]");
+            DecisionReasons.AppendLine($"3. Shall Shoot Distant: [{shallShootDistant}, {LastReason}]");
         }
 #endif
         if (shallShootDistant)
@@ -130,25 +131,25 @@ public class EnemyDecisionClass : BotBase
         }
 
         // zzap stage 2: against a recorded aggressive / bunny-hopping player, hold the corner he's heard coming around.
-        if (SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.ShallHoldCorner(Bot, enemy, out reason))
+        if (SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.ShallHoldCorner(Bot, enemy, out LastReason))
         {
             result = ECombatDecision.Freeze;
             return true;
         }
 
         // zzap: utility decision for a hidden enemy - score every stance by expected gain, try them best-first.
-        if (canTakeAggressiveAction && TryUtility(enemy, out result, out reason))
+        if (canTakeAggressiveAction && TryUtility(enemy, out result, out LastReason))
         {
             return true;
         }
 
         if (canTakeAggressiveAction)
         {
-            bool shallRush = shallRushEnemy(enemy, out reason);
+            bool shallRush = shallRushEnemy(enemy, out LastReason);
 #if DEBUG
             if (SAINPlugin.DebugMode)
             {
-                DecisionReasons.AppendLine($"4. Shall Rush: [{shallRush}, {reason}]");
+                DecisionReasons.AppendLine($"4. Shall Rush: [{shallRush}, {LastReason}]");
             }
 #endif
             if (shallRush)
@@ -161,11 +162,11 @@ public class EnemyDecisionClass : BotBase
                 return true;
             }
 
-            bool doorTactic = Bot.DoorTactic.ShallUse(enemy, out reason);
+            bool doorTactic = Bot.DoorTactic.ShallUse(enemy, out LastReason);
 #if DEBUG
             if (SAINPlugin.DebugMode)
             {
-                DecisionReasons.AppendLine($"4b. Door Tactic: [{doorTactic}, {reason}]");
+                DecisionReasons.AppendLine($"4b. Door Tactic: [{doorTactic}, {LastReason}]");
             }
 #endif
             if (doorTactic)
@@ -174,11 +175,11 @@ public class EnemyDecisionClass : BotBase
                 return true;
             }
 
-            bool squadTactic = Bot.SquadCombat.ShallUse(enemy, out reason);
+            bool squadTactic = Bot.SquadCombat.ShallUse(enemy, out LastReason);
 #if DEBUG
             if (SAINPlugin.DebugMode)
             {
-                DecisionReasons.AppendLine($"4c. Squad Combat: [{squadTactic}, {reason}]");
+                DecisionReasons.AppendLine($"4c. Squad Combat: [{squadTactic}, {LastReason}]");
             }
 #endif
             if (squadTactic)
@@ -187,11 +188,11 @@ public class EnemyDecisionClass : BotBase
                 return true;
             }
 
-            bool shallThrowNade = shallThrowGrenade(enemy, out reason);
+            bool shallThrowNade = shallThrowGrenade(enemy, out LastReason);
 #if DEBUG
             if (SAINPlugin.DebugMode)
             {
-                DecisionReasons.AppendLine($"5. Shall Throw Nade: [{shallThrowNade}, {reason}]");
+                DecisionReasons.AppendLine($"5. Shall Throw Nade: [{shallThrowNade}, {LastReason}]");
             }
 #endif
             if (shallThrowNade)
@@ -200,11 +201,11 @@ public class EnemyDecisionClass : BotBase
                 return true;
             }
 
-            bool moveToEngage = ShallMoveToEngage(enemy, out reason);
+            bool moveToEngage = ShallMoveToEngage(enemy, out LastReason);
 #if DEBUG
             if (SAINPlugin.DebugMode)
             {
-                DecisionReasons.AppendLine($"6. Shall Move To Engage: [{moveToEngage}, {reason}]");
+                DecisionReasons.AppendLine($"6. Shall Move To Engage: [{moveToEngage}, {LastReason}]");
             }
 #endif
             if (moveToEngage)
@@ -213,11 +214,11 @@ public class EnemyDecisionClass : BotBase
                 return true;
             }
 
-            bool search = shallSearch(enemy, out reason);
+            bool search = shallSearch(enemy, out LastReason);
 #if DEBUG
             if (SAINPlugin.DebugMode)
             {
-                DecisionReasons.AppendLine($"6. Shall Search: [{search}, {reason}]");
+                DecisionReasons.AppendLine($"6. Shall Search: [{search}, {LastReason}]");
             }
 #endif
             if (search)
@@ -231,11 +232,11 @@ public class EnemyDecisionClass : BotBase
             }
         }
 
-        bool freeze = shallFreezeAndWait(enemy, knownEnemies, out reason);
+        bool freeze = shallFreezeAndWait(enemy, knownEnemies, out LastReason);
 #if DEBUG
         if (SAINPlugin.DebugMode)
         {
-            DecisionReasons.AppendLine($"7. Shall Freeze: [{freeze}, {reason}]");
+            DecisionReasons.AppendLine($"7. Shall Freeze: [{freeze}, {LastReason}]");
         }
 #endif
         if (freeze)
@@ -244,11 +245,11 @@ public class EnemyDecisionClass : BotBase
             return true;
         }
 
-        bool shift = shallShiftCover(enemy, out reason);
+        bool shift = shallShiftCover(enemy, out LastReason);
 #if DEBUG
         if (SAINPlugin.DebugMode)
         {
-            DecisionReasons.AppendLine($"8. Shall Shift Cover: [{shift}, {reason}]");
+            DecisionReasons.AppendLine($"8. Shall Shift Cover: [{shift}, {LastReason}]");
         }
 #endif
         if (shift)
@@ -263,9 +264,13 @@ public class EnemyDecisionClass : BotBase
             DecisionReasons.AppendLine($"8. Seek Cover: [{true}, {Bot.Cover.CoverSeekingState}]");
         }
 #endif
+        LastReason = $"default:{Bot.Cover.CoverSeekingState}";
         result = ECombatDecision.SeekCover;
         return true;
     }
+
+    /// <summary>zzap: why the last combat decision was made (raid journal).</summary>
+    public string LastReason = string.Empty;
 
     /// <summary>
     /// zzap: HiddenEnemyUtility ranks the stances; each is mapped onto SAIN's existing actions (with their own safety

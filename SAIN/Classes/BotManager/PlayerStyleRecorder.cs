@@ -181,6 +181,13 @@ public sealed class PlayerStyleRecorder
         if (leaning) _d.LeanSec += dt;
         if (aiming) _d.AdsSec += dt;
         if (_player.Environment == EnvironmentType.Indoor) _d.IndoorSec += dt;
+        if (time >= _nextJournalPos)
+        {
+            _nextJournalPos = time + 2f;
+            SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line(
+                $"[Player] at {SAIN.SAINComponent.Classes.Tactics.RaidJournal.Pos(_player.Position)} {(sprinting ? "sprint" : speed > 0.6f ? "move" : "still")}"
+                    + $"{(prone ? " prone" : crouched ? " crouch" : "")}{(leaning ? " lean" : "")}{(aiming ? " ads" : "")} {(_player.Environment == EnvironmentType.Indoor ? "indoor" : "outdoor")} hp={_player.HealthStatus}");
+        }
 
         if (_wasGrounded && !grounded && speed > 0.3f) _d.Jumps++;
         if (!_wasLeaning && leaning) _d.LeanPeeks++;
@@ -363,8 +370,13 @@ public sealed class PlayerStyleRecorder
         _shotRounds = rounds;
     }
 
+    private float _nextJournalPos;
+
     private void OnBeingHit(DamageInfo damage, EBodyPart part, float absorbed)
     {
+        var attacker = damage.Player?.iPlayer;
+        SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line(
+            $"[PlayerHit] by {attacker?.Profile?.Nickname ?? "?"} {part} {damage.Damage:0} dmg{(attacker != null && _player != null ? $" from {(attacker.Position - _player.Position).magnitude:0}m" : "")}");
         PlayerOutcomeLearner.OnPlayerHit(damage.Player?.iPlayer?.ProfileId);
         _d.HitsTaken++;
         _d.DamageTaken += Mathf.Max(0f, damage.Damage);
@@ -423,6 +435,8 @@ public sealed class PlayerStyleRecorder
         var d = rec._d;
         d.Kills++;
         d.KillDistanceSum += dist;
+        SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line($"[Kill] player killed [{bot.name}] [{bot.Info.Personality}] {dist:0}m {part} while it was {victimDecision}{(victimSawPlayer ? "" : " (it never saw him)")}");
+        SAIN.SAINComponent.Classes.Tactics.FearModel.OnPlayerKill();
         if (dist < 10f) d.KillsUnder10m++;
         else if (dist < 30f) d.Kills10to30m++;
         else if (dist < 80f) d.Kills30to80m++;
@@ -516,6 +530,9 @@ public sealed class PlayerStyleRecorder
         _d.EndReason = why;
         PlayerOutcomeLearner.Save(why);
         Logger.LogWarning($"[PlayerStyle] RAID SUMMARY ({why}): {Summary()}");
+        SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line($"[PlayerStyle] RAID SUMMARY ({why}): {Summary()}");
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.JournalSummary();
+        SAIN.SAINComponent.Classes.Tactics.RaidJournal.End(why);
         try
         {
             Directory.CreateDirectory(Dir);
@@ -572,6 +589,11 @@ public sealed class PlayerStyleRecorder
             _d.BotsNoInertia = ClassicMovementInterop.BotsNoInertia;
             _d.BotsQuickTilt = ClassicMovementInterop.BotsQuickTilt;
             Logger.LogWarning($"[ClassicMovement] {ClassicMovementInterop.Describe()}");
+            var g = GlobalSettingsClass.Instance.General;
+            SAIN.SAINComponent.Classes.Tactics.RaidJournal.Start(_d.Map,
+                $"# player {_d.Nickname} ({_d.ProfileId}) | preset {SAINPlugin.LoadedPreset?.Info?.Name} | utility hidden={g.CloseCombat.UtilityHiddenEnemy} visible={g.CloseCombat.UtilityVisibleEnemy} "
+                    + $"reload={g.CloseCombat.UtilityReload} heal={g.CloseCombat.UtilityHeal} mistakes={g.CloseCombat.UtilityMistakes} | adapt={g.PlayerStyle.AdaptEnabled} learn={g.PlayerStyle.LearnFromOutcomes} "
+                    + $"ignorePlayerGear={g.PlayerStyle.IgnorePlayerGear} | classic movement: {ClassicMovementInterop.Describe()}");
             _d.DevToolsPlugins = FindDevToolsPlugins();
             if (_d.DevToolsPlugins != null)
             {

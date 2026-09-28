@@ -153,6 +153,8 @@ public class BotManagerComponent : MonoBehaviour
         SAIN.SAINComponent.Classes.Tactics.ReloadUtility.Clear();
         SAIN.SAINComponent.Classes.Tactics.HealUtility.Clear();
         SAIN.SAINComponent.Classes.Tactics.LoadoutProfile.Clear();
+        SAIN.SAINComponent.Classes.Tactics.FearModel.Clear();
+        SAIN.SAINComponent.Classes.Tactics.RaidJournal.End("botManagerDestroyed");
     }
 
     // Instance ids, so a bot is named once rather than once a frame.

@@ -36,6 +36,11 @@ public class PlayerStyleSettings : SAINSettingsBase<PlayerStyleSettings>, ISAINS
     public bool LearnFromOutcomes = true;
 
     [DataMember]
+    [Name("Raid Journal")]
+    [Description("One time-stamped file per raid with only SAIN-zzap content (BepInEx/config/SAIN-zzap/Journal/<date>_<map>.log): every bot decision change with its reason, all tactic logs, the player's position/hits/kills every 2s, the counters at the end. Made for reviewing a raid afterwards.")]
+    public bool RaidJournal = true;
+
+    [DataMember]
     [Name("Ignore Player Gear")]
     [Description("Bots don't judge the human player as weak or strong from his armor/helmet/gun (it may be dev-tool or stacked gear). His state (hurt, healing/reloading, alone) and the learned outcomes still count.")]
     public bool IgnorePlayerGear = true;

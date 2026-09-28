@@ -1065,6 +1065,7 @@ public class RepositionClass : BotComponentClassBase
 
     private static void Log(string message)
     {
+        RaidJournal.Line($"[Reposition] {message}");
         if (GlobalSettingsClass.Instance?.General?.Reposition?.DiagnosticLogs == true)
         {
             Logger.LogWarning($"[Reposition] {message}");

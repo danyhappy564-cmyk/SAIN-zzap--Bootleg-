@@ -62,6 +62,7 @@ internal static class TacticDiagnostics
     /// <summary>[Diamond] / [Death] lines, written when F6 Close Combat diagnostic logs... use the Door Tactics log switch.</summary>
     public static void LogCloseCombat(string message)
     {
+        RaidJournal.Line(message);
         if (GlobalSettingsClass.Instance?.General?.DoorTactics?.DiagnosticLogs == true)
         {
             Logger.LogWarning(message);
@@ -129,6 +130,13 @@ internal static class TacticDiagnostics
             sb.Append(string.Join(", ", _counts.OrderBy(x => x.Key).Select(x => $"{x.Key}={x.Value}")));
         }
         Logger.LogWarning(sb.ToString());
+        RaidJournal.Line(sb.ToString());
+    }
+
+    /// <summary>Final counters into the journal right before it closes (raid end).</summary>
+    public static void JournalSummary()
+    {
+        LogSummary("raid end");
     }
 
     private static void LogSettings()
