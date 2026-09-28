@@ -2595,6 +2595,11 @@ public class DoorTacticClass : BotComponentClassBase
             Enemy goal = Bot.GoalEnemy;
             string enemyInfo = goal == null ? "none" : $"{(goal.IsVisible ? "visible" : "notVisible")} {goal.RealDistance:0}m";
             TacticDiagnostics.Count($"death.{decision.CurrentCombatDecision}");
+            bool teamKill = lastAggressor != null && Bot.Squad?.Members?.ContainsKey(lastAggressor.ProfileId) == true;
+            if (teamKill)
+            {
+                TacticDiagnostics.Count($"death.teamKill.{decision.CurrentCombatDecision}");
+            }
             bool sawKiller = goal != null && lastAggressor != null && goal.EnemyProfileId == lastAggressor.ProfileId && goal.Seen;
             SAIN.Components.BotControllerSpace.Classes.PlayerStyleRecorder.OnBotKilled(
                 Bot, lastAggressor, part, decision.CurrentCombatDecision.ToString(), sawKiller);
@@ -2603,6 +2608,7 @@ public class DoorTacticClass : BotComponentClassBase
                     + $"squad={decision.CurrentSquadDecision} diamond={TacticDiagnostics.GetDiamond(Bot.ProfileId)} enemy={enemyInfo} "
                     + $"underFire={BotOwner.Memory.IsUnderFire} pose={Player.PoseLevel:0.0} speed={Player.Velocity.magnitude:0.0} "
                     + $"inCover={Bot.Cover.CoverInUse != null} part={part} by={lastAggressor?.Profile?.Nickname}"
+                    + (teamKill ? " TEAMKILL" : "")
             );
         }
         catch (System.Exception ex)

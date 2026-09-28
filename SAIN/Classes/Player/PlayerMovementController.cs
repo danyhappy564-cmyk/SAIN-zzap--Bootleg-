@@ -216,6 +216,13 @@ public class PlayerMovementController
         {
             return;
         }
+        // zzap: never walk into a squadmate's line of fire (steps out sideways if already in it).
+        if (!SAIN.SAINComponent.Classes.Tactics.FireLaneGuard.Filter(playerComp.BotComponent, ref direction))
+        {
+            player.Move(Vector2.zero);
+            player.EnableSprint(false);
+            return;
+        }
         float playerSpeed = player.Speed;
 
         float destinationDistance = (finalMoveDestination - playerComp.Position).magnitude;

@@ -17,6 +17,17 @@ public class SquadCombatSettings : SAINSettingsBase<SquadCombatSettings>, ISAINS
     public bool Enabled = true;
 
     [DataMember]
+    [Name("Fire Lane Guard")]
+    [Description("Bots never walk deeper into a squadmate's line of fire (held just outside, or step out sideways if already in it; let through after 1.5s so nobody gets stuck), and a shooter holds fire when a squadmate is about to cross the line (position 0.3s ahead). Field report: bots hanging back ran up to the enemy through the teammates' fire and got team-killed.")]
+    public bool FireLaneGuard = true;
+
+    [DataMember]
+    [Name("Fire Lane Width")]
+    [Description("Meters either side of a squadmate's line of fire that count as 'in the lane'.")]
+    [MinMax(0.3f, 2f, 10f)]
+    public float FireLaneWidth = 0.9f;
+
+    [DataMember]
     [Name("Crossfire")]
     [Description("While a teammate is shooting at the enemy, a squadmate who can't see that enemy moves to a different angle on it (spread out) instead of stacking behind the teammate.")]
     public bool Crossfire = true;

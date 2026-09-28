@@ -22,6 +22,13 @@ public class SAINFriendlyFireClass : BotComponentClassBase
 
     public override void ManualUpdate()
     {
+        // zzap: re-check every tick while the trigger is down - a teammate running into the line mid-burst used to get
+        // the rest of the burst (the check only ran when the aim updated).
+        if (BotOwner.ShootData?.Shooting == true && Bot.Squad?.Members?.Count > 1)
+        {
+            float dist = BotOwner.AimingManager?.CurrentAiming?.LastDist2Target ?? 50f;
+            UpdateFriendlyFireStatus(Mathf.Max(dist, 5f), Bot.Transform.WeaponData.FirePort, Bot.Transform.WeaponData.PointDirection, Bot);
+        }
         if (FriendlyFireStatus == FriendlyFireStatus.FriendlyBlock)
         {
             BotOwner.ShootData?.EndShoot();
@@ -78,6 +85,11 @@ public class SAINFriendlyFireClass : BotComponentClassBase
         BotComponent bot
     )
     {
+        // zzap: squadmates about to cross the line (where they'll be in 0.3s) block too, not only bodies touching the ray.
+        if (TeammateCrossing(weaponFirePort, distance, weaponPointDirection, bot))
+        {
+            return FriendlyFireStatus.FriendlyBlock;
+        }
         int count = SphereCastNonAlloc(weaponFirePort, distance, weaponPointDirection);
         if (count == 0)
         {
@@ -111,6 +123,42 @@ public class SAINFriendlyFireClass : BotComponentClassBase
         }
         return FriendlyFireStatus.Clear;
     }
+
+    private static bool TeammateCrossing(Vector3 firePort, float distance, Vector3 direction, BotComponent bot)
+    {
+        var members = bot.Squad?.Members;
+        if (members == null || direction.sqrMagnitude < 0.0001f)
+        {
+            return false;
+        }
+        Vector3 dir = direction.normalized;
+        foreach (var member in members.Values)
+        {
+            if (member == null || ReferenceEquals(member, bot) || member.IsDead || member.Player == null)
+            {
+                continue;
+            }
+            Vector3 predicted = member.Position + member.Player.Velocity * 0.3f;
+            foreach (float height in _bodyHeights)
+            {
+                Vector3 p = predicted + Vector3.up * height;
+                float along = Vector3.Dot(p - firePort, dir);
+                if (along < 0.3f || along > distance)
+                {
+                    continue;
+                }
+                float off = (p - (firePort + dir * along)).magnitude;
+                if (off < 0.55f)
+                {
+                    SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("squad.fireLane.shooterHeld");
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static readonly float[] _bodyHeights = [0.5f, 1.0f, 1.5f];
 
     private static readonly RaycastHit[] _sphereCastHits = new RaycastHit[32];
 
