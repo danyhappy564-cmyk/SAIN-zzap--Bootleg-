@@ -17,6 +17,23 @@ public class SquadCombatSettings : SAINSettingsBase<SquadCombatSettings>, ISAINS
     public bool Enabled = true;
 
     [DataMember]
+    [Name("Squad Storm Weak Enemy")]
+    [Description("A squad (2+ alive within 35m) sizes up its enemy every 20s from his gear and state - no/low armor, no helmet, pistol or no gun out, hurt, busy healing/reloading, alone. Weak enough: the squad storms him together (Chad/GigaChad/Wreckless always join, Normal 80%, Timmy 60%, Rat/Turtle 35%, Coward 10%).")]
+    public bool SquadStorm = true;
+
+    [DataMember]
+    [Name("Squad Storm Weakness Needed")]
+    [Description("0-1. Roughly: no armor 0.3, armor class 1-2 0.2, no helmet 0.15, pistol 0.3, no gun out 0.35, badly hurt 0.2, dying 0.35, healing/reloading 0.15, alone 0.1.")]
+    [MinMax(0.1f, 1f, 100f)]
+    public float SquadStormWeakness = 0.5f;
+
+    [DataMember]
+    [Name("Squad Storm Max Distance")]
+    [Description("Meters of path to the enemy.")]
+    [MinMax(5f, 80f, 1f)]
+    public float SquadStormMaxDistance = 40f;
+
+    [DataMember]
     [Name("Fire Lane Guard")]
     [Description("Bots never walk deeper into a squadmate's line of fire (held just outside, or step out sideways if already in it; let through after 1.5s so nobody gets stuck), and a shooter holds fire when a squadmate is about to cross the line (position 0.3s ahead). Field report: bots hanging back ran up to the enemy through the teammates' fire and got team-killed.")]
     public bool FireLaneGuard = true;

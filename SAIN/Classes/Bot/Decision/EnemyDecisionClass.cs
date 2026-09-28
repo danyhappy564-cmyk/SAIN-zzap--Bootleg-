@@ -406,6 +406,12 @@ public class EnemyDecisionClass : BotBase
             reason = "lowAmmo";
             return false;
         }
+        // zzap: the squad decided this enemy is a pushover -> everyone who joins runs at him (own range limit).
+        if (SquadStorm.ShallStorm(Bot, enemy, out string stormReason))
+        {
+            reason = stormReason;
+            return true;
+        }
         if (!checkInRangeForRush(enemy))
         {
             reason = "outOfRange";
