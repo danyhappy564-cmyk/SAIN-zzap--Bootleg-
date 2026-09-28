@@ -1282,6 +1282,10 @@ public class DoorTacticClass : BotComponentClassBase
         {
             why = "tooFarFromDoor";
         }
+        else if (!SafeForFake(s, out string unsafeWhy))
+        {
+            why = unsafeWhy;
+        }
         if (why != null)
         {
             Log($"{Who()} {what} skipped: {why}");
@@ -1291,6 +1295,65 @@ public class DoorTacticClass : BotComponentClassBase
             return EStep.Hold;
         }
         return s.WantFakeNade ? EStep.FakeNadeDraw : EStep.FakeHealStart;
+    }
+
+    /// <summary>
+    /// 2026-09-28 field report: fakes were tried outdoors "because nobody can see me right now" with the whole body in the
+    /// open, and the bot died mid-fake. A fake is only safe from real cover: (1) no known enemy has a line of sight to the
+    /// bot's chest from where it was last known, (2) indoors, or boxed in (5 of 8 directions blocked within 4m at chest
+    /// height - a single wall at your back outdoors doesn't count), (3) not being shot at.
+    /// </summary>
+    private bool SafeForFake(Session s, out string why)
+    {
+        if (BotOwner.Memory.IsUnderFire)
+        {
+            why = "underFire";
+            return false;
+        }
+        Vector3 chest = Bot.Position + Vector3.up * 1.3f;
+        var enemies = Bot.EnemyController.KnownEnemies;
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            Enemy e = enemies[i];
+            if (e == null)
+            {
+                continue;
+            }
+            if (e.IsVisible)
+            {
+                why = $"exposed({e.EnemyName} visible)";
+                return false;
+            }
+            Vector3? pos = e.KnownPlaces.LastKnownPosition;
+            if (pos == null || e.TimeSinceLastKnownUpdated > 30f)
+            {
+                continue;
+            }
+            if (!Physics.Linecast(pos.Value + Vector3.up * 1.5f, chest, LayersMaskController.HighPolyWithTerrainMask))
+            {
+                why = $"exposed(line of sight to {e.EnemyName})";
+                return false;
+            }
+        }
+        if (!Bot.Memory.Location.IsIndoors)
+        {
+            int blocked = 0;
+            for (int k = 0; k < 8; k++)
+            {
+                Vector3 dir = Quaternion.Euler(0f, k * 45f, 0f) * Vector3.forward;
+                if (Physics.Raycast(chest, dir, 4f, LayersMaskController.HighPolyWithTerrainMask))
+                {
+                    blocked++;
+                }
+            }
+            if (blocked < 5)
+            {
+                why = $"exposed(outdoors, open {8 - blocked}/8 sides)";
+                return false;
+            }
+        }
+        why = null;
+        return true;
     }
 
     /// <summary>

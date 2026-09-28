@@ -36,7 +36,7 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 | 점프 피킹 | 복도에서 문 앞으로 점프해 방 안을 보고 바로 점프해서 복귀. 닫힌 문은 문틀 옆에서 먼저 엶 | GigaChad / Chad | `General > Door Tactics (zzap)` |
 | 런바이 피킹 | 점프가 위험한 곳(낮은 천장·계단)에선 문 앞을 달려 지나가며 보고, 돌아서 한 번 더 지나감 | GigaChad / Chad | 〃 `Run-By Peek Chance` |
 | 스텝 피킹 | 피킹 후 문틀에서 짧게 2~3번 들락날락 (서기/앉기, 방 좌/우 모서리 번갈아) | GigaChad / Chad | 〃 `Step Peeks After Jump Peek` |
-| 페이크 수류탄 | 문틀에서 수류탄 꺼내는 소리만 내고 즉시 집어넣음. 적이 문 근처에 있을 때만, 뛰는 소리 들리면 취소 | GigaChad / Chad | 〃 `Fake Grenade` |
+| 페이크 수류탄 | 문틀에서 수류탄 꺼내는 소리만 내고 즉시 집어넣음. 적이 문 근처에 있고 봇이 진짜 엄폐 뒤(모든 적 시야 차단 + 실내/사방이 막힌 곳)일 때만, 뛰는 소리 들리면 취소 | GigaChad / Chad | 〃 `Fake Grenade` |
 | 페이크 치료·스팀 | 치료/주사 소리만 내고 손에 드는 순간 취소. 출혈·중상이면 안 함(진짜 치료 우선) | GigaChad / Chad | 〃 `Fake Heal / Stim` |
 | 방 가두기 | 문 옆에 붙어 문을 지킴 (문은 그대로 둠) | GigaChad / SnappingTurtle | 〃 `Room Trap` |
 | 문 옆 매복 | 문 옆에 낮은 자세로 조용히 대기 | Rat | 〃 `Room Trap` |
