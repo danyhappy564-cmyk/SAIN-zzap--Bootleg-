@@ -130,6 +130,12 @@ public class EnemyDecisionClass : BotBase
             return true;
         }
 
+        // zzap: utility decision for a hidden enemy - score every stance by expected gain, try them best-first.
+        if (canTakeAggressiveAction && TryUtility(enemy, out result, out reason))
+        {
+            return true;
+        }
+
         if (canTakeAggressiveAction)
         {
             bool shallRush = shallRushEnemy(enemy, out reason);
@@ -253,6 +259,106 @@ public class EnemyDecisionClass : BotBase
 #endif
         result = ECombatDecision.SeekCover;
         return true;
+    }
+
+    /// <summary>
+    /// zzap: HiddenEnemyUtility ranks the stances; each is mapped onto SAIN's existing actions (with their own safety
+    /// checks). The first one that can run wins; if none can, the old chain below decides as before. Ongoing door /
+    /// squad sessions keep going untouched.
+    /// </summary>
+    private bool TryUtility(Enemy enemy, out ECombatDecision result, out string reason)
+    {
+        result = ECombatDecision.None;
+        reason = string.Empty;
+        if (Bot.DoorTactic.Active || Bot.SquadCombat.Active)
+        {
+            return false;
+        }
+        var ranked = HiddenEnemyUtility.Rank(Bot, enemy);
+        if (ranked == null)
+        {
+            return false;
+        }
+        HiddenEnemyUtility.EStance top = ranked[0].stance;
+        foreach (var (stance, score) in ranked)
+        {
+            if (score <= 0.05f)
+            {
+                break;
+            }
+            string r;
+            switch (stance)
+            {
+                case HiddenEnemyUtility.EStance.Push:
+                    if (shallRushEnemy(enemy, out r))
+                    {
+                        result = ECombatDecision.RushEnemy;
+                    }
+                    else if (Bot.DoorTactic.ShallUse(enemy, out r))
+                    {
+                        result = ECombatDecision.DoorTactic;
+                    }
+                    else if (enemy.Path.PathToEnemyStatus == NavMeshPathStatus.PathComplete && enemy.Path.PathLength <= 40f
+                        && SAINBotSuppressClass.CalcAmmoRatio(BotOwner, out _) >= 0.35f)
+                    {
+                        result = ECombatDecision.RushEnemy;
+                    }
+                    break;
+
+                case HiddenEnemyUtility.EStance.Grenade:
+                    if (shallThrowGrenade(enemy, out r))
+                    {
+                        result = ECombatDecision.ThrowGrenade;
+                    }
+                    break;
+
+                case HiddenEnemyUtility.EStance.Hold:
+                    result = ECombatDecision.Freeze;
+                    break;
+
+                case HiddenEnemyUtility.EStance.Flank:
+                    if (Bot.SquadCombat.ShallUse(enemy, out r))
+                    {
+                        result = ECombatDecision.SquadTactic;
+                    }
+                    else if (shallShiftCover(enemy, out r))
+                    {
+                        result = ECombatDecision.ShiftCover;
+                    }
+                    break;
+
+                case HiddenEnemyUtility.EStance.Search:
+                    if (shallSearch(enemy, out r))
+                    {
+                        if (Bot.Decision.CurrentCombatDecision != ECombatDecision.Search)
+                        {
+                            enemy.Status.NumberOfSearchesStarted++;
+                        }
+                        result = ECombatDecision.Search;
+                    }
+                    break;
+
+                case HiddenEnemyUtility.EStance.FallBack:
+                    result = ECombatDecision.SeekCover;
+                    break;
+            }
+            if (result != ECombatDecision.None)
+            {
+                if (result == ECombatDecision.RushEnemy && Bot.DoorTactic.Active)
+                {
+                    Bot.DoorTactic.End("rushInstead");
+                }
+                if (stance != top)
+                {
+                    TacticDiagnostics.Count($"utility.fellTo.{stance}");
+                }
+                TacticDiagnostics.Count($"utility.do.{result}");
+                reason = $"utility{stance}";
+                return true;
+            }
+        }
+        TacticDiagnostics.Count("utility.noneRunnable");
+        return false;
     }
 
     private bool CanBeAggressive(ref string reason)

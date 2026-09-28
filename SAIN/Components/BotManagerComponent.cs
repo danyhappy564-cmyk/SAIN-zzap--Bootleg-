@@ -148,6 +148,7 @@ public class BotManagerComponent : MonoBehaviour
         SAIN.SAINComponent.Classes.Tactics.SquadStorm.Clear();
         SAIN.SAINComponent.Classes.Tactics.LayerHandoff.Clear();
         SAIN.SAINComponent.Classes.Tactics.RetreatWeave.Clear();
+        SAIN.SAINComponent.Classes.Tactics.HiddenEnemyUtility.Clear();
     }
 
     // Instance ids, so a bot is named once rather than once a frame.

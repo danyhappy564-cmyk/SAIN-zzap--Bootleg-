@@ -168,6 +168,17 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float ExposedCommitCoverDistance = 6f;
 
     [DataMember]
+    [Name("Utility Decision For Hidden Enemy")]
+    [Description("Enemy known but out of sight: score push / grenade / hold / flank / search / fall back by expected gain from the situation (info freshness, is he holding an angle or coming, health, magazine, grenade, numbers, his gear and whether he's healing/reloading, how long he's been quiet, distance, personality) and do the best one that can run. [Utility] logs the scores and reasons. Off = SAIN's fixed decision order.")]
+    public bool UtilityHiddenEnemy = true;
+
+    [DataMember]
+    [Name("Utility Mix Margin")]
+    [Description("Multiplier on how close two scores must be for a bot to sometimes take the second best (per personality: Wreckless 0.2 ... Rat 0.05). 0 = always the best.")]
+    [MinMax(0f, 3f, 10f)]
+    public float UtilityMixMargin = 1f;
+
+    [DataMember]
     [Name("Grenade Judgment")]
     [Description("A grenade only when the enemy is out of sight, his position is recent (info age below), and the thrower is safe: not being shot, the enemy's path to it is long enough that he can't rush it during the throw, not badly hurt, no other enemy in sight. Then weighed by situation: +30% he's been camping in one spot 6s+, +10% indoors, +15% healing/reloading, -20% info over 10s old (base 50%). [Nade] logs why.")]
     public bool GrenadeDiscipline = true;
