@@ -75,7 +75,7 @@ internal class FreezeAction(BotOwner bot) : BotAction(bot, nameof(FreezeAction))
         }
         if (watchCorner)
         {
-            Bot.Steering.LookToPoint(SAIN.SAINComponent.Classes.Mover.SAINSteeringClass.ClampPitch(Bot.Transform.WeaponRoot, corner.Value + Vector3.up * 1.3f, Bot.Transform.LookDirection));
+            Bot.Steering.LookToPoint(SAIN.SAINComponent.Classes.Mover.SAINSteeringClass.PastCorner(Bot.Transform.WeaponRoot, corner.Value, enemy.KnownPlaces.LastKnownPosition, Bot.Transform.LookDirection));
             return;
         }
         Bot.Steering.SteerByPriority(enemy);

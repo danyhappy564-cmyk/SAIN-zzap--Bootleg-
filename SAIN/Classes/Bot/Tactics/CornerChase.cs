@@ -182,7 +182,7 @@ public sealed class CornerChase(BotComponent bot)
         {
             return false;
         }
-        LookPoint = corner + Bot.Steering.WeaponRootOffset;
+        LookPoint = SAIN.SAINComponent.Classes.Mover.SAINSteeringClass.PastCorner(Bot.Transform.WeaponRoot, corner, lastKnown, Bot.Transform.LookDirection);
         if (OwnGrenadeTracker.Threatens(Bot.ProfileId, corner) || OwnGrenadeTracker.Threatens(Bot.ProfileId, Bot.Position))
         {
             // Our own grenade is live by the corner: hold the angle until it goes off.
@@ -195,7 +195,7 @@ public sealed class CornerChase(BotComponent bot)
         {
             _side = side;
         }
-        LookPoint = corner + Bot.Steering.WeaponRootOffset;
+        LookPoint = SAIN.SAINComponent.Classes.Mover.SAINSteeringClass.PastCorner(Bot.Transform.WeaponRoot, corner, lastKnown, Bot.Transform.LookDirection);
 
         // Only the jump shot keeps sprinting into the corner.
         if (_style != EStyle.JumpShot && Bot.Mover.Running)

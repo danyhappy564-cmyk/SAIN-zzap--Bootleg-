@@ -27,7 +27,8 @@ internal class DoorTacticAction(BotOwner bot) : BotAction(bot, nameof(DoorTactic
         var lookTarget = Bot.DoorTactic.LookTarget;
         if (lookTarget != null)
         {
-            Bot.Steering.LookToPoint(lookTarget.Value);
+            // Door / room look points kept level (crouched bots aimed up at "door center + 1.2m" from close).
+            Bot.Steering.LookToPoint(SAIN.SAINComponent.Classes.Mover.SAINSteeringClass.ClampPitch(Bot.Transform.WeaponRoot, lookTarget.Value, Bot.Transform.LookDirection, 12f));
             return;
         }
         Bot.Steering.SteerByPriority(enemy);

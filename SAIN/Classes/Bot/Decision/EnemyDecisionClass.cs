@@ -356,7 +356,11 @@ public class EnemyDecisionClass : BotBase
                     break;
 
                 case HiddenEnemyUtility.EStance.FallBack:
-                    result = ECombatDecision.SeekCover;
+                    // Same as Hold: always runnable, so only when it is really wanted (3rd sim: 5.4k fall-throughs).
+                    if (stance == top || score >= ranked[0].score - 0.12f)
+                    {
+                        result = ECombatDecision.SeekCover;
+                    }
                     break;
             }
             if (result != ECombatDecision.None)

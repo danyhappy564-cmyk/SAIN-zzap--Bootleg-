@@ -216,7 +216,8 @@ public static class HiddenEnemyUtility
         // Weighted dice over the top 3 (user 2026-09-29: "plain probability may have felt better" - scores alone made every
         // bot do the same thing): p ~ exp((score - best) / T), T per personality (Wreckless loose ... Rat/Coward tight) x the
         // F6 mix setting. A much worse option is still very unlikely; close ones really get mixed.
-        float temp = (_mixMargin.TryGetValue(bot.Info.Personality, out float mm) ? mm : 0.1f) * settings.UtilityMixMargin;
+        // x0.6: at the raw personality values the 3rd sim took a lower-ranked option 37% of the time - too random.
+        float temp = (_mixMargin.TryGetValue(bot.Info.Personality, out float mm) ? mm : 0.1f) * settings.UtilityMixMargin * 0.6f;
         if (temp > 0.001f)
         {
             int n = Mathf.Min(3, list.Count);

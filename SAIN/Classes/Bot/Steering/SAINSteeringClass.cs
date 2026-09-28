@@ -306,7 +306,7 @@ public class SAINSteeringClass : BotComponentClassBase
             Bot.Mover.Lean.FastLean(side);
             Bot.Mover.Lean.HoldLean(0.3f);
         }
-        Vector3 target = ClampPitch(Bot.Transform.WeaponRoot, corner + Vector3.up * 1.3f, Bot.Transform.LookDirection);
+        Vector3 target = PastCorner(Bot.Transform.WeaponRoot, corner, enemy.KnownPlaces.LastKnownPosition, Bot.Transform.LookDirection);
         direction = (target - Bot.Transform.WeaponRoot).normalized;
         if (Time.time > _nextPreAimLog)
         {
@@ -323,8 +323,9 @@ public class SAINSteeringClass : BotComponentClassBase
     /// enemy's next path corner is often on a staircase or a platform right next to the bot, and aiming at "corner +
     /// 1.3m" from 1-2m away made bots stare at the ceiling / sky while clearing (field 2026-09-29, Factory ground floor).
     /// A player checks a corner at head height; to cover a staircase he tilts a little, never straight up.
+    /// 10 deg (was 25 - 3rd sim screenshots: crouched bots entering corners/doors with the muzzle pointing up).
     /// </summary>
-    public static Vector3 ClampPitch(Vector3 from, Vector3 target, Vector3 forward, float maxDeg = 25f)
+    public static Vector3 ClampPitch(Vector3 from, Vector3 target, Vector3 forward, float maxDeg = 10f)
     {
         Vector3 d = target - from;
         Vector3 flat = new(d.x, 0f, d.z);
@@ -337,6 +338,27 @@ public class SAINSteeringClass : BotComponentClassBase
         }
         float maxRise = Mathf.Max(h, 1.5f) * Mathf.Tan(maxDeg * Mathf.Deg2Rad);
         return new Vector3(target.x, from.y + Mathf.Clamp(d.y, -maxRise, maxRise), target.z);
+    }
+
+    /// <summary>
+    /// zzap: where to hold the gun when checking a corner - not the corner point itself (that is the wall edge: 3rd sim
+    /// screenshot, a bot aiming into the wall from 1m) but the space just past it, toward where the enemy was: corner +
+    /// up to 2m toward his last known position, at chest height, then kept level (ClampPitch).
+    /// </summary>
+    public static Vector3 PastCorner(Vector3 weaponRoot, Vector3 corner, Vector3? enemyPos, Vector3 forward)
+    {
+        Vector3 p = corner;
+        if (enemyPos != null)
+        {
+            Vector3 d = enemyPos.Value - corner;
+            d.y = 0f;
+            float len = d.magnitude;
+            if (len > 0.5f)
+            {
+                p = corner + d / len * Mathf.Min(2f, len);
+            }
+        }
+        return ClampPitch(weaponRoot, p + Vector3.up * 1.3f, forward);
     }
 
     public bool HeadDownActive

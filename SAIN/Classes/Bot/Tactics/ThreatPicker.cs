@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using EFT;
 using SAIN.Components;
 using SAIN.Preset.Shared.GlobalSettings;
 using SAIN.SAINComponent.Classes.EnemyClasses;
@@ -14,6 +15,10 @@ namespace SAIN.SAINComponent.Classes.Tactics;
 /// Runs first in SelectEnemy: only an enemy ENGAGING the bot (hit it in the last 3s or shot at it in the last 2s) can take
 /// the target away; threat = in sight 0.5 + hit me 1.0 + shooting at me 0.6 + looking at me 0.2 + closeness 0.6 (60m -> 0);
 /// the current target gets +0.35 (no flip-flopping) and +0.3 when it's nearly dead (finish him). Null = SAIN decides as before.
+/// 3rd sim (user: "PMC vs PMC, a scav shows up and they team up"): a scav just shooting past from out of sight took both
+/// PMCs off each other. Now: an enemy still in a duel with me (shot at / hit me in the last 10s) +0.25, a PMC +0.3 over a scav
+/// (gear, skill, loot motive), and while my target is IN SIGHT an unseen enemy only takes over by actually hitting me -
+/// turning away from a visible gunfight for bullets snapping by gets you killed by the one in front.
 /// </summary>
 public static class ThreatPicker
 {
@@ -42,12 +47,16 @@ public static class ThreatPicker
             {
                 continue;
             }
+            if (goal != null && goal.IsVisible && !e.IsVisible && hitAgo > 3f)
+            {
+                continue;
+            }
             float t = Threat(e, hitAgo, shotAtAgo);
             if (t > bestThreat)
             {
                 bestThreat = t;
                 best = e;
-                bestWhy = $"{(hitAgo < 3f ? $"hit me {hitAgo:0.0}s ago" : $"shooting at me {shotAtAgo:0.0}s ago")}, {e.RealDistance:0}m, {(e.IsVisible ? "in sight" : "unseen")}";
+                bestWhy = $"{(hitAgo < 3f ? $"hit me {hitAgo:0.0}s ago" : $"shooting at me {shotAtAgo:0.0}s ago")}, {e.RealDistance:0}m, {(e.IsVisible ? "in sight" : "unseen")}, {e.EnemyPlayer.Side}";
             }
         }
         if (best == null)
@@ -72,7 +81,7 @@ public static class ThreatPicker
         {
             _nextLog[id] = time + 3f;
             TacticDiagnostics.LogCloseCombat(
-                $"[Threat] [{bot.name}] [{bot.Info.Personality}] target {goal?.EnemyPlayer?.Profile?.Nickname ?? "none"} ({(goalThreat == float.MinValue ? "-" : goalThreat.ToString("0.00"))}) "
+                $"[Threat] [{bot.name}] [{bot.Info.Personality}] target {goal?.EnemyPlayer?.Profile?.Nickname ?? "none"} {goal?.EnemyPlayer?.Side} ({(goalThreat == float.MinValue ? "-" : goalThreat.ToString("0.00"))}) "
                     + $"-> {best.EnemyPlayer?.Profile?.Nickname} ({bestThreat:0.00}): {bestWhy}");
         }
         return best;
@@ -85,8 +94,10 @@ public static class ThreatPicker
 
     private static float Threat(Enemy e, float hitAgo, float shotAtAgo)
     {
+        bool duel = hitAgo < 10f || shotAtAgo < 10f;
+        bool pmc = e.EnemyPlayer.Side != EPlayerSide.Savage;
         return (e.IsVisible ? 0.5f : 0f) + (hitAgo < 3f ? 1f : 0f) + (shotAtAgo < 2f ? 0.6f : 0f) + (e.IsVisible && e.EnemyLookingAtMe ? 0.2f : 0f)
-            + 0.6f * Mathf.Clamp01(1f - e.RealDistance / 60f);
+            + 0.6f * Mathf.Clamp01(1f - e.RealDistance / 60f) + (duel ? 0.25f : 0f) + (pmc ? 0.3f : 0f);
     }
 
     public static void Clear()
