@@ -22,6 +22,17 @@ public class SquadCombatSettings : SAINSettingsBase<SquadCombatSettings>, ISAINS
     public bool CrossfireBackDoor = true;
 
     [DataMember]
+    [Name("Crossfire Back Door Hold Time")]
+    [Description("Seconds the other entrance is held before deciding: push in or hold on.")]
+    [MinMax(5f, 90f, 1f)]
+    public float CrossfireBackDoorHoldTime = 25f;
+
+    [DataMember]
+    [Name("Crossfire Back Door Push")]
+    [Description("When the enemy never came out and is still believed inside: push in through the back door (pincer with the mate at the front) - GigaChad/Chad/Wreckless always, Normal 60%, only with 50%+ magazine and not badly hurt. Others (or off) hold 15s longer once, then leave.")]
+    public bool CrossfireBackDoorPush = true;
+
+    [DataMember]
     [Name("Crossfire Indoor Min Angle")]
     [Description("Degrees. Indoors the angle to the engaging teammate can be smaller (rooms are small); points 4-14m from the enemy, crouch-height sight and 'one step out' corner spots count too.")]
     [MinMax(5f, 90f, 1f)]

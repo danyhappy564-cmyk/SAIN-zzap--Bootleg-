@@ -5,6 +5,7 @@ using SAIN.Models.Enums;
 using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.GlobalSettings;
 using SAIN.Preset.Shared.GlobalSettings.Categories.General;
+using SAIN.Preset.Shared.Models.Preset.Personalities;
 using SAIN.SAINComponent.Classes.EnemyClasses;
 using UnityEngine;
 using UnityEngine.AI;
@@ -82,6 +83,11 @@ public class SquadCombatClass : BotComponentClassBase
         public float ArriveTime;
         public float NextMoveOrder;
         public float HoldPose = 0.8f;
+        public bool BackDoor;
+        public Vector3 Doorway;
+        public Vector3 HoldSpot;
+        public bool Pushing;
+        public bool Extended;
     }
 
     private Session _session;
@@ -370,6 +376,9 @@ public class SquadCombatClass : BotComponentClassBase
         if (indoor && Settings.CrossfireBackDoor && FindOtherEntrance(enemyPos, engaging, out Vector3 hold, out Vector3 doorway, out float doorDist))
         {
             Start(EMode.Crossfire, enemy, hold, doorway + Vector3.up * 1.2f, engaging, $"crossfire with {engaging.name}: holding the other entrance {doorDist:0.0}m from the enemy");
+            _session.BackDoor = true;
+            _session.Doorway = doorway;
+            _session.HoldSpot = hold;
             TacticDiagnostics.Count("squad.crossfire.backDoor");
             reason = "crossfireBackDoor";
             return true;
@@ -630,6 +639,58 @@ public class SquadCombatClass : BotComponentClassBase
 
     private static readonly float[] _entranceRadii = { 5f, 8f, 11f };
 
+    /// <summary>
+    /// The back door was held for the hold time and the enemy never came out: push in through it (pincer with the mate at
+    /// the front) - GigaChad/Chad/Wreckless always, Normal 60%, others once hold 15s longer, then leave. Only while the
+    /// enemy is still believed inside (known within 12m of the doorway, info under 15s old). Returns false when the
+    /// session ended.
+    /// </summary>
+    private bool BackDoorTimeUp(Session s, float time)
+    {
+        Vector3? known = s.Enemy.KnownPlaces.LastKnownPosition;
+        bool stillInside = known != null && s.Enemy.TimeSinceLastKnownUpdated < 15f && Flat(known.Value - s.Doorway).magnitude < 12f;
+        if (!stillInside)
+        {
+            End("backDoorHoldTimeout(enemyNotThereAnymore)");
+            return false;
+        }
+        float chance = Bot.Info.Personality switch
+        {
+            EPersonality.GigaChad or EPersonality.Chad or EPersonality.Wreckless => 100f,
+            EPersonality.Normal => 60f,
+            _ => 0f,
+        };
+        if (Settings.CrossfireBackDoorPush && Random.value * 100f < chance && Bot.Memory.Health.HealthStatus != ETagStatus.BadlyInjured
+            && Bot.Memory.Health.HealthStatus != ETagStatus.Dying && SAIN.SAINComponent.Classes.WeaponFunction.SAINBotSuppressClass.CalcAmmoRatio(BotOwner, out _) >= 0.5f)
+        {
+            // 2.5m through the doorway, toward where he was last known, then SAIN's own fight takes over when he shows.
+            Vector3 inward = Flat(s.Doorway - s.HoldSpot);
+            Vector3 raw = s.Doorway + (inward.sqrMagnitude > 0.01f ? inward.normalized : Flat(known.Value - s.Doorway).normalized) * 2.5f;
+            if (SampleNav(raw, out Vector3 inside) && Bot.Mover.CanGoToPoint(inside, out _, true))
+            {
+                s.Pushing = true;
+                s.Target = inside;
+                s.Look = known.Value + Vector3.up * 1.3f;
+                s.Arrived = false;
+                s.StartTime = time;
+                s.NextMoveOrder = 0f;
+                TacticDiagnostics.Count($"squad.crossfire.backDoor.push.{Bot.Info.Personality}");
+                Log($"{Who()} enemy never came out the back door ({Settings.CrossfireBackDoorHoldTime:0}s) -> PUSH IN through it (mate {s.Mate?.name} at the front)");
+                return true;
+            }
+        }
+        if (!s.Extended)
+        {
+            s.Extended = true;
+            s.ArriveTime = time - Settings.CrossfireBackDoorHoldTime + 15f;
+            TacticDiagnostics.Count("squad.crossfire.backDoor.extend");
+            Log($"{Who()} enemy still inside, not pushing -> hold the back door 15s longer");
+            return true;
+        }
+        End("backDoorHoldTimeout");
+        return false;
+    }
+
     private bool TooCloseToTeammates(Vector3 point)
     {
         // zzap stage 2: against a grenade-heavy player keep more room between squadmates.
@@ -716,7 +777,19 @@ public class SquadCombatClass : BotComponentClassBase
 
             case EMode.Crossfire:
             case EMode.TradeAngle:
-                if (s.Arrived && time - s.ArriveTime > CROSSFIRE_HOLD_MAX)
+                if (s.BackDoor)
+                {
+                    if (s.Pushing && s.Arrived)
+                    {
+                        End("backDoorPushedIn");
+                        return;
+                    }
+                    if (!s.Pushing && s.Arrived && time - s.ArriveTime > Settings.CrossfireBackDoorHoldTime && !BackDoorTimeUp(s, time))
+                    {
+                        return;
+                    }
+                }
+                else if (s.Arrived && time - s.ArriveTime > CROSSFIRE_HOLD_MAX)
                 {
                     End("holdTimeout");
                     return;
@@ -759,7 +832,7 @@ public class SquadCombatClass : BotComponentClassBase
             else if (s.NextMoveOrder < time)
             {
                 s.NextMoveOrder = time + 0.75f;
-                bool sprint = s.Mode == EMode.TradePush || Flat(s.Target - Bot.Position).magnitude > 8f;
+                bool sprint = s.Mode == EMode.TradePush || s.Pushing || Flat(s.Target - Bot.Position).magnitude > 8f;
                 bool ok = sprint
                     ? Bot.Mover.RunToPoint(s.Target, s.Mode != EMode.TradePush, ARRIVE_DIST * 0.7f, ESprintUrgency.High)
                     : Bot.Mover.WalkToPoint(s.Target, true, ARRIVE_DIST * 0.7f);
