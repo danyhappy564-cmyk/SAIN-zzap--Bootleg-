@@ -12,6 +12,7 @@ using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.Models.Preset.Personalities;
 using SAIN.SAINComponent.Classes.EnemyClasses;
 using SAIN.SAINComponent.Classes.Mover;
+using SAIN.SAINComponent.Classes.WeaponFunction;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -637,8 +638,12 @@ public class DoorTacticClass : BotComponentClassBase
         bool peekPointOk = SampleOnBotSide(geo.Center + geo.BotSide * PEEK_DEPTH, geo, out s.PeekPoint);
         s.PeekPointOk = peekPointOk;
 
-        bool clearPersonality = personality == EPersonality.Wreckless || personality == EPersonality.Normal
-            || ((personality == EPersonality.GigaChad || personality == EPersonality.Chad) && Random.value * 100f < Settings.RoomClearChance * (enemy.TimeSinceLastKnownUpdated >= 10f ? 1.5f : 1f));
+        EPlan pushPick = EPlan.None;
+        if (personality == EPersonality.GigaChad || personality == EPersonality.Chad)
+        {
+            pushPick = PickPushPlan(personality, enemy, geo, peekPointOk, haveNade);
+        }
+        bool clearPersonality = personality == EPersonality.Wreckless || personality == EPersonality.Normal || pushPick == EPlan.Clear;
         if (Settings.RoomClear && clearPersonality)
         {
             BuildClear(s, geo, enemy, haveNade, doorOpen);
@@ -653,7 +658,7 @@ public class DoorTacticClass : BotComponentClassBase
                 // Shut door: opened first from the stack point beside the frame, out of the room's line of sight.
                 bool peekAllowed = Settings.JumpPeek && peekPointOk;
                 bool trapAllowed = personality == EPersonality.GigaChad && Settings.RoomTrap;
-                if (peekAllowed && (!trapAllowed || Random.value < Settings.GigaChadPeekChance / 100f))
+                if (peekAllowed && (!trapAllowed || pushPick == EPlan.Peek))
                 {
                     s.Plan = EPlan.Peek;
                     s.FirstStep = EStep.MoveToStack;
@@ -716,6 +721,85 @@ public class DoorTacticClass : BotComponentClassBase
     /// Hold the door from beside the frame. The door is left as it is: closing it and then running off with a
     /// door grenade was removed (field test: bots "closed the door and ran far away" for no visible reason).
     /// </summary>
+    /// <summary>
+    /// GigaChad/Chad: clear the room, info peek, or trap the door - weighted by the situation (user 2026-09-29: "why this
+    /// move, here?"), logged with the reasons:
+    ///   clear - he's gone quiet in there (stalemate), he's weak, mates are close to back it up, we're healthy with ammo;
+    ///   peek  - we don't really know where he is (info a few seconds old, not deep in the room) -> get eyes first;
+    ///   trap  - he's likely to come out (heard moving toward the door) or we're hurt / low on ammo (GigaChad only).
+    /// </summary>
+    private EPlan PickPushPlan(EPersonality personality, Enemy enemy, DoorGeometry geo, bool peekPointOk, bool haveNade)
+    {
+        var why = new System.Text.StringBuilder();
+        float quiet = enemy.TimeSinceLastKnownUpdated;
+        var health = Bot.Memory.Health.HealthStatus;
+        float ammo = SAINBotSuppressClass.CalcAmmoRatio(BotOwner, out _);
+        float wClear = Settings.RoomClear ? Settings.RoomClearChance / 45f : 0f;
+        float wPeek = Settings.JumpPeek && peekPointOk ? Settings.GigaChadPeekChance / 55f : 0f;
+        float wTrap = personality == EPersonality.GigaChad && Settings.RoomTrap ? (100f - Settings.GigaChadPeekChance) / 45f : 0f;
+        if (quiet >= 10f && wClear > 0f)
+        {
+            wClear += 1.5f;
+            why.Append($"he's been quiet {quiet:0}s (stalemate) -> clear; ");
+        }
+        float weakness = SquadStorm.Weakness(Bot, enemy, out string weakWhy);
+        if (weakness >= 0.5f && wClear > 0f)
+        {
+            wClear += 1f;
+            why.Append($"he's weak ({weakWhy}) -> clear; ");
+        }
+        int mates = 0;
+        var members = Bot.Squad?.Members;
+        if (members != null)
+        {
+            foreach (var m in members.Values)
+            {
+                if (m != null && !ReferenceEquals(m, Bot) && !m.IsDead && (m.Position - geo.Center).magnitude < 15f)
+                {
+                    mates++;
+                }
+            }
+        }
+        if (mates > 0 && wClear > 0f)
+        {
+            wClear += 0.7f * mates;
+            why.Append($"{mates} mate(s) close to back it up -> clear; ");
+        }
+        if (health != ETagStatus.Healthy || ammo < 0.5f)
+        {
+            wClear *= 0.3f;
+            wPeek *= 0.7f;
+            if (wTrap > 0f)
+            {
+                wTrap += 1.5f;
+            }
+            why.Append("hurt/low ammo -> hold, don't push; ");
+        }
+        if (quiet >= 2f && quiet < 10f && geo.EnemyDepth < 3f && wPeek > 0f)
+        {
+            wPeek += 1f;
+            why.Append("not sure where he is -> peek first; ");
+        }
+        var hearing = enemy.Hearing;
+        if (hearing != null && Time.time - hearing.LastHeardSoundTime < 3f
+            && (hearing.LastHeardSoundType == SAINSoundType.FootStep || hearing.LastHeardSoundType == SAINSoundType.Sprint)
+            && (hearing.LastHeardSoundPosition - geo.Center).magnitude < 5f && wTrap > 0f)
+        {
+            wTrap += 1.5f;
+            why.Append("he's moving by the door -> trap it; ");
+        }
+        float total = wClear + wPeek + wTrap;
+        if (total <= 0f)
+        {
+            return EPlan.None;
+        }
+        float roll = Random.value * total;
+        EPlan pick = roll < wClear ? EPlan.Clear : roll < wClear + wPeek ? EPlan.Peek : EPlan.Trap;
+        Log($"{Who()} door plan {pick} (weights clear {wClear:0.0} / peek {wPeek:0.0} / trap {wTrap:0.0}) because: {(why.Length > 0 ? why.ToString() : "nothing special")}");
+        TacticDiagnostics.Count($"door.pick.{pick}");
+        return pick;
+    }
+
     private void BuildClear(Session s, DoorGeometry geo, Enemy enemy, bool haveNade, bool doorOpen)
     {
         s.Plan = EPlan.Clear;

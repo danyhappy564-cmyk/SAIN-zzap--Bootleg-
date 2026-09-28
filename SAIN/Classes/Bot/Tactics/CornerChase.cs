@@ -101,9 +101,35 @@ public sealed class CornerChase(BotComponent bot)
         string id = bot.ProfileId;
         if (!_rolls.TryGetValue(id, out var roll) || Mathf.Abs(roll.seenTime - seenTime) > 0.2f)
         {
+            // Situation on top of personality (user 2026-09-29): chase a weak or hurt enemy more, a well-geared one less;
+            // don't chase hurt or low on ammo.
+            var why = new System.Text.StringBuilder();
+            float weakness = SquadStorm.Weakness(bot, enemy, out string weakWhy);
+            if (weakness >= 0.4f)
+            {
+                chance *= 1.3f;
+                why.Append($"he's weak/hurt ({weakWhy}) x1.3; ");
+            }
+            else if (weakness < 0.15f)
+            {
+                chance *= 0.8f;
+                why.Append("he's well geared x0.8; ");
+            }
+            if (bot.Memory.Health.HealthStatus != ETagStatus.Healthy)
+            {
+                chance *= 0.5f;
+                why.Append("I'm hurt x0.5; ");
+            }
+            if (SAINBotSuppressClass.CalcAmmoRatio(bot.BotOwner, out _) < 0.6f)
+            {
+                chance *= 0.6f;
+                why.Append("mag under 60% x0.6; ");
+            }
             roll = (seenTime, Random.value * 100f < chance);
             _rolls[id] = roll;
             TacticDiagnostics.Count(roll.chase ? $"chase.start.{bot.Info.Personality}" : "chase.rollFailed");
+            TacticDiagnostics.LogCloseCombat(
+                $"[Chase] [{bot.name}] [{bot.Info.Personality}] {(roll.chase ? "CHASE" : "let him go")} ({Mathf.Min(chance, 100f):0}%) because: {bot.Info.Personality} base; {why}");
         }
         if (roll.chase)
         {

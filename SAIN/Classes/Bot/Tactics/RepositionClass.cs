@@ -430,15 +430,43 @@ public class RepositionClass : BotComponentClassBase
             return false;
         }
         _relocateRolled.Add(id);
-        if (!Roll(Settings.RelocateChance))
+        // Situation-weighted (user 2026-09-29): moving off a spot the enemy already knows is worth more when hurt, when he
+        // has a long-range gun on it, when alone; less for a healthy pusher or with mates already fighting him.
+        float chance = Settings.RelocateChance;
+        var why = new System.Text.StringBuilder();
+        var health = Bot.Memory.Health.HealthStatus;
+        if (health != ETagStatus.Healthy)
+        {
+            chance *= 1.3f;
+            why.Append("hurt x1.3; ");
+        }
+        var weapon = enemy.EnemyPlayerComponent?.Equipment?.CurrentWeaponInfo;
+        if (weapon != null && (weapon.WeaponClass == EWeaponClass.marksmanRifle || weapon.WeaponClass == EWeaponClass.sniperRifle || weapon.HasOptic))
+        {
+            chance *= 1.3f;
+            why.Append("he has a scope on my spot x1.3; ");
+        }
+        if (health == ETagStatus.Healthy && Bot.Info.PersonalitySettings.Rush.CanRushEnemyReloadHeal)
+        {
+            chance *= 0.8f;
+            why.Append("healthy pusher x0.8; ");
+        }
+        if (MatesEngaging(enemy))
+        {
+            chance *= 0.7f;
+            why.Append("mates already on him x0.7; ");
+        }
+        if (!Roll(chance))
         {
             TacticDiagnostics.Count("repo.rollFailed.Relocate");
+            Log($"{Who()} relocate: stay ({Mathf.Min(chance, 100f):0}% failed) because: {(why.Length > 0 ? why.ToString() : "base chance")}");
             return false;
         }
-        if (!FindPoint(EMode.Relocate, enemyPos, out Vector3 point, out string why))
+        Log($"{Who()} relocate: go ({Mathf.Min(chance, 100f):0}%) because: spotted first; {why}");
+        if (!FindPoint(EMode.Relocate, enemyPos, out Vector3 point, out string noPoint))
         {
-            TacticDiagnostics.Count($"repo.noPoint.Relocate.{why}");
-            Log($"{Who()} relocate: no spot out of their sight ({why})");
+            TacticDiagnostics.Count($"repo.noPoint.Relocate.{noPoint}");
+            Log($"{Who()} relocate: no spot out of their sight ({noPoint})");
             return false;
         }
         bool threw = enemyDist > 8f && enemyDist < 45f && TryThrowAt(enemyPos, enemyDist);
@@ -465,11 +493,80 @@ public class RepositionClass : BotComponentClassBase
             return false;
         }
         _nextBaitRoll = Time.time + (Settings.TestMode ? 8f : BAIT_ROLL_INTERVAL);
-        if (Random.value < 0.5f)
+        // Situation-weighted order (user 2026-09-29) instead of a coin flip:
+        //   bait peek (draw his fire) - he's holding an angle on us (shot at us recently), we're healthy, a mate could punish him;
+        //   fake reload (lure his push) - he's close and coming (heard moving toward us), an aggressive player; not when far.
+        var why = new System.Text.StringBuilder();
+        float bait = 1f, fake = 1f;
+        float lastShot = enemy.Status.TimeLastShotAtMe;
+        if (lastShot > 0f && Time.time - lastShot < 10f)
+        {
+            bait += 1f;
+            why.Append("he's holding an angle on us -> bait; ");
+        }
+        if (Bot.Memory.Health.HealthStatus != ETagStatus.Healthy)
+        {
+            bait *= 0.4f;
+            why.Append("hurt -> no bait peeking; ");
+        }
+        if (MatesEngaging(enemy))
+        {
+            bait += 0.7f;
+            why.Append("a mate can punish his shot -> bait; ");
+        }
+        var hearing = enemy.Hearing;
+        bool coming = hearing != null && Time.time - hearing.LastHeardSoundTime < 5f
+            && (hearing.LastHeardSoundType == SAINSoundType.FootStep || hearing.LastHeardSoundType == SAINSoundType.Sprint)
+            && (hearing.LastHeardSoundPosition - Bot.Position).magnitude < (enemyPos - Bot.Position).magnitude;
+        if (coming)
+        {
+            fake += 1.5f;
+            why.Append("he's coming closer -> fake reload to lure the push; ");
+        }
+        if (enemyDist < 20f)
+        {
+            fake += 0.5f;
+        }
+        else if (enemyDist > 30f)
+        {
+            fake *= 0.4f;
+            why.Append("too far for him to push -> less fake reload; ");
+        }
+        if (SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.AgainstPlayer(enemy)
+            && SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.Aggression > 0.6f)
+        {
+            fake += 1f;
+            why.Append("this player pushes a lot -> fake reload; ");
+        }
+        bool baitFirst = Random.value * (bait + fake) < bait;
+        Log($"{Who()} cover trick: {(baitFirst ? "bait peek" : "fake reload")} first (weights bait {bait:0.0} / fake reload {fake:0.0}) because: {(why.Length > 0 ? why.ToString() : "nothing special")}");
+        if (baitFirst)
         {
             return TryStartBait(enemy, enemyPos, out reason) || TryStartFakeReload(enemy, enemyPos, out reason);
         }
         return TryStartFakeReload(enemy, enemyPos, out reason) || TryStartBait(enemy, enemyPos, out reason);
+    }
+
+    private bool MatesEngaging(Enemy enemy)
+    {
+        var members = Bot.Squad?.Members;
+        if (members == null)
+        {
+            return false;
+        }
+        foreach (var m in members.Values)
+        {
+            if (m == null || ReferenceEquals(m, Bot) || m.IsDead)
+            {
+                continue;
+            }
+            var goal = m.GoalEnemy;
+            if (goal != null && goal.EnemyProfileId == enemy.EnemyProfileId && (goal.IsVisible || goal.TimeSinceSeen < 5f))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private bool TryStartBait(Enemy enemy, Vector3 enemyPos, out string reason)
