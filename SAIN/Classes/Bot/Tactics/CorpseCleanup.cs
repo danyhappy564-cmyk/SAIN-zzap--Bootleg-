@@ -18,6 +18,11 @@ public static class CorpseCleanup
 
     private static readonly Queue<(Player player, float time)> _corpses = new();
 
+    // Every death is checked once, 3s later, by what the body looks like - whatever the cause (user 2026-09-29: "you never
+    // find the walking corpses in the log"): no ragdoll corpse built, character controller still on, or the body moved
+    // 1.5m+ since it died -> [DeadBug] "body still standing/moving".
+    private static readonly List<(Player player, float time, Vector3 pos, string name)> _toInspect = new();
+
     public static int Hidden { get; private set; }
 
     private static int Limit
@@ -39,11 +44,54 @@ public static class CorpseCleanup
         if (player != null)
         {
             _corpses.Enqueue((player, Time.time));
+            _toInspect.Add((player, Time.time, player.Position, player.name));
+        }
+    }
+
+    private static void Inspect()
+    {
+        for (int i = _toInspect.Count - 1; i >= 0; i--)
+        {
+            var (player, time, pos, name) = _toInspect[i];
+            if (Time.time - time < 3f)
+            {
+                continue;
+            }
+            _toInspect.RemoveAt(i);
+            if (player == null || player.gameObject == null || !player.gameObject.activeSelf)
+            {
+                continue;
+            }
+            bool noCorpse = SAIN.Patches.Generic.DeathRescuePatch.CorpseRef(player) == null;
+            bool controllerOn = false;
+            try
+            {
+                controllerOn = player._characterController != null && player._characterController.isEnabled;
+            }
+            catch
+            {
+            }
+            Vector3 d = player.Position - pos;
+            d.y = 0f;
+            float moved = d.magnitude;
+            if (noCorpse || controllerOn || moved > 1.5f)
+            {
+                TacticDiagnostics.Count("deadBug.bodyNotRagdoll");
+                TacticDiagnostics.LogCloseCombat(
+                    $"[DeadBug] {name} 3s after death: ragdoll corpse built={!noCorpse}, character controller on={controllerOn}, body moved {moved:0.0}m "
+                        + $"at ({player.Position.x:0},{player.Position.z:0}) - WALKING/STANDING CORPSE (see [DeadBug] handler lines above and BepInEx LogOutput.log)"
+                );
+            }
+            else
+            {
+                TacticDiagnostics.Count("deadBug.bodyOk");
+            }
         }
     }
 
     public static void Tick()
     {
+        Inspect();
         int limit = Limit;
         if (limit <= 0)
         {
@@ -70,6 +118,7 @@ public static class CorpseCleanup
     public static void Clear()
     {
         _corpses.Clear();
+        _toInspect.Clear();
         Hidden = 0;
     }
 }

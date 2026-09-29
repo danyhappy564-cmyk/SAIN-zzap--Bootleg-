@@ -141,7 +141,7 @@ public class DeathRescuePatch : ModulePatch
         return null;
     }
 
-    private static readonly AccessTools.FieldRef<Player, Corpse> CorpseRef = AccessTools.FieldRefAccess<Player, Corpse>("Corpse");
+    internal static readonly AccessTools.FieldRef<Player, Corpse> CorpseRef = AccessTools.FieldRefAccess<Player, Corpse>("Corpse");
 
     // The animator type lives in AnimationSystem.Types, which SAIN doesn't reference - set "enabled" by reflection.
     private static void DisableAnimator(Player player, string property)
