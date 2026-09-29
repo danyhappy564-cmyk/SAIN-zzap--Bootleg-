@@ -313,6 +313,14 @@ public class SAINBotUnstuckClass : BotComponentClassBase
             float dist = (p - pos).magnitude;
             if (dist >= 1f && dist <= 4f && NavMesh.SamplePosition(p, out NavMeshHit hit, 0.5f, -1))
             {
+                // The path can bend around the very wall/door the bot is stuck on - never hop through anything solid
+                // (a closed door, a thin wall): the straight line to the corner must be clear at knee and chest height.
+                if (Physics.Linecast(pos + Vector3.up * 0.5f, hit.position + Vector3.up * 0.5f, LayersMaskController.HighPolyWithTerrainMask)
+                    || Physics.Linecast(pos + Vector3.up * 1.2f, hit.position + Vector3.up * 1.2f, LayersMaskController.HighPolyWithTerrainMask))
+                {
+                    SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("stuck.hopBlocked");
+                    continue;
+                }
                 corner = hit.position;
                 return true;
             }
