@@ -52,7 +52,7 @@ public static class GUITabs
             SAINPlugin.LoadedPreset.GlobalSettings,
             out bool newEdit,
             "Global Settings",
-            $"Server preset '{SAINPlugin.LoadedPreset.Info.Name}'",
+            string.Format(EditorText.UI("Server preset '{0}'"), SAINPlugin.LoadedPreset.Info.Name),
             35f,
             out bool saved
         );
@@ -82,8 +82,8 @@ public static class GUITabs
         if (ConfigEditingTracker.UnsavedChanges)
         {
             BuilderClass.Alert(
-                "Click Save to export changes, and send changes to bots if in-game",
-                "YOU HAVE UNSAVED CHANGES!",
+                EditorText.UI("Click Save to export changes, and send changes to bots if in-game"),
+                EditorText.UI("YOU HAVE UNSAVED CHANGES!"),
                 35f,
                 ColorNames.DarkRed
             );
@@ -93,7 +93,7 @@ public static class GUITabs
             BuilderClass.Alert(null, null, 25f, null);
         }
 
-        if (Button("Save and Export", ConfigEditingTracker.GetUnsavedValuesString(), EUISoundType.InsuranceInsured, Height(25f)))
+        if (Button(EditorText.UI("Save and Export"), ConfigEditingTracker.GetUnsavedValuesString(), EUISoundType.InsuranceInsured, Height(25f)))
         {
             SAINPresetClass.ExportAll(SAINPlugin.LoadedPreset);
         }
@@ -108,17 +108,17 @@ public static class GUITabs
     {
         Space(spacing);
 
-        _forceDecisionMenuOpen = BuilderClass.ExpandableMenu("Force SAIN Bot Decisions", _forceDecisionMenuOpen);
+        _forceDecisionMenuOpen = BuilderClass.ExpandableMenu(EditorText.UI("Force SAIN Bot Decisions"), _forceDecisionMenuOpen);
         if (_forceDecisionMenuOpen)
         {
             Space(spacing);
 
-            ForceSoloOpen = BuilderClass.ExpandableMenu("Force Solo Decision", ForceSoloOpen);
+            ForceSoloOpen = BuilderClass.ExpandableMenu(EditorText.UI("Force Solo Decision"), ForceSoloOpen);
             if (ForceSoloOpen)
             {
                 Space(spacing / 2f);
 
-                if (Button("Reset"))
+                if (Button(EditorText.UI("Reset")))
                 {
                     SAINPlugin.ForceSoloDecision = ECombatDecision.None;
                 }
@@ -133,12 +133,12 @@ public static class GUITabs
 
             Space(spacing);
 
-            ForceSquadOpen = BuilderClass.ExpandableMenu("Force Squad Decision", ForceSquadOpen);
+            ForceSquadOpen = BuilderClass.ExpandableMenu(EditorText.UI("Force Squad Decision"), ForceSquadOpen);
             if (ForceSquadOpen)
             {
                 Space(spacing / 2f);
 
-                if (Button("Reset"))
+                if (Button(EditorText.UI("Reset")))
                 {
                     SAINPlugin.ForceSquadDecision = ESquadDecision.None;
                 }
@@ -153,12 +153,12 @@ public static class GUITabs
 
             Space(spacing);
 
-            ForceSelfOpen = BuilderClass.ExpandableMenu("Force Self Decision", ForceSelfOpen);
+            ForceSelfOpen = BuilderClass.ExpandableMenu(EditorText.UI("Force Self Decision"), ForceSelfOpen);
             if (ForceSelfOpen)
             {
                 Space(spacing / 2f);
 
-                if (Button("Reset"))
+                if (Button(EditorText.UI("Reset")))
                 {
                     SAINPlugin.ForceSelfDecision = ESelfActionType.None;
                 }
@@ -194,11 +194,11 @@ public static class GUITabs
     private static void ForceTalk(int spacing)
     {
         Space(spacing);
-        _forceTalkMenuOpen = BuilderClass.ExpandableMenu("Force Bots to Say Phrase", _forceTalkMenuOpen);
+        _forceTalkMenuOpen = BuilderClass.ExpandableMenu(EditorText.UI("Force Bots to Say Phrase"), _forceTalkMenuOpen);
         if (_forceTalkMenuOpen)
         {
             Space(5);
-            _forceTagStatusToggle = Toggle(_forceTagStatusToggle, "Force ETagStatus for Phrase");
+            _forceTagStatusToggle = Toggle(_forceTagStatusToggle, EditorText.UI("Force ETagStatus for Phrase"));
             if (_forceTagStatusToggle)
             {
                 ETagStatus[] statuses = EnumValues.GetEnum<ETagStatus>();
@@ -214,9 +214,9 @@ public static class GUITabs
                 }
             }
             Space(5);
-            _withGroupDelay = Toggle(_withGroupDelay, "With Group Delay?");
+            _withGroupDelay = Toggle(_withGroupDelay, EditorText.UI("With Group Delay?"));
             Space(5);
-            Label("Say Phrase");
+            Label(EditorText.UI("Say Phrase"));
             EPhraseTrigger[] triggers = EnumValues.GetEnum<EPhraseTrigger>();
             for (int i = 0; i < triggers.Length; i++)
             {

@@ -28,7 +28,7 @@ public static class BuilderClass
         config = config ?? new SearchParams { optionHeight = height };
         config.Start();
 
-        Label("Search", config.Label);
+        Label(EditorText.UI("Search"), config.Label);
 
         config.Spacing();
 
@@ -36,7 +36,7 @@ public static class BuilderClass
 
         config.Spacing();
 
-        if (Button("Clear", EUISoundType.MenuContextMenu, config.Clear))
+        if (Button(EditorText.UI("Clear"), EUISoundType.MenuContextMenu, config.Clear))
         {
             search = string.Empty;
         }
@@ -183,7 +183,7 @@ public static class BuilderClass
         BeginHorizontal();
 
         bool result = false;
-        if (Button("Save and Export", toolTip, EUISoundType.InsuranceInsured, Height(height), Width(500)))
+        if (Button(EditorText.UI("Save and Export"), toolTip, EUISoundType.InsuranceInsured, Height(height), Width(500)))
         {
             result = true;
         }
@@ -193,8 +193,8 @@ public static class BuilderClass
         if (ConfigEditingTracker.UnsavedChanges)
         {
             Alert(
-                "Click Save to export changes, and send changes to bots if in-game",
-                "YOU HAVE UNSAVED CHANGES",
+                EditorText.UI("Click Save to export changes, and send changes to bots if in-game"),
+                EditorText.UI("YOU HAVE UNSAVED CHANGES"),
                 height,
                 alertWidth,
                 ColorNames.LightRed
@@ -255,7 +255,7 @@ public static class BuilderClass
             return;
         }
 
-        Box(value.ToString(), "Minimum", options);
+        Box(value.ToString(), EditorText.UI("Minimum"), options);
     }
 
     public static void MaxValueBox(object value, params GUILayoutOption[] options)
@@ -265,14 +265,14 @@ public static class BuilderClass
             return;
         }
 
-        Box(value.ToString(), "Maximum", options);
+        Box(value.ToString(), EditorText.UI("Maximum"), options);
     }
 
     public static object ResultBox(object value, params GUILayoutOption[] options)
     {
         if (value != null)
         {
-            Box(value.ToString(), "The Rounding this option is set to", options);
+            Box(value.ToString(), EditorText.UI("The Rounding this option is set to"), options);
             string dirtyString = TextField(value.ToString(), null, options);
             value = CleanString(dirtyString, value);
         }
@@ -649,7 +649,7 @@ public static class BuilderClass
         BeginHorizontal();
         value = Toggle(
             value,
-            new GUIContent(value ? "-" : "+", value ? "Collapse" : "Expand"),
+            new GUIContent(value ? "-" : "+", EditorText.UI(value ? "Collapse" : "Expand")),
             EUISoundType.MenuDropdown,
             Width(17.5f),
             Height(height)

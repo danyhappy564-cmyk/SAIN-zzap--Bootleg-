@@ -69,20 +69,34 @@ internal class EditTabsClass
             TabRects = BuilderClass.HorizontalGridRects(TabMenuRect, Tabs.Length, minHeight);
         }
 
+        // zzap fork: tab names/tooltips go through EditorText so the Korean/English switch applies right away.
+        bool korean = EditorText.Korean;
+        if (_localizedTabs == null || _localizedFor != korean)
+        {
+            _localizedFor = korean;
+            _localizedTabs = new string[Tabs.Length];
+            _localizedTooltips = new string[TabTooltips.Length];
+            for (int i = 0; i < Tabs.Length; i++)
+            {
+                _localizedTabs[i] = EditorText.UI(Tabs[i]);
+                _localizedTooltips[i] = EditorText.UI(TabTooltips[i]);
+            }
+        }
+
         string openTabString = BuilderClass.SelectionGridExpandHeight(
             TabMenuRect,
-            Tabs,
-            TabClasses[SelectedTab].Name,
+            _localizedTabs,
+            EditorText.UI(TabClasses[SelectedTab].Name),
             TabRects,
             minHeight,
             speed,
             closeSpeedMulti,
-            TabTooltips
+            _localizedTooltips
         );
 
         foreach (var tab in TabClasses)
         {
-            if (tab.Value.Name == openTabString)
+            if (EditorText.UI(tab.Value.Name) == openTabString)
             {
                 SelectedTab = tab.Key;
             }
@@ -91,6 +105,9 @@ internal class EditTabsClass
     }
 
     private static Rect[] TabRects;
+    private static string[] _localizedTabs;
+    private static string[] _localizedTooltips;
+    private static bool _localizedFor;
     public static Rect TabMenuRect;
 
     public static void BeginScrollView()

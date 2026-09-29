@@ -81,17 +81,17 @@ public static class BotSelectionClass
         FlexibleSpace();
         EndHorizontal();
         Space(3f);
-        if (Button("Clear Bot Types", "Clear all selected bot types", EUISoundType.ButtonBottomBarClick))
+        if (Button(EditorText.UI("Clear Bot Types"), EditorText.UI("Clear all selected bot types"), EUISoundType.ButtonBottomBarClick))
         {
             SelectedBotTypes.Clear();
         }
         Space(3f);
         BeginHorizontal();
-        Label("Difficulties", "Select which difficulties you wish to modify.", Height(25));
+        Label(EditorText.UI("Difficulties"), EditorText.UI("Select which difficulties you wish to modify."), Height(25));
         Space(3f);
         ModifyLists.AddOrRemove(SelectedDifficulties, out bool newEdit, 4, 1200f, 35f);
         Space(3f);
-        if (Button("Clear Difficulties", "Clear all selected difficulties", null, Height(25f), Width(150f)))
+        if (Button(EditorText.UI("Clear Difficulties"), EditorText.UI("Clear all selected difficulties"), null, Height(25f), Width(150f)))
         {
             SelectedDifficulties.Clear();
         }
@@ -123,11 +123,11 @@ public static class BotSelectionClass
         {
             if (SelectedBotTypes.Count == 0)
             {
-                Box("No Bot Types Selected, please select at least one above.");
+                Box(EditorText.UI("No Bot Types Selected, please select at least one above."));
             }
             else
             {
-                Box("No Bot Difficulties Selected, please select at least one above.");
+                Box(EditorText.UI("No Bot Difficulties Selected, please select at least one above."));
             }
             return;
         }

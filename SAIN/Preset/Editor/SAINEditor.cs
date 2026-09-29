@@ -110,7 +110,7 @@ public static class SAINEditor
 
             CursorSettings.SetUnlockCursor(0, true);
             GUIUtility.ScaleAroundPivot(ScaledPivot, Vector2.zero);
-            MainWindow = GUI.Window(0, MainWindow, MainWindowFunc, "SAIN AI Settings Editor", GetStyle(Style.window));
+            MainWindow = GUI.Window(0, MainWindow, MainWindowFunc, EditorText.UI("SAIN AI Settings Editor"), GetStyle(Style.window));
             UnityInput.Current.ResetInputAxes();
             ConfigEditingTracker.Update();
         }
@@ -141,7 +141,7 @@ public static class SAINEditor
         GUI.DrawTexture(DragRect, DragBackgroundTexture, ScaleMode.StretchToFill, true, 0);
         GUI.Box(
             DragRect,
-            $"SAIN {SAINVersionInfo.SAINVersion} GUI Editor | Preset: {SAINPlugin.LoadedPreset.Info.Name}",
+            $"SAIN {SAINVersionInfo.SAINVersion} {EditorText.UI("GUI Editor")} | {EditorText.UI("Preset")}: {SAINPlugin.LoadedPreset.Info.Name}",
             GetStyle(Style.dragBar)
         );
         GUI.DragWindow(DragRect);
@@ -156,6 +156,7 @@ public static class SAINEditor
 
     private static void CreateTopBarOptions()
     {
+        SaveContent.text = EditorText.UI("Save All Changes");
         SaveContent.tooltip = ConfigEditingTracker.GetUnsavedValuesString();
 
         var style = GetStyle(Style.botTypeGrid);
@@ -163,12 +164,27 @@ public static class SAINEditor
         style.alignment = TextAnchor.MiddleCenter;
 
         bool advancedEnabled = PresetHandler.EditorDefaults.AdvancedBotConfigs;
-        string status = advancedEnabled ? "ON" : "OFF";
-        bool newValue = GUI.Toggle(AdvRect, advancedEnabled, $"Advanced Settings: [{status}]", GetStyle(Style.botTypeGrid));
+        string status = EditorText.UI(advancedEnabled ? "ON" : "OFF");
+        bool newValue = GUI.Toggle(
+            AdvRect,
+            advancedEnabled,
+            string.Format(EditorText.UI("Advanced Settings: [{0}]"), status),
+            GetStyle(Style.botTypeGrid)
+        );
         if (advancedEnabled != newValue)
         {
             PlaySound(EUISoundType.MenuEscape);
             PresetHandler.EditorDefaults.AdvancedBotConfigs = newValue;
+            PresetHandler.ExportEditorDefaults();
+        }
+
+        // zzap fork: Korean / English switch for the whole editor.
+        bool korean = EditorText.Korean;
+        var langContent = new GUIContent(korean ? "[한] / EN" : "한 / [EN]", EditorText.UI("Language: Korean / English"));
+        if (GUI.Button(LangRect, langContent, GetStyle(Style.botTypeGrid)))
+        {
+            PlaySound(EUISoundType.MenuEscape);
+            PresetHandler.EditorDefaults.KoreanUI = !korean;
             PresetHandler.ExportEditorDefaults();
         }
 

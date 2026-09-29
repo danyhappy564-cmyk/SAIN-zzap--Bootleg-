@@ -27,9 +27,9 @@ public static class PresetSelection
         if (SAIN.Preset.Server.ServerConfigClient.PresetLocked)
         {
             string reason = SAIN.Preset.Server.ServerConfigClient.ForcedActive
-                ? $"The server has forced the preset '{selectedPreset.Name}'."
-                : "SAIN presets are disabled by the server.";
-            Label($"{reason} Preset selection is locked.");
+                ? string.Format(EditorText.UI("The server has forced the preset '{0}'."), selectedPreset.Name)
+                : EditorText.UI("SAIN presets are disabled by the server.");
+            Label($"{reason} {EditorText.UI("Preset selection is locked.")}");
             return;
         }
 
@@ -65,8 +65,15 @@ public static class PresetSelection
             sainPresetV = selectedPreset.SAINVersion;
         }
         GUIContent content = new(
-            $"Warning: The selected preset version is: [{sainPresetV}], "
-                + $"but current SAIN preset version is: [{SAINVersionInfo.SAINPresetVersion}] (SAIN version [{SAINVersionInfo.SAINVersion}]), default bot config values may be set incorrectly due to updates to SAIN. THIS DOESN'T MEAN YOUR GAME IS BROKEN, just be aware bots might not act as intended."
+            string.Format(
+                EditorText.UI(
+                    "Warning: The selected preset version is: [{0}], "
+                        + "but current SAIN preset version is: [{1}] (SAIN version [{2}]), default bot config values may be set incorrectly due to updates to SAIN. THIS DOESN'T MEAN YOUR GAME IS BROKEN, just be aware bots might not act as intended."
+                ),
+                sainPresetV,
+                SAINVersionInfo.SAINPresetVersion,
+                SAINVersionInfo.SAINVersion
+            )
         );
 
         Rect rect = GUILayoutUtility.GetRect(content, GetStyle(Style.alert), Height(PRESET_ALERT_HEIGHT));
@@ -83,11 +90,11 @@ public static class PresetSelection
     private static void baseSelectionOptions()
     {
         BeginVertical();
-        Box("Presets", "Select an Installed preset for SAIN Settings", Height(PRESET_LABEL_HEIGHT), Width(PRESET_BASE_OPTION_WIDTH));
+        Box(EditorText.UI("Presets"), EditorText.UI("Select an Installed preset for SAIN Settings"), Height(PRESET_LABEL_HEIGHT), Width(PRESET_BASE_OPTION_WIDTH));
         if (
             Button(
-                "Refresh",
-                "Refresh installed Presets",
+                EditorText.UI("Refresh"),
+                EditorText.UI("Refresh installed Presets"),
                 EUISoundType.ButtonClick,
                 Height(PRESET_LABEL_HEIGHT),
                 Width(PRESET_BASE_OPTION_WIDTH)
@@ -99,7 +106,7 @@ public static class PresetSelection
 
         _makeNewPresetMenuToggle = Toggle(
             _makeNewPresetMenuToggle,
-            new GUIContent("Create New Preset"),
+            new GUIContent(EditorText.UI("Create New Preset")),
             EUISoundType.ButtonClick,
             Height(PRESET_LABEL_HEIGHT),
             Width(PRESET_BASE_OPTION_WIDTH)
@@ -111,7 +118,7 @@ public static class PresetSelection
     private static SAINPresetDefinition selectDefault(SAINPresetDefinition selectedPreset)
     {
         BeginVertical();
-        Label("Default Presets", Width(PRESET_OPTION_WIDTH));
+        Label(EditorText.UI("Default Presets"), Width(PRESET_OPTION_WIDTH));
 
         var defaultPresets = PresetHandler.DefaultPresetOptions();
         for (int i = 0; i < defaultPresets.Count; i++)
@@ -145,7 +152,7 @@ public static class PresetSelection
     private static SAINPresetDefinition selectCustom(SAINPresetDefinition selectedPreset)
     {
         BeginVertical();
-        Label("Custom Presets", Width(PRESET_OPTION_WIDTH));
+        Label(EditorText.UI("Custom Presets"), Width(PRESET_OPTION_WIDTH));
         for (int i = 0; i < PresetHandler.CustomPresetOptions.Count; i++)
         {
             var preset = PresetHandler.CustomPresetOptions[i];
@@ -188,8 +195,8 @@ public static class PresetSelection
             if (
                 info.CanEditName
                 && Button(
-                    "Save Info",
-                    "Update the selected presets name, description, and creator.",
+                    EditorText.UI("Save Info"),
+                    EditorText.UI("Update the selected presets name, description, and creator."),
                     EFT.UI.EUISoundType.InsuranceInsured,
                     Height(30f)
                 )
@@ -208,7 +215,7 @@ public static class PresetSelection
                 PresetHandler.InitPresetFromDefinition(newInfo, true);
                 PresetHandler.LoadCustomPresetOptions();
             }
-            if (Button("Save A New Preset", EFT.UI.EUISoundType.InsuranceInsured, Height(30f)))
+            if (Button(EditorText.UI("Save A New Preset"), EFT.UI.EUISoundType.InsuranceInsured, Height(30f)))
             {
                 SAINPresetDefinition newPreset = SAINPlugin.LoadedPreset.Info.Clone();
 
@@ -226,9 +233,9 @@ public static class PresetSelection
 
             Space(3);
 
-            NewName = LabeledTextField(NewName, "Name");
-            NewDescription = LabeledTextField(NewDescription, "Description");
-            NewCreator = LabeledTextField(NewCreator, "Creator");
+            NewName = LabeledTextField(NewName, EditorText.UI("Name"));
+            NewDescription = LabeledTextField(NewDescription, EditorText.UI("Description"));
+            NewCreator = LabeledTextField(NewCreator, EditorText.UI("Creator"));
 
             EndVertical();
         }
@@ -239,13 +246,13 @@ public static class PresetSelection
         if (SAINPresetClass.Instance.Info.IsCustom)
         {
             BeginVertical();
-            _deletePresetConfirmation1 = Toggle(_deletePresetConfirmation1, "Delete Selected Preset", null, Height(30), Width(250f));
+            _deletePresetConfirmation1 = Toggle(_deletePresetConfirmation1, EditorText.UI("Delete Selected Preset"), null, Height(30), Width(250f));
             if (_deletePresetConfirmation1)
             {
-                _deletePresetConfirmation2 = Toggle(_deletePresetConfirmation2, "Are you Sure?", null, Height(30), Width(250f));
+                _deletePresetConfirmation2 = Toggle(_deletePresetConfirmation2, EditorText.UI("Are you Sure?"), null, Height(30), Width(250f));
                 if (_deletePresetConfirmation2)
                 {
-                    if (Button($"CONFIRM DELETE OF {SAINPresetClass.Instance.Info.Name} ?", Height(60), Width(250f)))
+                    if (Button(string.Format(EditorText.UI("CONFIRM DELETE OF {0} ?"), SAINPresetClass.Instance.Info.Name), Height(60), Width(250f)))
                     {
                         var deletedInfo = SAINPresetClass.Instance.Info;
                         PresetHandler.loadDefault();

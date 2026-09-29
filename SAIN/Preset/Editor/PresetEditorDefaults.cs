@@ -24,6 +24,11 @@ public class PresetEditorDefaults : SAINSettingsBase<PresetEditorDefaults>, ISAI
     public bool AdvancedBotConfigs = false;
 
     [Category("General")]
+    [Name("Korean UI (한국어)")]
+    [Description("Show the F6 editor in Korean. Off = original English. Also switchable with the 한/EN button in the top bar.")]
+    public bool KoreanUI = true;
+
+    [Category("General")]
     [Name("Show Developer Options")]
     [Description("You shouldn't change any of these unless you know exactly what it does based on exploring SAIN's codebase.")]
     public bool DevBotConfigs = false;

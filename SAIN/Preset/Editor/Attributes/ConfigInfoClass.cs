@@ -17,7 +17,7 @@ public sealed class ConfigInfoClass
 
     public ConfigInfoClass(string name)
     {
-        Name = name;
+        EnglishName = name;
     }
 
     public Type ValueType
@@ -102,8 +102,8 @@ public sealed class ConfigInfoClass
         }
 
         NameAndDescriptionAttribute nameDescription = Get<NameAndDescriptionAttribute>();
-        Name = nameDescription?.Name ?? Get<NameAttribute>()?.Value ?? member.Name;
-        Description = nameDescription?.Description ?? Get<DescriptionAttribute>()?.Value ?? string.Empty;
+        EnglishName = nameDescription?.Name ?? Get<NameAttribute>()?.Value ?? member.Name;
+        EnglishDescription = nameDescription?.Description ?? Get<DescriptionAttribute>()?.Value ?? string.Empty;
         Category = Get<CategoryAttribute>()?.Value ?? "None";
 
         GUIValuesAttribute GUIValues = Get<GUIValuesAttribute>();
@@ -136,8 +136,21 @@ public sealed class ConfigInfoClass
 
     private string DictionaryString;
 
-    public string Name { get; private set; }
-    public string Description { get; private set; }
+    // zzap fork: the attribute text stays English (search, keys); Name/Description are what the editor shows (Korean when on).
+    public string EnglishName { get; private set; }
+    public string EnglishDescription { get; private set; }
+
+    public string Name
+    {
+        get { return SAIN.Editor.EditorText.Setting(EnglishName); }
+    }
+
+    public string Description
+    {
+        get { return SAIN.Editor.EditorText.Setting(EnglishDescription); }
+    }
+
+    /// <summary>Raw English category, used as the grouping key. Show it through EditorText.Setting.</summary>
     public string Category { get; private set; }
     public float Min { get; private set; } = 0f;
     public float Max { get; private set; } = 300f;

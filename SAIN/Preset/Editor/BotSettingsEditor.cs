@@ -15,16 +15,16 @@ public static class BotSettingsEditor
     {
         BeginHorizontal();
 
-        Box(name, Height(height));
+        Box(EditorText.UI(name), Height(height));
 
         Space(10);
 
-        Label("Search", Width(125f), Height(height));
+        Label(EditorText.UI("Search"), Width(125f), Height(height));
 
         var container = SettingsContainers.GetContainer(settings.GetType(), name);
         container.SearchPattern = TextField(container.SearchPattern, null, Width(250), Height(height));
 
-        if (Button("Clear", EUISoundType.MenuContextMenu, Width(80), Height(height)))
+        if (Button(EditorText.UI("Clear"), EUISoundType.MenuContextMenu, Width(80), Height(height)))
         {
             container.SearchPattern = string.Empty;
         }
@@ -34,8 +34,8 @@ public static class BotSettingsEditor
         if (ConfigEditingTracker.UnsavedChanges)
         {
             BuilderClass.Alert(
-                "Click Save to export changes, and send changes to bots if in-game",
-                "YOU HAVE UNSAVED CHANGES!",
+                EditorText.UI("Click Save to export changes, and send changes to bots if in-game"),
+                EditorText.UI("YOU HAVE UNSAVED CHANGES!"),
                 height,
                 ColorNames.DarkRed
             );
@@ -45,7 +45,7 @@ public static class BotSettingsEditor
             BuilderClass.Alert(null, null, height, null);
         }
 
-        Saved = Button("Save and Export", ConfigEditingTracker.GetUnsavedValuesString(), EUISoundType.InsuranceInsured, Height(height));
+        Saved = Button(EditorText.UI("Save and Export"), ConfigEditingTracker.GetUnsavedValuesString(), EUISoundType.InsuranceInsured, Height(height));
 
         EndHorizontal();
 
@@ -59,8 +59,8 @@ public static class BotSettingsEditor
     public static bool CheckIfOpen(SettingsContainer container, float height = 30f)
     {
         BeginHorizontal();
-        container.Open = BuilderClass.ExpandableMenu(container.Name, container.Open, null, height);
-        if (Button("Clear", "Clear Selected Options in this Menu", EFT.UI.EUISoundType.MenuDropdownSelect, Width(100), Height(height)))
+        container.Open = BuilderClass.ExpandableMenu(EditorText.UI(container.Name), container.Open, null, height);
+        if (Button(EditorText.UI("Clear"), EditorText.UI("Clear Selected Options in this Menu"), EFT.UI.EUISoundType.MenuDropdownSelect, Width(100), Height(height)))
         {
             container.SelectedCategories.Clear();
             foreach (var category in container.Categories)

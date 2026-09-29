@@ -209,7 +209,7 @@ public class AttributesGUI
         foreach (KeyValuePair<ESuppressionState, SuppressionConfig> kvp in suppDict)
         {
             BeginHorizontal(150f);
-            string suppStateString = $"Suppression State: {kvp.Key}";
+            string suppStateString = $"{EditorText.UI("Suppression State")}: {kvp.Key}";
             if (ExpandableList(suppStateString, null, PresetHandler.EditorDefaults.ConfigEntryHeight, 1, _defaultEntryConfig)) { }
             EndHorizontal(150f);
         }
@@ -380,7 +380,7 @@ public class AttributesGUI
         foreach (KeyValuePair<WildSpawnType, EPersonality> kvp in _tempBossPersDict)
         {
             BeginHorizontal(150f);
-            string bossPerString = $"Boss Personality: {kvp.Key}";
+            string bossPerString = $"{EditorText.UI("Boss Personality")}: {kvp.Key}";
             if (ExpandableList(bossPerString, null, 25f, 1, entryConfig))
             {
                 EPersonality newSelection = SelectPersonality(kvp.Value, entryConfig);
@@ -479,7 +479,7 @@ public class AttributesGUI
             _labelStyle.alignment = TextAnchor.MiddleCenter;
             Space(horizDepth);
             Box(
-                info.AdvancedOption ? "Advanced" : "Developer",
+                EditorText.UI(info.AdvancedOption ? "Advanced" : "Developer"),
                 _labelStyle,
                 Width(70f),
                 Height(PresetHandler.EditorDefaults.ConfigEntryHeight)
@@ -538,7 +538,7 @@ public class AttributesGUI
         {
             if (!useSimpleLayout)
             {
-                value = Toggle((bool)value, (bool)value ? "On" : "Off", EUISoundType.MenuCheckBox, entryConfig.Toggle);
+                value = Toggle((bool)value, EditorText.UI((bool)value ? "On" : "Off"), EUISoundType.MenuCheckBox, entryConfig.Toggle);
             }
             result = value.ToString();
         }
@@ -564,7 +564,7 @@ public class AttributesGUI
 
         if (useSimpleLayout && info.ValueType == typeof(bool))
         {
-            value = Toggle((bool)value, (bool)value ? "On" : "Off", EUISoundType.MenuCheckBox, layoutParams);
+            value = Toggle((bool)value, EditorText.UI((bool)value ? "On" : "Off"), EUISoundType.MenuCheckBox, layoutParams);
         }
         else
         {
@@ -591,7 +591,7 @@ public class AttributesGUI
         var defaultValue = info.GetDefault(settingsObject);
         if (defaultValue != null)
         {
-            if (Button("Reset", "Reset To Default Value", EUISoundType.ButtonClick, layoutParams))
+            if (Button(EditorText.UI("Reset"), EditorText.UI("Reset To Default Value"), EUISoundType.ButtonClick, layoutParams))
             {
                 value = defaultValue;
                 ConfigEditingTracker.Remove(info);
@@ -599,7 +599,7 @@ public class AttributesGUI
         }
         else
         {
-            Box(" ", "No Default Value is assigned to this option.", layoutParams);
+            Box(" ", EditorText.UI("No Default Value is assigned to this option."), layoutParams);
         }
 
         if (beginHoriz)
@@ -674,7 +674,7 @@ public class AttributesGUI
     {
         BeginHorizontal(150);
         string name = stealthValue.Name;
-        string description = $"The Stealth Value for {name}";
+        string description = string.Format(EditorText.UI("The Stealth Value for {0}"), name);
         float fvalue = stealthValue.StealthValue;
         float min = 0.1f;
         float max = 2;
@@ -734,7 +734,7 @@ public class AttributesGUI
             var item = list[i];
             var name = item.ToString();
             Box(new GUIContent(name), _labelStyle, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
-            if (Toggle(dictionary[item], dictionary[item] ? "On" : "Off", EUISoundType.MenuCheckBox, _defaultEntryConfig.Toggle))
+            if (Toggle(dictionary[item], EditorText.UI(dictionary[item] ? "On" : "Off"), EUISoundType.MenuCheckBox, _defaultEntryConfig.Toggle))
             {
                 // Option was selected, set all other values to false, other than the 1 selected
                 for (int j = 0; j < list.Count; j++)
@@ -906,8 +906,8 @@ public class AttributesGUI
         EndHorizontal(150);
         BeginHorizontal(200f);
 
-        string name = nameof(values.DistanceModifier);
-        string description = "How much to randomize the distance that a bot thinks a sound originated from.";
+        string name = EditorText.UI(nameof(values.DistanceModifier));
+        string description = EditorText.UI("How much to randomize the distance that a bot thinks a sound originated from.");
         float fvalue = values.DistanceModifier;
         float min = 0f;
         float max = 20f;
@@ -927,7 +927,7 @@ public class AttributesGUI
         EndHorizontal(200f);
         BeginHorizontal(200f);
 
-        name = nameof(values.MinAngle);
+        name = EditorText.UI(nameof(values.MinAngle));
         description = "";
         fvalue = values.MinAngle;
         min = 0f;
@@ -948,7 +948,7 @@ public class AttributesGUI
         EndHorizontal(200f);
         BeginHorizontal(200f);
 
-        name = nameof(values.MaxAngle);
+        name = EditorText.UI(nameof(values.MaxAngle));
         description = "";
         fvalue = values.MaxAngle;
         min = 0f;
@@ -969,7 +969,7 @@ public class AttributesGUI
         EndHorizontal(200f);
         BeginHorizontal(200f);
 
-        name = nameof(values.VerticalModifier);
+        name = EditorText.UI(nameof(values.VerticalModifier));
         description = "";
         fvalue = values.VerticalModifier;
         min = 0f;
@@ -994,7 +994,7 @@ public class AttributesGUI
 
     private static bool ResetButton()
     {
-        return Button("Reset", EUISoundType.ButtonClick, _defaultEntryConfig.Reset);
+        return Button(EditorText.UI("Reset"), EUISoundType.ButtonClick, _defaultEntryConfig.Reset);
     }
 
     private static float Slider(string name, string description, float value, float min, float max, float rounding)
@@ -1206,7 +1206,7 @@ public class AttributesGUI
             return;
         }
         BeginHorizontal(0f);
-        DisplayString($"    Category: {category}    ", configParams.ListDepth, configParams.EntryConfig, 15f);
+        DisplayString($"    {EditorText.UI("Category")}: {EditorText.Setting(category)}    ", configParams.ListDepth, configParams.EntryConfig, 15f);
         FlexibleSpace();
         EndHorizontal();
     }
@@ -1360,6 +1360,9 @@ public class AttributesGUI
                 attributes.Name?.ToLower().Contains(searchQuerry) == false
                 && attributes.Description?.ToLower().Contains(searchQuerry) == false
                 && attributes.Category?.ToLower().Contains(searchQuerry) == false
+                && EditorText.Setting(attributes.Category)?.ToLower().Contains(searchQuerry) == false
+                && attributes.EnglishName?.ToLower().Contains(searchQuerry) == false
+                && attributes.EnglishDescription?.ToLower().Contains(searchQuerry) == false
             );
     }
 

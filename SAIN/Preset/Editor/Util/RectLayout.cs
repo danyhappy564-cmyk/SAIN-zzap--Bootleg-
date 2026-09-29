@@ -32,14 +32,17 @@ public static class RectLayout
     private const float ExitWidth = 30f;
     private const float SaveAllWidth = 175f;
     private const float AdvWidth = 225f;
+    private const float LangWidth = 90f;
 
     private static readonly float ExitStartX = MainWindow.width - ExitWidth;
     private static readonly float SaveAllStartX = ExitStartX - SaveAllWidth - 5;
     private static readonly float AdvRectStartX = SaveAllStartX - AdvWidth - 5;
-    private static readonly float DragWidth = AdvRectStartX - 5;
+    private static readonly float LangRectStartX = AdvRectStartX - LangWidth - 5;
+    private static readonly float DragWidth = LangRectStartX - 5;
 
     public static Rect ExitRect = new(ExitStartX, 0, ExitWidth, RectHeight);
     public static Rect DragRect = new(0, 0, DragWidth, RectHeight);
     public static Rect SaveAllRect = new(SaveAllStartX, 0, SaveAllWidth, RectHeight);
     public static Rect AdvRect = new(AdvRectStartX, 0, AdvWidth, RectHeight);
+    public static Rect LangRect = new(LangRectStartX, 0, LangWidth, RectHeight);
 }
