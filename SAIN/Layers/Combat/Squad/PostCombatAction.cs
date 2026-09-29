@@ -1,5 +1,7 @@
 using DrakiaXYZ.BigBrain.Brains;
 using EFT;
+using System.Collections.Generic;
+using SAIN.Preset.Shared.Models.Preset.Personalities;
 using SAIN.SAINComponent.Classes.EnemyClasses;
 using SAIN.SAINComponent.Classes.Tactics;
 using SAIN.SAINComponent.Classes.WeaponFunction;
@@ -24,6 +26,23 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
     private Vector3 _glanceOffset;
     private Vector3? _threat;
     private Vector3? _coverSpot;
+    private bool _open;
+    private bool _advance;
+    private float _watchUntil;
+
+    // zzap (sim round 3, user: "bots still zone out after a fight"): 14s crouched in place looked like idling. A player
+    // reloads, watches a few seconds, then - if he's the pushing type - moves up to check the kill spot. Chance per personality.
+    private static readonly Dictionary<EPersonality, float> _advanceChance = new()
+    {
+        { EPersonality.GigaChad, 80f },
+        { EPersonality.Wreckless, 85f },
+        { EPersonality.Chad, 65f },
+        { EPersonality.Normal, 40f },
+        { EPersonality.Timmy, 30f },
+        { EPersonality.SnappingTurtle, 10f },
+        { EPersonality.Rat, 10f },
+        { EPersonality.Coward, 0f },
+    };
 
     public override void Start()
     {
@@ -32,31 +51,36 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         _nextMove = 0f;
         Enemy enemy = Bot.GoalEnemy;
         _threat = enemy?.KnownPlaces.LastKnownPosition ?? Bot.Decision.LastFightThreat;
-        _coverSpot = null;
-        if (Bot.Cover.CoverInUse == null && Bot.Cover.CoverPoints != null)
-        {
-            // Not in cover: tidy up behind the nearest cover within 8m instead of standing in the open.
-            float best = 8f;
-            foreach (var p in Bot.Cover.CoverPoints)
-            {
-                float d = p == null ? 99f : (p.Position - Bot.Position).magnitude;
-                if (d > 1f && d < best)
-                {
-                    best = d;
-                    _coverSpot = p.Position;
-                }
-            }
-        }
         if (_threat == null && Bot.Memory.UnderFireFromPosition != Vector3.zero)
         {
             _threat = Bot.Memory.UnderFireFromPosition;
         }
+        // In the open: get behind something FIRST (reload on the way), then heal / watch. SAIN's cover list is empty by now
+        // (its finder only runs with an enemy), so OpenGround looks for a spot itself.
+        _coverSpot = null;
+        string coverWhy = "not in the open";
+        _open = Bot.Cover.CoverInUse == null && OpenGround.IsOpen(Bot.Position, _threat);
+        if (_open)
+        {
+            _coverSpot = OpenGround.FindCover(Bot, _threat, out coverWhy);
+            TacticDiagnostics.Count(_coverSpot != null ? "postCombat.open.toCover" : "postCombat.open.noCover");
+        }
+        _watchUntil = Time.time + Random.Range(3f, 6f);
+        float chance = _advanceChance.TryGetValue(Bot.Info.Personality, out float c) ? c : 40f;
+        var hs = Bot.Memory.Health.HealthStatus;
+        if (hs == ETagStatus.BadlyInjured || hs == ETagStatus.Dying)
+        {
+            chance *= 0.2f;
+        }
+        float threatDist = _threat != null ? (_threat.Value - Bot.Position).magnitude : 0f;
+        _advance = _threat != null && threatDist > 4f && threatDist < 40f && Random.value * 100f < chance;
         TacticDiagnostics.Count("postCombat.start");
         TacticDiagnostics.LogCloseCombat(
             $"[PostCombat] [{Bot.name}] [{Bot.Info.Personality}] combat over -> tidy up until ORBIT takes over (ammo {SAINBotSuppressClass.CalcAmmoRatio(BotOwner, out _):P0}, "
                 + $"leader {(Bot.Squad.IAmLeader || Bot.Squad.LeaderComponent == null ? "-" : $"{(Bot.Squad.LeaderComponent.Position - Bot.Position).magnitude:0}m")}, "
                 + $"watching {(_threat != null ? $"last threat {(_threat.Value - Bot.Position).magnitude:0}m" : "around")}"
-                + $"{(_coverSpot != null ? $", to cover {(_coverSpot.Value - Bot.Position).magnitude:0}m" : "")})"
+                + $"{(_open ? $", standing in the open -> cover: {coverWhy}" : "")}"
+                + $"{(_advance ? $", then moves up to check the kill spot ({chance:0}% {Bot.Info.Personality})" : ", then holds")})"
         );
     }
 
@@ -69,6 +93,22 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
             {
                 TacticDiagnostics.Count("postCombat.reload");
             }
+        }
+        if (_coverSpot != null && (_coverSpot.Value - Bot.Position).magnitude > 1f && BotOwner.Medecine?.Using != true)
+        {
+            if (_nextMove < Time.time)
+            {
+                _nextMove = Time.time + 1f;
+                if (!Bot.Mover.WalkToPoint(_coverSpot.Value))
+                {
+                    _coverSpot = null;
+                }
+            }
+            // Quick and low - the open is where you get shot first.
+            Bot.Mover.SetTargetPose(0.8f);
+            Bot.Mover.SetTargetMoveSpeed(0.85f);
+            _watchUntil = Time.time + Random.Range(3f, 6f);
+            return;
         }
         if (TickHeal())
         {
@@ -89,23 +129,28 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
             Bot.Mover.SetTargetMoveSpeed(0.8f);
             return;
         }
-        if (_coverSpot != null && (_coverSpot.Value - Bot.Position).magnitude > 1f)
+        if (_advance && Time.time > _watchUntil && _threat != null && BotOwner.WeaponManager?.Reload?.Reloading != true)
         {
-            if (_nextMove < Time.time)
+            if ((_threat.Value - Bot.Position).magnitude > 3f)
             {
-                _nextMove = Time.time + 1f;
-                if (!Bot.Mover.WalkToPoint(_coverSpot.Value))
+                if (_nextMove < Time.time)
                 {
-                    _coverSpot = null;
+                    _nextMove = Time.time + 1f;
+                    if (Bot.Mover.WalkToPoint(_threat.Value))
+                    {
+                        TacticDiagnostics.Count("postCombat.advance");
+                    }
+                    else
+                    {
+                        _advance = false;
+                    }
                 }
-                else
-                {
-                    TacticDiagnostics.Count("postCombat.toCover");
-                }
+                Bot.Mover.SetTargetPose(1f);
+                Bot.Mover.SetTargetMoveSpeed(0.55f);
+                return;
             }
-            Bot.Mover.SetTargetPose(0.75f);
-            Bot.Mover.SetTargetMoveSpeed(0.6f);
-            return;
+            _advance = false;
+            _threat = null;
         }
         Bot.Mover.Stop();
         Bot.Mover.SetTargetPose(0.75f);
@@ -157,6 +202,12 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         Enemy enemy = Bot.GoalEnemy;
         if (Shoot.ShootAnyVisibleEnemies(enemy))
         {
+            return;
+        }
+        if (_advance && Bot.Mover.Moving && _threat != null)
+        {
+            // Moving up gun first, eyes on the spot (level).
+            Bot.Steering.LookToPoint(SAIN.SAINComponent.Classes.Mover.SAINSteeringClass.ClampPitch(Bot.Transform.WeaponRoot, _threat.Value + Vector3.up * 1.3f, Bot.Transform.LookDirection));
             return;
         }
         if (Bot.Mover.Moving && (_coverSpot == null || _threat == null))
