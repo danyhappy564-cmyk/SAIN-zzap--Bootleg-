@@ -199,7 +199,7 @@ public static class ModifyLists
         {
             bool toggleValue = Toggle(
                 list.Contains(value),
-                new GUIContent(name ?? value.ToString(), description),
+                new GUIContent(name ?? EditorText.Value(value), description),
                 GetStyle(Style.selectionList),
                 EUISoundType.MenuCheckBox,
                 options

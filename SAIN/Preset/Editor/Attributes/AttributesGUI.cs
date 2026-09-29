@@ -108,9 +108,10 @@ public class AttributesGUI
                 return value;
             }
 
-            if (value is EHeardFromPeaceBehavior)
+            if (value is EHeardFromPeaceBehavior peaceBehavior)
             {
-                return value;
+                // zzap fork: this used to be skipped (never shown in F6); now one button per option.
+                return EditPeaceBehavior(peaceBehavior, info, config, listDepth, out wasEdited);
             }
 
             if (!ExpandableList(info, config.EntryHeight + 3, listDepth++, config))
@@ -136,6 +137,34 @@ public class AttributesGUI
             value = FindListTypeAndEdit(ref value, settingsObject, info, listDepth, out wasEdited, config, search);
         }
         return value;
+    }
+
+    private static EHeardFromPeaceBehavior EditPeaceBehavior(
+        EHeardFromPeaceBehavior current,
+        ConfigInfoClass info,
+        GUIEntryConfig config,
+        int listDepth,
+        out bool wasEdited
+    )
+    {
+        CreateLabelStyle();
+        float height = PresetHandler.EditorDefaults.ConfigEntryHeight;
+        StartConfigEntry(listDepth, config, info);
+        Box(new GUIContent(info.Name, info.Description), _labelStyle, Width(450f), Height(height));
+
+        EHeardFromPeaceBehavior selected = current;
+        foreach (EHeardFromPeaceBehavior option in EnumValues.GetEnum<EHeardFromPeaceBehavior>())
+        {
+            bool on = Toggle(option == current, EditorText.Value(option), EUISoundType.MenuCheckBox, Width(150f), Height(height));
+            if (on && option != current)
+            {
+                selected = option;
+            }
+        }
+        EndHorizontal(100f);
+
+        wasEdited = selected != current;
+        return selected;
     }
 
     private static bool CheckEditDictionary(ref object value, ref bool wasEdited, int listDepth, GUIEntryConfig config, string search)
@@ -166,7 +195,7 @@ public class AttributesGUI
             object value = item.Value;
             if (
                 ExpandableList(
-                    item.Key.ToString(),
+                    EditorText.Value(item.Key),
                     string.Empty,
                     PresetHandler.EditorDefaults.ConfigEntryHeight + 3,
                     listDepth,
@@ -209,7 +238,7 @@ public class AttributesGUI
         foreach (KeyValuePair<ESuppressionState, SuppressionConfig> kvp in suppDict)
         {
             BeginHorizontal(150f);
-            string suppStateString = $"{EditorText.UI("Suppression State")}: {kvp.Key}";
+            string suppStateString = $"{EditorText.UI("Suppression State")}: {EditorText.Value(kvp.Key)}";
             if (ExpandableList(suppStateString, null, PresetHandler.EditorDefaults.ConfigEntryHeight, 1, _defaultEntryConfig)) { }
             EndHorizontal(150f);
         }
@@ -625,7 +654,7 @@ public class AttributesGUI
             var type = possibleTypes[i];
             if (values.TryGetValue(type, out var list))
             {
-                if (!ExpandableList(type.ToString(), string.Empty, _defaultEntryConfig.EntryHeight + 5, 0, _defaultEntryConfig))
+                if (!ExpandableList(EditorText.Value(type), string.Empty, _defaultEntryConfig.EntryHeight + 5, 0, _defaultEntryConfig))
                 {
                     continue;
                 }
@@ -733,7 +762,7 @@ public class AttributesGUI
 
             var item = list[i];
             var name = item.ToString();
-            Box(new GUIContent(name), _labelStyle, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
+            Box(new GUIContent(EditorText.Value(item)), _labelStyle, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
             if (Toggle(dictionary[item], EditorText.UI(dictionary[item] ? "On" : "Off"), EUISoundType.MenuCheckBox, _defaultEntryConfig.Toggle))
             {
                 // Option was selected, set all other values to false, other than the 1 selected
@@ -823,7 +852,7 @@ public class AttributesGUI
             {
                 continue;
             }
-            string name = location.ToString();
+            string name = EditorText.Value(location);
 
             if (!ExpandableList(name, string.Empty, PresetHandler.EditorDefaults.ConfigEntryHeight + 3, listDepth, config))
             {
@@ -866,7 +895,7 @@ public class AttributesGUI
             }
             BeginHorizontal(200f);
 
-            string name = limitSetting.ToString();
+            string name = EditorText.Value(limitSetting);
             string description = "";
             float min = 5f;
             float max = 800f;
@@ -901,7 +930,7 @@ public class AttributesGUI
         BeginVertical(2f);
         BeginHorizontal(150);
 
-        Box(new GUIContent(soundType.ToString()), _labelStyle, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
+        Box(new GUIContent(EditorText.Value(soundType)), _labelStyle, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
 
         EndHorizontal(150);
         BeginHorizontal(200f);
@@ -1037,7 +1066,7 @@ public class AttributesGUI
             float originalValue = dictionary[item];
             float floatValue = originalValue;
 
-            Box(new GUIContent(item.ToString()), _labelStyle, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
+            Box(new GUIContent(EditorText.Value(item)), _labelStyle, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
             floatValue = BuilderClass.CreateSlider(floatValue, min, max, rounding, _defaultEntryConfig.Toggle);
             Box(floatValue.Round(rounding).ToString(), _defaultEntryConfig.Result);
 

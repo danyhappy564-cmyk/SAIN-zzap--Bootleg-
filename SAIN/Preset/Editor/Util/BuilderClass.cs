@@ -404,7 +404,7 @@ public static class BuilderClass
         string listValueString = newValue.ToString();
         bool selected = listValueString == value.ToString();
 
-        if (Toggle(selected, listValueString, SelectionSound, options))
+        if (Toggle(selected, EditorText.Value(newValue), SelectionSound, options))
         {
             value = newValue;
         }

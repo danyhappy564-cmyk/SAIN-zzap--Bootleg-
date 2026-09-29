@@ -27,6 +27,21 @@ public static class EditorText
         return Translate(KoreanUIText.Map, english);
     }
 
+    /// <summary>Option values (enum values, list keys) — personalities/bot types/decisions have no entry and stay English.</summary>
+    public static string Value(object value)
+    {
+        if (value == null)
+        {
+            return string.Empty;
+        }
+        string raw = value.ToString();
+        if (!Korean || !(value is System.Enum))
+        {
+            return raw;
+        }
+        return KoreanValueText.Map.TryGetValue(value.GetType().Name + "." + raw, out string korean) ? korean : raw;
+    }
+
     private static string Translate(Dictionary<string, string> map, string english)
     {
         if (!Korean || string.IsNullOrEmpty(english))
