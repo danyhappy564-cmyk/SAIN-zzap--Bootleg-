@@ -1318,5 +1318,11 @@ internal static class KoreanSettingText
         { "SubList_Indent_Horizontal", "하위 목록 가로 들여쓰기" },
         { "Korean UI (한국어)", "한국어 표시 (Korean UI)" },
         { "Show the F6 editor in Korean. Off = original English. Also switchable with the 한/EN button in the top bar.", "F6 에디터를 한국어로 표시합니다. 끄면 원래 영어. 상단 바의 한/EN 버튼으로도 바꿀 수 있습니다." },
+        // PerformanceSettings (zzap sim)
+        { "Sim: Hide Old Bot Corpses Above (TEST preset only)", "시뮬: 오래된 봇 시체 숨기기 기준 (TEST 프리셋 전용)" },
+        {
+            "zzap fork, for long bot-vs-bot simulations: when more bot corpses than this lie on the map, the oldest ones (20s+) are hidden. Only works in a preset whose name contains TEST. 0 = off. The raid journal's [Perf] line shows how many were hidden.",
+            "zzap 포크, 긴 봇끼리 시뮬용: 맵에 봇 시체가 이 수보다 많으면 오래된 것(20초 이상)부터 숨김. 이름에 TEST가 들어간 프리셋에서만 작동. 0 = 끔. 레이드 일지 [Perf] 줄에 숨긴 수가 나옴."
+        },
     };
 }

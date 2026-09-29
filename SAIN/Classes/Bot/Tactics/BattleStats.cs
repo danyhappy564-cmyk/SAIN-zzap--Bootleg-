@@ -99,6 +99,7 @@ public static class BattleStats
     /// <summary>Called from the journal tick; writes the table every 5 minutes.</summary>
     public static void Tick()
     {
+        CorpseCleanup.Tick();
         float time = Time.time;
         if (_nextReport <= 0f)
         {
@@ -147,7 +148,7 @@ public static class BattleStats
         int alive = Comfort.Common.Singleton<GameWorld>.Instance?.AllAlivePlayersList?.Count ?? -1;
         RaidJournal.Line(
             $"[Perf] ({why}) fps {fps:0} avg since last report | mono heap used {used} MB / reserved {heap} MB | GC {UnityEngine.Scripting.GarbageCollector.GCMode} | "
-                + $"alive players {alive}, bot corpses so far {deaths}"
+                + $"alive players {alive}, bot corpses so far {deaths} (hidden by the sim corpse limit: {CorpseCleanup.Hidden})"
         );
     }
 
@@ -178,5 +179,6 @@ public static class BattleStats
         _nextReport = 0f;
         _perfFrame = 0;
         _perfTime = 0f;
+        CorpseCleanup.Clear();
     }
 }

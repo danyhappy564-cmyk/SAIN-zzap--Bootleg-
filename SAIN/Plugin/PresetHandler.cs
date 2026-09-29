@@ -339,6 +339,7 @@ internal class PresetHandler
 
     public static void UpdateExistingBots()
     {
+        LoadedPreset?.MakeCurrent();
         OnPresetUpdated?.Invoke(LoadedPreset);
         LoadedPreset?.GlobalSettings.Update();
         LoadedPreset?.PersonalityManager.Update();

@@ -56,6 +56,7 @@ public static class PresetSync
             if (!string.IsNullOrEmpty(json) && json != "null")
             {
                 _serverDefaults = JsonConvert.DeserializeObject<List<SAINPresetBundle>>(json, _settings);
+                PresetHandler.LoadedPreset?.MakeCurrent();
                 Logger.LogInfo($"[SAIN] Fetched {_serverDefaults?.Count ?? 0} server-generated default presets.");
             }
         }
@@ -119,6 +120,7 @@ public static class PresetSync
         {
             Logger.LogDebug($"[SAIN] Custom preset pull skipped: {ex.Message}");
         }
+        PresetHandler.LoadedPreset?.MakeCurrent();
     }
 
     public static void ProcessDeferred()
@@ -255,6 +257,7 @@ public static class PresetSync
         }
 
         var bundle = JsonConvert.DeserializeObject<SAINPresetBundle>(json, _settings);
+        PresetHandler.LoadedPreset?.MakeCurrent();
         if (bundle?.Info == null)
         {
             return;

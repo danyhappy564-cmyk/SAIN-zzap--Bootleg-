@@ -165,6 +165,12 @@ public class DebugSettings : SAINSettingsBase<DebugSettings>, ISAINSettings
 
     public static DebugSettings Instance { get; private set; }
 
+    /// <summary>zzap: re-point <see cref="Instance"/> at this object (the constructor grabs it for every deserialized preset).</summary>
+    public void MakeCurrent()
+    {
+        Instance = this;
+    }
+
     [DataMember]
     public DebugLogSettings Logs = new();
 

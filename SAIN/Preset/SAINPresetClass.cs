@@ -52,6 +52,22 @@ public class SAINPresetClass
         GearStealthValuesClass = new GearStealthValuesClass(bundle.GearStealthValues);
     }
 
+    /// <summary>
+    /// zzap: make this preset the one every bot reads. <see cref="GlobalSettingsClass"/>'s constructor sets the static
+    /// Instance, so whichever preset JSON was deserialized LAST won - e.g. pulling all custom presets reads "zzap TEST"
+    /// then "zzap", and bots ran on "zzap"'s global settings while "zzap TEST" was loaded (7th sim: mistakes/adapt on in a
+    /// preset that has them off). Called after every load and every deserialization.
+    /// </summary>
+    public void MakeCurrent()
+    {
+        Instance = this;
+        if (GlobalSettings != null)
+        {
+            GlobalSettingsClass.Instance = GlobalSettings;
+            GlobalSettings.General?.Debug?.MakeCurrent();
+        }
+    }
+
     public void Init()
     {
         GlobalSettings.Init();

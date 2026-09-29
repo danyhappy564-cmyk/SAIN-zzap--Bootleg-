@@ -37,7 +37,8 @@
         "VanillaSpecialBots": false
       },
       "Performance": {
-        "PerformanceMode": false
+        "PerformanceMode": false,
+        "SimCorpseLimit": 40
       },
       "AILimit": {
         "LimitAIvsAIGlobal": false,

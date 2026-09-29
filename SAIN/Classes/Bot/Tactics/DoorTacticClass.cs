@@ -2748,6 +2748,7 @@ public class DoorTacticClass : BotComponentClassBase
             }
             float decisionAge = Time.time - decision.ChangeDecisionTime;
             BattleStats.OnBotDied(Bot, lastAggressor, decisionAge, teamKill);
+            CorpseCleanup.OnBotDied(player);
             bool sawKiller = goal != null && lastAggressor != null && goal.EnemyProfileId == lastAggressor.ProfileId && goal.Seen;
             SAIN.Components.BotControllerSpace.Classes.PlayerStyleRecorder.OnBotKilled(
                 Bot, lastAggressor, part, decision.CurrentCombatDecision.ToString(), sawKiller);

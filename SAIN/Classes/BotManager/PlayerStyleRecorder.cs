@@ -605,7 +605,8 @@ public sealed class PlayerStyleRecorder
             SAIN.SAINComponent.Classes.Tactics.RaidJournal.Start(_d.Map,
                 $"# SAIN.dll built {build} | player {_d.Nickname} ({_d.ProfileId}) | preset {SAINPlugin.LoadedPreset?.Info?.Name} | utility hidden={g.CloseCombat.UtilityHiddenEnemy} visible={g.CloseCombat.UtilityVisibleEnemy} "
                     + $"reload={g.CloseCombat.UtilityReload} heal={g.CloseCombat.UtilityHeal} mistakes={g.CloseCombat.UtilityMistakes} | adapt={g.PlayerStyle.AdaptEnabled} learn={g.PlayerStyle.LearnFromOutcomes} "
-                    + $"ignorePlayerGear={g.PlayerStyle.IgnorePlayerGear} | classic movement: {ClassicMovementInterop.Describe()}");
+                    + $"ignorePlayerGear={g.PlayerStyle.IgnorePlayerGear} | settings from loaded preset: {(ReferenceEquals(GlobalSettingsClass.Instance, SAINPlugin.LoadedPreset?.GlobalSettings) ? "yes" : "NO (another preset's globals!)")} "
+                    + $"| classic movement: {ClassicMovementInterop.Describe()}");
             _d.DevToolsPlugins = FindDevToolsPlugins();
             if (_d.DevToolsPlugins != null)
             {
