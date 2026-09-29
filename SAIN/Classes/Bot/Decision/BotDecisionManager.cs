@@ -277,7 +277,11 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
         }
         if (ContinueMoveToCover())
         {
-            SetDecisions(ECombatDecision.SeekCover, ESquadDecision.None, Bot.Decision.CurrentSelfDecision, enemy);
+            // zzap: keep a Retreat/RunAway as it is. Turning it into SeekCover for 0.5s flipped out-of-ammo bots
+            // Retreat <-> SeekCover every tick (6th sim: 1538 decision changes, each one restarting the move; 11 deaths).
+            ECombatDecision current = Bot.Decision.CurrentCombatDecision;
+            ECombatDecision keep = current is ECombatDecision.Retreat or ECombatDecision.RunAway ? current : ECombatDecision.SeekCover;
+            SetDecisions(keep, ESquadDecision.None, Bot.Decision.CurrentSelfDecision, enemy);
             return;
         }
         if (BaseClass.SquadDecisions.GetDecision(out ESquadDecision squadDecision, enemy))

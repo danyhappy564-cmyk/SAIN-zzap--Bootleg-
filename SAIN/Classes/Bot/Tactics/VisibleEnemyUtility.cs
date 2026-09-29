@@ -132,7 +132,10 @@ public static class VisibleEnemyUtility
         // back on the way). A player only breaks off when cover is a step or two away; otherwise he trades, and he never
         // turns his back on someone who is nearly dead.
         float closeness = Mathf.Clamp01((4f - cover) / 3f); // 1 at <= 1m, 0 at >= 4m
-        float runCost = cover > 12f ? 0f : Mathf.Clamp(cover / 3.5f, 0f, 3f) * 0.15f * lk; // > 12m handled below
+        // 6th sim: 25 of 31 VCover deaths ran 4-11m with the back turned to an enemy 7-20m away who was looking at them
+        // (K/D 0.19). The closer he is, the less of that run survives: cost per second of running doubles at <= 10m.
+        float near = Mathf.Clamp01((30f - dist) / 20f); // 1 at <= 10m, 0 at >= 30m
+        float runCost = cover > 12f ? 0f : Mathf.Clamp(cover / 3.5f, 0f, 3f) * (0.15f + 0.2f * near) * lk; // > 12m handled below
         bool finishHim = weak >= 0.45f && dist < 30f && ammo >= 0.15f;
         float shoot = 0.45f + (looking ? 0f : 0.25f) + 0.15f * weak + (busy ? 0.15f : 0f) + 0.1f * numbers + (goodRange ? 0.15f : 0f)
             - (tooClose ? 0.15f : 0f) - (tooFar ? 0.2f : 0f) - 0.3f * exposure * lk - (hit ? 0.2f * closeness : 0f) - (ammo < 0.15f ? (cover <= 8f ? 0.4f : 0.15f) : 0f) - 0.2f * (1f - health)
@@ -140,9 +143,11 @@ public static class VisibleEnemyUtility
         // Hurt wants out of sight - but only as much as there is cover to get to (2nd sim: dying bots with no cover in 99m still
         // "ran for cover" = ran across the open and died).
         float reachable = Mathf.Clamp01((6f - cover) / 5f);
-        float coverScore = 0.1f + 0.35f * (1f - health) * (0.4f + 0.6f * reachable) + (ammo < 0.25f ? 0.35f : 0f) + (hit ? 0.1f + 0.15f * closeness : 0f) + 0.3f * exposure * lk
+        float coverScore = 0.1f + 0.35f * (1f - health) * (0.4f + 0.6f * reachable) + (ammo < 0.25f ? 0.35f : 0f) + (hit ? 0.1f * reachable + 0.15f * closeness : 0f) + 0.3f * exposure * lk
             + 0.15f * (1f - aggr) + 0.2f * reachable - runCost - (cover > 12f ? (dist < 25f ? 0.7f : 0.35f) : 0f) - (looking ? 0f : 0.2f)
-            + (tooClose ? 0.3f : 0f) + (tooFar ? 0.2f : 0f) - (finishHim ? 0.15f : 0f);
+            + (tooClose ? 0.3f : 0f) + (tooFar ? 0.2f : 0f) - (finishHim ? 0.15f : 0f)
+            // He's reloading/healing = he can't shoot back right now; that is the window to trade, not to turn around.
+            - (busy && cover > 2f ? 0.25f : 0f);
         float push = 0.1f + 0.3f * weak + (busy ? 0.35f : 0f) + 0.2f * aggr + 0.15f * numbers + (dist < 12f ? 0.15f : 0f)
             - 0.3f * (1f - health) - (ammo < 0.4f ? 0.3f : 0f) - (dist > 30f ? 0.25f : 0f) - (looking && !busy ? 0.1f : 0f)
             + 0.15f * load.Cqb - 0.25f * load.Long - (tooClose ? 0.3f : 0f);

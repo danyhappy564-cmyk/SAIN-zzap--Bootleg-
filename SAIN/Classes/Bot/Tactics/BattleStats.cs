@@ -31,6 +31,8 @@ public static class BattleStats
     private static int _otherKills;
     private static int _teamKills;
     private static float _nextReport;
+    private static int _perfFrame;
+    private static float _perfTime;
 
     private static Row Get(Dictionary<string, Row> dict, string key)
     {
@@ -101,6 +103,8 @@ public static class BattleStats
         if (_nextReport <= 0f)
         {
             _nextReport = time + 300f;
+            _perfFrame = Time.frameCount;
+            _perfTime = Time.realtimeSinceStartup;
             return;
         }
         if (time > _nextReport)
@@ -113,6 +117,7 @@ public static class BattleStats
     public static void Report(string why)
     {
         int deaths = _personality.Values.Sum(x => x.Deaths);
+        ReportPerf(why, deaths);
         if (deaths == 0)
         {
             RaidJournal.Line($"[Battle] ({why}) no bot deaths yet");
@@ -124,6 +129,26 @@ public static class BattleStats
         RaidJournal.Line("[Battle] by personality: " + Table(_personality, 0));
         RaidJournal.Line("[Battle] by combat action: " + Table(_combat, 0));
         RaidJournal.Line("[Battle] by decision reason: " + Table(_reason, 2));
+    }
+
+    /// <summary>
+    /// Frame rate since the last report, managed heap and players, to tell "the log" from "corpses piling up" or "garbage
+    /// piling up" when frames drop over a long sim (EFT turns the GC off for the whole raid, see kb 02 2.18).
+    /// </summary>
+    private static void ReportPerf(string why, int deaths)
+    {
+        int frame = Time.frameCount;
+        float now = Time.realtimeSinceStartup;
+        float fps = _perfTime > 0f && now > _perfTime ? (frame - _perfFrame) / (now - _perfTime) : 0f;
+        _perfFrame = frame;
+        _perfTime = now;
+        long used = UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong() / (1024 * 1024);
+        long heap = UnityEngine.Profiling.Profiler.GetMonoHeapSizeLong() / (1024 * 1024);
+        int alive = Comfort.Common.Singleton<GameWorld>.Instance?.AllAlivePlayersList?.Count ?? -1;
+        RaidJournal.Line(
+            $"[Perf] ({why}) fps {fps:0} avg since last report | mono heap used {used} MB / reserved {heap} MB | GC {UnityEngine.Scripting.GarbageCollector.GCMode} | "
+                + $"alive players {alive}, bot corpses so far {deaths}"
+        );
     }
 
     private static string Table(Dictionary<string, Row> dict, int minEvents)
@@ -151,5 +176,7 @@ public static class BattleStats
         _otherKills = 0;
         _teamKills = 0;
         _nextReport = 0f;
+        _perfFrame = 0;
+        _perfTime = 0f;
     }
 }

@@ -165,6 +165,7 @@ public class SelfActionDecisionClass : BotBase
                         break;
                 }
             }
+            OutOfAmmoFallback(weaponManager, reload, enemy);
             return false;
         }
 
@@ -192,6 +193,34 @@ public class SelfActionDecisionClass : BotBase
             }
         }
         return false;
+    }
+
+    private float _nextOutOfAmmoSwap;
+
+    /// <summary>
+    /// zzap: the reload utility picked Reload but there is nothing to reload with (6th sim: bots with an empty gun asked
+    /// "Reload" every 3s for minutes and never switched). Do what SAIN's own branch does after a failed reload - another
+    /// gun with ammo, or the knife when the enemy is close - which the utility branch used to skip.
+    /// </summary>
+    private void OutOfAmmoFallback(BotWeaponManager weaponManager, BotReload reload, Enemy enemy)
+    {
+        if (reload == null || reload.BulletCount > 0 || Time.time < _nextOutOfAmmoSwap)
+        {
+            return;
+        }
+        _nextOutOfAmmoSwap = Time.time + 2f;
+        if (weaponManager.Selector.TryChangeWeapon(true))
+        {
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("reload.noAmmo.otherGun");
+            return;
+        }
+        if (enemy != null && enemy.IsVisible && enemy.RealDistance < 10f && weaponManager.Selector.CanChangeToMeleeWeapons)
+        {
+            weaponManager.Selector.ChangeToMelee();
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("reload.noAmmo.melee");
+            return;
+        }
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("reload.noAmmo.nothing");
     }
 
     // How long to stop asking a bot whose inventory BSG cannot walk. Long enough that the
