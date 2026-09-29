@@ -156,9 +156,12 @@ public class SAINShootData : BotComponentClassBase
         bool reloading = weaponManager.Reload.Reloading;
         if (reloading || !weaponManager.HaveBullets)
         {
-            if (!reloading && weaponManager.Selector.EquipmentSlot == EquipmentSlot.Holster && !weaponManager.Selector.TryChangeToMain())
+            if (!reloading && weaponManager.Selector.EquipmentSlot == EquipmentSlot.Holster && !LeaveEmptyPistol(weaponManager))
             {
-                SelectWeapon(Enemy);
+                if (!weaponManager.Selector.TryChangeToMain())
+                {
+                    SelectWeapon(Enemy);
+                }
             }
 
             return false;
@@ -196,6 +199,37 @@ public class SAINShootData : BotComponentClassBase
                 Enemy.EnemyInfo?.SetLastShootTime();
             }
         }
+    }
+
+    /// <summary>
+    /// zzap: empty pistol in hand. BSG's TryChangeToMain only goes back when the enemy is far, and SelectWeapon picks by
+    /// distance without looking at ammo - so up close the bot kept an empty pistol or bounced between guns (user report
+    /// 2026-09-29). Main gun with rounds in it (or ammo to reload) comes first; if the pistol can be reloaded, let it.
+    /// True = handled here.
+    /// </summary>
+    private bool LeaveEmptyPistol(BotWeaponManager weaponManager)
+    {
+        if (_nextChangeWeaponTime > Time.time)
+        {
+            return true;
+        }
+        var selector = weaponManager.Selector;
+        var main = weaponManager.MainWeaponInfo;
+        var pistol = weaponManager.PistolWeaponInfo;
+        bool mainLoaded = main != null && main.BulletCount > 0;
+        bool pistolReloadable = pistol != null && pistol.CheckHaveAmmoForReload();
+        bool mainReloadable = main != null && main.CheckHaveAmmoForReload();
+        if (mainLoaded || (!pistolReloadable && mainReloadable))
+        {
+            _nextChangeWeaponTime = Time.time + 1f;
+            selector._nextChangeTime = 0f;
+            if (selector.TryChangeToSlot(selector._mainWeapon, true))
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(mainLoaded ? "weapon.emptyPistol.toLoadedMain" : "weapon.emptyPistol.toMainReload");
+            }
+            return true;
+        }
+        return pistolReloadable;
     }
 
     private void SelectWeapon(Enemy Enemy)
