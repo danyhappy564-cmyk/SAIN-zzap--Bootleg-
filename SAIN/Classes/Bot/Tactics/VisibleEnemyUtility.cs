@@ -117,7 +117,7 @@ public static class VisibleEnemyUtility
         float visibleFor = Time.time - enemy.Vision.VisibleStartTime;
         float exposure = Mathf.Clamp01(visibleFor / Mathf.Max(holdGroundInterval, 0.5f));
         float dist = enemy.RealDistance;
-        float cover = NearestCover(bot);
+        float cover = NearestCover(bot, enemy);
         float aggr = _aggression.TryGetValue(bot.Info.Personality, out float a) ? a : 0.5f;
         float numbers = Mathf.Clamp(MatesOnHim(bot, enemy), 0, 2) / 2f;
         // Loadout: how far this bot wants to fight (bolt/scoped sniper far, SMG/shotgun close) and how well it does up close.
@@ -195,7 +195,12 @@ public static class VisibleEnemyUtility
         return list;
     }
 
-    private static float NearestCover(BotComponent bot)
+    /// <summary>
+    /// Nearest cover point that actually blocks THIS enemy (line from his head to the point at hip height hits something).
+    /// SAIN's list is built against the goal enemy's last known spot; a point 0.2m away "counted" as cover while this enemy
+    /// was shooting the bot standing on it (5th sim: 12 deaths "in cover", standing still, enemy in sight).
+    /// </summary>
+    private static float NearestCover(BotComponent bot, Enemy enemy)
     {
         float nearest = 99f;
         var points = bot.Cover.CoverPoints;
@@ -204,6 +209,7 @@ public static class VisibleEnemyUtility
             return nearest;
         }
         Vector3 pos = bot.Position;
+        Vector3 eye = enemy.EnemyPosition + Vector3.up * 1.5f;
         foreach (var p in points)
         {
             if (p == null)
@@ -211,10 +217,15 @@ public static class VisibleEnemyUtility
                 continue;
             }
             float d = (p.Position - pos).magnitude;
-            if (d < nearest)
+            if (d >= nearest)
             {
-                nearest = d;
+                continue;
             }
+            if (!Physics.Linecast(eye, p.Position + Vector3.up * 1.0f, LayersMaskController.HighPolyWithTerrainMask))
+            {
+                continue; // he can see that spot - not cover from him
+            }
+            nearest = d;
         }
         return nearest;
     }

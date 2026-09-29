@@ -170,12 +170,20 @@ public static class HiddenEnemyUtility
         // Hold fatigue: an ambush pays off in the first seconds; holding on and on with nothing coming just hands him the
         // clock (2nd sim 2026-09-29: bots camping for no reason - Hold was the pick ~70% of the time).
         float fatigue = Mathf.Clamp((heldFor - 10f) * 0.03f, 0f, 0.45f);
+        // Holding an angle is done from cover. Frozen in the open (nothing within 2.5m on 3+ sides and nothing between us and
+        // where he was) = first to be seen when he re-peeks (5th sim: Hold 3 kills / 25 deaths, mostly right after choosing it).
+        bool openHold = !inCover && OpenGround.IsOpen(bot.Position, known);
+        if (openHold)
+        {
+            hold -= 0.3f;
+        }
         if (!coming)
         {
             hold -= fatigue;
         }
         if (fearWhy.Length > 0) sb.Append(fearWhy).Append("; ");
         if (fatigue > 0f && !coming) sb.Append($"held {heldFor:0}s already, nothing came; ");
+        if (openHold) sb.Append("standing in the open - no place to hold from; ");
         if (weak >= 0.3f) sb.Append($"he's weak ({weakWhy}); ");
         if (busy) sb.Append($"he's {enemy.Status.VulnerableAction}; ");
         if (holdsAngle) sb.Append("he's holding an angle on us; ");
