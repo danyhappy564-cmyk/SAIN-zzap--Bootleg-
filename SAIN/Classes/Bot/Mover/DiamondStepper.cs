@@ -39,6 +39,12 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
     private bool _tapPause;
     private bool _lastTapLateralLeft;
 
+    // zzap (user 2026-09-29): at a corner / door frame, jiggle peek - A/D taps out of cover and back while shooting.
+    private bool _jiggleChecked;
+    private bool _jiggle;
+    private bool _jiggleHide;
+    private Vector3 _jiggleCoverDir;
+
     /// <summary>Returns true while it is driving the bot's movement this frame.</summary>
     public bool Tick(Enemy enemy, float minDistance)
     {
@@ -94,6 +100,8 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             }
             _diamondCenter = Bot.Position;
             _tapEnd = 0f;
+            _jiggleChecked = false;
+            _jiggle = false;
             Bot.Mover.Stop();
             TacticDiagnostics.SetDiamond(Bot.ProfileId, "active");
             TacticDiagnostics.Count("diamond.start");
@@ -133,9 +141,27 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             Bot.Mover.Lean.SetLeanPreference(side, rock / 100f, settings.LeanHoldMin, settings.LeanHoldMax);
         }
 
+        if (!_jiggleChecked)
+        {
+            _jiggleChecked = true;
+            _jiggle = settings.CornerJiggle && Random.value * 100f < settings.CornerJiggleChance && FindCoverSide(enemy, right, out _jiggleCoverDir);
+            if (_jiggle)
+            {
+                _jiggleHide = false;
+                TacticDiagnostics.Count("diamond.jiggle");
+                TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] corner jiggle peek: cover on the {(Vector3.Dot(_jiggleCoverDir, right) > 0f ? "right" : "left")}, enemy {dist:0}m");
+            }
+        }
         if (Time.time >= _tapEnd)
         {
-            PickTap(settings, forward, right);
+            if (_jiggle)
+            {
+                PickJiggleTap();
+            }
+            else
+            {
+                PickTap(settings, forward, right);
+            }
             TacticDiagnostics.Count("diamond.tap");
         }
         if (_tapPause)
@@ -165,6 +191,51 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         // Far-away "destination" so SAIN's arrival slowdown never kicks in during a tap.
         Bot.PlayerComponent.CharacterController.SetTargetMoveDirection(_tapDir, Bot.Position + _tapDir * 5f, Bot.PlayerComponent, 0f, 1f);
         return true;
+    }
+
+    /// <summary>A corner: one side step (0.8m, walkable) puts the bot's chest out of the enemy's sight.</summary>
+    private bool FindCoverSide(Enemy enemy, Vector3 right, out Vector3 coverDir)
+    {
+        coverDir = default;
+        Vector3 eye = enemy.EnemyPosition + Vector3.up * 1.5f;
+        foreach (Vector3 side in new[] { right, -right })
+        {
+            Vector3 p = Bot.Position + side * 0.8f;
+            if (NavMesh.Raycast(Bot.Position, p, out _, -1))
+            {
+                continue;
+            }
+            if (Physics.Linecast(eye, p + Vector3.up * 1.2f, LayersMaskController.HighPolyWithTerrainMask))
+            {
+                coverDir = side;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Alternate: step into cover (hidden, short) and back out (visible, a little longer - that's when it shoots).</summary>
+    private void PickJiggleTap()
+    {
+        Vector3 offset = Bot.Position - _diamondCenter;
+        offset.y = 0f;
+        float along = Vector3.Dot(offset, _jiggleCoverDir);
+        if (along > 0.9f)
+        {
+            _jiggleHide = false;
+        }
+        else if (along < -0.5f)
+        {
+            _jiggleHide = true;
+        }
+        else
+        {
+            _jiggleHide = !_jiggleHide;
+        }
+        _tapPause = false;
+        _tapDir = _jiggleHide ? _jiggleCoverDir : -_jiggleCoverDir;
+        _tapEnd = Time.time + (_jiggleHide ? Random.Range(0.18f, 0.32f) : Random.Range(0.25f, 0.45f));
+        TacticDiagnostics.Count(_jiggleHide ? "diamond.jiggle.hide" : "diamond.jiggle.peek");
     }
 
     private void PickTap(CloseCombatSettings settings, Vector3 forward, Vector3 right)

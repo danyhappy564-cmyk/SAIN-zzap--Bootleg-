@@ -98,6 +98,23 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public bool DiamondStepTestMode = false;
 
     [DataMember]
+    [Name("Corner Hold Aim Offset")]
+    [Description("Holding a corner/doorway: how far off the wall edge the gun is held, toward the open side the enemy steps out to, as a fraction of the distance to the corner (clamped 0.6-1.5m). 0 = right along the edge (hugs the wall), 0.3 = default (~17 degrees off the edge).")]
+    [MinMax(0f, 0.6f, 100f)]
+    public float CornerHoldAimOffset = 0.3f;
+
+    [DataMember]
+    [Name("Corner Jiggle Peek")]
+    [Description("Shooting from a corner or door frame (one side step puts the body behind cover): now and then the diamond step turns into a jiggle peek - quick A/D taps out of cover and back, the body showing and hiding while it shoots, to throw off the enemy's aim.")]
+    public bool CornerJiggle = true;
+
+    [DataMember]
+    [Name("Corner Jiggle Peek Chance")]
+    [Description("Percent, rolled once per engagement when the bot is at such a corner.")]
+    [MinMax(0f, 100f, 1f)]
+    public float CornerJiggleChance = 50f;
+
+    [DataMember]
     [Name("Lean While Shooting")]
     [Description("Diamond-stepping bots also lean while shooting a visible enemy, like the player does: hold the lean toward the side the enemy is moving (0.35-1s), switch when he reverses, and mix in short Q/E bursts (more often up close).")]
     public bool LeanSpam = true;

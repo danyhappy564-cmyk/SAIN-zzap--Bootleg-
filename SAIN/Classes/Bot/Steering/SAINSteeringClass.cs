@@ -374,7 +374,11 @@ public class SAINSteeringClass : BotComponentClassBase
                 {
                     Vector3 left = new Vector3(-v.z, 0f, v.x) / dist;
                     Vector3 open = cross > 0f ? left : -left;
-                    p += open * Mathf.Clamp(dist * 0.3f, 0.6f, 1.5f);
+                    float ratio = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat?.CornerHoldAimOffset ?? 0.3f;
+                    if (ratio > 0.001f)
+                    {
+                        p += open * Mathf.Clamp(dist * ratio, 0.6f, 1.5f);
+                    }
                 }
             }
         }

@@ -1318,6 +1318,13 @@ internal static class KoreanSettingText
         { "SubList_Indent_Horizontal", "하위 목록 가로 들여쓰기" },
         { "Korean UI (한국어)", "한국어 표시 (Korean UI)" },
         { "Show the F6 editor in Korean. Off = original English. Also switchable with the 한/EN button in the top bar.", "F6 에디터를 한국어로 표시합니다. 끄면 원래 영어. 상단 바의 한/EN 버튼으로도 바꿀 수 있습니다." },
+        // CloseCombat (zzap corner hold / jiggle)
+        { "Corner Hold Aim Offset", "코너 지킬 때 조준 폭" },
+        { "Holding a corner/doorway: how far off the wall edge the gun is held, toward the open side the enemy steps out to, as a fraction of the distance to the corner (clamped 0.6-1.5m). 0 = right along the edge (hugs the wall), 0.3 = default (~17 degrees off the edge).", "코너·문간을 지킬 때 총구를 벽 모서리에서 얼마나 띄울지 — 적이 나올 열린 쪽으로, 코너까지 거리의 비율(0.6~1.5m로 제한). 0 = 모서리에 딱 붙음(벽을 봄), 0.3 = 기본(모서리에서 약 17도)." },
+        { "Corner Jiggle Peek", "코너 흔들기 피킹" },
+        { "Shooting from a corner or door frame (one side step puts the body behind cover): now and then the diamond step turns into a jiggle peek - quick A/D taps out of cover and back, the body showing and hiding while it shoots, to throw off the enemy's aim.", "코너나 문틀에서 쏠 때(옆으로 한 걸음이면 몸이 엄폐 뒤로 숨는 자리): 확률로 다이아몬드 스텝 대신 흔들기 피킹 — A/D를 빠르게 눌러 엄폐 밖으로 나왔다 들어갔다 하며 쏨. 몸이 보였다 안 보였다 해서 상대 조준을 흐트러뜨림." },
+        { "Corner Jiggle Peek Chance", "코너 흔들기 피킹 확률" },
+        { "Percent, rolled once per engagement when the bot is at such a corner.", "%, 봇이 그런 코너에 있을 때 교전마다 한 번 굴림." },
         // PerformanceSettings (zzap sim)
         { "Sim: Hide Old Bot Corpses Above (TEST preset only)", "시뮬: 오래된 봇 시체 숨기기 기준 (TEST 프리셋 전용)" },
         {
