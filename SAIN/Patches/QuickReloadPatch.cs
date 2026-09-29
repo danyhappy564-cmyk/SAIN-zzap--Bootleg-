@@ -60,10 +60,11 @@ public class QuickReloadPatch : ModulePatch
         // A dropped magazine is gone for good (bots don't pick mags back up), and BSG only refills magazines the bot still
         // carries. Dropping every time left bots with loose rounds but no magazine: CanReload false -> "no ammo" -> weapon
         // swapping main <-> pistol / second gun (user report 2026-09-29). Keep the last spare: drop only with 2+ spares.
-        int spares = SpareMagazines(owner.GetPlayer, controller.Item as Weapon);
+        int spares = WeaponLog.SpareMagazines(owner.GetPlayer, controller.Item as Weapon);
         if (spares < 2)
         {
             TacticDiagnostics.Count("weapon.quickReload.keptLastSpare");
+            TacticDiagnostics.LogCloseCombat($"[Reload] [{bot.name}] normal reload, keeping the magazine - only {spares} spare left | {WeaponLog.Guns(owner)}");
             return true;
         }
         __instance._reloadType = BotReload.EReloadType.MagReload;
@@ -77,27 +78,7 @@ public class QuickReloadPatch : ModulePatch
             }
         );
         TacticDiagnostics.Count("weapon.quickReload");
+        TacticDiagnostics.LogCloseCombat($"[Reload] [{bot.name}] quick reload - magazine dropped, {spares - 1} spare left after | {WeaponLog.Guns(owner)}");
         return false;
-    }
-
-    /// <summary>Magazines the bot carries that fit this weapon, not counting the one in it.</summary>
-    private static int SpareMagazines(Player player, Weapon weapon)
-    {
-        var slot = weapon?.GetMagazineSlot();
-        var equipment = player?.InventoryController?.Inventory?.Equipment;
-        if (slot == null || equipment == null)
-        {
-            return 0;
-        }
-        var current = weapon.GetCurrentMagazine();
-        int count = 0;
-        foreach (Item item in equipment.GetAllItems())
-        {
-            if (item is Magazine mag && !ReferenceEquals(mag, current) && slot.CanAccept(mag))
-            {
-                count++;
-            }
-        }
-        return count;
     }
 }

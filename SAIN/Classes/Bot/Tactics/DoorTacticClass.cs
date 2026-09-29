@@ -2759,6 +2759,7 @@ public class DoorTacticClass : BotComponentClassBase
                     + $"inCover={Bot.Cover.CoverInUse != null} part={part} by={lastAggressor?.Profile?.Nickname} "
                     + $"why={decision.EnemyDecisions?.LastReason} decisionAge={decisionAge:0.0}s"
                     + (teamKill ? " TEAMKILL" : "")
+                    + $" | guns: {WeaponLog.Guns(BotOwner)}"
             );
         }
         catch (System.Exception ex)

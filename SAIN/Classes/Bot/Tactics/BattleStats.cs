@@ -180,5 +180,6 @@ public static class BattleStats
         _perfFrame = 0;
         _perfTime = 0f;
         CorpseCleanup.Clear();
+        WeaponLog.Clear();
     }
 }
