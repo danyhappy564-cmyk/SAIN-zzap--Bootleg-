@@ -525,8 +525,29 @@ public class SelfActionDecisionClass : BotBase
             //TryFixBusyHands();
             return false;
         }
+        // zzap: stop patching up when an enemy shows up within 40m or we get hit - a started first aid used to run on for up
+        // to 6s regardless (sim 4: a bot healing with the player 9m away in plain sight).
+        if (Bot.Medical.TimeSinceShot < 0.3f || EnemyInSightWithin(40f))
+        {
+            Bot.Medical.TryCancelHeal();
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("heal.cancel.threat");
+            Decision = ESelfActionType.None;
+            return false;
+        }
         Decision = ESelfActionType.FirstAid;
         return true;
+    }
+
+    private bool EnemyInSightWithin(float dist)
+    {
+        foreach (Enemy e in Bot.EnemyController.KnownEnemies)
+        {
+            if (e != null && e.IsVisible && e.RealDistance < dist)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private bool checkContinueStims(float timeSinceChange, out ESelfActionType Decision)

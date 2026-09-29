@@ -56,7 +56,9 @@ public static class HealUtility
         float time = Time.time;
         foreach (Enemy enemy in bot.EnemyController.KnownEnemies)
         {
-            if (enemy == null || !(enemy.Seen || enemy.Heard))
+            // Every enemy whose position is known counts - not only seen/heard ones (sim 4: the player 45m away, known 0s
+            // ago through the squad, was skipped -> "nearest threat 999m" -> first aid in his face).
+            if (enemy == null || enemy.KnownPlaces.LastKnownPosition == null || enemy.TimeSinceLastKnownUpdated > 120f)
             {
                 continue;
             }
@@ -64,7 +66,7 @@ public static class HealUtility
             {
                 anyVisible = true;
             }
-            float path = enemy.Path.PathLength;
+            float path = Mathf.Min(enemy.Path.PathLength, enemy.KnownPlaces.BotDistanceFromLastKnown * 1.3f);
             if (path < nearestPath)
             {
                 nearestPath = path;
@@ -92,7 +94,9 @@ public static class HealUtility
         float surgery = canSurgery
             ? 0.1f + 0.4f * safe + (inCover ? 0.15f : 0f) - (anyVisible ? 0.8f : 0f) - (coming ? 0.5f : 0f) - (nearestAge < 10f ? 0.3f : 0f)
             : -1f;
-        float wait = 0.3f + (nearestAge < 5f && nearestPath < 25f ? 0.2f : 0f) + (coming ? 0.15f : 0f);
+        // Close and recent = he can be on us before the meds are done (sim 4: 6m / 6s ago counted as safe). Ties go to waiting.
+        float closeRecent = Mathf.Clamp01((30f - nearestPath) / 25f) * Mathf.Clamp01((15f - nearestAge) / 10f);
+        float wait = 0.31f + 0.3f * closeRecent + (coming ? 0.15f : 0f) + (anyVisible ? 0.2f : 0f);
 
         var list = new List<(EChoice choice, float score)>
         {

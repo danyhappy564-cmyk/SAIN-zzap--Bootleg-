@@ -40,6 +40,12 @@ public static class UtilityMistake
             return false;
         }
         int pick = ranked.Count > 2 && ranked[2].score > 0f && Random.value < 0.3f ? 2 : 1;
+        // A mistake is misjudging a close call, not doing something plainly suicidal (sim 4: first aid at 0.10 over waiting
+        // at 0.65 with the enemy 9m away).
+        if (ranked[0].score - ranked[pick].score > 0.35f)
+        {
+            return false;
+        }
         (ranked[0], ranked[pick]) = (ranked[pick], ranked[0]);
         TacticDiagnostics.Count($"utility.mistake.{what}.{bot.Info.Personality}");
         return true;
