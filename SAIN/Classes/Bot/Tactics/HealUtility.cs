@@ -53,6 +53,7 @@ public static class HealUtility
         bool coming = false;
         float nearestAge = 999f;
         float nearestPath = 999f;
+        Vector3? nearestKnown = null;
         float time = Time.time;
         foreach (Enemy enemy in bot.EnemyController.KnownEnemies)
         {
@@ -71,6 +72,7 @@ public static class HealUtility
             {
                 nearestPath = path;
                 nearestAge = enemy.TimeSinceLastKnownUpdated;
+                nearestKnown = enemy.KnownPlaces.LastKnownPosition;
             }
             var hearing = enemy.Hearing;
             if (hearing != null && time - hearing.LastHeardSoundTime < 3f
@@ -81,18 +83,23 @@ public static class HealUtility
             }
         }
         float safe = Mathf.Clamp01((nearestAge - 3f) / 15f) * 0.5f + Mathf.Clamp01((nearestPath - 10f) / 30f) * 0.5f;
+        // Standing where he could see us (e.g. still at the corner we were peeking from): step back before patching up
+        // (user: "they heal while peeking a corner mid-fight").
+        bool inHisView = nearestKnown != null && nearestAge < 30f
+            && !Physics.Linecast(nearestKnown.Value + Vector3.up * 1.5f, bot.Position + Vector3.up * 1.3f, LayersMaskController.HighPolyWithTerrainMask);
 
         // Plenty of meds -> heal more readily; the last one is worth saving for something serious.
         var load = LoadoutProfile.Of(bot);
         float medBias = load.Meds >= 3 ? 0.1f : load.Meds <= 1 && health > 0.35f ? -0.1f : 0f;
         float firstAid = canFirstAid
             ? medBias + 0.2f + 0.5f * (1f - health) + (inCover ? 0.2f : 0f) + 0.3f * safe - (anyVisible ? 0.6f : 0f) - (coming ? 0.35f : 0f) - (hit ? 0.3f : 0f)
+                - (inHisView ? 0.4f : 0f)
             : -1f;
         float stim = canStim && health <= 0.35f
             ? 0.3f + 0.4f * (1f - health) + (anyVisible ? 0.1f : 0f) - (bot.Medical.TimeSinceShot < 0.5f ? 0.2f : 0f)
             : -1f;
         float surgery = canSurgery
-            ? 0.1f + 0.4f * safe + (inCover ? 0.15f : 0f) - (anyVisible ? 0.8f : 0f) - (coming ? 0.5f : 0f) - (nearestAge < 10f ? 0.3f : 0f)
+            ? 0.1f + 0.4f * safe + (inCover ? 0.15f : 0f) - (anyVisible ? 0.8f : 0f) - (coming ? 0.5f : 0f) - (nearestAge < 10f ? 0.3f : 0f) - (inHisView ? 0.5f : 0f)
             : -1f;
         // Close and recent = he can be on us before the meds are done (sim 4: 6m / 6s ago counted as safe). Ties go to waiting.
         float closeRecent = Mathf.Clamp01((30f - nearestPath) / 25f) * Mathf.Clamp01((15f - nearestAge) / 10f);
@@ -114,7 +121,7 @@ public static class HealUtility
             _nextLog[id] = time + 4f;
             TacticDiagnostics.LogCloseCombat(
                 $"[Heal] [{bot.name}] {list[0].choice}{(mistake ? " (mistake)" : "")} {list[0].score:0.00} > {list[1].choice} {list[1].score:0.00} | "
-                    + $"{hs}; {(anyVisible ? "enemy in sight; " : "")}{(coming ? "someone coming; " : "")}{(hit ? "just hit; " : "")}{(inCover ? "in cover; " : "")}"
+                    + $"{hs}; {(anyVisible ? "enemy in sight; " : "")}{(inHisView ? "standing where he could see me; " : "")}{(coming ? "someone coming; " : "")}{(hit ? "just hit; " : "")}{(inCover ? "in cover; " : "")}"
                     + $"nearest threat {nearestPath:0}m / {nearestAge:0}s ago; meds {load.Meds}");
         }
         TacticDiagnostics.Count($"heal.pick.{list[0].choice}");

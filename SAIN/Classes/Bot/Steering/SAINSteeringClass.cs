@@ -271,7 +271,7 @@ public class SAINSteeringClass : BotComponentClassBase
         {
             return false;
         }
-        if (enemy.TimeSinceLastKnownUpdated > 30f || _headDown)
+        if (enemy.TimeSinceLastKnownUpdated > 30f || _headDown || Bot.BotOwner.Medecine?.Using == true)
         {
             return false;
         }

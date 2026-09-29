@@ -37,6 +37,23 @@ public class LeanClass : BotBase
     public override void ManualUpdate()
     {
         float time = Time.time;
+        // zzap: no leaning out while using meds - a bot patching up at a corner kept its lean (pre-aim / hold / Q-E) and
+        // showed half its body to the enemy it was hiding from (user 2026-09-29: "peeking the corner while healing").
+        if (BotOwner.Medecine?.Using == true)
+        {
+            if (_spam)
+            {
+                SetLeanSpam(false, _spamInterval);
+            }
+            ResetHoldLean();
+            if (LeanDirection != LeanSetting.None)
+            {
+                ResetLean();
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("lean.stoppedForMeds");
+            }
+            SetTilt();
+            return;
+        }
         if (_spam)
         {
             TickLeanSpam(time);
