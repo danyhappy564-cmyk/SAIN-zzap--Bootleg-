@@ -24,6 +24,36 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
         checkDoors();
         EnsureDoorFinalizeWatchdogInitialized(currentTime);
         TickDoorFinalizeWatches(currentTime);
+        TickForcedDoorResync(currentTime);
+    }
+
+    // A forced door can still have BSG's smooth-open coroutine finishing its old interaction afterwards; re-check those
+    // doors for 15s so the record ends up matching whatever state the door settles in.
+    private readonly Dictionary<WorldInteractiveObject, float> _recentlyForced = new();
+    private readonly List<WorldInteractiveObject> _forcedDone = new();
+    private float _nextForcedResync;
+
+    private void TickForcedDoorResync(float time)
+    {
+        if (_recentlyForced.Count == 0 || time < _nextForcedResync)
+        {
+            return;
+        }
+        _nextForcedResync = time + 1f;
+        _forcedDone.Clear();
+        foreach (var kv in _recentlyForced)
+        {
+            if (kv.Key == null || time - kv.Value > 15f)
+            {
+                _forcedDone.Add(kv.Key);
+                continue;
+            }
+            SyncInteraction(kv.Key, "afterForce");
+        }
+        foreach (var door in _forcedDone)
+        {
+            _recentlyForced.Remove(door);
+        }
     }
 
     public void Dispose()
@@ -268,6 +298,47 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
         _pendingDoorWatches[door.GetInstanceID()] = new PendingDoorWatch(door, targetState, Time.time);
     }
 
+    // zzap (2026-09-29, "a door nobody can open, not even the player"): besides DoorState, BSG keeps the target of the last
+    // interaction in the protected _interaction.ResultState, and CanStartInteraction(Open) refuses while that still says
+    // Open (_interaction.ResultState != state || _interaction.Break). Force-finalizing only DoorState (to Shut after an
+    // earlier Open) left ResultState=Open forever -> every Open request silently dropped (9th sim: doors 00050/00008, bots
+    // retried 26/30 times). Bring the interaction record in line with the forced state and end it.
+    private static readonly System.Reflection.FieldInfo _interactionField =
+        HarmonyLib.AccessTools.Field(typeof(WorldInteractiveObject), "_interaction");
+
+    public static bool SyncInteraction(WorldInteractiveObject door, string why)
+    {
+        if (door == null || _interactionField == null || door.DoorState == EDoorState.Interacting)
+        {
+            return false;
+        }
+        try
+        {
+            if (_interactionField.GetValue(door) is not WorldInteractiveObject.InteractionState interaction || interaction.IsInProgress)
+            {
+                return false;
+            }
+            if (interaction.ResultState == door.DoorState && interaction.Break)
+            {
+                return false;
+            }
+            bool mismatch = interaction.ResultState != door.DoorState && !interaction.Break;
+            interaction.ResultState = door.DoorState;
+            interaction.Break = true;
+            if (mismatch)
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"door.interactionRepaired.{why}");
+                Logger.LogWarning($"[DoorHandler] [{door.Id}] interaction record repaired ({why}) - it still pointed at another state, so the door refused to open/close");
+            }
+            return mismatch;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning($"[DoorHandler] interaction sync failed: {ex.Message}");
+            return false;
+        }
+    }
+
     private void TickDoorFinalizeWatches(float time)
     {
         if (_pendingDoorWatches.Count == 0)
@@ -291,6 +362,8 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
             {
                 watch.Door.DoorState = watch.TargetState;
                 watch.Door.CurrentAngle = watch.Door.GetAngle(watch.TargetState);
+                SyncInteraction(watch.Door, "force-finalize");
+                _recentlyForced[watch.Door] = time;
                 GlobalEventsController.CreateEvent<InteractiveObjectInteractionResultEvent>().Invoke(watch.Door, watch.TargetState);
                 Logger.LogWarning(
                     $"[DoorHandler] [{watch.Door.Id}] never left EDoorState.Interacting {time - watch.RequestedAt:F1}s "

@@ -492,6 +492,8 @@ public class DoorOpener : BotComponentClassBase
             if (index >= 0)
             {
                 data = doors[index];
+                // A door left with a stale interaction record ignores Open requests forever - repair it first.
+                SAIN.Components.DoorHandler.SyncInteraction(data.Door, "jammedBot");
                 Logger.LogWarning($"[DoorOpener] [{data.Door.Id}] jammed with no directional door hit - opening closest in-range shut door as fallback");
                 interactionType = EInteractionType.Open;
                 return true;

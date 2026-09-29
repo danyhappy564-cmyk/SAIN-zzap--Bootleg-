@@ -162,3 +162,117 @@ public class DeathRescuePatch : ModulePatch
         }
     }
 }
+
+/// <summary>
+/// zzap fork: "a dead body walking sideways and jumping for a while" (9th sim screenshots, ragdoll was built - the 3s body
+/// check said all 104 deaths were fine). Something kept feeding move/jump input to a dead player. Nothing should: a dead
+/// player's Move/TryJump/TryVaulting are dropped here, and the first attempt per body logs who sent it as [DeadBug].
+/// </summary>
+internal static class DeadInputGuard
+{
+    private static readonly HashSet<int> _logged = new();
+
+    internal static bool IsDead(Player player)
+    {
+        return player != null && player.HealthController != null && !player.HealthController.IsAlive;
+    }
+
+    internal static void Blocked(Player player, string what)
+    {
+        TacticDiagnostics.Count($"deadBug.inputBlocked.{what}");
+        if (player == null || !_logged.Add(player.GetInstanceID()))
+        {
+            return;
+        }
+        string caller = "?";
+        try
+        {
+            var frames = new System.Diagnostics.StackTrace(2, false).GetFrames();
+            var names = new List<string>();
+            if (frames != null)
+            {
+                foreach (var f in frames)
+                {
+                    var m = f.GetMethod();
+                    var t = m?.DeclaringType;
+                    if (m == null || t == null || m.Name.StartsWith("DMD<") || t.Name.Contains("Patch") || t == typeof(DeadInputGuard))
+                    {
+                        continue;
+                    }
+                    names.Add($"{t.Name}.{m.Name}");
+                    if (names.Count >= 4)
+                    {
+                        break;
+                    }
+                }
+            }
+            caller = names.Count > 0 ? string.Join(" <- ", names) : "?";
+        }
+        catch
+        {
+        }
+        TacticDiagnostics.LogCloseCombat($"[DeadBug] {player.name} is dead but got {what} input - dropped | from {caller}");
+    }
+}
+
+public class DeadMovePatch : ModulePatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return AccessTools.Method(typeof(Player), nameof(Player.Move), new[] { typeof(UnityEngine.Vector2) });
+    }
+
+    [PatchPrefix]
+    public static bool PatchPrefix(Player __instance, UnityEngine.Vector2 direction)
+    {
+        if (direction.sqrMagnitude < 0.0001f || !DeadInputGuard.IsDead(__instance))
+        {
+            return true;
+        }
+        DeadInputGuard.Blocked(__instance, "move");
+        return false;
+    }
+}
+
+public class DeadJumpPatch : ModulePatch
+{
+    internal static readonly AccessTools.FieldRef<MovementContext, Player> PlayerRef = AccessTools.FieldRefAccess<MovementContext, Player>("_player");
+
+    protected override MethodBase GetTargetMethod()
+    {
+        return AccessTools.Method(typeof(MovementContext), nameof(MovementContext.TryJump));
+    }
+
+    [PatchPrefix]
+    public static bool PatchPrefix(MovementContext __instance)
+    {
+        Player player = PlayerRef(__instance);
+        if (!DeadInputGuard.IsDead(player))
+        {
+            return true;
+        }
+        DeadInputGuard.Blocked(player, "jump");
+        return false;
+    }
+}
+
+public class DeadVaultPatch : ModulePatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return AccessTools.Method(typeof(MovementContext), nameof(MovementContext.TryVaulting));
+    }
+
+    [PatchPrefix]
+    public static bool PatchPrefix(MovementContext __instance, ref bool __result)
+    {
+        Player player = DeadJumpPatch.PlayerRef(__instance);
+        if (!DeadInputGuard.IsDead(player))
+        {
+            return true;
+        }
+        DeadInputGuard.Blocked(player, "vault");
+        __result = false;
+        return false;
+    }
+}

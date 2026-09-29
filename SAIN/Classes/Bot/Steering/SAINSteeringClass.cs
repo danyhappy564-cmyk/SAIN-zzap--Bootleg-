@@ -355,7 +355,27 @@ public class SAINSteeringClass : BotComponentClassBase
             float len = d.magnitude;
             if (len > 0.5f)
             {
-                p = corner + d / len * Mathf.Min(2f, len);
+                p = corner + d / len * Mathf.Min(1f, len);
+            }
+
+            // 9th sim, user: "holding a door/corner the muzzle hugs the wall". With the enemy behind the wall, corner ->
+            // enemy runs ALONG the wall, so the aim line grazed the wall edge. A player holds the angle a little off the
+            // edge, into the open side the enemy steps out to: push the point sideways from the bot->corner line, toward
+            // the enemy's side, by ~30% of the distance to the corner (0.6-1.5m) - about 17 degrees off the edge.
+            Vector3 v = corner - weaponRoot;
+            v.y = 0f;
+            Vector3 e = enemyPos.Value - weaponRoot;
+            e.y = 0f;
+            float dist = v.magnitude;
+            if (dist > 0.5f)
+            {
+                float cross = v.x * e.z - v.z * e.x;
+                if (Mathf.Abs(cross) > 0.01f)
+                {
+                    Vector3 left = new Vector3(-v.z, 0f, v.x) / dist;
+                    Vector3 open = cross > 0f ? left : -left;
+                    p += open * Mathf.Clamp(dist * 0.3f, 0.6f, 1.5f);
+                }
             }
         }
         return ClampPitch(weaponRoot, p + Vector3.up * 1.3f, forward);
