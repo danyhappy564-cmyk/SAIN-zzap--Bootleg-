@@ -147,6 +147,9 @@ public class SelfActionDecisionClass : BotBase
                 switch (choice)
                 {
                     case SAIN.SAINComponent.Classes.Tactics.ReloadUtility.EChoice.Hold:
+                        // Hold is always in the list, so an empty gun whose Reload/Pistol both failed lands here
+                        // (7th sim: the fallback after the loop never ran - a bot sat 5 min with an empty gun).
+                        OutOfAmmoFallback(weaponManager, reload, enemy);
                         return false;
 
                     case SAIN.SAINComponent.Classes.Tactics.ReloadUtility.EChoice.Pistol:
@@ -204,7 +207,7 @@ public class SelfActionDecisionClass : BotBase
     /// </summary>
     private void OutOfAmmoFallback(BotWeaponManager weaponManager, BotReload reload, Enemy enemy)
     {
-        if (reload == null || reload.BulletCount > 0 || Time.time < _nextOutOfAmmoSwap)
+        if (reload == null || weaponManager.HaveBullets || Time.time < _nextOutOfAmmoSwap)
         {
             return;
         }
