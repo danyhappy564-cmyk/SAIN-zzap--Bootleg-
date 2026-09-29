@@ -46,14 +46,34 @@ public static class OpenGround
         return Physics.Linecast(threat + Vector3.up * 1.4f, pos + Vector3.up * 1.0f, LayersMaskController.HighPolyWithTerrainMask);
     }
 
-    public static Vector3? FindCover(BotComponent bot, Vector3? threat, out string why)
+    private static readonly float[] _near = { 3f, 6f, 9f, 12f };
+    private static readonly float[] _far = { 16f, 20f, 25f };
+
+    /// <summary>Near pass (3-12m, path 20m, needs a decent spot), then a far pass (16-25m, path 35m, anything that beats the
+    /// open: walls on 2 sides or the line from the fight blocked) - in a wide hall, a long run to cover beats sitting in the open.</summary>
+    public static Vector3? FindCover(BotComponent bot, Vector3? threat, out string why, out bool far)
     {
-        why = "none within 12m";
+        far = false;
+        Vector3? p = Search(bot, threat, _near, 20f, 2.5f, out why);
+        if (p == null)
+        {
+            p = Search(bot, threat, _far, 35f, 1.5f, out why);
+            far = p != null;
+            if (p == null)
+            {
+                why = "none within 25m";
+            }
+        }
+        return p;
+    }
+
+    private static Vector3? Search(BotComponent bot, Vector3? threat, float[] rings, float maxPath, float minScore, out string why)
+    {
+        why = null;
         Vector3 pos = bot.Position;
         Vector3? best = null;
-        float bestScore = 2.5f;
+        float bestScore = minScore;
         var path = new NavMeshPath();
-        float[] rings = { 3f, 6f, 9f, 12f };
         foreach (float r in rings)
         {
             for (int i = 0; i < 12; i++)
@@ -76,7 +96,7 @@ public static class OpenGround
                 {
                     continue;
                 }
-                if (!NavMesh.CalculatePath(pos, p, -1, path) || path.status != NavMeshPathStatus.PathComplete || PathLength(path) > 20f)
+                if (!NavMesh.CalculatePath(pos, p, -1, path) || path.status != NavMeshPathStatus.PathComplete || PathLength(path) > maxPath)
                 {
                     continue;
                 }

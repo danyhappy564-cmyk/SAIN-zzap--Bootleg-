@@ -27,6 +27,8 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
     private Vector3? _threat;
     private Vector3? _coverSpot;
     private bool _open;
+    private bool _coverFar;
+    private bool _proneInOpen;
     private bool _advance;
     private float _watchUntil;
 
@@ -62,8 +64,15 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         _open = Bot.Cover.CoverInUse == null && OpenGround.IsOpen(Bot.Position, _threat);
         if (_open)
         {
-            _coverSpot = OpenGround.FindCover(Bot, _threat, out coverWhy);
-            TacticDiagnostics.Count(_coverSpot != null ? "postCombat.open.toCover" : "postCombat.open.noCover");
+            _coverSpot = OpenGround.FindCover(Bot, _threat, out coverWhy, out _coverFar);
+            // No cover within 25m at all: get small - prone to heal / watch (a standing or crouching body in a wide hall is the
+            // first thing anyone entering sees), up again to move on.
+            _proneInOpen = _coverSpot == null;
+            TacticDiagnostics.Count(_coverSpot != null ? (_coverFar ? "postCombat.open.toFarCover" : "postCombat.open.toCover") : "postCombat.open.noCoverProne");
+            if (_proneInOpen)
+            {
+                coverWhy += " - going prone";
+            }
         }
         _watchUntil = Time.time + Random.Range(3f, 6f);
         float chance = _advanceChance.TryGetValue(Bot.Info.Personality, out float c) ? c : 40f;
@@ -104,9 +113,9 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
                     _coverSpot = null;
                 }
             }
-            // Quick and low - the open is where you get shot first.
-            Bot.Mover.SetTargetPose(0.8f);
-            Bot.Mover.SetTargetMoveSpeed(0.85f);
+            // Quick and low - the open is where you get shot first. A far spot: run for it.
+            Bot.Mover.SetTargetPose(_coverFar ? 1f : 0.8f);
+            Bot.Mover.SetTargetMoveSpeed(_coverFar ? 1f : 0.85f);
             _watchUntil = Time.time + Random.Range(3f, 6f);
             return;
         }
@@ -117,6 +126,7 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         var leader = Bot.Squad.LeaderComponent;
         if (!Bot.Squad.IAmLeader && leader != null && !leader.IsDead && (leader.Position - Bot.Position).magnitude > 25f)
         {
+            LieLow(false);
             if (_nextMove < Time.time)
             {
                 _nextMove = Time.time + 1f;
@@ -133,6 +143,7 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         {
             if ((_threat.Value - Bot.Position).magnitude > 3f)
             {
+                LieLow(false);
                 if (_nextMove < Time.time)
                 {
                     _nextMove = Time.time + 1f;
@@ -154,6 +165,30 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         }
         Bot.Mover.Stop();
         Bot.Mover.SetTargetPose(0.75f);
+        LieLow(true);
+    }
+
+    /// <summary>Prone while still in the open with no cover in reach (see Start); standing up again to move.</summary>
+    private void LieLow(bool still)
+    {
+        bool want = still && _proneInOpen;
+        if (want != _prone)
+        {
+            _prone = want;
+            Bot.Mover.Prone.SetProne(want);
+        }
+    }
+
+    private bool _prone;
+
+    public override void Stop()
+    {
+        if (_prone)
+        {
+            _prone = false;
+            Bot.Mover.Prone.SetProne(false);
+        }
+        base.Stop();
     }
 
     /// <summary>Heal in place (crouched, gun still on the threat while the meds animation allows). True while healing.</summary>
@@ -168,6 +203,7 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         {
             Bot.Mover.Stop();
             Bot.Mover.SetTargetPose(0.6f);
+            LieLow(true);
             return true;
         }
         if (_nextHealTry > Time.time || !SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance.General.SquadCombat.PostCombatHeal)
@@ -191,6 +227,7 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         {
             Bot.Mover.Stop();
             Bot.Mover.SetTargetPose(0.6f);
+            LieLow(true);
             TacticDiagnostics.Count($"postCombat.heal.{(what == "surgery" ? "surgery" : "firstAid")}");
             TacticDiagnostics.LogCloseCombat($"[PostCombat] [{Bot.name}] healing: {what} ({Bot.Memory.Health.HealthStatus})");
         }
