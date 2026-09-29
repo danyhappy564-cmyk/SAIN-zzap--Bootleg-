@@ -86,6 +86,7 @@ public class BotManagerComponent : MonoBehaviour
         WeatherVision = new SAINWeatherClass(this);
         BotSquads = new BotSquads(this);
         BotHearing = new BotHearingClass(this);
+        SAIN.SAINComponent.Classes.Tactics.SoundWatch.Attach(BotHearing);
         BotJobs = new BotJobsClass(this);
         GrenadeController = new GrenadeController(this);
         PlayerStyle = new PlayerStyleRecorder(this);
@@ -156,6 +157,7 @@ public class BotManagerComponent : MonoBehaviour
         SAIN.SAINComponent.Classes.Tactics.FearModel.Clear();
         SAIN.SAINComponent.Classes.Tactics.BattleStats.Clear();
         SAIN.SAINComponent.Classes.Tactics.ThreatPicker.Clear();
+        SAIN.SAINComponent.Classes.Tactics.SoundWatch.Detach();
         SAIN.SAINComponent.Classes.Tactics.RaidJournal.End("botManagerDestroyed");
     }
 

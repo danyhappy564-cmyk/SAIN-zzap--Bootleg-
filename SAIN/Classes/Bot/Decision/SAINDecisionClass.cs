@@ -45,6 +45,12 @@ public class SAINDecisionClass : BotComponentClassBase
         get { return DecisionManager.ChangeDecisionTime; }
     }
 
+    public bool PostCombatFinished
+    {
+        get { return DecisionManager.PostCombatFinished; }
+        set { DecisionManager.PostCombatFinished = value; }
+    }
+
     public float TimeSinceCombatLayer
     {
         get { return DecisionManager.TimeSinceCombatLayer; }

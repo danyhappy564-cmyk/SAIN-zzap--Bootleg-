@@ -30,6 +30,11 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
     private bool _coverFar;
     private bool _proneInOpen;
     private bool _advance;
+    private bool _heard;
+    private bool _coming;
+    private Vector3 _heardAt;
+    private float _nextListen;
+    private bool _finished;
     private float _watchUntil;
 
     // zzap (sim round 3, user: "bots still zone out after a fight"): 14s crouched in place looked like idling. A player
@@ -75,6 +80,9 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
             }
         }
         _watchUntil = Time.time + Random.Range(3f, 6f);
+        _heard = false;
+        _finished = false;
+        _nextListen = 0f;
         float chance = _advanceChance.TryGetValue(Bot.Info.Personality, out float c) ? c : 40f;
         var hs = Bot.Memory.Health.HealthStatus;
         if (hs == ETagStatus.BadlyInjured || hs == ETagStatus.Dying)
@@ -103,6 +111,7 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
                 TacticDiagnostics.Count("postCombat.reload");
             }
         }
+        Listen();
         if (_coverSpot != null && (_coverSpot.Value - Bot.Position).magnitude > 1f && BotOwner.Medecine?.Using != true)
         {
             if (_nextMove < Time.time)
@@ -166,6 +175,48 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         Bot.Mover.Stop();
         Bot.Mover.SetTargetPose(0.75f);
         LieLow(true);
+        // Done: in cover (or nothing better), reloaded, healed, watched, checked - and nothing heard. No reason to keep the
+        // bot here (user: "if there's nothing to heal or reload, why have it?").
+        if (!_finished && !_heard && Time.time > _watchUntil && BotOwner.Medecine?.Using != true && BotOwner.WeaponManager?.Reload?.Reloading != true)
+        {
+            _finished = true;
+            Bot.Decision.PostCombatFinished = true;
+            TacticDiagnostics.Count("postCombat.finished");
+            TacticDiagnostics.LogCloseCombat($"[PostCombat] [{Bot.name}] nothing left to do, nothing heard -> hands over");
+        }
+    }
+
+    /// <summary>
+    /// Gunfire nearby / someone coming (SoundWatch): stay on guard facing it - no moving up to the kill spot, no starting meds
+    /// with footsteps close, and cancel a heal if they're within 15m. The decision manager keeps this action running meanwhile.
+    /// </summary>
+    private void Listen()
+    {
+        if (_nextListen > Time.time)
+        {
+            return;
+        }
+        _nextListen = Time.time + 0.4f;
+        bool heard = SoundWatch.Heard(Bot, out Vector3 at, out bool coming, out string why);
+        if (heard && !_heard)
+        {
+            TacticDiagnostics.Count(coming ? "postCombat.alert.coming" : "postCombat.alert.gunfire");
+            TacticDiagnostics.LogCloseCombat($"[PostCombat] [{Bot.name}] hears {why} -> stays on guard facing it{(_advance ? ", won't move up" : "")}");
+        }
+        _heard = heard;
+        _coming = heard && coming;
+        if (!heard)
+        {
+            return;
+        }
+        _heardAt = at;
+        _advance = false;
+        _watchUntil = Mathf.Max(_watchUntil, Time.time + 3f);
+        if (_coming && BotOwner.Medecine?.Using == true && (at - Bot.Position).magnitude < 15f)
+        {
+            Bot.Medical.TryCancelHeal();
+            TacticDiagnostics.Count("postCombat.healCancelled");
+        }
     }
 
     /// <summary>Prone while still in the open with no cover in reach (see Start); standing up again to move.</summary>
@@ -206,7 +257,7 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
             LieLow(true);
             return true;
         }
-        if (_nextHealTry > Time.time || !SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance.General.SquadCombat.PostCombatHeal)
+        if (_coming || _nextHealTry > Time.time || !SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance.General.SquadCombat.PostCombatHeal)
         {
             return false;
         }
@@ -239,6 +290,12 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         Enemy enemy = Bot.GoalEnemy;
         if (Shoot.ShootAnyVisibleEnemies(enemy))
         {
+            return;
+        }
+        if (_heard)
+        {
+            // Gun on the sound.
+            Bot.Steering.LookToPoint(SAIN.SAINComponent.Classes.Mover.SAINSteeringClass.ClampPitch(Bot.Transform.WeaponRoot, _heardAt + Vector3.up * 1.3f, Bot.Transform.LookDirection));
             return;
         }
         if (_advance && Bot.Mover.Moving && _threat != null)

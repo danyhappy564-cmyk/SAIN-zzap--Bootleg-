@@ -58,6 +58,9 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
     /// <summary>zzap: where the last fight's enemy was last known - watched after he's dead / gone (his friends come from there).</summary>
     public Vector3? LastFightThreat { get; private set; }
 
+    /// <summary>zzap: PostCombatAction had nothing left to do (moved to cover, reloaded, healed, watched, checked) - let go.</summary>
+    public bool PostCombatFinished { get; set; }
+
     public override void ManualUpdate()
     {
         if (Bot.ActiveLayer == ESAINLayer.Combat)
@@ -67,6 +70,7 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
                 _combatLayerSince = Time.time;
             }
             _lastCombatLayerTime = Time.time;
+            PostCombatFinished = false;
             Vector3? known = Bot.GoalEnemy?.KnownPlaces.LastKnownPosition;
             if (known != null)
             {
@@ -307,6 +311,17 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
         if (since < 60f && BotOwner.Medecine?.Using == true)
         {
             return true;
+        }
+        // Gunfire nearby / someone coming: stay in SAIN's hands (on guard) instead of going back to ORBIT's patrol, up to 60s
+        // (user: "they kill their target, walk off healing and die to the next one").
+        if (since < 60f && SAIN.SAINComponent.Classes.Tactics.SoundWatch.Heard(Bot, out _, out _, out _))
+        {
+            return true;
+        }
+        // Nothing left to do: no reason to hold the bot (user: "if there's nothing to heal or reload, what's the point?").
+        if (PostCombatFinished)
+        {
+            return false;
         }
         return since < settings.PostCombatTime;
     }
