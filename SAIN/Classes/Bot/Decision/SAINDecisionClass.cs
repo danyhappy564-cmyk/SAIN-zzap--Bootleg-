@@ -45,6 +45,11 @@ public class SAINDecisionClass : BotComponentClassBase
         get { return DecisionManager.ChangeDecisionTime; }
     }
 
+    public bool MedsWorkLeft()
+    {
+        return DecisionManager.MedsWorkLeft();
+    }
+
     public bool PostCombatFinished
     {
         get { return DecisionManager.PostCombatFinished; }

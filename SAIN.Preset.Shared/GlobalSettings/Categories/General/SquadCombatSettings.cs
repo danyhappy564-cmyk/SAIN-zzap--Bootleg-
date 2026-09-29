@@ -25,7 +25,7 @@ public class SquadCombatSettings : SAINSettingsBase<SquadCombatSettings>, ISAINS
     [Name("Crossfire Back Door Hold Time")]
     [Description("Seconds the other entrance is held before deciding: push in or hold on.")]
     [MinMax(5f, 90f, 1f)]
-    public float CrossfireBackDoorHoldTime = 25f;
+    public float CrossfireBackDoorHoldTime = 15f;
 
     [DataMember]
     [Name("Crossfire Back Door Push")]

@@ -63,7 +63,10 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
 
     public override void ManualUpdate()
     {
-        if (Bot.ActiveLayer == ESAINLayer.Combat)
+        // AvoidThreat (dog fight, grenade dodge) and Flashed are fighting too: a long close-quarters brawl used to count as
+        // "combat ended long ago" here, so the post-combat tidy-up was skipped and ORBIT / BSG took a bot that hadn't reloaded,
+        // moved or healed (ORBIT's own 15s clock only watches the Combat layer - it already ran out during the brawl).
+        if (Bot.ActiveLayer == ESAINLayer.Combat || Bot.ActiveLayer == ESAINLayer.AvoidThreat || Bot.ActiveLayer == ESAINLayer.Flashed)
         {
             if (_combatLayerSince < 0f)
             {
@@ -77,7 +80,7 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
                 LastFightThreat = known;
             }
         }
-        else if (Bot.ActiveLayer != ESAINLayer.Squad && Bot.ActiveLayer != ESAINLayer.AvoidThreat)
+        else if (Bot.ActiveLayer != ESAINLayer.Squad)
         {
             _combatLayerSince = -1f;
         }
@@ -307,8 +310,10 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
         {
             return false;
         }
-        // Healing keeps it going (up to 60s): ORBIT waits for meds to finish anyway, so this costs no handoff time.
-        if (since < 60f && BotOwner.Medecine?.Using == true)
+        // Healing to do keeps it going (up to 60s). ORBIT refuses a bot with meds work left for 60s after the fight
+        // (Medecine.Using / SurgicalKit.HaveWork / FirstAid.Have2Do) - if SAIN let go earlier, BSG's vanilla layers had the
+        // bot and it walked around patching itself up (user: "they kill the target, back off healing and die").
+        if (since < 60f && MedsWorkLeft())
         {
             return true;
         }
@@ -324,6 +329,13 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
             return false;
         }
         return since < settings.PostCombatTime;
+    }
+
+    /// <summary>zzap: exactly ORBIT's "still healing" test, so SAIN keeps the bot for as long as ORBIT won't take it.</summary>
+    public bool MedsWorkLeft()
+    {
+        var med = BotOwner.Medecine;
+        return med != null && (med.Using || med.SurgicalKit?.HaveWork == true || med.FirstAid?.Have2Do == true);
     }
 
     private void SetDecisions(ECombatDecision solo, ESquadDecision squad, ESelfActionType self, Enemy enemy)

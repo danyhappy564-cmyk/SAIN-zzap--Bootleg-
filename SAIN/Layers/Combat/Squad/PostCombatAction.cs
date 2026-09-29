@@ -177,7 +177,7 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         LieLow(true);
         // Done: in cover (or nothing better), reloaded, healed, watched, checked - and nothing heard. No reason to keep the
         // bot here (user: "if there's nothing to heal or reload, why have it?").
-        if (!_finished && !_heard && Time.time > _watchUntil && BotOwner.Medecine?.Using != true && BotOwner.WeaponManager?.Reload?.Reloading != true)
+        if (!_finished && !_heard && Time.time > _watchUntil && !Bot.Decision.MedsWorkLeft() && BotOwner.WeaponManager?.Reload?.Reloading != true)
         {
             _finished = true;
             Bot.Decision.PostCombatFinished = true;

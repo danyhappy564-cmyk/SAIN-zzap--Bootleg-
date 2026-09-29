@@ -679,7 +679,9 @@ public class SquadCombatClass : BotComponentClassBase
                 return true;
             }
         }
-        if (!s.Extended)
+        // Hold on only with a fresh sign he's really in there (heard / seen in the last 8s) - otherwise it's just camping a
+        // door (user: "bots camping for no reason"; it also keeps the Combat layer on and ORBIT waiting).
+        if (!s.Extended && s.Enemy.TimeSinceLastKnownUpdated < 8f)
         {
             s.Extended = true;
             s.ArriveTime = time - Settings.CrossfireBackDoorHoldTime + 15f;
