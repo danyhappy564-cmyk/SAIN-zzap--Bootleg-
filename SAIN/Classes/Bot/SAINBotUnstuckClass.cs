@@ -148,6 +148,10 @@ public class SAINBotUnstuckClass : BotComponentClassBase
     {
         if (!DontUnstuckMe && !Bot.BotActivation.BotInStandBy)
         {
+            Watchdog();
+        }
+        if (!DontUnstuckMe && !Bot.BotActivation.BotInStandBy)
+        {
             StartCoroutine();
         }
         else if (_botUnstuckCoroutine != null)
@@ -179,6 +183,145 @@ public class SAINBotUnstuckClass : BotComponentClassBase
             //}
             yield return null;
         }
+    }
+
+    // ---- zzap stuck watchdog ------------------------------------------------------------------------------------------
+    // SAIN's own unstuck is switched off upstream (the coroutine body above is commented out, BotIsStuck is never set), so
+    // a bot walking into a wall in ANY layer (ORBIT patrol, BSG exfil/patrol gap layers, SAIN search...) stayed there until an
+    // enemy came close and the combat layer gave it a new path (user report, 3rd time 2026-09-29). Whatever layer is
+    // driving: the mover has a path but the bot hasn't moved 0.6m in 3s -> recalc path, 5s -> vault/jump, 8s -> hop to the
+    // next path corner if no human is close or sees it, 14s -> stop the mover so the layer plans again. [Stuck] logs
+    // each step with the layer name.
+
+    private Vector3 _wdAnchor;
+    private float _wdAnchorTime = -1f;
+    private int _wdStage;
+    private float _wdNextCheck;
+
+    private void Watchdog()
+    {
+        float now = Time.time;
+        if (now < _wdNextCheck || Player == null || BotOwner?.Mover == null)
+        {
+            return;
+        }
+        _wdNextCheck = now + 0.5f;
+        var mover = BotOwner.Mover;
+        bool wantsMove = (mover.IsMoving && mover.HasPathAndNoComplete) || Bot.Mover.Moving;
+        Vector3 pos = Bot.Position;
+        if (!wantsMove || !Player.HealthController.IsAlive || Player.IsInPronePose)
+        {
+            ResetWatchdog(pos, now, "stoppedMoving");
+            return;
+        }
+        if (_wdAnchorTime < 0f)
+        {
+            ResetWatchdog(pos, now, null);
+            return;
+        }
+        Vector3 d = pos - _wdAnchor;
+        d.y = 0f;
+        if (d.sqrMagnitude > 0.6f * 0.6f)
+        {
+            ResetWatchdog(pos, now, "moving again");
+            return;
+        }
+        float stuckFor = now - _wdAnchorTime;
+        if (stuckFor < 3f)
+        {
+            return;
+        }
+        if (_wdStage == 0)
+        {
+            _wdStage = 1;
+            Bot.Mover.RecalcPath();
+            mover.RecalcWay();
+            LogStuck("recalc path", stuckFor);
+        }
+        else if (_wdStage == 1 && stuckFor >= 5f)
+        {
+            _wdStage = 2;
+            bool vaulted = Bot.Mover.TryVault();
+            bool jumped = !vaulted && Bot.Mover.TryJump();
+            LogStuck(vaulted ? "vault" : jumped ? "jump" : "vault/jump not possible", stuckFor);
+        }
+        else if (_wdStage == 2 && stuckFor >= 8f)
+        {
+            _wdStage = 3;
+            if (IsHumanClose() || IsHumanVisible())
+            {
+                LogStuck("human near/looking - no hop", stuckFor);
+            }
+            else if (NextCorner(pos, out Vector3 corner))
+            {
+                Player.Teleport(corner + Vector3.up * 0.25f);
+                mover.RecalcWay();
+                LogStuck($"hopped {(corner - pos).magnitude:0.0}m to the next path corner", stuckFor);
+            }
+            else
+            {
+                LogStuck("no path corner to hop to", stuckFor);
+            }
+        }
+        else if (_wdStage == 3 && stuckFor >= 14f)
+        {
+            _wdStage = 4;
+            mover.Stop();
+            Bot.Mover.Stop();
+            LogStuck("still stuck - stopped the mover so the layer plans again", stuckFor);
+        }
+    }
+
+    private void ResetWatchdog(Vector3 pos, float now, string why)
+    {
+        if (_wdStage > 0 && why != null)
+        {
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"stuck.freed.stage{_wdStage}");
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+                $"[Stuck] [{Bot.name}] freed after stage {_wdStage} ({why}) in layer {BotOwner.Brain?.ActiveLayerName()}"
+            );
+        }
+        _wdAnchor = pos;
+        _wdAnchorTime = now;
+        _wdStage = 0;
+    }
+
+    private void LogStuck(string action, float stuckFor)
+    {
+        string layer = BotOwner.Brain?.ActiveLayerName() ?? "?";
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"stuck.stage{_wdStage}");
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"stuck.layer.{layer}");
+        bool wallAhead = Physics.Raycast(Bot.Position + Vector3.up * 1.2f, Player.LookDirection, 0.8f, LayersMaskController.HighPolyWithTerrainMask);
+        var mover = BotOwner.Mover;
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+            $"[Stuck] [{Bot.name}] [{Bot.Info.Personality}] no progress {stuckFor:0}s -> {action} | layer {layer} | combat={Bot.Decision.CurrentCombatDecision} "
+                + $"squad={Bot.Decision.CurrentSquadDecision} | {mover.DistDestination:0}m to go, wall ahead={wallAhead} | at ({Bot.Position.x:0},{Bot.Position.z:0})"
+        );
+    }
+
+    private bool NextCorner(Vector3 pos, out Vector3 corner)
+    {
+        corner = default;
+        var path = BotOwner.Mover.ActualPathController?.CurPath;
+        if (path == null)
+        {
+            return false;
+        }
+        for (int i = path.CurIndex; i < path.Length; i++)
+        {
+            Vector3 p = path.GetPoint(i);
+            float dist = (p - pos).magnitude;
+            if (dist >= 1f && dist <= 4f && NavMesh.SamplePosition(p, out NavMeshHit hit, 0.5f, -1))
+            {
+                corner = hit.position;
+                return true;
+            }
+            if (dist > 4f)
+            {
+                break;
+            }
+        }
+        return false;
     }
 
     private const float _minDistance = 100f;

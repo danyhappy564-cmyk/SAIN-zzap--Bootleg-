@@ -90,6 +90,29 @@ public static class WeaponLog
             .Append(info.CheckHaveAmmoForReload() ? "" : " (no reload ammo)");
     }
 
+    /// <summary>A gun other than the one in hand that has rounds loaded or ammo to reload - main first, then 2nd, pistol.</summary>
+    public static bool PickGunWithAmmo(BotWeaponManager wm, EquipmentSlot current, out EquipmentSlot target)
+    {
+        target = current;
+        if (wm?.info == null || wm.Selector == null)
+        {
+            return false;
+        }
+        foreach (EquipmentSlot slot in new[] { wm.Selector._mainWeapon, EquipmentSlot.FirstPrimaryWeapon, EquipmentSlot.SecondPrimaryWeapon, EquipmentSlot.Holster })
+        {
+            if (slot == current || !wm.info.TryGetValue(slot, out BotWeaponInfo info) || info == null)
+            {
+                continue;
+            }
+            if (info.BulletCount > 0 || info.CheckHaveAmmoForReload())
+            {
+                target = slot;
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// <summary>Magazines the bot carries that fit this weapon, not counting the one in it.</summary>
     public static int SpareMagazines(Player player, Weapon weapon)
     {

@@ -213,21 +213,10 @@ public class SelfActionDecisionClass : BotBase
         }
         _nextOutOfAmmoSwap = Time.time + 2f;
 
-        // Pick a gun that actually has ammo, main first. BSG's TryChangeWeapon just toggles main <-> support without
-        // looking at ammo, which bounced empty bots between two guns (user report 2026-09-29).
+        // Pick a gun that actually has ammo, main first (BSG's TryChangeWeapon toggles without looking at ammo).
         var selector = weaponManager.Selector;
-        EquipmentSlot current = selector.EquipmentSlot;
-        EquipmentSlot main = selector._mainWeapon;
-        foreach (EquipmentSlot slot in new[] { main, EquipmentSlot.FirstPrimaryWeapon, EquipmentSlot.SecondPrimaryWeapon, EquipmentSlot.Holster })
+        if (SAIN.SAINComponent.Classes.Tactics.WeaponLog.PickGunWithAmmo(weaponManager, selector.EquipmentSlot, out EquipmentSlot slot))
         {
-            if (slot == current || !weaponManager.info.TryGetValue(slot, out BotWeaponInfo info) || info == null)
-            {
-                continue;
-            }
-            if (info.BulletCount <= 0 && !info.CheckHaveAmmoForReload())
-            {
-                continue;
-            }
             selector._nextChangeTime = 0f;
             if (selector.TryChangeToSlot(slot, true))
             {
