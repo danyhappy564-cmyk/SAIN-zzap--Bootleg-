@@ -1,7 +1,7 @@
 {
   "Info": {
-    "Name": "zzap TEST",
-    "Description": "zzap 테스트용. zzap과 같고 테스트 스위치만 켬: 모든 PMC가 기가채드 문 전술(확률 100%), 재배치 전술 항상, 다이아몬드 스텝 전원, 런바이 100%, 상세 로그, 플레이어 스타일 대응(2단계) 끔 — 기록은 함. 실제 플레이엔 zzap 사용.",
+    "Name": "zzap TEST [시뮬 전용]",
+    "Description": "[시뮬 전용] 봇끼리 싸우는 걸 프리캠으로 보는 시뮬레이션용 — 실제 플레이엔 zzap 사용. zzap과 같고 테스트 스위치만 켬: 모든 PMC가 기가채드 문 전술(확률 100%), 재배치 전술 항상, 다이아몬드 스텝 전원, 런바이 100%, 상세 로그, 플레이어 스타일 대응(2단계) 끔 — 기록은 함, 레이드 일지 켬, 시체 숨김(40구 넘으면 오래된 것부터).",
     "Creator": "R_F",
     "SAINVersion": "4.5.1",
     "SAINPresetVersion": "4.5.1",
@@ -167,7 +167,8 @@
         "UtilityMistakes": false
       },
       "PlayerStyle": {
-        "AdaptEnabled": false
+        "AdaptEnabled": false,
+        "RaidJournal": true
       }
     },
     "Aiming": {

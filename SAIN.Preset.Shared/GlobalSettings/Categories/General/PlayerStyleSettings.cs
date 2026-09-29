@@ -18,12 +18,12 @@ public class PlayerStyleSettings : SAINSettingsBase<PlayerStyleSettings>, ISAINS
     [DataMember]
     [Name("Record Keys")]
     [Description("Also record the player's game keys (press/release and hold time) - A/D switching, jump, crouch, lean, fire taps vs holds. Binds are read from SPT's Control.ini. Only while in a raid, not while the cursor is visible (inventory/menus).")]
-    public bool RecordKeys = true;
+    public bool RecordKeys = false;
 
     [DataMember]
     [Name("Key Timeline File")]
     [Description("Write every key press/release with its time to <profile>_<date>.keys.csv next to the style record (appended every 2s). Off = only the key statistics.")]
-    public bool KeyTimeline = true;
+    public bool KeyTimeline = false;
 
     [DataMember]
     [Name("Adapt Bots To Player Style")]
@@ -38,7 +38,7 @@ public class PlayerStyleSettings : SAINSettingsBase<PlayerStyleSettings>, ISAINS
     [DataMember]
     [Name("Raid Journal")]
     [Description("One time-stamped file per raid with only SAIN-zzap content (BepInEx/config/SAIN-zzap/Journal/<date>_<map>.log): every bot decision change with its reason, all tactic logs, the player's position/hits/kills every 2s, the counters at the end. Made for reviewing a raid afterwards.")]
-    public bool RaidJournal = true;
+    public bool RaidJournal = false;
 
     [DataMember]
     [Name("Ignore Player Gear")]

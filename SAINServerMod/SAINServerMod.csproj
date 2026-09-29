@@ -21,7 +21,7 @@
     <None Update="Data\**">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <!-- zzap presets (zzap / zzap TEST) - PresetService lists <mod folder>/Presets/*.json as custom presets. -->
+    <!-- zzap presets (zzap / zzap TEST [시뮬 전용]) - PresetService lists <mod folder>/Presets/*.json as custom presets. -->
     <None Include="Presets\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
