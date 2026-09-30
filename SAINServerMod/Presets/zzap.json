@@ -4,7 +4,7 @@
     "Description": "SAIN zzap 포크 전용. 사격·조준·반응은 원본 TwitchPlayers(하드코어) 값, 행동은 zzap 전술(문 피킹/페이크, 다이아몬드 스텝 등). ORBIT 권장 설정 적용: 성격 분포(Rat10/Wreckless5/Turtle5/Coward5/Chad5/Timmy3/GigaChad3), SAIN 탈출 행동·루팅 탈출 끔. BotCallsigns/TwitchPlayers 없이 작동.",
     "Creator": "R_F",
     "SAINVersion": "4.5.1",
-    "SAINPresetVersion": "4.5.1",
+    "SAINPresetVersion": "4.5.0",
     "DateCreated": "09/28/2026 00:00:00",
     "BaseSAINDifficulty": "deathwish",
     "IsCustom": true,
