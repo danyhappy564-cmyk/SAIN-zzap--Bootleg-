@@ -92,7 +92,7 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         float threatDist = _threat != null ? (_threat.Value - Bot.Position).magnitude : 0f;
         _advance = _threat != null && threatDist > 4f && threatDist < 40f && Random.value * 100f < chance;
         TacticDiagnostics.Count("postCombat.start");
-        TacticDiagnostics.LogCloseCombat(
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
             $"[PostCombat] [{Bot.name}] [{Bot.Info.Personality}] combat over -> tidy up until ORBIT takes over (ammo {SAINBotSuppressClass.CalcAmmoRatio(BotOwner, out _):P0}, "
                 + $"leader {(Bot.Squad.IAmLeader || Bot.Squad.LeaderComponent == null ? "-" : $"{(Bot.Squad.LeaderComponent.Position - Bot.Position).magnitude:0}m")}, "
                 + $"watching {(_threat != null ? $"last threat {(_threat.Value - Bot.Position).magnitude:0}m" : "around")}"
@@ -182,7 +182,7 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
             _finished = true;
             Bot.Decision.PostCombatFinished = true;
             TacticDiagnostics.Count("postCombat.finished");
-            TacticDiagnostics.LogCloseCombat($"[PostCombat] [{Bot.name}] nothing left to do, nothing heard -> hands over");
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[PostCombat] [{Bot.name}] nothing left to do, nothing heard -> hands over");
         }
     }
 
@@ -201,7 +201,7 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         if (heard && !_heard)
         {
             TacticDiagnostics.Count(coming ? "postCombat.alert.coming" : "postCombat.alert.gunfire");
-            TacticDiagnostics.LogCloseCombat($"[PostCombat] [{Bot.name}] hears {why} -> stays on guard facing it{(_advance ? ", won't move up" : "")}");
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[PostCombat] [{Bot.name}] hears {why} -> stays on guard facing it{(_advance ? ", won't move up" : "")}");
         }
         _heard = heard;
         _coming = heard && coming;
@@ -279,8 +279,8 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
             Bot.Mover.Stop();
             Bot.Mover.SetTargetPose(0.6f);
             LieLow(true);
-            TacticDiagnostics.Count($"postCombat.heal.{(what == "surgery" ? "surgery" : "firstAid")}");
-            TacticDiagnostics.LogCloseCombat($"[PostCombat] [{Bot.name}] healing: {what} ({Bot.Memory.Health.HealthStatus})");
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"postCombat.heal.{(what == "surgery" ? "surgery" : "firstAid")}");
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[PostCombat] [{Bot.name}] healing: {what} ({Bot.Memory.Health.HealthStatus})");
         }
         return started;
     }

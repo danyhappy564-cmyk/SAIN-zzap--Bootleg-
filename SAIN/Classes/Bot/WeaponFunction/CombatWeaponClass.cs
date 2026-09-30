@@ -71,7 +71,7 @@ public class CombatWeaponClass : BotComponentClassBase
         }
         _pistolByUs = true;
         TacticDiagnostics.Count("weapon.pistolSwap");
-        TacticDiagnostics.LogCloseCombat($"[Weapon] [{Bot.name}] mag {ammoRatio:P0}, enemy {enemy.RealDistance:0}m in sight -> PISTOL instead of reload");
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Weapon] [{Bot.name}] mag {ammoRatio:P0}, enemy {enemy.RealDistance:0}m in sight -> PISTOL instead of reload");
         return true;
     }
 
@@ -110,7 +110,7 @@ public class CombatWeaponClass : BotComponentClassBase
         }
         _pistolByUs = true;
         TacticDiagnostics.Count("weapon.pistolSwap");
-        TacticDiagnostics.LogCloseCombat($"[Weapon] [{Bot.name}] magazine empty, enemy {enemy.RealDistance:0}m in sight -> PISTOL instead of reload");
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Weapon] [{Bot.name}] magazine empty, enemy {enemy.RealDistance:0}m in sight -> PISTOL instead of reload");
         return true;
     }
 
@@ -146,7 +146,7 @@ public class CombatWeaponClass : BotComponentClassBase
                 {
                     _pistolByUs = false;
                     TacticDiagnostics.Count("weapon.pistolBack");
-                    TacticDiagnostics.LogCloseCombat($"[Weapon] [{Bot.name}] back to the main gun ({why})");
+                    if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Weapon] [{Bot.name}] back to the main gun ({why})");
                 }
             }
             return;
@@ -164,7 +164,7 @@ public class CombatWeaponClass : BotComponentClassBase
                 {
                     _longRangeByUs = false;
                     TacticDiagnostics.Count("weapon.longRangeBack");
-                    TacticDiagnostics.LogCloseCombat($"[Weapon] [{Bot.name}] long-range weapon away, main gun ({why})");
+                    if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Weapon] [{Bot.name}] long-range weapon away, main gun ({why})");
                 }
             }
             return;
@@ -194,7 +194,7 @@ public class CombatWeaponClass : BotComponentClassBase
             _longRangeByUs = true;
             _pistolByUs = false;
             TacticDiagnostics.Count("weapon.longRange");
-            TacticDiagnostics.LogCloseCombat(
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
                 $"[Weapon] [{Bot.name}] enemy {enemy.RealDistance:0}m -> {((Weapon)selector.SecondPrimaryWeaponItem).ShortName.Localized()} (long range)"
             );
         }

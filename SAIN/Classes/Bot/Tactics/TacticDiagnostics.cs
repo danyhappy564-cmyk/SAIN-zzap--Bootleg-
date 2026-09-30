@@ -40,6 +40,22 @@ internal static class TacticDiagnostics
     }
 
     /// <summary>
+    /// zzap: check these BEFORE building a log line or counter key. EFT turns the GC off for the whole raid, so every
+    /// interpolated string made for a log that then goes nowhere stays in RAM until the raid ends (user 2026-09-30).
+    /// LogOn = a LogCloseCombat line would be written somewhere (raid journal open, or Door Tactics diagnostic logs on).
+    /// CountOn = counters are being kept (any Diagnostic Logs toggle on).
+    /// </summary>
+    public static bool LogOn
+    {
+        get { return RaidJournal.IsOpen || GlobalSettingsClass.Instance?.General?.DoorTactics?.DiagnosticLogs == true; }
+    }
+
+    public static bool CountOn
+    {
+        get { return Enabled; }
+    }
+
+    /// <summary>
     /// Called when a bot's DoorTacticClass is created. The first call in a new raid logs the settings snapshot.
     /// </summary>
     public static void OnBotCreated()

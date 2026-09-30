@@ -220,7 +220,7 @@ public class SelfActionDecisionClass : BotBase
             selector._nextChangeTime = 0f;
             if (selector.TryChangeToSlot(slot, true))
             {
-                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"reload.noAmmo.to{slot}");
+                if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"reload.noAmmo.to{slot}");
                 return;
             }
         }

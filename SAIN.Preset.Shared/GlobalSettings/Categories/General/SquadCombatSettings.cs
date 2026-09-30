@@ -135,5 +135,5 @@ public class SquadCombatSettings : SAINSettingsBase<SquadCombatSettings>, ISAINS
     [DataMember]
     [Name("Diagnostic Logs")]
     [Description("Writes [SquadCombat] lines to BepInEx LogOutput.log for every start and result, plus SUMMARY counters.")]
-    public bool DiagnosticLogs = true;
+    public bool DiagnosticLogs = false;
 }

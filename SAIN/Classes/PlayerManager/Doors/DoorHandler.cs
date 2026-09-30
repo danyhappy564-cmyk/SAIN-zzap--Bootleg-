@@ -327,7 +327,7 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
             interaction.Break = true;
             if (mismatch)
             {
-                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"door.interactionRepaired.{why}");
+                if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"door.interactionRepaired.{why}");
                 Logger.LogWarning($"[DoorHandler] [{door.Id}] interaction record repaired ({why}) - it still pointed at another state, so the door refused to open/close");
             }
             return mismatch;

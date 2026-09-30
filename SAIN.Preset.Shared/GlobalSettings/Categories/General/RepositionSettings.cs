@@ -73,5 +73,5 @@ public class RepositionSettings : SAINSettingsBase<RepositionSettings>, ISAINSet
     [DataMember]
     [Name("Diagnostic Logs")]
     [Description("Writes [Reposition] lines to LogOutput.log and repo.* / nade.fuse.* SUMMARY counters.")]
-    public bool DiagnosticLogs = true;
+    public bool DiagnosticLogs = false;
 }

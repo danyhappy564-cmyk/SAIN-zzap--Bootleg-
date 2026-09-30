@@ -371,9 +371,9 @@ public class EnemyDecisionClass : BotBase
                 }
                 if (stance != top)
                 {
-                    TacticDiagnostics.Count($"utility.fellTo.{stance}");
+                    if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utility.fellTo.{stance}");
                 }
-                TacticDiagnostics.Count($"utility.do.{result}");
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utility.do.{result}");
                 SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Begin(Bot, enemy,
                     SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Key("H", stance.ToString(), enemy.Path.PathLength, Bot));
                 reason = $"utility{stance}";
@@ -418,7 +418,7 @@ public class EnemyDecisionClass : BotBase
             }
             if (result != ECombatDecision.None)
             {
-                TacticDiagnostics.Count($"utilityV.do.{result}");
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utilityV.do.{result}");
                 SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Begin(Bot, enemy,
                     SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Key("V", stance.ToString(), enemy.RealDistance, Bot));
                 reason = $"utilityV{stance}";
@@ -490,7 +490,7 @@ public class EnemyDecisionClass : BotBase
         {
             if (Bot.Decision.CurrentCombatDecision == ECombatDecision.Freeze)
             {
-                TacticDiagnostics.Count($"freeze.broken.{broken}");
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"freeze.broken.{broken}");
                 if (freeze.DiagnosticLogs)
                 {
                     Logger.LogWarning($"[Freeze] [{Bot.name}] [{Bot.Info.Personality}] BREAK ambush: {broken}");
@@ -508,7 +508,7 @@ public class EnemyDecisionClass : BotBase
             float timeToFreeze = UnityEngine.Random.Range(min, max) / Bot.Info.AggressionMultiplier;
             FrozenDuration = timeToFreeze;
             TimeToUnfreeze = Time.time + timeToFreeze;
-            TacticDiagnostics.Count($"freeze.start.{Bot.Info.Personality}.{(Bot.Memory.Location.IsIndoors ? "indoors" : "outdoors")}");
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"freeze.start.{Bot.Info.Personality}.{(Bot.Memory.Location.IsIndoors ? "indoors" : "outdoors")}");
             if (freeze.DiagnosticLogs)
             {
                 Logger.LogWarning(
@@ -863,7 +863,7 @@ public class EnemyDecisionClass : BotBase
         {
             return false;
         }
-        TacticDiagnostics.Count($"close.exposedCommit.{personality}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"close.exposedCommit.{personality}");
         return true;
     }
 

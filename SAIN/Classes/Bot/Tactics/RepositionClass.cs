@@ -160,7 +160,7 @@ public class RepositionClass : BotComponentClassBase
             // Released now: relocate moves right away (the fuse keeps their head down, the bang masks the end of the move).
             s.MoveAt = Time.time + 0.2f;
             SetPhase(s, EPhase.WaitBlast);
-            Log($"{Who()} own frag released (fuse {_expectFuse:0.0}s) -> moving in {s.MoveAt - Time.time:0.0}s");
+            if (LogOn) Log($"{Who()} own frag released (fuse {_expectFuse:0.0}s) -> moving in {s.MoveAt - Time.time:0.0}s");
         }
     }
 
@@ -187,7 +187,7 @@ public class RepositionClass : BotComponentClassBase
         // No GrenadeType: DoThrow would otherwise swap back to the first frag in the rig (CheckGrenadeWithType).
         data.GrenadeType = null;
         TacticDiagnostics.Count(shortest ? "nade.fuse.short" : "nade.fuse.long");
-        Log($"{Who()} frag throw {dist:0}m {(indoors ? "indoors" : "outdoors")} -> {(shortest ? "SHORT" : "LONG")} fuse {pick.ShortName.Localized()} {pick.GetExplDelay:0.0}s");
+        if (LogOn) Log($"{Who()} frag throw {dist:0}m {(indoors ? "indoors" : "outdoors")} -> {(shortest ? "SHORT" : "LONG")} fuse {pick.ShortName.Localized()} {pick.GetExplDelay:0.0}s");
         return pick.GetExplDelay;
     }
 
@@ -255,7 +255,7 @@ public class RepositionClass : BotComponentClassBase
                 // Shot at before we saw them (or in the same moment) = they had first contact.
                 bool weSawFirst = enemy.Seen && enemy.TimeSinceSeen > 0.5f;
                 _contact[id] = weSawFirst ? EContact.BotFirst : EContact.EnemyFirst;
-                TacticDiagnostics.Count($"repo.contact.{_contact[id]}");
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"repo.contact.{_contact[id]}");
             }
             else if (enemy.Seen)
             {
@@ -374,7 +374,7 @@ public class RepositionClass : BotComponentClassBase
             {
                 _pullBackLogged = true;
                 TacticDiagnostics.Count("repo.bait.pullBack");
-                Log($"{Who()} bait peek shot done -> back into cover");
+                if (LogOn) Log($"{Who()} bait peek shot done -> back into cover");
             }
             reason = "baitPullBack";
             return true;
@@ -459,14 +459,14 @@ public class RepositionClass : BotComponentClassBase
         if (!Roll(chance))
         {
             TacticDiagnostics.Count("repo.rollFailed.Relocate");
-            Log($"{Who()} relocate: stay ({Mathf.Min(chance, 100f):0}% failed) because: {(why.Length > 0 ? why.ToString() : "base chance")}");
+            if (LogOn) Log($"{Who()} relocate: stay ({Mathf.Min(chance, 100f):0}% failed) because: {(why.Length > 0 ? why.ToString() : "base chance")}");
             return false;
         }
-        Log($"{Who()} relocate: go ({Mathf.Min(chance, 100f):0}%) because: spotted first; {why}");
+        if (LogOn) Log($"{Who()} relocate: go ({Mathf.Min(chance, 100f):0}%) because: spotted first; {why}");
         if (!FindPoint(EMode.Relocate, enemyPos, out Vector3 point, out string noPoint))
         {
-            TacticDiagnostics.Count($"repo.noPoint.Relocate.{noPoint}");
-            Log($"{Who()} relocate: no spot out of their sight ({noPoint})");
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"repo.noPoint.Relocate.{noPoint}");
+            if (LogOn) Log($"{Who()} relocate: no spot out of their sight ({noPoint})");
             return false;
         }
         bool threw = enemyDist > 8f && enemyDist < 45f && TryThrowAt(enemyPos, enemyDist);
@@ -539,7 +539,7 @@ public class RepositionClass : BotComponentClassBase
             why.Append("this player pushes a lot -> fake reload; ");
         }
         bool baitFirst = Random.value * (bait + fake) < bait;
-        Log($"{Who()} cover trick: {(baitFirst ? "bait peek" : "fake reload")} first (weights bait {bait:0.0} / fake reload {fake:0.0}) because: {(why.Length > 0 ? why.ToString() : "nothing special")}");
+        if (LogOn) Log($"{Who()} cover trick: {(baitFirst ? "bait peek" : "fake reload")} first (weights bait {bait:0.0} / fake reload {fake:0.0}) because: {(why.Length > 0 ? why.ToString() : "nothing special")}");
         if (baitFirst)
         {
             return TryStartBait(enemy, enemyPos, out reason) || TryStartFakeReload(enemy, enemyPos, out reason);
@@ -618,7 +618,7 @@ public class RepositionClass : BotComponentClassBase
         Start(EMode.FakeReload, enemy, Bot.Position, look, EPhase.MagCheck, "mag check sound as a fake reload, then hold their push angle");
         bool ok = firearm.CheckAmmo();
         TacticDiagnostics.Count(ok ? "repo.fakeReload.magCheck" : "repo.fakeReload.refused");
-        Log($"{Who()} fake reload: mag check {(ok ? "started" : "REFUSED by the weapon controller")}");
+        if (LogOn) Log($"{Who()} fake reload: mag check {(ok ? "started" : "REFUSED by the weapon controller")}");
         if (!ok)
         {
             End("magCheckRefused");
@@ -649,8 +649,8 @@ public class RepositionClass : BotComponentClassBase
             HoldTime = mode == EMode.BaitPeek ? 2.5f : Random.Range(5f, 10f),
             HoldPose = mode == EMode.Relocate ? 0.8f : 1f,
         };
-        TacticDiagnostics.Count($"repo.start.{mode}");
-        Log($"{Who()} START {mode}: {why} (spot {Flat(target - Bot.Position).magnitude:0.0}m away)");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"repo.start.{mode}");
+        if (LogOn) Log($"{Who()} START {mode}: {why} (spot {Flat(target - Bot.Position).magnitude:0.0}m away)");
     }
 
     private void SetPhase(Session s, EPhase phase)
@@ -678,7 +678,7 @@ public class RepositionClass : BotComponentClassBase
         {
             s.DrewFire = true;
             TacticDiagnostics.Count("repo.bait.drewFire");
-            Log($"{Who()} bait peek drew fire");
+            if (LogOn) Log($"{Who()} bait peek drew fire");
         }
 
         switch (s.Phase)
@@ -696,7 +696,7 @@ public class RepositionClass : BotComponentClassBase
                 Bot.Mover.Stop();
                 if (time >= s.MoveAt)
                 {
-                    TacticDiagnostics.Count($"repo.moveOnBlast.{s.Mode}");
+                    if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"repo.moveOnBlast.{s.Mode}");
                     SetPhase(s, EPhase.Move);
                 }
                 break;
@@ -704,8 +704,8 @@ public class RepositionClass : BotComponentClassBase
             case EPhase.Move:
                 if (MoveTo(s, s.Target, !s.Enemy.IsVisible, phaseTime))
                 {
-                    TacticDiagnostics.Count($"repo.arrived.{s.Mode}");
-                    Log($"{Who()} {s.Mode} in position after {time - s.StartTime:0.0}s");
+                    if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"repo.arrived.{s.Mode}");
+                    if (LogOn) Log($"{Who()} {s.Mode} in position after {time - s.StartTime:0.0}s");
                     SetPhase(s, EPhase.Hold);
                 }
                 break;
@@ -855,7 +855,7 @@ public class RepositionClass : BotComponentClassBase
         Bot.Mover.SetTargetMoveSpeed(1f);
         Bot.Mover.SetTargetPose(1f);
         string key = result.Contains("(") ? result.Substring(0, result.IndexOf('(')) : result;
-        TacticDiagnostics.Count($"repo.end.{s.Mode}.{key}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"repo.end.{s.Mode}.{key}");
         if (s.Mode == EMode.BaitPeek && Bot.Decision.CurrentCombatDecision == ECombatDecision.RushEnemy)
         {
             TacticDiagnostics.Count("repo.bait.rushAfter");
@@ -867,7 +867,7 @@ public class RepositionClass : BotComponentClassBase
             _pullBackUntil = _pullBackShootUntil + 1.6f;
             _pullBackLogged = false;
         }
-        Log($"{Who()} END {s.Mode} result={result} after {Time.time - s.StartTime:0.0}s phase={s.Phase}");
+        if (LogOn) Log($"{Who()} END {s.Mode} result={result} after {Time.time - s.StartTime:0.0}s phase={s.Phase}");
     }
 
     // ---------------------------------------------------------------- own throw (relocate)
@@ -908,7 +908,7 @@ public class RepositionClass : BotComponentClassBase
             {
                 _expectOwnNadeUntil = Time.time + 4f;
                 _expectFuse = pick.GetExplDelay;
-                Log($"{Who()} relocate frag {pick.ShortName.Localized()} ({pick.GetExplDelay:0.0}s) at {dist:0}m");
+                if (LogOn) Log($"{Who()} relocate frag {pick.ShortName.Localized()} ({pick.GetExplDelay:0.0}s) at {dist:0}m");
                 return true;
             }
         }
@@ -1063,9 +1063,14 @@ public class RepositionClass : BotComponentClassBase
         return $"[{Bot.name}] [{Bot.Info.Personality}]";
     }
 
+    private static bool LogOn
+    {
+        get { return RaidJournal.IsOpen || GlobalSettingsClass.Instance?.General?.Reposition?.DiagnosticLogs == true; }
+    }
+
     private static void Log(string message)
     {
-        RaidJournal.Line($"[Reposition] {message}");
+        if (RaidJournal.IsOpen) RaidJournal.Line($"[Reposition] {message}");
         if (GlobalSettingsClass.Instance?.General?.Reposition?.DiagnosticLogs == true)
         {
             Logger.LogWarning($"[Reposition] {message}");

@@ -100,7 +100,7 @@ public static class FireLaneGuard
             if (!_nextLog.TryGetValue(id, out float next) || time > next)
             {
                 _nextLog[id] = time + 3f;
-                TacticDiagnostics.LogCloseCombat($"[FireLane] [{bot.name}] {what}");
+                if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[FireLane] [{bot.name}] {what}");
             }
             direction = result;
             return result != Vector3.zero;

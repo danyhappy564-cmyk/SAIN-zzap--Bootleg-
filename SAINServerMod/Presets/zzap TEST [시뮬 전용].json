@@ -162,6 +162,12 @@
         "TestMode": true,
         "DiagnosticLogs": true
       },
+      "SquadCombat": {
+        "DiagnosticLogs": true
+      },
+      "FreezeAmbush": {
+        "DiagnosticLogs": true
+      },
       "CloseCombat": {
         "DiamondStepTestMode": true,
         "UtilityMistakes": false

@@ -61,10 +61,10 @@ public static class ReloadUtility
             _nextLog[id] = Time.time + 3f;
             string why = $"mag {r:P0}; {(visible ? (looking ? "he's looking at me" : "he isn't looking") : "he's out of sight")}; "
                 + $"{dist:0}m; {(inCover ? "in cover; " : "")}{(busy ? $"he's {enemy.Status.VulnerableAction}; " : "")}{(hit ? "just hit; " : "")}pistol {(pistolReady ? "ready" : "no")}";
-            TacticDiagnostics.LogCloseCombat(
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
                 $"[Reload] [{bot.name}] {list[0].choice}{(mistake ? " (mistake)" : "")} {list[0].score:0.00} > {list[1].choice} {list[1].score:0.00} > {list[2].choice} {list[2].score:0.00} | {why}");
         }
-        TacticDiagnostics.Count($"reload.pick.{list[0].choice}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"reload.pick.{list[0].choice}");
         return list;
     }
 

@@ -64,7 +64,7 @@ public class QuickReloadPatch : ModulePatch
         if (spares < 2)
         {
             TacticDiagnostics.Count("weapon.quickReload.keptLastSpare");
-            TacticDiagnostics.LogCloseCombat($"[Reload] [{bot.name}] normal reload, keeping the magazine - only {spares} spare left | {WeaponLog.Guns(owner)}");
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Reload] [{bot.name}] normal reload, keeping the magazine - only {spares} spare left | {WeaponLog.Guns(owner)}");
             return true;
         }
         __instance._reloadType = BotReload.EReloadType.MagReload;
@@ -78,7 +78,7 @@ public class QuickReloadPatch : ModulePatch
             }
         );
         TacticDiagnostics.Count("weapon.quickReload");
-        TacticDiagnostics.LogCloseCombat($"[Reload] [{bot.name}] quick reload - magazine dropped, {spares - 1} spare left after | {WeaponLog.Guns(owner)}");
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Reload] [{bot.name}] quick reload - magazine dropped, {spares - 1} spare left after | {WeaponLog.Guns(owner)}");
         return false;
     }
 }

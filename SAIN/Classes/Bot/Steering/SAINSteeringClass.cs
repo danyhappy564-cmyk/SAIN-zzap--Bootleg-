@@ -312,7 +312,7 @@ public class SAINSteeringClass : BotComponentClassBase
         {
             _nextPreAimLog = Time.time + 5f;
             SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("corner.preAim");
-            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
                 $"[PreAim] [{Bot.name}] {decision}: corner {dist:0.0}m toward {enemy.EnemyPlayer?.Profile?.Nickname} (known {enemy.TimeSinceLastKnownUpdated:0}s ago) -> aim at it, lean {side}");
         }
         return true;
@@ -440,7 +440,7 @@ public class SAINSteeringClass : BotComponentClassBase
             if (result)
             {
                 SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("retreat.headDown");
-                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+                if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
                     $"[HeadDown] [{Bot.name}] sprinting away from {enemy.EnemyPlayer?.Profile?.Nickname} ({enemy.RealDistance:0}m) -> looking {pitch:0} deg down"
                 );
             }

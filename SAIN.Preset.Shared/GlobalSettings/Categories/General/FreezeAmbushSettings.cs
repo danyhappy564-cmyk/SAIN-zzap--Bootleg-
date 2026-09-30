@@ -54,5 +54,5 @@ public class FreezeAmbushSettings : SAINSettingsBase<FreezeAmbushSettings>, ISAI
     [DataMember]
     [Name("Diagnostic Logs")]
     [Description("Writes [Freeze] lines to BepInEx LogOutput.log when a bot starts/stops a freeze ambush.")]
-    public bool DiagnosticLogs = true;
+    public bool DiagnosticLogs = false;
 }

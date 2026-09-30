@@ -119,12 +119,12 @@ public static class HealUtility
         if (!_nextLog.TryGetValue(id, out float next) || time > next)
         {
             _nextLog[id] = time + 4f;
-            TacticDiagnostics.LogCloseCombat(
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
                 $"[Heal] [{bot.name}] {list[0].choice}{(mistake ? " (mistake)" : "")} {list[0].score:0.00} > {list[1].choice} {list[1].score:0.00} | "
                     + $"{hs}; {(anyVisible ? "enemy in sight; " : "")}{(inHisView ? "standing where he could see me; " : "")}{(coming ? "someone coming; " : "")}{(hit ? "just hit; " : "")}{(inCover ? "in cover; " : "")}"
                     + $"nearest threat {nearestPath:0}m / {nearestAge:0}s ago; meds {load.Meds}");
         }
-        TacticDiagnostics.Count($"heal.pick.{list[0].choice}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"heal.pick.{list[0].choice}");
         return list;
     }
 

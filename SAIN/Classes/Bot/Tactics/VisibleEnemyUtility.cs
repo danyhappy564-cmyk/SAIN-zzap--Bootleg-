@@ -85,12 +85,12 @@ public static class VisibleEnemyUtility
         m.EnemyId = enemy.EnemyProfileId;
         // 2-3s (was 1-1.8s - user: longer so bots don't look like they flip back and forth; roll back if it feels sluggish).
         m.Until = time + Random.Range(2f, 3f);
-        TacticDiagnostics.Count($"utilityV.top.{ranked[0].stance}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utilityV.top.{ranked[0].stance}");
         if (ranked[0].stance != m.LastTop || time > m.NextLog)
         {
             m.LastTop = ranked[0].stance;
             m.NextLog = time + 4f;
-            TacticDiagnostics.LogCloseCombat(
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
                 $"[UtilityV] [{bot.name}] [{bot.Info.Personality}] {enemy.EnemyPlayer?.Profile?.Nickname} in sight {enemy.RealDistance:0}m -> "
                     + $"{ranked[0].stance} {ranked[0].score:0.00} > {ranked[1].stance} {ranked[1].score:0.00} > {ranked[2].stance} {ranked[2].score:0.00} | {why}"
             );

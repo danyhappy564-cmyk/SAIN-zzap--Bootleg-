@@ -23,11 +23,16 @@ public static class WeaponLog
 
     public static void OnChange(BotOwner owner, EquipmentSlot from, EquipmentSlot to)
     {
+        // Only a log: the caller stack walk and per-gun ammo text are built when something will print them.
+        if (!TacticDiagnostics.LogOn && !TacticDiagnostics.CountOn)
+        {
+            return;
+        }
         if (owner == null || !SAINEnableClass.GetSAIN(owner.ProfileId, out BotComponent bot) || bot == null)
         {
             return;
         }
-        TacticDiagnostics.Count($"weapon.change.{from}->{to}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"weapon.change.{from}->{to}");
 
         float now = Time.time;
         if (!_recent.TryGetValue(owner.ProfileId, out var times))
@@ -48,7 +53,7 @@ public static class WeaponLog
             ? "no enemy"
             : $"enemy {(enemy.IsVisible ? "visible" : $"hidden {enemy.TimeSinceSeen:0}s")} {enemy.RealDistance:0}m";
         var d = bot.Decision;
-        TacticDiagnostics.LogCloseCombat(
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
             $"[Weapon] [{bot.name}] [{bot.Info.Personality}] {from} -> {to} | via {Caller()} | {fight}, combat={d.CurrentCombatDecision} self={d.CurrentSelfDecision} "
                 + $"underFire={owner.Memory.IsUnderFire} | {Guns(owner)}"
                 + (pingPong ? $" | PING-PONG ({times.Count} changes in {PING_PONG_WINDOW:0}s)" : "")

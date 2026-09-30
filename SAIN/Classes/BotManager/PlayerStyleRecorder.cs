@@ -184,7 +184,7 @@ public sealed class PlayerStyleRecorder
         if (time >= _nextJournalPos)
         {
             _nextJournalPos = time + 2f;
-            SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line(
+            if (SAIN.SAINComponent.Classes.Tactics.RaidJournal.IsOpen) SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line(
                 $"[Player] at {SAIN.SAINComponent.Classes.Tactics.RaidJournal.Pos(_player.Position)} {(sprinting ? "sprint" : speed > 0.6f ? "move" : "still")}"
                     + $"{(prone ? " prone" : crouched ? " crouch" : "")}{(leaning ? " lean" : "")}{(aiming ? " ads" : "")} {(_player.Environment == EnvironmentType.Indoor ? "indoor" : "outdoor")} hp={_player.HealthStatus}");
         }
@@ -376,7 +376,7 @@ public sealed class PlayerStyleRecorder
     private void OnBeingHit(DamageInfo damage, EBodyPart part, float absorbed)
     {
         var attacker = damage.Player?.iPlayer;
-        SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line(
+        if (SAIN.SAINComponent.Classes.Tactics.RaidJournal.IsOpen) SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line(
             $"[PlayerHit] by {attacker?.Profile?.Nickname ?? "?"} {part} {damage.Damage:0} dmg{(attacker != null && _player != null ? $" from {(attacker.Position - _player.Position).magnitude:0}m" : "")}");
         PlayerOutcomeLearner.OnPlayerHit(damage.Player?.iPlayer?.ProfileId);
         _d.HitsTaken++;
@@ -436,7 +436,7 @@ public sealed class PlayerStyleRecorder
         var d = rec._d;
         d.Kills++;
         d.KillDistanceSum += dist;
-        SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line($"[Kill] player killed [{bot.name}] [{bot.Info.Personality}] {dist:0}m {part} while it was {victimDecision}{(victimSawPlayer ? "" : " (it never saw him)")}");
+        if (SAIN.SAINComponent.Classes.Tactics.RaidJournal.IsOpen) SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line($"[Kill] player killed [{bot.name}] [{bot.Info.Personality}] {dist:0}m {part} while it was {victimDecision}{(victimSawPlayer ? "" : " (it never saw him)")}");
         SAIN.SAINComponent.Classes.Tactics.FearModel.OnPlayerKill();
         if (dist < 10f) d.KillsUnder10m++;
         else if (dist < 30f) d.Kills10to30m++;
@@ -531,7 +531,7 @@ public sealed class PlayerStyleRecorder
         _d.EndReason = why;
         PlayerOutcomeLearner.Save(why);
         Logger.LogWarning($"[PlayerStyle] RAID SUMMARY ({why}): {Summary()}");
-        SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line($"[PlayerStyle] RAID SUMMARY ({why}): {Summary()}");
+        if (SAIN.SAINComponent.Classes.Tactics.RaidJournal.IsOpen) SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line($"[PlayerStyle] RAID SUMMARY ({why}): {Summary()}");
         SAIN.SAINComponent.Classes.Tactics.BattleStats.Report(why);
         SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.JournalSummary();
         SAIN.SAINComponent.Classes.Tactics.RaidJournal.End(why);

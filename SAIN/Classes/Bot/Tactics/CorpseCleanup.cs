@@ -77,7 +77,7 @@ public static class CorpseCleanup
             if (noCorpse || controllerOn || moved > 1.5f)
             {
                 TacticDiagnostics.Count("deadBug.bodyNotRagdoll");
-                TacticDiagnostics.LogCloseCombat(
+                if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
                     $"[DeadBug] {name} 3s after death: ragdoll corpse built={!noCorpse}, character controller on={controllerOn}, body moved {moved:0.0}m "
                         + $"at ({player.Position.x:0},{player.Position.z:0}) - WALKING/STANDING CORPSE (see [DeadBug] handler lines above and BepInEx LogOutput.log)"
                 );

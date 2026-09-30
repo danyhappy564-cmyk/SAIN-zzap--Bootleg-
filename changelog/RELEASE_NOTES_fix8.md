@@ -53,8 +53,11 @@ fix7까지가 "문 끼임·CS 가스 버그 수정" 위주였다면, fix8은 **�
 
 1. F6 편집기 한국어화(설정 이름·설명·버튼·선택지), 상단 [한]/EN 전환, 한국어·영어 둘 다 검색.
 2. PMC 분대 무전 대사, 맞을 때 "윽" 음성 기본 끔.
-3. 테스트 프리셋 이름이 `zzap TEST [시뮬 전용]`으로 바뀌었습니다. **업데이트할 때 서버 모드 폴더의 `Presets/zzap TEST.json`을 지워 주세요.** 실제 플레이는 `zzap` 프리셋을 쓰세요.
-4. 키 입력 기록·레이드 일지는 기본으로 꺼져 있습니다(분석용). 버그를 보면 F6에서 `레이드 일지`를 켜고 한 판 돌리면 원인 파악에 도움이 됩니다.
+3. **프리셋은 서버가 `zzap`으로 고정합니다**(예전 프리셋이 선택돼 있어도 자동 적용, F6 프리셋 선택 잠김). 풀려면 `https://127.0.0.1:6969/sain/server-settings`에서 강제 프리셋을 `None`으로.
+   원본 SAIN이 저장된 프리셋 이름을 "포함" 여부로 찾아서 `zzap`이 `zzap TEST ...`로 잡히던 버그도 고쳤습니다.
+   테스트 프리셋 이름이 `zzap TEST [시뮬 전용]`으로 바뀌었습니다. **업데이트할 때 서버 모드 폴더의 `Presets/zzap TEST.json`을 지워 주세요.** 실제 플레이는 `zzap` 프리셋을 쓰세요.
+4. 키 입력 기록·레이드 일지·진단 로그는 기본으로 꺼져 있고, 꺼져 있으면 로그 문장 자체를 만들지 않습니다(분석용).
+5. **램 누수 수정:** 지난 레이드 전체가 다음 레이드 내내 램에 남던 문제(두 번째 판부터 램이 크게 오름). 버그를 보면 F6에서 `레이드 일지`를 켜고 한 판 돌리면 원인 파악에 도움이 됩니다.
 
 ^^7
 
@@ -107,7 +110,10 @@ fix7 was mostly door/CS gas bug fixes. fix8 rebuilds **how bots fight**, tuned o
 
 1. F6 editor in Korean ([한]/EN toggle, search in both languages).
 2. PMC squad voice callouts and hit-pain voice off by default.
-3. The test preset is now `zzap TEST [시뮬 전용]` (simulation only). **When updating, delete `Presets/zzap TEST.json` in the server mod folder.** Play with the `zzap` preset.
-4. Key recording and the raid journal are off by default (analysis tools). If you see a bug, turn on `Raid Journal` in F6 for a raid.
+3. **The server forces the `zzap` preset** (applied even if an older preset was selected; F6 preset selection is locked). To change it, open `https://127.0.0.1:6969/sain/server-settings` and set the forced preset to `None`.
+   Also fixed upstream SAIN matching the saved preset name with "contains", which loaded `zzap TEST ...` for a saved `zzap`.
+   The test preset is now `zzap TEST [시뮬 전용]` (simulation only). **When updating, delete `Presets/zzap TEST.json` in the server mod folder.** Play with the `zzap` preset.
+4. Key recording, the raid journal and diagnostic logs are off by default, and no log text is built while they are off (analysis tools).
+5. **RAM leak fix:** the whole previous raid stayed in memory through the next raid (RAM jumped from the second raid on). If you see a bug, turn on `Raid Journal` in F6 for a raid.
 
 ^^7

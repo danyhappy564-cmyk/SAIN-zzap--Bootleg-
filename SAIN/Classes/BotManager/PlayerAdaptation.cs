@@ -269,8 +269,8 @@ public static class PlayerAdaptation
         }
         float hold = UnityEngine.Random.Range(3f, 6f);
         _holdUntil[id] = time + hold;
-        TacticDiagnostics.Count($"adapt.holdCorner.{bot.Info.Personality}");
-        TacticDiagnostics.LogCloseCombat(
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"adapt.holdCorner.{bot.Info.Personality}");
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
             $"[Adapt] [{bot.name}] [{bot.Info.Personality}] heard the player ({type}, {dist:0}m) -> hold the approach corner {hold:0.0}s (chance {chance:P0})"
         );
         reason = "adaptHoldCorner";

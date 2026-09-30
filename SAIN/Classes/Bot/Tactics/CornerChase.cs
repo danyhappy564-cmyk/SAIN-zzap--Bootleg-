@@ -127,8 +127,8 @@ public sealed class CornerChase(BotComponent bot)
             }
             roll = (seenTime, Random.value * 100f < chance);
             _rolls[id] = roll;
-            TacticDiagnostics.Count(roll.chase ? $"chase.start.{bot.Info.Personality}" : "chase.rollFailed");
-            TacticDiagnostics.LogCloseCombat(
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count(roll.chase ? $"chase.start.{bot.Info.Personality}" : "chase.rollFailed");
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
                 $"[Chase] [{bot.name}] [{bot.Info.Personality}] {(roll.chase ? "CHASE" : "let him go")} ({Mathf.Min(chance, 100f):0}%) because: {bot.Info.Personality} base; {why}");
         }
         if (roll.chase)
@@ -346,8 +346,8 @@ public sealed class CornerChase(BotComponent bot)
         float total = wPrefire + wJump + wLean + wPie;
         float roll = Random.value * total;
         _style = roll < wPrefire ? EStyle.Prefire : roll < wPrefire + wJump ? EStyle.JumpShot : roll < wPrefire + wJump + wLean ? EStyle.LeanIn : EStyle.Pie;
-        TacticDiagnostics.Count($"chase.style.{_style}");
-        TacticDiagnostics.LogCloseCombat(
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"chase.style.{_style}");
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
             $"[Chase] [{Bot.name}] [{personality}] enemy broke sight {enemy.TimeSinceSeen:0.0}s ago, corner {(corner != null ? (corner.Value - Bot.Position).magnitude : -1f):0.0}m {_side} -> {_style} "
                 + $"(weights prefire {wPrefire:0.0} / jump {wJump:0.0} / lean {wLean:0.0} / pie {wPie:0.0}; mag {rounds}/{max}, headroom {headroom}) because: {reasons}"
         );
@@ -406,7 +406,7 @@ public sealed class CornerChase(BotComponent bot)
         {
             _prefireDone = true;
             Bot.ManualShoot.Reset();
-            TacticDiagnostics.LogCloseCombat($"[Chase] [{Bot.name}] prefire stop: mag {rounds}/{max} (keeps {reserve})");
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Chase] [{Bot.name}] prefire stop: mag {rounds}/{max} (keeps {reserve})");
             return;
         }
         if (Bot.ManualShoot.TryShoot(enemy, target, true, EShootReason.Suppress) && _prefireStart < 0f)

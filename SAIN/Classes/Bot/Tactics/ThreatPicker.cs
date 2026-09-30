@@ -56,7 +56,7 @@ public static class ThreatPicker
             {
                 bestThreat = t;
                 best = e;
-                bestWhy = $"{(hitAgo < 3f ? $"hit me {hitAgo:0.0}s ago" : $"shooting at me {shotAtAgo:0.0}s ago")}, {e.RealDistance:0}m, {(e.IsVisible ? "in sight" : "unseen")}, {e.EnemyPlayer.Side}";
+                bestWhy = !TacticDiagnostics.LogOn ? null : $"{(hitAgo < 3f ? $"hit me {hitAgo:0.0}s ago" : $"shooting at me {shotAtAgo:0.0}s ago")}, {e.RealDistance:0}m, {(e.IsVisible ? "in sight" : "unseen")}, {e.EnemyPlayer.Side}";
             }
         }
         if (best == null)
@@ -75,12 +75,12 @@ public static class ThreatPicker
         {
             return null;
         }
-        TacticDiagnostics.Count($"threat.switch.{(best.IsVisible ? "seen" : "unseen")}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"threat.switch.{(best.IsVisible ? "seen" : "unseen")}");
         string id = bot.ProfileId;
         if (!_nextLog.TryGetValue(id, out float next) || time > next)
         {
             _nextLog[id] = time + 3f;
-            TacticDiagnostics.LogCloseCombat(
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
                 $"[Threat] [{bot.name}] [{bot.Info.Personality}] target {goal?.EnemyPlayer?.Profile?.Nickname ?? "none"} {goal?.EnemyPlayer?.Side} ({(goalThreat == float.MinValue ? "-" : goalThreat.ToString("0.00"))}) "
                     + $"-> {best.EnemyPlayer?.Profile?.Nickname} ({bestThreat:0.00}): {bestWhy}");
         }

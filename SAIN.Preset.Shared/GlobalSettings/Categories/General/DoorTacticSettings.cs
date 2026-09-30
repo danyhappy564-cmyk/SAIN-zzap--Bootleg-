@@ -181,7 +181,7 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     [DataMember]
     [Name("Diagnostic Logs")]
     [Description("Writes [DoorTactic] lines to BepInEx LogOutput.log: every tactic start, step change and result.")]
-    public bool DiagnosticLogs = true;
+    public bool DiagnosticLogs = false;
 
     [DataMember]
     [Name("Verbose Logs")]

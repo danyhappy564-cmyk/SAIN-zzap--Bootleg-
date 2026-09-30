@@ -121,15 +121,15 @@ public static class BattleStats
         ReportPerf(why, deaths);
         if (deaths == 0)
         {
-            RaidJournal.Line($"[Battle] ({why}) no bot deaths yet");
+            if (RaidJournal.IsOpen) RaidJournal.Line($"[Battle] ({why}) no bot deaths yet");
             return;
         }
-        RaidJournal.Line(
+        if (RaidJournal.IsOpen) RaidJournal.Line(
             $"[Battle] ({why}) {deaths} bot deaths: {_botKills} by bots, {_otherKills} by player/other, {_teamKills} teamkills | "
                 + "K/D, 'sw' = died <1.5s after switching decision");
-        RaidJournal.Line("[Battle] by personality: " + Table(_personality, 0));
-        RaidJournal.Line("[Battle] by combat action: " + Table(_combat, 0));
-        RaidJournal.Line("[Battle] by decision reason: " + Table(_reason, 2));
+        if (RaidJournal.IsOpen) RaidJournal.Line("[Battle] by personality: " + Table(_personality, 0));
+        if (RaidJournal.IsOpen) RaidJournal.Line("[Battle] by combat action: " + Table(_combat, 0));
+        if (RaidJournal.IsOpen) RaidJournal.Line("[Battle] by decision reason: " + Table(_reason, 2));
     }
 
     /// <summary>
@@ -146,7 +146,7 @@ public static class BattleStats
         long used = UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong() / (1024 * 1024);
         long heap = UnityEngine.Profiling.Profiler.GetMonoHeapSizeLong() / (1024 * 1024);
         int alive = Comfort.Common.Singleton<GameWorld>.Instance?.AllAlivePlayersList?.Count ?? -1;
-        RaidJournal.Line(
+        if (RaidJournal.IsOpen) RaidJournal.Line(
             $"[Perf] ({why}) fps {fps:0} avg since last report | mono heap used {used} MB / reserved {heap} MB | GC {UnityEngine.Scripting.GarbageCollector.GCMode} | "
                 + $"alive players {alive}, bot corpses so far {deaths} (hidden by the sim corpse limit: {CorpseCleanup.Hidden})"
         );

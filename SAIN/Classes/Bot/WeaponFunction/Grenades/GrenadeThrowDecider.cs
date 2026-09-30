@@ -195,8 +195,8 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
         }
         if (block != null)
         {
-            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"nade.blocked.{block.Split('(')[0]}");
-            LogJudge($"no: {block}");
+            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"nade.blocked.{block.Split('(')[0]}");
+            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) LogJudge($"no: {block}");
             _nextPossibleAttempt = time + 2f;
             reason = $"notSafe:{block}";
             return false;
@@ -227,7 +227,7 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
         chance = Mathf.Clamp(chance, 0.1f, 0.95f);
         bool go = Random.value < chance;
         SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(go ? "nade.judge.throw" : "nade.judge.hold");
-        LogJudge($"{(go ? "THROW" : "hold")} ({chance:P0}: base 50 {why}) at {enemy.EnemyPlayer?.Profile?.Nickname} {enemy.KnownPlaces.BotDistanceFromLastKnown:0}m, info {infoAge:0.0}s, path {enemy.Path.PathLength:0}m");
+        if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) LogJudge($"{(go ? "THROW" : "hold")} ({chance:P0}: base 50 {why}) at {enemy.EnemyPlayer?.Profile?.Nickname} {enemy.KnownPlaces.BotDistanceFromLastKnown:0}m, info {infoAge:0.0}s, path {enemy.Path.PathLength:0}m");
         if (!go)
         {
             _nextPossibleAttempt = time + Random.Range(3f, 6f);
@@ -262,7 +262,7 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
             return;
         }
         _nextJudgeLog = Time.time + 3f;
-        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat($"[Nade] [{Bot.name}] [{Bot.Info.Personality}] {text}");
+        if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat($"[Nade] [{Bot.name}] [{Bot.Info.Personality}] {text}");
     }
 
     private bool CheckCanThrow(out string reason)

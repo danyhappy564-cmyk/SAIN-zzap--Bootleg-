@@ -90,7 +90,7 @@ public static class SquadStorm
             d.Storm = d.Weakness >= settings.SquadStormWeakness;
             _decisions[key] = d;
             TacticDiagnostics.Count(d.Storm ? "squad.storm.start" : "squad.storm.notWeak");
-            TacticDiagnostics.LogCloseCombat(
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
                 $"[Storm] [{bot.name}]'s squad ({near} close) sizes up {enemy.EnemyPlayer.Profile?.Nickname}: weakness {d.Weakness:0.00} ({d.Why}) -> "
                     + (d.Storm ? "STORM him" : $"no (needs {settings.SquadStormWeakness:0.00})")
             );
@@ -104,8 +104,8 @@ public static class SquadStorm
             float chance = _join.TryGetValue(bot.Info.Personality, out float c) ? c : 50f;
             joined = Random.value * 100f < chance;
             d.Joined[bot.ProfileId] = joined;
-            TacticDiagnostics.Count(joined ? $"squad.storm.join.{bot.Info.Personality}" : "squad.storm.stayBack");
-            TacticDiagnostics.LogCloseCombat($"[Storm] [{bot.name}] [{bot.Info.Personality}] {(joined ? "joins the storm" : "stays back")}");
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count(joined ? $"squad.storm.join.{bot.Info.Personality}" : "squad.storm.stayBack");
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Storm] [{bot.name}] [{bot.Info.Personality}] {(joined ? "joins the storm" : "stays back")}");
         }
         if (joined)
         {

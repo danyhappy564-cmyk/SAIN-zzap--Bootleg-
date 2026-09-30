@@ -376,7 +376,7 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
             {
                 string enemyText = enemy == null ? "none"
                     : $"{enemy.EnemyPlayer?.Profile?.Nickname} {enemy.RealDistance:0}m {(enemy.IsVisible ? "visible" : $"hidden {enemy.TimeSinceLastKnownUpdated:0}s")}";
-                SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line(
+                if (SAIN.SAINComponent.Classes.Tactics.RaidJournal.IsOpen) SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line(
                     $"[Decide] [{Bot.name}] [{Bot.Info.Personality}] combat={solo} squad={squad} self={self} why={BaseClass.EnemyDecisions.LastReason} "
                         + $"enemy={enemyText} hp={Bot.Memory.Health.HealthStatus} at {SAIN.SAINComponent.Classes.Tactics.RaidJournal.Pos(Bot.Position)}");
             }

@@ -92,7 +92,7 @@ public class SafeDeathEventsPatch : ModulePatch
         Exception inner = ex is TargetInvocationException tie && tie.InnerException != null ? tie.InnerException : ex;
         string who = h?.Method == null ? "?" : $"{h.Method.DeclaringType?.FullName}.{h.Method.Name}";
         TacticDiagnostics.Count("deadBug.handlerThrew");
-        TacticDiagnostics.LogCloseCombat($"[DeadBug] death handler {who} threw {inner.GetType().Name}: {inner.Message} - skipped, OnDead continues");
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[DeadBug] death handler {who} threw {inner.GetType().Name}: {inner.Message} - skipped, OnDead continues");
         if (_warned.Add(who))
         {
             Logger.LogWarning($"[SAIN zzap] death handler {who} threw (skipped so the body still ragdolls): {inner}");
@@ -121,7 +121,7 @@ public class DeathRescuePatch : ModulePatch
         }
         TacticDiagnostics.Count("deadBug.onDeadThrew");
         bool hadCorpse = CorpseRef(__instance) != null;
-        TacticDiagnostics.LogCloseCombat(
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
             $"[DeadBug] {__instance.name} OnDead threw {__exception.GetType().Name}: {__exception.Message} | corpse built: {hadCorpse}"
                 + (hadCorpse ? "" : " -> rescuing (animators/controller off, ragdoll)")
         );
@@ -179,7 +179,7 @@ internal static class DeadInputGuard
 
     internal static void Blocked(Player player, string what)
     {
-        TacticDiagnostics.Count($"deadBug.inputBlocked.{what}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"deadBug.inputBlocked.{what}");
         if (player == null || !_logged.Add(player.GetInstanceID()))
         {
             return;
@@ -211,7 +211,7 @@ internal static class DeadInputGuard
         catch
         {
         }
-        TacticDiagnostics.LogCloseCombat($"[DeadBug] {player.name} is dead but got {what} input - dropped | from {caller}");
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[DeadBug] {player.name} is dead but got {what} input - dropped | from {caller}");
     }
 }
 

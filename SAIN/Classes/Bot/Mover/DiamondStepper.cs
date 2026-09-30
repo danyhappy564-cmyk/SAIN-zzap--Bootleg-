@@ -103,9 +103,10 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             _jiggleChecked = false;
             _jiggle = false;
             Bot.Mover.Stop();
+            _lastDiamondState = null;
             TacticDiagnostics.SetDiamond(Bot.ProfileId, "active");
             TacticDiagnostics.Count("diamond.start");
-            TacticDiagnostics.LogCloseCombat(
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
                 $"[Diamond] [{Bot.name}] [{Bot.Info.Personality}] start ({_owner}): enemy {dist:0}m, tap {TapTime(settings):0.00}s ({(ClassicMovementInterop.BotsNoInertia ? "no-inertia bots" : "inertia")})"
             );
         }
@@ -149,7 +150,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             {
                 _jiggleHide = false;
                 TacticDiagnostics.Count("diamond.jiggle");
-                TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] corner jiggle peek: cover on the {(Vector3.Dot(_jiggleCoverDir, right) > 0f ? "right" : "left")}, enemy {dist:0}m");
+                if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] corner jiggle peek: cover on the {(Vector3.Dot(_jiggleCoverDir, right) > 0f ? "right" : "left")}, enemy {dist:0}m");
             }
         }
         if (Time.time >= _tapEnd)
@@ -284,10 +285,18 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             {
                 Bot.Player.Move(Vector2.zero);
             }
-            TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] stop: {why}");
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] stop: {why}");
         }
-        TacticDiagnostics.SetDiamond(Bot.ProfileId, $"off({why})");
+        // Stop runs every frame for a bot that doesn't qualify - only build the [Death]-line state when it changes and
+        // something will print it (GC is off for the raid, per-frame strings pile up).
+        if (TacticDiagnostics.LogOn && !ReferenceEquals(_lastDiamondState, why))
+        {
+            _lastDiamondState = why;
+            TacticDiagnostics.SetDiamond(Bot.ProfileId, $"off({why})");
+        }
         return false;
     }
+
+    private string _lastDiamondState;
 
 }

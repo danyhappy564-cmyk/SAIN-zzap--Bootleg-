@@ -358,7 +358,9 @@ internal class PresetHandler
         for (int i = 0; i < CustomPresetOptions.Count; i++)
         {
             var presetDef = CustomPresetOptions[i];
-            if (presetDef.Name.Contains(presetName) || presetDef.Name == presetName)
+            // zzap: exact name only. Upstream also accepted Name.Contains(saved), so a saved "zzap" matched
+            // "zzap TEST [시뮬 전용]" (listed first) and every game start loaded the test preset (user report 2026-09-30).
+            if (string.Equals(presetDef.Name, presetName, StringComparison.Ordinal))
             {
                 definition = presetDef;
                 return true;

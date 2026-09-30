@@ -100,8 +100,8 @@ public static class HiddenEnemyUtility
         var ranked = Score(bot, enemy, settings, heldFor, out string why, out float hold);
         float holdSince = ranked[0].stance == EStance.Hold ? (heldFor > 0f ? m.HoldSince : time) : -1f;
         _memory[id] = new Memory { Ranked = ranked, Until = time + hold, EnemyId = enemy.EnemyProfileId, HoldSince = holdSince };
-        TacticDiagnostics.Count($"utility.top.{ranked[0].stance}");
-        TacticDiagnostics.LogCloseCombat(
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utility.top.{ranked[0].stance}");
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
             $"[Utility] [{bot.name}] [{bot.Info.Personality}] enemy {enemy.EnemyPlayer?.Profile?.Nickname} hidden -> "
                 + $"{ranked[0].stance} {ranked[0].score:0.00} > {ranked[1].stance} {ranked[1].score:0.00} > {ranked[2].stance} {ranked[2].score:0.00} | {why}"
         );
@@ -253,7 +253,7 @@ public static class HiddenEnemyUtility
                 list.RemoveAt(pick);
                 list.Insert(0, chosen);
                 why += $" | dice: took #{pick + 1} (p {w[pick] / sum:0.00})";
-                TacticDiagnostics.Count($"utility.dice.{pick + 1}");
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utility.dice.{pick + 1}");
             }
         }
         if (UtilityMistake.Apply(bot, list, "hidden"))

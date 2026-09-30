@@ -81,7 +81,7 @@ public static class LayerHandoff
             float gap = now - st.CombatEndedAt;
             TacticDiagnostics.Count("handoff.toOrbit");
             TacticDiagnostics.Count(gap < 16f ? "handoff.toOrbit.gap15s" : gap < 30f ? "handoff.toOrbit.gap16to30s" : "handoff.toOrbit.gap30s+");
-            TacticDiagnostics.LogCloseCombat($"[Handoff] [{botName}] combat ended ({st.EndDecision}) -> ORBIT after {gap:0.0}s{Gap(st)}");
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Handoff] [{botName}] combat ended ({st.EndDecision}) -> ORBIT after {gap:0.0}s{Gap(st)}");
             st.Waiting = false;
         }
         else if (st.Waiting && IsFighting(newLayer))
@@ -90,7 +90,7 @@ public static class LayerHandoff
             TacticDiagnostics.Count(gap < 15f ? "handoff.combatResumedBeforeOrbit" : "handoff.combatResumedLate");
             if (st.Between.Count > 0)
             {
-                TacticDiagnostics.LogCloseCombat($"[Handoff] [{botName}] combat ended ({st.EndDecision}) and resumed {gap:0.0}s later, ORBIT never got it{Gap(st)}");
+                if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Handoff] [{botName}] combat ended ({st.EndDecision}) and resumed {gap:0.0}s later, ORBIT never got it{Gap(st)}");
             }
             st.Waiting = false;
         }
@@ -102,12 +102,12 @@ public static class LayerHandoff
             TacticDiagnostics.Count(flip ? "handoff.orbitFlipFlop" : "handoff.orbitToCombat");
             if (flip)
             {
-                TacticDiagnostics.LogCloseCombat($"[Handoff] [{botName}] ORBIT had it only {prevTime:0.0}s -> back to SAIN combat");
+                if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Handoff] [{botName}] ORBIT had it only {prevTime:0.0}s -> back to SAIN combat");
             }
         }
         if (st.Waiting && newLayer != SainCombat && newLayer != Orbit && !newLayer.StartsWith("SAIN"))
         {
-            TacticDiagnostics.Count($"handoff.gapLayer.{newLayer.Replace(' ', '_')}");
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"handoff.gapLayer.{newLayer.Replace(' ', '_')}");
         }
         st.Layer = newLayer;
         st.Since = now;

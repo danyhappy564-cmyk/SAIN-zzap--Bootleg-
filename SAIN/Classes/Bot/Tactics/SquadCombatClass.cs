@@ -218,7 +218,7 @@ public class SquadCombatClass : BotComponentClassBase
             _downedMateEnemyId = enemyId;
             _downedMateName = name;
             TacticDiagnostics.Count("squad.teammateDown");
-            Log($"{Who()} teammate {name} went down (was fighting {enemyId ?? "nobody"})");
+            if (LogOn) Log($"{Who()} teammate {name} went down (was fighting {enemyId ?? "nobody"})");
         }
     }
 
@@ -386,7 +386,7 @@ public class SquadCombatClass : BotComponentClassBase
         if (!FindAnglePoint(enemy, enemyPos, engaging.Position, out Vector3 point, out string why, indoor, out float pose))
         {
             reason = $"noCrossfirePoint({why})";
-            TacticDiagnostics.Count($"squad.crossfire.noPoint.{(indoor ? "indoor" : "outdoor")}.{why}");
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"squad.crossfire.noPoint.{(indoor ? "indoor" : "outdoor")}.{why}");
             return false;
         }
         Start(EMode.Crossfire, enemy, point, enemyPos + Vector3.up * 1.3f, engaging, $"crossfire with {engaging.name} ({(indoor ? "indoor" : "outdoor")}, pose {pose:0.0})");
@@ -674,8 +674,8 @@ public class SquadCombatClass : BotComponentClassBase
                 s.Arrived = false;
                 s.StartTime = time;
                 s.NextMoveOrder = 0f;
-                TacticDiagnostics.Count($"squad.crossfire.backDoor.push.{Bot.Info.Personality}");
-                Log($"{Who()} enemy never came out the back door ({Settings.CrossfireBackDoorHoldTime:0}s) -> PUSH IN through it (mate {s.Mate?.name} at the front)");
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"squad.crossfire.backDoor.push.{Bot.Info.Personality}");
+                if (LogOn) Log($"{Who()} enemy never came out the back door ({Settings.CrossfireBackDoorHoldTime:0}s) -> PUSH IN through it (mate {s.Mate?.name} at the front)");
                 return true;
             }
         }
@@ -686,7 +686,7 @@ public class SquadCombatClass : BotComponentClassBase
             s.Extended = true;
             s.ArriveTime = time - Settings.CrossfireBackDoorHoldTime + 15f;
             TacticDiagnostics.Count("squad.crossfire.backDoor.extend");
-            Log($"{Who()} enemy still inside, not pushing -> hold the back door 15s longer");
+            if (LogOn) Log($"{Who()} enemy still inside, not pushing -> hold the back door 15s longer");
             return true;
         }
         End("backDoorHoldTimeout");
@@ -737,8 +737,8 @@ public class SquadCombatClass : BotComponentClassBase
             Mate = mate,
             StartTime = Time.time,
         };
-        TacticDiagnostics.Count($"squad.start.{mode}");
-        Log($"{Who()} START {mode}: {why} (move {Flat(target - Bot.Position).magnitude:0.0}m)");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"squad.start.{mode}");
+        if (LogOn) Log($"{Who()} START {mode}: {why} (move {Flat(target - Bot.Position).magnitude:0.0}m)");
     }
 
     public void Tick()
@@ -818,8 +818,8 @@ public class SquadCombatClass : BotComponentClassBase
             {
                 s.Arrived = true;
                 s.ArriveTime = time;
-                TacticDiagnostics.Count($"squad.arrived.{s.Mode}");
-                Log($"{Who()} {s.Mode} in position after {elapsed:0.0}s");
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"squad.arrived.{s.Mode}");
+                if (LogOn) Log($"{Who()} {s.Mode} in position after {elapsed:0.0}s");
                 if (s.Mode == EMode.TradePush)
                 {
                     End("reachedKillerPosition");
@@ -884,8 +884,8 @@ public class SquadCombatClass : BotComponentClassBase
             _coverClaims.Remove(s.Mate.ProfileId);
         }
         string key = result.Contains("(") ? result.Substring(0, result.IndexOf('(')) : result;
-        TacticDiagnostics.Count($"squad.end.{s.Mode}.{key}");
-        Log($"{Who()} END {s.Mode} result={result} after {Time.time - s.StartTime:0.0}s arrived={s.Arrived}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"squad.end.{s.Mode}.{key}");
+        if (LogOn) Log($"{Who()} END {s.Mode} result={result} after {Time.time - s.StartTime:0.0}s arrived={s.Arrived}");
     }
 
     public override void Dispose()
@@ -929,9 +929,14 @@ public class SquadCombatClass : BotComponentClassBase
         return $"[SquadCombat] [{Bot.name}] [{Bot.Info.Personality}]";
     }
 
+    private static bool LogOn
+    {
+        get { return RaidJournal.IsOpen || Settings.DiagnosticLogs; }
+    }
+
     private static void Log(string message)
     {
-        RaidJournal.Line(message);
+        if (RaidJournal.IsOpen) RaidJournal.Line(message);
         if (Settings.DiagnosticLogs)
         {
             Logger.LogWarning(message);

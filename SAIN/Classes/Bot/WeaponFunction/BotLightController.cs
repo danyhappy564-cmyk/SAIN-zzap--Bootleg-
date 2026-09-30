@@ -31,7 +31,7 @@ public class BotLightController : BotComponentClassBase
             {
                 _nextDarkForce = Time.time + 0.5f;
                 setLight(false);
-                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"light.dark.{why}");
+                if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"light.dark.{why}");
             }
             return;
         }

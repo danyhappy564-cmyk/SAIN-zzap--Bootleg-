@@ -47,7 +47,7 @@ public static class UtilityMistake
             return false;
         }
         (ranked[0], ranked[pick]) = (ranked[pick], ranked[0]);
-        TacticDiagnostics.Count($"utility.mistake.{what}.{bot.Info.Personality}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utility.mistake.{what}.{bot.Info.Personality}");
         return true;
     }
 }

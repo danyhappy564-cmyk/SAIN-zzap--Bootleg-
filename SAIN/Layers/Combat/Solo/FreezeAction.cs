@@ -35,7 +35,7 @@ internal class FreezeAction(BotOwner bot) : BotAction(bot, nameof(FreezeAction))
         float held = Time.time - _startTime;
         bool timeUp = Time.time >= Bot.Decision.EnemyDecisions.TimeToUnfreeze;
         string how = next == ECombatDecision.StandAndShoot ? "enemySpotted" : timeUp ? "timeUp" : $"interrupted({next})";
-        TacticDiagnostics.Count($"freeze.end.{how.Split('(')[0]}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"freeze.end.{how.Split('(')[0]}");
         if (GlobalSettingsClass.Instance.General.FreezeAmbush.DiagnosticLogs)
         {
             Logger.LogWarning($"[Freeze] [{Bot.name}] [{Bot.Info.Personality}] END ambush: {how} after {held:0.0}s (next={next})");

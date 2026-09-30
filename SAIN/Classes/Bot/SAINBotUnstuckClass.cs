@@ -276,8 +276,8 @@ public class SAINBotUnstuckClass : BotComponentClassBase
     {
         if (_wdStage > 0 && why != null)
         {
-            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"stuck.freed.stage{_wdStage}");
-            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"stuck.freed.stage{_wdStage}");
+            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
                 $"[Stuck] [{Bot.name}] freed after stage {_wdStage} ({why}) in layer {BotOwner.Brain?.ActiveLayerName()}"
             );
         }
@@ -288,12 +288,16 @@ public class SAINBotUnstuckClass : BotComponentClassBase
 
     private void LogStuck(string action, float stuckFor)
     {
+        if (!SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn && !SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
+        {
+            return;
+        }
         string layer = BotOwner.Brain?.ActiveLayerName() ?? "?";
-        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"stuck.stage{_wdStage}");
-        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"stuck.layer.{layer}");
+        if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"stuck.stage{_wdStage}");
+        if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"stuck.layer.{layer}");
         bool wallAhead = Physics.Raycast(Bot.Position + Vector3.up * 1.2f, Player.LookDirection, 0.8f, LayersMaskController.HighPolyWithTerrainMask);
         var mover = BotOwner.Mover;
-        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+        if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
             $"[Stuck] [{Bot.name}] [{Bot.Info.Personality}] no progress {stuckFor:0}s -> {action} | layer {layer} | combat={Bot.Decision.CurrentCombatDecision} "
                 + $"squad={Bot.Decision.CurrentSquadDecision} | {mover.DistDestination:0}m to go, wall ahead={wallAhead} | at ({Bot.Position.x:0},{Bot.Position.z:0})"
         );

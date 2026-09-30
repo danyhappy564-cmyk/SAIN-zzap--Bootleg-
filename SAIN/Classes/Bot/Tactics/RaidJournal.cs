@@ -28,6 +28,12 @@ public static class RaidJournal
 
     public static string File { get; private set; }
 
+    /// <summary>True while a journal file is being written. Check it before building a line's text.</summary>
+    public static bool IsOpen
+    {
+        get { return _writer != null; }
+    }
+
     public static bool Enabled
     {
         get { return GlobalSettingsClass.Instance?.General?.PlayerStyle?.RaidJournal == true; }
