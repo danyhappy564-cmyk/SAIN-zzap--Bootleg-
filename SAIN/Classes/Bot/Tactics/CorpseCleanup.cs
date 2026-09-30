@@ -143,6 +143,14 @@ public static class CorpseCleanup
             world.DestroyLoot(corpse);
             Deleted++;
             TacticDiagnostics.Count("sim.corpseDeleted");
+            // 13th sim (user: "delete was on but the corpses stayed"): DestroyLoot took the corpse off the loot lists but the
+            // body object stayed in the scene (EFT never removes corpses mid-raid; the player object isn't returned to a pool),
+            // and because this counted as done the corpse wasn't hidden either. Hide whatever is left.
+            if (player != null && player.gameObject != null && player.gameObject.activeSelf)
+            {
+                player.gameObject.SetActive(false);
+                TacticDiagnostics.Count("sim.corpseDeletedStillThere");
+            }
             return true;
         }
         catch (System.Exception ex)
