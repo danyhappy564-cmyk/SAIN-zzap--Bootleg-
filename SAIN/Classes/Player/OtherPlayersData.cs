@@ -63,6 +63,13 @@ public class OtherPlayersData : PlayerComponentBase
             return null;
         }
 
+        // zzap: a player whose Unity object is already destroyed (still in the tracker) threw inside OtherPlayerLoSData
+        // (player.name on a destroyed object) and aborted the NEW bot's PlayerComponent.Init - 12th sim, 13 bots. Skip it.
+        if (playerComp.Player == null || playerComp.Player.PlayerBones == null)
+        {
+            return null;
+        }
+
         string profileId = playerComp.ProfileId;
 
         if (string.IsNullOrEmpty(profileId) || profileId == PlayerComponent.ProfileId)
