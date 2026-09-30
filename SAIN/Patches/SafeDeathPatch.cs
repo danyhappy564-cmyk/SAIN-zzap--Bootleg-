@@ -101,6 +101,121 @@ public class SafeDeathEventsPatch : ModulePatch
 }
 
 /// <summary>
+/// zzap fork: "standing corpses" again in the 10th sim (2026-09-30, Bot52 / Bot55): health hit 0 but there was no [Death]
+/// line, no ragdoll, and the bot's brain kept switching layers for 60s (BotOwner.OnDied never ran either) until ORBIT
+/// pushed the body around. Player.OnDead and BotOwner.OnDied are both subscribers of the health controller's DiedEvent,
+/// fired from ActiveHealthController.Kill - one subscriber before them throwing (EFT can swallow that into its own log)
+/// skips the rest. Same cure as inside OnDead: every subscriber is called on its own, a thrower is logged as [DeadBug].
+/// </summary>
+public class SafeDiedEventPatch : ModulePatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return AccessTools.Method(typeof(EFT.HealthSystem.ActiveHealthController), nameof(EFT.HealthSystem.ActiveHealthController.Kill));
+    }
+
+    [PatchTranspiler]
+    public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+    {
+        return SafeDeathEventsPatch.Transpiler(instructions);
+    }
+}
+
+/// <summary>
+/// zzap fork: last line for a death EFT never processed (whatever the reason): a player whose health says dead but who has
+/// no corpse after 1.5s gets Player.OnDead (ragdoll, controller off) and, for a bot, BotOwner.OnDied (brain off, bot
+/// removed from its zone/group) run here. Checked every second over the alive-players list (an unprocessed death stays
+/// in it) and whenever a dead player gets move input. Logs [DeadBug] ... death never processed.
+/// </summary>
+internal static class UnprocessedDeathRescue
+{
+    private static readonly Dictionary<int, float> _deadSince = new();
+    private static readonly HashSet<int> _rescued = new();
+    private static readonly List<Player> _scan = new();
+    private static float _nextScan;
+
+    public static void Tick()
+    {
+        float time = UnityEngine.Time.time;
+        if (time < _nextScan)
+        {
+            return;
+        }
+        _nextScan = time + 1f;
+        var world = Comfort.Common.Singleton<EFT.GameWorld>.Instance;
+        if (world?.AllAlivePlayersList == null)
+        {
+            return;
+        }
+        _scan.Clear();
+        _scan.AddRange(world.AllAlivePlayersList);
+        foreach (Player player in _scan)
+        {
+            Check(player);
+        }
+        _scan.Clear();
+    }
+
+    internal static void Check(Player player)
+    {
+        if (player == null || player.HealthController == null || player.HealthController.IsAlive)
+        {
+            return;
+        }
+        int id = player.GetInstanceID();
+        if (_rescued.Contains(id) || DeathRescuePatch.CorpseRef(player) != null)
+        {
+            return;
+        }
+        float time = UnityEngine.Time.time;
+        if (!_deadSince.TryGetValue(id, out float since))
+        {
+            _deadSince[id] = time;
+            return;
+        }
+        // Let EFT's own death handling finish first (it runs in the same frame as the killing hit).
+        if (time - since < 1.5f)
+        {
+            return;
+        }
+        _rescued.Add(id);
+        BotOwner bot = player.AIData?.BotOwner;
+        TacticDiagnostics.Count("deadBug.unprocessedDeathRescued");
+        string line = $"[DeadBug] {player.name} dead {time - since:0.0}s with no corpse - EFT's death handling never ran (a DiedEvent handler failed?) -> running it now"
+            + (bot != null ? $" (bot brain still on: {!bot.IsDead})" : "");
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(line);
+        Logger.LogWarning($"[SAIN zzap] {line}");
+        try
+        {
+            player.OnDead(EDamageType.Undefined);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning($"[SAIN zzap] forced OnDead for {player.name} threw: {ex.Message}");
+        }
+        try
+        {
+            if (bot != null && !bot.IsDead)
+            {
+                bot.OnDied(EDamageType.Undefined);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning($"[SAIN zzap] forced BotOwner.OnDied for {player.name} threw: {ex.Message}");
+        }
+    }
+
+    public static void Clear()
+    {
+        _deadSince.Clear();
+        _rescued.Clear();
+        _scan.Clear();
+        _nextScan = 0f;
+    }
+}
+
+/// <summary>
 /// zzap fork: second line for the same bug - if OnDead still throws somewhere else (a step we don't wrap) and the corpse was
 /// never built, finish the parts that stop a "walking corpse": animators and character controller off, ragdoll corpse,
 /// death coroutine. Logs [DeadBug] with the exception.
@@ -180,6 +295,7 @@ internal static class DeadInputGuard
     internal static void Blocked(Player player, string what)
     {
         if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"deadBug.inputBlocked.{what}");
+        UnprocessedDeathRescue.Check(player);
         if (player == null || !_logged.Add(player.GetInstanceID()))
         {
             return;

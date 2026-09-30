@@ -102,6 +102,7 @@ public class BotManagerComponent : MonoBehaviour
         BotSquads.Update(currentTime, deltaTime);
         PlayerStyle?.Update();
         SAIN.SAINComponent.Classes.Tactics.CorpseDecalRelease.Tick();
+        SAIN.Patches.Generic.UnprocessedDeathRescue.Tick();
 
         HashSet<BotComponent> BotsArray = BotSpawnController.SAINBots;
         foreach (BotComponent BotComponent in BotsArray)
@@ -158,6 +159,7 @@ public class BotManagerComponent : MonoBehaviour
         SAIN.SAINComponent.Classes.Tactics.FearModel.Clear();
         SAIN.SAINComponent.Classes.Tactics.BattleStats.Clear();
         SAIN.SAINComponent.Classes.Tactics.CorpseDecalRelease.Clear();
+        SAIN.Patches.Generic.UnprocessedDeathRescue.Clear();
         SAIN.SAINComponent.Classes.Tactics.ThreatPicker.Clear();
         SAIN.SAINComponent.Classes.Tactics.SoundWatch.Detach();
         SAIN.SAINComponent.Classes.Tactics.RaidJournal.End("botManagerDestroyed");

@@ -52,6 +52,20 @@ public class FreezeAmbushSettings : SAINSettingsBase<FreezeAmbushSettings>, ISAI
     public bool WatchApproachCorner = true;
 
     [DataMember]
+    [Name("Step To A Spot That Sees Past The Corner")]
+    [Description(
+        "zzap: while holding a corner, if the wall is between the bot and the spot it aims at (it would stare into the wall), it steps toward the "
+            + "corner edge - the nearest spot where the aim line is open, up to the distance below - and holds there. Off = hold where it stopped."
+    )]
+    public bool StepToPeekSpot = true;
+
+    [DataMember]
+    [Name("Peek Spot Max Step (m)")]
+    [Description("How far a holding bot may step toward the corner edge to get a clear angle.")]
+    [MinMax(0.5f, 4f, 10f)]
+    public float PeekSpotMaxStep = 2.5f;
+
+    [DataMember]
     [Name("Diagnostic Logs")]
     [Description("Writes [Freeze] lines to BepInEx LogOutput.log when a bot starts/stops a freeze ambush.")]
     public bool DiagnosticLogs = false;

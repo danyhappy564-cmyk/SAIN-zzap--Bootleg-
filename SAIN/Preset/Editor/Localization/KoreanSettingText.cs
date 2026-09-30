@@ -994,6 +994,13 @@ internal static class KoreanSettingText
         { "Heard Within", "들은 지 시간 이내" },
         { "Seconds. Only freeze if the enemy was heard within this time. SAIN original: 80.", "초. 이 시간 안에 적 소리를 들었을 때만 얼음. SAIN 원본: 80." },
         { "Watch Approach Corner", "접근 코너 주시" },
+        { "Step To A Spot That Sees Past The Corner", "코너 너머가 보이는 자리로 한 걸음" },
+        {
+            "zzap: while holding a corner, if the wall is between the bot and the spot it aims at (it would stare into the wall), it steps toward the corner edge - the nearest spot where the aim line is open, up to the distance below - and holds there. Off = hold where it stopped.",
+            "zzap: 코너를 지키는 중 조준하려는 곳과 봇 사이에 벽이 있으면(벽만 보고 있게 됨), 코너 모서리 쪽으로 조준선이 열리는 가장 가까운 자리까지(아래 거리 이내) 옮겨서 지킴. 끄면 멈춘 자리에서 지킴."
+        },
+        { "Peek Spot Max Step (m)", "피킹 자리 최대 이동 거리 (m)" },
+        { "How far a holding bot may step toward the corner edge to get a clear angle.", "지키는 봇이 각을 얻으려고 코너 모서리 쪽으로 옮길 수 있는 최대 거리." },
         { "While frozen, aim at the corner the enemy has to come around (the last visible point on the path to them) instead of the default look.", "얼음 상태에서 기본 시선 대신 적이 돌아 나와야 하는 코너(적까지 경로의 마지막 보이는 지점)를 조준." },
         { "Writes [Freeze] lines to BepInEx LogOutput.log when a bot starts/stops a freeze ambush.", "봇이 얼음 매복을 시작/종료할 때 BepInEx LogOutput.log에 [Freeze] 줄을 기록." },
         // GeneralSettings
