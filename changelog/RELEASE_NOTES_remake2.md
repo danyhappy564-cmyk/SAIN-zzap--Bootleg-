@@ -106,7 +106,7 @@ and the real cause of the standing corpses was found.
 1. **Frame rate:** upstream SAIN's default presets lean toward performance (performance mode etc.) and have no bot-vs-bot (AI vs AI, free-cam) tactics.
    This mod's `zzap` preset is built on the TwitchPlayers (hardcore) preset and **puts the combat experience ahead of performance**,
    so frame rates can be slightly lower than upstream SAIN.
-2. **Stuttering:** I haven't felt any in my own play. If you get a hitch right after the raid starts, first check **RAM Cleaner's "Clean once at raid start"** setting -
+2. **Stuttering:** I haven't felt any in my own play. If you get a hitch right after the raid starts, first check **RAM Cleaner's "At raid start" (레이드 시작 시 1회 정리)** setting -
    depending on the setup it can take several seconds in one frame, which is why it is off by default in the latest RAM Cleaner.
 3. **RAM usage (reference measurements):** Factory, 20-25 min bot-vs-bot sims (1-4 bots spawning every 60s, 70-90 corpses piling up), 64 GB RAM.
    - Game memory ~27-28 GB at raid start -> **~38-40 GB** at the end (with the bot gear mod's mod weapons narrowed / a per-raid subset) up to **~55 GB** (wide mod weapon/attachment allowlist).
