@@ -53,7 +53,7 @@ fix7까지가 "문 끼임·CS 가스 버그 수정" 위주였다면, fix8은 **�
 
 1. F6 편집기 한국어화(설정 이름·설명·버튼·선택지), 상단 [한]/EN 전환, 한국어·영어 둘 다 검색.
 2. PMC 분대 무전 대사, 맞을 때 "윽" 음성 기본 끔.
-3. **프리셋은 서버가 `zzap`으로 고정합니다**(예전 프리셋이 선택돼 있어도 자동 적용, F6 프리셋 선택 잠김). 풀려면 `https://127.0.0.1:6969/sain/server-settings`에서 강제 프리셋을 `None`으로.
+3. **처음 설치(또는 이 포크로 처음 덮어쓸 때) 한 번만 `zzap` 프리셋이 자동 선택됩니다.** 직접 만든 프리셋을 쓰던 분은 그대로 유지되고, 이후엔 F6에서 고른 게 유지됩니다.
    원본 SAIN이 저장된 프리셋 이름을 "포함" 여부로 찾아서 `zzap`이 `zzap TEST ...`로 잡히던 버그도 고쳤습니다.
    테스트 프리셋 이름이 `zzap TEST [시뮬 전용]`으로 바뀌었습니다. **업데이트할 때 서버 모드 폴더의 `Presets/zzap TEST.json`을 지워 주세요.** 실제 플레이는 `zzap` 프리셋을 쓰세요.
 4. 키 입력 기록·레이드 일지·진단 로그는 기본으로 꺼져 있고, 꺼져 있으면 로그 문장 자체를 만들지 않습니다(분석용).
@@ -110,7 +110,7 @@ fix7 was mostly door/CS gas bug fixes. fix8 rebuilds **how bots fight**, tuned o
 
 1. F6 editor in Korean ([한]/EN toggle, search in both languages).
 2. PMC squad voice callouts and hit-pain voice off by default.
-3. **The server forces the `zzap` preset** (applied even if an older preset was selected; F6 preset selection is locked). To change it, open `https://127.0.0.1:6969/sain/server-settings` and set the forced preset to `None`.
+3. **On first install (or the first time this fork is dropped over an older build) the bundled `zzap` preset is selected once.** Players on a preset of their own keep it, and later choices in F6 stick.
    Also fixed upstream SAIN matching the saved preset name with "contains", which loaded `zzap TEST ...` for a saved `zzap`.
    The test preset is now `zzap TEST [시뮬 전용]` (simulation only). **When updating, delete `Presets/zzap TEST.json` in the server mod folder.** Play with the `zzap` preset.
 4. Key recording, the raid journal and diagnostic logs are off by default, and no log text is built while they are off (analysis tools).

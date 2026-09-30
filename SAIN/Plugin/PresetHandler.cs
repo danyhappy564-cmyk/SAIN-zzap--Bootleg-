@@ -74,7 +74,7 @@ internal class PresetHandler
                 Logger.LogWarning($"[SAIN] Server forced preset '{ServerConfigClient.ForcedPresetName}' was not found, loading a default.");
             }
         }
-        else if (!EditorDefaults.SelectedCustomPreset.IsNullOrEmpty())
+        else if (!ApplyZzapOnce(out presetDefinition) && !EditorDefaults.SelectedCustomPreset.IsNullOrEmpty())
         {
             CheckIfPresetLoaded(EditorDefaults.SelectedCustomPreset, out presetDefinition);
         }
@@ -82,6 +82,42 @@ internal class PresetHandler
         ApplyDefinition(presetDefinition);
         return LoadedPreset != null;
     }
+
+    /// <summary>
+    /// zzap: the first time this fork runs on an install (fresh, or dropped over an older SAIN / fix7-era build), select the
+    /// bundled "zzap" preset - unless the player is on a preset of their own, which is kept. Only once: whatever the player
+    /// picks afterwards stays (the flag is saved with the editor defaults). True = "zzap" was chosen here.
+    /// </summary>
+    private static bool ApplyZzapOnce(out SAINPresetDefinition definition)
+    {
+        definition = null;
+        if (EditorDefaults.ZzapPresetApplied)
+        {
+            return false;
+        }
+        EditorDefaults.ZzapPresetApplied = true;
+
+        string saved = EditorDefaults.SelectedCustomPreset;
+        bool ownPreset = !saved.IsNullOrEmpty()
+            && saved != ZZAP_PRESET
+            && saved.IndexOf("TEST", StringComparison.OrdinalIgnoreCase) < 0
+            && CheckIfPresetLoaded(saved, out _);
+        if (ownPreset)
+        {
+            Logger.LogInfo($"[SAIN] zzap first run: keeping your own preset '{saved}'.");
+            return false;
+        }
+        definition = FindDefinitionByName(ZZAP_PRESET);
+        if (definition == null)
+        {
+            Logger.LogWarning($"[SAIN] zzap first run: bundled preset '{ZZAP_PRESET}' not found on the server - keeping the current one.");
+            return false;
+        }
+        Logger.LogInfo($"[SAIN] zzap first run: selected the bundled '{ZZAP_PRESET}' preset (was '{(saved.IsNullOrEmpty() ? EditorDefaults.SelectedDefaultPreset.ToString() : saved)}').");
+        return true;
+    }
+
+    private const string ZZAP_PRESET = "zzap";
 
     internal static SAINPresetDefinition FindDefinitionByName(string name)
     {

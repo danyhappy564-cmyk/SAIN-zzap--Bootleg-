@@ -45,6 +45,11 @@ public class PresetEditorDefaults : SAINSettingsBase<PresetEditorDefaults>, ISAI
     [Hidden]
     public string DefaultPreset;
 
+    /// <summary>zzap: set once the bundled "zzap" preset has been picked for this install (see PresetHandler.ApplyZzapOnce).</summary>
+    [Category("General")]
+    [Hidden]
+    public bool ZzapPresetApplied = false;
+
     [Name("GUI Size Scaling")]
     [Category("GUI Dimensions")]
     [MinMax(1f, 2f, 100f)]
