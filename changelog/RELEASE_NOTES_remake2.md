@@ -8,6 +8,16 @@ remake1이 "봇이 싸우는 방식"을 새로 만든 판이었다면, remake2�
 
 ---
 
+**<설치 — 깔끔하게 지우고 설치 권장>**
+
+이전 SAIN(원본이든 이 포크의 예전 버전이든)은 **지우고 새로 설치해 주세요.**
+1. 직접 만든 프리셋이 있다면 `SPT_Runtime/user/mods/Solarint-SAIN-ServerMod/Presets/`에서 **그 파일만** 따로 복사해 두세요.
+2. `BepInEx/plugins/SAIN/` 폴더와 `SPT_Runtime/user/mods/Solarint-SAIN-ServerMod/` 폴더를 통째로 지웁니다.
+3. **`BepInEx/config/SAIN-zzap/`는 지우지 마세요** (플레이어 적응·학습 기록). 처음부터 다시 배우게 하고 싶을 때만 지우세요.
+4. 새 파일을 설치하고, 복사해 둔 프리셋이 있으면 `Presets/`에 다시 넣습니다. 첫 실행 때 한 번 `zzap` 프리셋이 자동 선택됩니다.
+
+---
+
 **<변경점>**
 
 - **램 (메모리)**
@@ -71,6 +81,16 @@ remake1이 "봇이 싸우는 방식"을 새로 만든 판이었다면, remake2�
 ^^7
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------
+
+**Install — clean install recommended**
+
+Please **remove any previous SAIN (upstream or an older version of this fork) and install fresh.**
+1. If you made your own presets, copy **just those files** out of `SPT_Runtime/user/mods/Solarint-SAIN-ServerMod/Presets/`.
+2. Delete the `BepInEx/plugins/SAIN/` and `SPT_Runtime/user/mods/Solarint-SAIN-ServerMod/` folders entirely.
+3. **Do not delete `BepInEx/config/SAIN-zzap/`** (player adaptation/learning records) unless you want the bots to start learning from scratch.
+4. Install the new files and put your saved presets back into `Presets/`. On the first start the `zzap` preset is selected once.
+
+---
 
 **Changes** (since remake1 — 11 commits, 47 C# files, ~1,000 lines)
 
