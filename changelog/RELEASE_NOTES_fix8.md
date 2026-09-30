@@ -57,7 +57,8 @@ fix7까지가 "문 끼임·CS 가스 버그 수정" 위주였다면, fix8은 **�
    원본 SAIN이 저장된 프리셋 이름을 "포함" 여부로 찾아서 `zzap`이 `zzap TEST ...`로 잡히던 버그도 고쳤습니다.
    테스트 프리셋 이름이 `zzap TEST [시뮬 전용]`으로 바뀌었습니다. **업데이트할 때 서버 모드 폴더의 `Presets/zzap TEST.json`을 지워 주세요.** 실제 플레이는 `zzap` 프리셋을 쓰세요.
 4. 키 입력 기록·레이드 일지·진단 로그는 기본으로 꺼져 있고, 꺼져 있으면 로그 문장 자체를 만들지 않습니다(분석용).
-5. **램 누수 수정:** 지난 레이드 전체가 다음 레이드 내내 램에 남던 문제(두 번째 판부터 램이 크게 오름). 버그를 보면 F6에서 `레이드 일지`를 켜고 한 판 돌리면 원인 파악에 도움이 됩니다.
+5. **램 누수 수정:** 지난 레이드 전체가 다음 레이드 내내 램에 남던 문제(두 번째 판부터 램이 크게 오름).
+6. **시체 피·총알 자국 텍스처 비우기:** EFT가 맞은 부위마다 만드는 자국 텍스처(개당 약 4MB)를 시체 것까지 레이드 끝까지 들고 있어 사망이 많을수록 램·VRAM이 수 GB 늘던 것 — 죽은 지 30초 뒤 자국을 지우고 재사용. 시체는 그대로. 버그를 보면 F6에서 `레이드 일지`를 켜고 한 판 돌리면 원인 파악에 도움이 됩니다.
 
 ^^7
 
@@ -114,6 +115,7 @@ fix7 was mostly door/CS gas bug fixes. fix8 rebuilds **how bots fight**, tuned o
    Also fixed upstream SAIN matching the saved preset name with "contains", which loaded `zzap TEST ...` for a saved `zzap`.
    The test preset is now `zzap TEST [시뮬 전용]` (simulation only). **When updating, delete `Presets/zzap TEST.json` in the server mod folder.** Play with the `zzap` preset.
 4. Key recording, the raid journal and diagnostic logs are off by default, and no log text is built while they are off (analysis tools).
-5. **RAM leak fix:** the whole previous raid stayed in memory through the next raid (RAM jumped from the second raid on). If you see a bug, turn on `Raid Journal` in F6 for a raid.
+5. **RAM leak fix:** the whole previous raid stayed in memory through the next raid (RAM jumped from the second raid on).
+6. **Corpse blood decal textures freed:** EFT gives every hit body mesh its own blood/bullet-hole texture (~4 MB) and keeps them, corpses included, until the raid ends - several GB with many deaths. 30s after a death the marks are wiped and the texture is reused. Corpses stay. If you see a bug, turn on `Raid Journal` in F6 for a raid.
 
 ^^7

@@ -22,4 +22,19 @@ public class PerformanceSettings : SAINSettingsBase<PerformanceSettings>, ISAINS
     )]
     [MinMax(0f, 200f, 1f)]
     public float SimCorpseLimit = 0f;
+
+    [DataMember]
+    [Name("Free Corpse Blood Decal Textures")]
+    [Description(
+        "zzap fork: every character mesh that gets hit gets its own blood/bullet-hole texture (about 4 MB each) that EFT keeps until the raid ends, "
+            + "corpses included - several GB in a raid with many deaths. On = once a character has been dead for the delay below, its blood marks "
+            + "are removed and the texture goes back to EFT's pool for the next hit. Corpses themselves are not touched."
+    )]
+    public bool FreeCorpseDecals = true;
+
+    [DataMember]
+    [Name("Free Corpse Decals After (seconds)")]
+    [Description("How long a character has to be dead before its blood/bullet-hole textures are freed.")]
+    [MinMax(0f, 300f, 1f)]
+    public float FreeCorpseDecalsDelay = 30f;
 }

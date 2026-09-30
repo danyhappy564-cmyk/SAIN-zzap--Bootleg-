@@ -1327,6 +1327,13 @@ internal static class KoreanSettingText
         { "Percent, rolled once per engagement when the bot is at such a corner.", "%, 봇이 그런 코너에 있을 때 교전마다 한 번 굴림." },
         // PerformanceSettings (zzap sim)
         { "Sim: Hide Old Bot Corpses Above (TEST preset only)", "시뮬: 오래된 봇 시체 숨기기 기준 (TEST 프리셋 전용)" },
+        { "Free Corpse Blood Decal Textures", "시체 피·총알 자국 텍스처 비우기" },
+        {
+            "zzap fork: every character mesh that gets hit gets its own blood/bullet-hole texture (about 4 MB each) that EFT keeps until the raid ends, corpses included - several GB in a raid with many deaths. On = once a character has been dead for the delay below, its blood marks are removed and the texture goes back to EFT's pool for the next hit. Corpses themselves are not touched.",
+            "zzap 포크: 맞은 캐릭터 부위마다 피·총알 자국 텍스처가 하나씩(개당 약 4MB) 생기고 EFT는 레이드가 끝날 때까지 시체 것까지 들고 있음 — 사망이 많은 판에선 수 GB. 켜면 죽은 지 아래 시간이 지난 캐릭터의 피 자국을 지우고 그 텍스처를 EFT 보관소로 돌려줘 다음 피격에 재사용. 시체 자체는 건드리지 않음."
+        },
+        { "Free Corpse Decals After (seconds)", "죽은 뒤 자국 텍스처 비우기까지 (초)" },
+        { "How long a character has to be dead before its blood/bullet-hole textures are freed.", "캐릭터가 죽고 나서 피·총알 자국 텍스처를 비우기까지 기다리는 시간." },
         {
             "zzap fork, for long bot-vs-bot simulations: when more bot corpses than this lie on the map, the oldest ones (20s+) are hidden. Only works in a preset whose name contains TEST. 0 = off. The raid journal's [Perf] line shows how many were hidden.",
             "zzap 포크, 긴 봇끼리 시뮬용: 맵에 봇 시체가 이 수보다 많으면 오래된 것(20초 이상)부터 숨김. 이름에 TEST가 들어간 프리셋에서만 작동. 0 = 끔. 레이드 일지 [Perf] 줄에 숨긴 수가 나옴."
