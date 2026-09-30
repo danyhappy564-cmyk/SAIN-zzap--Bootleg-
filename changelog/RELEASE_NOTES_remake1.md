@@ -1,4 +1,4 @@
-# SAIN-zzap--Bootleg- fix8 릴리즈 노트 (fix7 대비)
+# SAIN-zzap--Bootleg- remake1 릴리즈 노트 (fix7 대비)
 
 > fix7(2026-09-25 01:59 KST) 이후 변경분입니다. 아래 "꼭 읽어주세요" 공지 글은 fix7과 동일하게 붙이면 됩니다.
 
