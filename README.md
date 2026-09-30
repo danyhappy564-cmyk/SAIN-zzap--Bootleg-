@@ -203,10 +203,14 @@ Release 빌드하면 `release/` 에 배포용 zip 도 같이 나옵니다 (`-p:S
 `BepInEx.Core 5.*` 와 `UnityEngine.Modules 2022.3.43` 를 받아야 합니다 — `nuget.config` 에
 이미 등록돼 있습니다.
 
-## 버그 제보용 로그
+## 버그·렉 제보 방법
 
-평소에는 로그를 거의 남기지 않습니다(진단 로그·레이드 일지 기본 꺼짐 — 꺼져 있으면 로그 문장 자체를 만들지 않아 레이드 중 램을 아낍니다). 이상한 행동을 봤다면 F6 → `General > Player Style Recorder (zzap)` → `Raid Journal`(레이드 일지)을 켜고 한 판 돌린 뒤
-`BepInEx/config/SAIN-zzap/Journal/`의 파일과 `BepInEx/LogOutput.log`를 보면 됩니다. **이 포크의 문제는 원작자(Solarint / ArchangelWTF)에게 제보하지 마세요.**
+"렉이 걸린다", "봇이 이상하다" 같은 제보는 **`BepInEx/LogOutput.log`를 꼭 같이 보내 주세요.** SAIN 동작 기록까지 남기려면 F6 → General에서:
+- `플레이어 스타일 기록 (zzap)` → `레이드 일지`(Raid Journal) 켜기 → `BepInEx/config/SAIN-zzap/Journal/<날짜>_<맵>.log`도 같이 보내 주세요.
+- 더 자세히: `문 전술` / `분대 교전` / `위치 변경` / `얼음 매복 (zzap)` → `진단 로그`(Diagnostic Logs) 켜기(LogOutput.log에 기록).
+- 제보가 끝나면 다시 꺼 주세요(켜 둔 동안 로그 파일이 커지고 램을 조금 더 씀). 평소에는 전부 꺼져 있고, 꺼져 있으면 로그 문장 자체를 만들지 않습니다.
+
+**이 포크의 문제는 원작자(Solarint / ArchangelWTF)에게 제보하지 마세요.**
 
 ## 라이선스
 

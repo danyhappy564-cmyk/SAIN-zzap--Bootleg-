@@ -51,7 +51,7 @@ remake1이 "봇이 싸우는 방식"을 새로 만든 판이었다면, remake2�
 2. **스터터링(끊김):** 제가 직접 플레이하면서는 느낀 적이 없습니다. 레이드 시작 직후 끊김이 있다면 **RAM 클리너의 "레이드 시작 시 1회 정리"** 설정을 먼저 확인해 주세요.
    이 정리는 환경에 따라 한 프레임에 몇 초씩 걸릴 수 있어서, 최신 RAM 클리너에서는 기본으로 꺼져 있습니다.
 3. **램 사용량 (참고용 측정치):** 공장, 20~25분 봇끼리 시뮬(봇 1~4마리 60초마다 스폰, 시체 70~90구 누적), RAM 64GB 환경 기준입니다.
-   - 제 모드 구성: **클라이언트(BepInEx) 플러그인 114개 + 패처 7개**와 서버 모드들. 대형 무기·장비 팩(WTT Armory, WTT Content Backport, JSOC, Epic's AIO 등)과
+   - 제 모드 구성: **클라이언트(BepInEx) 플러그인 114개 + 패처 7개, 서버 모드 73개**. 대형 무기·장비 팩(WTT Armory, WTT Content Backport, JSOC, Epic's AIO 등)과
      맵 리워크 모드가 들어 있어서 **레이드 시작 시점부터 많이 쓰는 편**입니다. 모드가 적으면 시작 수치도 그만큼 낮습니다.
    - 레이드 시작 시 게임 메모리 약 27~28GB → 레이드 끝 **약 38~40GB**(봇 장비 모드의 모드 무기를 줄이거나 레이드마다 일부만 쓰게 한 경우) ~ **약 55GB**(모드 무기·부착물을 넓게 허용한 경우)
    - 그중 실제 RAM에 올라가 있는 양은 약 14~31GB이고 나머지는 가상 메모리(페이지 파일)로 갑니다. **RAM 64GB인 저도 가상 메모리는 기본으로 사용합니다.**
@@ -60,6 +60,13 @@ remake1이 "봇이 싸우는 방식"을 새로 만든 판이었다면, remake2�
 4. **RAM 클리너 사용 권장:** 최신 RAM 클리너를 디스코드에 올려 두었습니다. SAIN을 쓰지 않더라도 사용을 권장합니다.
 5. **성능 저하에 대해:** 솔직히 말씀드리면 성능 쪽으로 제가 더 도와드릴 수 있는 부분은 많지 않습니다. 타르코프 자체가 레이드가 길어질수록 메모리가 쌓이는 구조라,
    어느 정도의 증가는 피할 수 없습니다. 필요하시면 **저사양용 프리셋**을 따로 만들어 보겠습니다. 다만 제가 의도한 전투 경험이 그대로 나올지는 장담하지 못합니다.
+6. **렉·버그 제보 방법:** "렉이 걸린다", "봇이 이상하게 행동한다" 같은 제보는 **`BepInEx/LogOutput.log` 파일을 꼭 같이 보내 주세요.** 이 파일 없이는 원인을 찾기 어렵습니다.
+   SAIN 동작 기록까지 남기려면 게임에서 **F6 → General**에서 아래를 켜고 문제가 생긴 판을 한 번 더 돌려 주세요.
+   - **플레이어 스타일 기록 (zzap) → 레이드 일지** 켜기 → `BepInEx/config/SAIN-zzap/Journal/<날짜>_<맵>.log` 파일이 생깁니다. 이 파일도 같이 보내 주세요.
+   - 더 자세히 보려면 **문 전술 / 분대 교전 / 위치 변경 / 얼음 매복 (zzap) → 진단 로그**도 켜 주세요(LogOutput.log에 기록됨).
+   - 제보가 끝나면 다시 꺼 주세요. 켜 둔 동안은 로그 파일이 커지고 램도 조금 더 씁니다.
+   - RAM 클리너를 쓰고 있다면 램 기록도 LogOutput.log에 같이 남습니다.
+   - 이 포크의 문제는 **원작자(Solarint / ArchangelWTF)에게 제보하지 마세요.**
 
 ^^7
 
@@ -111,7 +118,7 @@ and the real cause of the standing corpses was found.
 2. **Stuttering:** I haven't felt any in my own play. If you get a hitch right after the raid starts, first check **RAM Cleaner's "At raid start" (레이드 시작 시 1회 정리)** setting -
    depending on the setup it can take several seconds in one frame, which is why it is off by default in the latest RAM Cleaner.
 3. **RAM usage (reference measurements):** Factory, 20-25 min bot-vs-bot sims (1-4 bots spawning every 60s, 70-90 corpses piling up), 64 GB RAM.
-   - My mod list: **114 client (BepInEx) plugins + 7 patchers** plus server mods, including big weapon/gear packs (WTT Armory, WTT Content Backport, JSOC, Epic's AIO...)
+   - My mod list: **114 client (BepInEx) plugins + 7 patchers and 73 server mods**, including big weapon/gear packs (WTT Armory, WTT Content Backport, JSOC, Epic's AIO...)
      and map rework mods, so memory use is **high from the raid start on**. With fewer mods the starting figure is lower too.
    - Game memory ~27-28 GB at raid start -> **~38-40 GB** at the end (with the bot gear mod's mod weapons narrowed / a per-raid subset) up to **~55 GB** (wide mod weapon/attachment allowlist).
    - Of that, ~14-31 GB actually sits in RAM and the rest goes to virtual memory (page file). **Even with 64 GB RAM I use virtual memory by default** - don't turn the page file off.
@@ -119,5 +126,12 @@ and the real cause of the standing corpses was found.
 4. **RAM Cleaner recommended:** the latest RAM Cleaner is posted on Discord. Recommended even if you don't use SAIN.
 5. **About performance:** honestly, there isn't much more I can do on the performance side. Tarkov itself piles up memory as a raid goes on, so some growth is unavoidable.
    If needed, I can try making a **low-spec preset** - but I can't promise it will give the combat experience I intended.
+6. **How to report lag or bugs:** for reports like "it lags" or "bots act weird", **please always send `BepInEx/LogOutput.log`** - without it the cause is hard to find.
+   To also record what SAIN did, turn these on in game under **F6 -> General** and play the problem raid again:
+   - **Player Style Recorder (zzap) -> Raid Journal** -> creates `BepInEx/config/SAIN-zzap/Journal/<date>_<map>.log`. Please send this file too.
+   - For more detail, also turn on **Door Tactics / Squad Combat / Reposition / Freeze Ambush (zzap) -> Diagnostic Logs** (written to LogOutput.log).
+   - Turn them off again when you're done - while on, the log files grow and use a little more RAM.
+   - If you use RAM Cleaner, its memory records end up in LogOutput.log as well.
+   - **Do not report this fork's issues to the original authors (Solarint / ArchangelWTF).**
 
 ^^7
