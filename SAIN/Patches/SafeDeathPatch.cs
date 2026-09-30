@@ -122,6 +122,41 @@ public class SafeDiedEventPatch : ModulePatch
 }
 
 /// <summary>
+/// zzap fork: the actual cause of the "standing corpses" found in the 13th sim (2026-10-01, Bot50, full stack in LogOutput):
+/// LocalPlayer.OnDead first calls BotPlayerCulling.DisableCullingOnDead() and only THEN base.OnDead (ragdoll, controller off,
+/// OnPlayerDead...). DisableCullingOnDead -> Disable -> SetMode -> OfflinePlayerCulling.ApplyVisibleState - Harmony-patched by
+/// another mod (DMD frame) - threw a NullReferenceException, so base.OnDead never ran. Turning culling off for a corpse is
+/// cosmetic; a failure there must not cost the whole death. Swallow it here (logged once per call site) so OnDead goes on.
+/// </summary>
+public class SafeCullingOnDeadPatch : ModulePatch
+{
+    private static bool _warned;
+
+    protected override MethodBase GetTargetMethod()
+    {
+        return AccessTools.Method(typeof(BasePlayerCulling), nameof(BasePlayerCulling.DisableCullingOnDead));
+    }
+
+    [PatchFinalizer]
+    public static Exception Finalizer(Exception __exception)
+    {
+        if (__exception == null)
+        {
+            return null;
+        }
+        TacticDiagnostics.Count("deadBug.cullingOnDeadThrew");
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
+            $"[DeadBug] disabling culling on death threw {__exception.GetType().Name} (another mod's culling patch) - ignored, death handling continues");
+        if (!_warned)
+        {
+            _warned = true;
+            Logger.LogWarning($"[SAIN zzap] BasePlayerCulling.DisableCullingOnDead threw during a death (ignored so the body still ragdolls): {__exception}");
+        }
+        return null;
+    }
+}
+
+/// <summary>
 /// zzap fork: last line for a death EFT never processed (whatever the reason): a player whose health says dead but who has
 /// no corpse after 1.5s gets Player.OnDead (ragdoll, controller off) and, for a bot, BotOwner.OnDied (brain off, bot
 /// removed from its zone/group) run here. Checked every second over the alive-players list (an unprocessed death stays
