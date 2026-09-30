@@ -20,7 +20,11 @@ internal static class TacticDiagnostics
     private const float SUMMARY_INTERVAL = 300f;
 
     private static readonly Dictionary<string, int> _counts = new();
-    private static GameWorld _raid;
+    // Instance id of the raid's GameWorld, not the GameWorld itself: a static reference kept the whole finished raid
+    // (every player, profile, inventory, loot item) reachable. It was only replaced when the next raid's first bot spawned -
+    // after EFT's raid-start GC, which then stays off for the whole raid - so the previous raid sat in RAM through the next
+    // one (user report 2026-09-30: fix8 RAM 90% vs fix7 60%). 0 = no raid yet.
+    private static int _raidId;
     private static float _raidStartTime;
     private static float _nextSummaryTime;
     private static bool _changedSinceSummary;
@@ -85,16 +89,17 @@ internal static class TacticDiagnostics
     private static void CheckNewRaid()
     {
         GameWorld world = Singleton<GameWorld>.Instance;
-        if (world == null || ReferenceEquals(world, _raid))
+        if (world == null || world.GetInstanceID() == _raidId)
         {
             return;
         }
-        if (_raid != null && _changedSinceSummary)
+        if (_raidId != 0 && _changedSinceSummary)
         {
             LogSummary("previous raid, final");
         }
-        _raid = world;
+        _raidId = world.GetInstanceID();
         _counts.Clear();
+        _diamondState.Clear();
         _raidStartTime = Time.time;
         _nextSummaryTime = Time.time + SUMMARY_INTERVAL;
         _changedSinceSummary = false;
