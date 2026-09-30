@@ -43,6 +43,22 @@ remake1이 "봇이 싸우는 방식"을 새로 만든 판이었다면, remake2�
 1. 새 봇이 들어올 때 SAIN 준비가 중간에 끊기던 원본 SAIN 버그 수정 (이미 사라진 플레이어 정보를 읽다가 오류).
 2. `[시뮬 전용]` 프리셋: 40구 넘는 오래된 시체를 숨기지 않고 실제로 삭제 (램 측정용 실험, 실제 플레이용 `zzap`에는 없음).
 
+- **<안내 / 알려진 사항>**
+
+1. **프레임:** 원본 SAIN 기본 프리셋은 성능 쪽 설정(성능 모드 등)이 들어가 있고, 봇끼리 싸우는(AI vs AI, 프리캠 관전) 전술도 없습니다.
+   이 모드의 `zzap` 프리셋은 TwitchPlayers(하드코어) 프리셋을 바탕으로 **성능보다 전투 경험에 무게를 두고** 만들었습니다.
+   그래서 원본 SAIN보다 프레임이 약간 낮을 수 있습니다.
+2. **스터터링(끊김):** 제가 직접 플레이하면서는 느낀 적이 없습니다. 레이드 시작 직후 끊김이 있다면 **RAM 클리너의 "레이드 시작 시 1회 정리"** 설정을 먼저 확인해 주세요.
+   이 정리는 환경에 따라 한 프레임에 몇 초씩 걸릴 수 있어서, 최신 RAM 클리너에서는 기본으로 꺼져 있습니다.
+3. **램 사용량 (참고용 측정치):** 공장, 20~25분 봇끼리 시뮬(봇 1~4마리 60초마다 스폰, 시체 70~90구 누적), RAM 64GB 환경 기준입니다.
+   - 레이드 시작 시 게임 메모리 약 27~28GB → 레이드 끝 **약 38~40GB**(봇 장비 모드의 모드 무기를 줄이거나 레이드마다 일부만 쓰게 한 경우) ~ **약 55GB**(모드 무기·부착물을 넓게 허용한 경우)
+   - 그중 실제 RAM에 올라가 있는 양은 약 14~31GB이고 나머지는 가상 메모리(페이지 파일)로 갑니다. **RAM 64GB인 저도 가상 메모리는 기본으로 사용합니다.**
+     가상 메모리(페이지 파일)를 끄지 마세요.
+   - 늘어나는 양은 대부분 사망자 수와 봇 장비 종류에 비례합니다. 일반 레이드(사망자 수십 명)는 이보다 훨씬 적습니다.
+4. **RAM 클리너 사용 권장:** 최신 RAM 클리너를 디스코드에 올려 두었습니다. SAIN을 쓰지 않더라도 사용을 권장합니다.
+5. **성능 저하에 대해:** 솔직히 말씀드리면 성능 쪽으로 제가 더 도와드릴 수 있는 부분은 많지 않습니다. 타르코프 자체가 레이드가 길어질수록 메모리가 쌓이는 구조라,
+   어느 정도의 증가는 피할 수 없습니다. 필요하시면 **저사양용 프리셋**을 따로 만들어 보겠습니다. 다만 제가 의도한 전투 경험이 그대로 나올지는 장담하지 못합니다.
+
 ^^7
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -84,5 +100,20 @@ and the real cause of the standing corpses was found.
 
 1. Fixed an upstream SAIN bug where a new bot's setup stopped halfway (it read data of a player that no longer existed).
 2. `[시뮬 전용]` (simulation) preset: corpses beyond 40 are deleted instead of hidden (RAM measurement experiment; not in the playing preset `zzap`).
+
+- **Notes / Known issues**
+
+1. **Frame rate:** upstream SAIN's default presets lean toward performance (performance mode etc.) and have no bot-vs-bot (AI vs AI, free-cam) tactics.
+   This mod's `zzap` preset is built on the TwitchPlayers (hardcore) preset and **puts the combat experience ahead of performance**,
+   so frame rates can be slightly lower than upstream SAIN.
+2. **Stuttering:** I haven't felt any in my own play. If you get a hitch right after the raid starts, first check **RAM Cleaner's "Clean once at raid start"** setting -
+   depending on the setup it can take several seconds in one frame, which is why it is off by default in the latest RAM Cleaner.
+3. **RAM usage (reference measurements):** Factory, 20-25 min bot-vs-bot sims (1-4 bots spawning every 60s, 70-90 corpses piling up), 64 GB RAM.
+   - Game memory ~27-28 GB at raid start -> **~38-40 GB** at the end (with the bot gear mod's mod weapons narrowed / a per-raid subset) up to **~55 GB** (wide mod weapon/attachment allowlist).
+   - Of that, ~14-31 GB actually sits in RAM and the rest goes to virtual memory (page file). **Even with 64 GB RAM I use virtual memory by default** - don't turn the page file off.
+   - The growth mostly scales with the number of deaths and the variety of bot gear. Normal raids (a few dozen deaths) use far less.
+4. **RAM Cleaner recommended:** the latest RAM Cleaner is posted on Discord. Recommended even if you don't use SAIN.
+5. **About performance:** honestly, there isn't much more I can do on the performance side. Tarkov itself piles up memory as a raid goes on, so some growth is unavoidable.
+   If needed, I can try making a **low-spec preset** - but I can't promise it will give the combat experience I intended.
 
 ^^7
