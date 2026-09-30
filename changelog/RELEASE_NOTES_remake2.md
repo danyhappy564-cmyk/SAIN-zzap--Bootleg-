@@ -51,6 +51,8 @@ remake1이 "봇이 싸우는 방식"을 새로 만든 판이었다면, remake2�
 2. **스터터링(끊김):** 제가 직접 플레이하면서는 느낀 적이 없습니다. 레이드 시작 직후 끊김이 있다면 **RAM 클리너의 "레이드 시작 시 1회 정리"** 설정을 먼저 확인해 주세요.
    이 정리는 환경에 따라 한 프레임에 몇 초씩 걸릴 수 있어서, 최신 RAM 클리너에서는 기본으로 꺼져 있습니다.
 3. **램 사용량 (참고용 측정치):** 공장, 20~25분 봇끼리 시뮬(봇 1~4마리 60초마다 스폰, 시체 70~90구 누적), RAM 64GB 환경 기준입니다.
+   - 제 모드 구성: **클라이언트(BepInEx) 플러그인 114개 + 패처 7개**와 서버 모드들. 대형 무기·장비 팩(WTT Armory, WTT Content Backport, JSOC, Epic's AIO 등)과
+     맵 리워크 모드가 들어 있어서 **레이드 시작 시점부터 많이 쓰는 편**입니다. 모드가 적으면 시작 수치도 그만큼 낮습니다.
    - 레이드 시작 시 게임 메모리 약 27~28GB → 레이드 끝 **약 38~40GB**(봇 장비 모드의 모드 무기를 줄이거나 레이드마다 일부만 쓰게 한 경우) ~ **약 55GB**(모드 무기·부착물을 넓게 허용한 경우)
    - 그중 실제 RAM에 올라가 있는 양은 약 14~31GB이고 나머지는 가상 메모리(페이지 파일)로 갑니다. **RAM 64GB인 저도 가상 메모리는 기본으로 사용합니다.**
      가상 메모리(페이지 파일)를 끄지 마세요.
@@ -109,6 +111,8 @@ and the real cause of the standing corpses was found.
 2. **Stuttering:** I haven't felt any in my own play. If you get a hitch right after the raid starts, first check **RAM Cleaner's "At raid start" (레이드 시작 시 1회 정리)** setting -
    depending on the setup it can take several seconds in one frame, which is why it is off by default in the latest RAM Cleaner.
 3. **RAM usage (reference measurements):** Factory, 20-25 min bot-vs-bot sims (1-4 bots spawning every 60s, 70-90 corpses piling up), 64 GB RAM.
+   - My mod list: **114 client (BepInEx) plugins + 7 patchers** plus server mods, including big weapon/gear packs (WTT Armory, WTT Content Backport, JSOC, Epic's AIO...)
+     and map rework mods, so memory use is **high from the raid start on**. With fewer mods the starting figure is lower too.
    - Game memory ~27-28 GB at raid start -> **~38-40 GB** at the end (with the bot gear mod's mod weapons narrowed / a per-raid subset) up to **~55 GB** (wide mod weapon/attachment allowlist).
    - Of that, ~14-31 GB actually sits in RAM and the rest goes to virtual memory (page file). **Even with 64 GB RAM I use virtual memory by default** - don't turn the page file off.
    - The growth mostly scales with the number of deaths and the variety of bot gear. Normal raids (a few dozen deaths) use far less.
