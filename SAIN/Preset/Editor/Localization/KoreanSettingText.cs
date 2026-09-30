@@ -1341,6 +1341,11 @@ internal static class KoreanSettingText
         { "Percent, rolled once per engagement when the bot is at such a corner.", "%, 봇이 그런 코너에 있을 때 교전마다 한 번 굴림." },
         // PerformanceSettings (zzap sim)
         { "Sim: Hide Old Bot Corpses Above (TEST preset only)", "시뮬: 오래된 봇 시체 숨기기 기준 (TEST 프리셋 전용)" },
+        { "Sim: Delete Instead Of Hide (TEST preset only)", "시뮬: 숨기지 말고 삭제 (TEST 프리셋 전용)" },
+        {
+            "zzap fork, experiment: corpses over the limit above are removed through EFT's own loot removal instead of just hidden (hiding keeps the body in memory). Their loot is gone with them. Only works in a preset whose name contains TEST. Used to measure how much RAM the corpses themselves hold.",
+            "zzap 포크, 실험용: 위 기준을 넘는 시체를 숨기는 대신 EFT 자체의 전리품 제거 방식으로 실제 삭제(숨기기는 몸이 메모리에 그대로 남음). 시체의 전리품도 같이 사라짐. 이름에 TEST가 들어간 프리셋에서만 작동. 시체 자체가 램을 얼마나 차지하는지 재는 용도."
+        },
         { "Free Corpse Blood Decal Textures", "시체 피·총알 자국 텍스처 비우기" },
         {
             "zzap fork: every character mesh that gets hit gets its own blood/bullet-hole texture (about 4 MB each) that EFT keeps until the raid ends, corpses included - several GB in a raid with many deaths. On = once a character has been dead for the delay below, its blood marks are removed and the texture goes back to EFT's pool for the next hit. Corpses themselves are not touched.",

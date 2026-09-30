@@ -148,7 +148,7 @@ public static class BattleStats
         int alive = Comfort.Common.Singleton<GameWorld>.Instance?.AllAlivePlayersList?.Count ?? -1;
         if (RaidJournal.IsOpen) RaidJournal.Line(
             $"[Perf] ({why}) fps {fps:0} avg since last report | mono heap used {used} MB / reserved {heap} MB | GC {UnityEngine.Scripting.GarbageCollector.GCMode} | "
-                + $"alive players {alive}, bot corpses so far {deaths} (hidden by the sim corpse limit: {CorpseCleanup.Hidden}), corpse decal textures freed {CorpseDecalRelease.Released} / destroyed {CorpseDecalRelease.Destroyed}"
+                + $"alive players {alive}, bot corpses so far {deaths} (sim corpse limit: hidden {CorpseCleanup.Hidden}, deleted {CorpseCleanup.Deleted}), corpse decal textures freed {CorpseDecalRelease.Released} / destroyed {CorpseDecalRelease.Destroyed}"
         );
     }
 

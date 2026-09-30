@@ -24,6 +24,14 @@ public class PerformanceSettings : SAINSettingsBase<PerformanceSettings>, ISAINS
     public float SimCorpseLimit = 0f;
 
     [DataMember]
+    [Name("Sim: Delete Instead Of Hide (TEST preset only)")]
+    [Description(
+        "zzap fork, experiment: corpses over the limit above are removed through EFT's own loot removal instead of just hidden (hiding keeps the body in memory). "
+            + "Their loot is gone with them. Only works in a preset whose name contains TEST. Used to measure how much RAM the corpses themselves hold."
+    )]
+    public bool SimCorpseDelete = false;
+
+    [DataMember]
     [Name("Free Corpse Blood Decal Textures")]
     [Description(
         "zzap fork: every character mesh that gets hit gets its own blood/bullet-hole texture (about 4 MB each) that EFT keeps until the raid ends, "

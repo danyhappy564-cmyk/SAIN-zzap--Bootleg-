@@ -109,9 +109,47 @@ public static class CorpseCleanup
             {
                 continue;
             }
+            if (Delete && TryDelete(player))
+            {
+                continue;
+            }
             player.gameObject.SetActive(false);
             Hidden++;
             TacticDiagnostics.Count("sim.corpseHidden");
+        }
+    }
+
+    // zzap, 11th sim (user 2026-10-01): hiding keeps the whole body in memory (83 corpses, 43 hidden, RAM still +293 MB per
+    // death). Experiment to split "the corpses" from "what new spawns load": really remove old corpses through EFT's own
+    // loot removal (GameWorld.DestroyLoot -> out of the loot lists, body disposed, object back to its pool) and compare
+    // RAM per death. TEST preset only, off in code.
+    private static bool Delete
+    {
+        get { return GlobalSettingsClass.Instance?.General?.Performance?.SimCorpseDelete == true; }
+    }
+
+    public static int Deleted { get; private set; }
+
+    private static bool TryDelete(Player player)
+    {
+        var corpse = SAIN.Patches.Generic.DeathRescuePatch.CorpseRef(player);
+        var world = Comfort.Common.Singleton<GameWorld>.Instance;
+        if (corpse == null || world == null)
+        {
+            return false;
+        }
+        try
+        {
+            world.DestroyLoot(corpse);
+            Deleted++;
+            TacticDiagnostics.Count("sim.corpseDeleted");
+            return true;
+        }
+        catch (System.Exception ex)
+        {
+            TacticDiagnostics.Count("sim.corpseDeleteFailed");
+            Logger.LogWarning($"[SAIN zzap] sim corpse delete failed for {player.name}, hiding instead: {ex.Message}");
+            return false;
         }
     }
 
@@ -120,5 +158,6 @@ public static class CorpseCleanup
         _corpses.Clear();
         _toInspect.Clear();
         Hidden = 0;
+        Deleted = 0;
     }
 }

@@ -38,7 +38,8 @@
       },
       "Performance": {
         "PerformanceMode": false,
-        "SimCorpseLimit": 40
+        "SimCorpseLimit": 40,
+        "SimCorpseDelete": true
       },
       "AILimit": {
         "LimitAIvsAIGlobal": false,
