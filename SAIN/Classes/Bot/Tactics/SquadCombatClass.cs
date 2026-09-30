@@ -847,8 +847,31 @@ public class SquadCombatClass : BotComponentClassBase
             return;
         }
 
-        Bot.Mover.Stop();
+        if (!HoldPeek(s))
+        {
+            Bot.Mover.Stop();
+        }
         Bot.Mover.SetTargetPose(s.HoldPose);
+    }
+
+    // zzap: holding a squad angle with the wall between the gun and the angle -> step to the first spot where it's in view.
+    private SAIN.SAINComponent.Classes.Mover.PeekSpot _peek;
+    private Session _peekSession;
+
+    private bool HoldPeek(Session s)
+    {
+        var cc = GlobalSettingsClass.Instance?.General?.CloseCombat;
+        if (cc == null || !cc.HoldStepToOpenAngle || s.Mode == EMode.TradePush)
+        {
+            return false;
+        }
+        _peek ??= new SAIN.SAINComponent.Classes.Mover.PeekSpot(Bot, "squadHold");
+        if (!ReferenceEquals(_peekSession, s))
+        {
+            _peekSession = s;
+            _peek.Reset();
+        }
+        return _peek.Tick(s.Look, s.Look, cc.HoldStepToOpenAngleMax, 1.5f);
     }
 
     public void OnActionStopped()

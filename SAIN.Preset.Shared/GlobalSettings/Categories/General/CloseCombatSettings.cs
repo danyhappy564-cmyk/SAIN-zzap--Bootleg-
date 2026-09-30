@@ -115,6 +115,17 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float CornerJiggleChance = 50f;
 
     [DataMember]
+    [Name("Door/Squad Hold: Step To See The Angle")]
+    [Description("Door tactics holding a door (trap, ambush, overwatch, rear guard) and squad angles (crossfire, covering a mate): if the wall is between the gun and what the bot watches, it steps to the first spot (toward the door / the angle, else sideways) where the line is open, up to the distance below. Not used while in cover - cover is meant to hide the bot.")]
+    public bool HoldStepToOpenAngle = true;
+
+    [DataMember]
+    [Name("Door/Squad Hold: Max Step (m)")]
+    [Description("How far a door or squad hold may move to open its angle.")]
+    [MinMax(0.5f, 3f, 10f)]
+    public float HoldStepToOpenAngleMax = 1.5f;
+
+    [DataMember]
     [Name("Lean While Shooting")]
     [Description("Diamond-stepping bots also lean while shooting a visible enemy, like the player does: hold the lean toward the side the enemy is moving (0.35-1s), switch when he reverses, and mix in short Q/E bursts (more often up close).")]
     public bool LeanSpam = true;

@@ -1349,7 +1349,10 @@ public class DoorTacticClass : BotComponentClassBase
 
             case EStep.Hold:
                 s.LookTarget = s.HoldLook ?? s.Center + Vector3.up * 1.2f;
-                Bot.Mover.Stop();
+                if (!HoldPeek(s))
+                {
+                    Bot.Mover.Stop();
+                }
                 Bot.Mover.SetTargetPose(s.HoldPose);
                 EDoorState now = s.Door.Door != null ? s.Door.Door.DoorState : EDoorState.None;
                 if (now != s.DoorStateAtHoldStart)
@@ -2825,6 +2828,26 @@ public class DoorTacticClass : BotComponentClassBase
     }
 
     private Session _session;
+
+    // zzap: holding a door with the wall between the gun and the door/room -> step to the first spot where it's in view.
+    private PeekSpot _peek;
+    private Session _peekSession;
+
+    private bool HoldPeek(Session s)
+    {
+        var cc = GlobalSettingsClass.Instance?.General?.CloseCombat;
+        if (cc == null || !cc.HoldStepToOpenAngle || s.LookTarget == null)
+        {
+            return false;
+        }
+        _peek ??= new PeekSpot(Bot, "doorHold");
+        if (!ReferenceEquals(_peekSession, s))
+        {
+            _peekSession = s;
+            _peek.Reset();
+        }
+        return _peek.Tick(s.LookTarget.Value, s.Center, cc.HoldStepToOpenAngleMax, 0.8f);
+    }
     private float _nextAllowedTime;
     private float _nextVerboseLogTime;
     private readonly Dictionary<int, float> _doorCooldowns = new();

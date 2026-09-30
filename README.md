@@ -27,7 +27,7 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 
 변경 이력은 [`changelog/CHANGELOG.md`](changelog/CHANGELOG.md), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
 
-**최근 변경 (2026-09-30 23:30):** 서서 죽는 시체 재발 수정(EFT 죽음 이벤트 자체가 끊기던 경우까지 보호 + 처리 안 된 죽음 강제 처리), 코너 지킬 때 벽 뒤가 아니라 **조준선이 열리는 코너 모서리 쪽 자리**로 옮겨 지킴. 직전: 시체 피 자국 텍스처 비우기, 처음 한 번만 `zzap` 프리셋 선택.
+**최근 변경 (2026-10-01 00:10):** 코너·문·분대 각을 지킬 때 벽이 조준선을 막으면 **조준선이 열리는 자리**로 옮겨서 지킴(엄폐 중은 제외), 서서 죽는 시체 재발 수정(EFT 죽음 이벤트 보호 + 처리 안 된 죽음 강제 처리).
 테스트 프리셋 이름을 `zzap TEST [시뮬 전용]`으로 변경. 직전: 코너 조준 폭 F6 설정, 코너/문 흔들기 피킹.
 
 fix7 대비 변경 요약은 [`changelog/RELEASE_NOTES_fix8.md`](changelog/RELEASE_NOTES_fix8.md)에 있습니다.
@@ -74,7 +74,7 @@ fix7 대비 변경 요약은 [`changelog/RELEASE_NOTES_fix8.md`](changelog/RELEA
 | 방 진입 | 방 안의 적을 칠 때 총구부터 내밀며 천천히 걸어 들어가지 않음: 문틀 옆에 붙어 옆에서 문을 열고 → 페이크 수류탄 0~2번 섞기(뛰어나오는 소리 들리면 취소) → 진짜 수류탄을 던지고 **실제 폭발을 확인한 뒤** 바로 돌입, 또는 수류탄 없이 짧고 강하게 대시 진입. 자기 폭발에 닿을 수 있는 위치면 안 던짐 | GigaChad / Chad / Wreckless / Normal | 〃 `Room Clear` |
 | 방 가두기 | 문 옆에 붙어 문을 지킴 (문은 그대로 둠) | GigaChad / SnappingTurtle | 〃 `Room Trap` |
 | 문 옆 매복 | 문 옆에 낮은 자세로 조용히 대기 | Rat | 〃 `Room Trap` |
-| 분대 역할 | 한 명이 문 전술을 하면 동료는 오버워치(교차 각) / 후방 경계 | 분대 | 〃 `Squad Roles` |
+| 분대 역할 | 한 명이 문 전술을 하면 동료는 오버워치(교차 각) / 후방 경계. 문을 지킬 때 벽이 조준선을 막으면 조준선이 열리는 자리(최대 1.5m)로 옮김 | 분대 | 〃 `Squad Roles` / `Close Combat > Door/Squad Hold: Step To See The Angle` |
 | 제3자 감지 | 문 전술 중 다른 적이 보이거나 25m 안에서 소리 나면 즉시 문을 버리고 대응 | 전원 | 자동 |
 | 다이아몬드 스텝 | 사격 중·근접 난전(DogFight) 중 WASD를 와다다 누르듯 짧게 끊어 움직임 (탭 0.13초, 좌우 60% · 앞뒤 40%) | GigaChad / Chad / Wreckless / Normal | `General > Close Combat (zzap)` |
 | 코너 흔들기 피킹 | 코너·문에서 싸울 때 확률로(기본 50%) A↔D를 빠르게 번갈아 눌러 **벽 뒤로 0.18~0.32초 숨었다가 0.25~0.45초 드러나며** 쏨 — 몸이 보였다 안 보였다 해서 맞히기 어려움. 적 눈높이에서 좌우 0.8m를 확인해 실제로 가려지는 쪽이 있을 때만 | 다이아몬드 스텝 대상 | 〃 `Corner Jiggle Peek` / `Corner Jiggle Peek Chance` |

@@ -1327,6 +1327,13 @@ internal static class KoreanSettingText
         { "Show the F6 editor in Korean. Off = original English. Also switchable with the 한/EN button in the top bar.", "F6 에디터를 한국어로 표시합니다. 끄면 원래 영어. 상단 바의 한/EN 버튼으로도 바꿀 수 있습니다." },
         // CloseCombat (zzap corner hold / jiggle)
         { "Corner Hold Aim Offset", "코너 지킬 때 조준 폭" },
+        { "Door/Squad Hold: Step To See The Angle", "문·분대 지키기: 각이 보이는 자리로 한 걸음" },
+        {
+            "Door tactics holding a door (trap, ambush, overwatch, rear guard) and squad angles (crossfire, covering a mate): if the wall is between the gun and what the bot watches, it steps to the first spot (toward the door / the angle, else sideways) where the line is open, up to the distance below. Not used while in cover - cover is meant to hide the bot.",
+            "문 전술로 문을 지킬 때(가두기·매복·오버워치·후방 경계)와 분대 각(크로스파이어·동료 엄호): 총구와 지켜보는 곳 사이에 벽이 있으면 조준선이 처음 열리는 자리(문·각 쪽 먼저, 안 되면 옆으로)까지 아래 거리 이내로 옮김. 엄폐 중에는 안 씀 — 엄폐는 숨으려는 것이므로."
+        },
+        { "Door/Squad Hold: Max Step (m)", "문·분대 지키기: 최대 이동 거리 (m)" },
+        { "How far a door or squad hold may move to open its angle.", "문·분대 지키기에서 각을 얻으려고 옮길 수 있는 최대 거리." },
         { "Holding a corner/doorway: how far off the wall edge the gun is held, toward the open side the enemy steps out to, as a fraction of the distance to the corner (clamped 0.6-1.5m). 0 = right along the edge (hugs the wall), 0.3 = default (~17 degrees off the edge).", "코너·문간을 지킬 때 총구를 벽 모서리에서 얼마나 띄울지 — 적이 나올 열린 쪽으로, 코너까지 거리의 비율(0.6~1.5m로 제한). 0 = 모서리에 딱 붙음(벽을 봄), 0.3 = 기본(모서리에서 약 17도)." },
         { "Corner Jiggle Peek", "코너 흔들기 피킹" },
         { "Shooting from a corner or door frame (one side step puts the body behind cover): now and then the diamond step turns into a jiggle peek - quick A/D taps out of cover and back, the body showing and hiding while it shoots, to throw off the enemy's aim.", "코너나 문틀에서 쏠 때(옆으로 한 걸음이면 몸이 엄폐 뒤로 숨는 자리): 확률로 다이아몬드 스텝 대신 흔들기 피킹 — A/D를 빠르게 눌러 엄폐 밖으로 나왔다 들어갔다 하며 쏨. 몸이 보였다 안 보였다 해서 상대 조준을 흐트러뜨림." },
