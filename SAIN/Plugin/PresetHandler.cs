@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using SAIN.Editor;
 using SAIN.Preset;
 using SAIN.Preset.Server;
@@ -54,6 +55,24 @@ internal class PresetHandler
                 CustomPresetOptions.Add(bundle.Info);
             }
         }
+        // zzap: bundled presets in difficulty order (easy -> normal -> zzap -> low-spec -> sim), the player's own after them.
+        // The server lists files alphabetically, which put "zzap" first and the Korean-named ones last.
+        var ordered = CustomPresetOptions
+            .Select((def, index) => (def, index))
+            .OrderBy(x => ZzapOrder(x.def.Name))
+            .ThenBy(x => x.index)
+            .Select(x => x.def)
+            .ToList();
+        CustomPresetOptions.Clear();
+        CustomPresetOptions.AddRange(ordered);
+    }
+
+    private static readonly string[] ZZAP_PRESET_ORDER = ["zzap 쉬움", "zzap 보통", "zzap", "zzap 저사양 [테스트]", "zzap TEST [시뮬 전용]"];
+
+    private static int ZzapOrder(string name)
+    {
+        int i = System.Array.IndexOf(ZZAP_PRESET_ORDER, name);
+        return i < 0 ? ZZAP_PRESET_ORDER.Length : i;
     }
 
     public static bool Init()
