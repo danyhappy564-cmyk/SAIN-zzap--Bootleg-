@@ -249,6 +249,12 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public bool ThreatTargeting = true;
 
     [DataMember]
+    [Name("Threat Target Keep Time")]
+    [Description("Seconds. Once threat targeting switched to an enemy, keep him at least this long (and as long as he keeps shooting at the bot) - without it the bot flipped between the unseen shooter and the visible enemy every 0.1s.")]
+    [MinMax(0f, 6f, 0.5f)]
+    public float ThreatTargetKeepTime = 2f;
+
+    [DataMember]
     [Name("Grenade Judgment")]
     [Description("A grenade only when the enemy is out of sight, his position is recent (info age below), and the thrower is safe: not being shot, the enemy's path to it is long enough that he can't rush it during the throw, not badly hurt, no other enemy in sight. Then weighed by situation: +30% he's been camping in one spot 6s+, +10% indoors, +15% healing/reloading, -20% info over 10s old (base 50%). [Nade] logs why.")]
     public bool GrenadeDiscipline = true;

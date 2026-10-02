@@ -24,6 +24,19 @@ public static class ThreatPicker
 {
     private static readonly Dictionary<string, float> _nextLog = new();
 
+    // zzap, 2026-10-02 (3 sims: target A -> B -> A within 0.5s 77-379 times per raid, one bot 40 flips in 4s, its decision
+    // flipping StandAndShoot <-> Freeze every 0.1s): once this picker took the target, it returned null on the next tick
+    // ("keep what you have"), and SAIN's own chooser - visible enemies first - handed the target straight back to the visible
+    // one; next tick the picker switched again. Now the pick is remembered and kept explicitly while that enemy keeps
+    // engaging the bot, and at least F6 Threat Target Keep Time seconds.
+    private sealed class Held
+    {
+        public string EnemyId;
+        public float KeepUntil;
+    }
+
+    private static readonly Dictionary<string, Held> _held = new();
+
     public static Enemy Pick(BotComponent bot, List<Enemy> known, Enemy goal)
     {
         var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
@@ -61,7 +74,7 @@ public static class ThreatPicker
         }
         if (best == null)
         {
-            return null;
+            return KeepHeld(bot.ProfileId, goal, time) ? goal : null;
         }
         float goalThreat = float.MinValue;
         if (goal != null && Usable(goal))
@@ -73,10 +86,17 @@ public static class ThreatPicker
         }
         if (bestThreat <= goalThreat)
         {
-            return null;
+            return KeepHeld(bot.ProfileId, goal, time) ? goal : null;
         }
         if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"threat.switch.{(best.IsVisible ? "seen" : "unseen")}");
         string id = bot.ProfileId;
+        if (!_held.TryGetValue(id, out Held held))
+        {
+            held = new Held();
+            _held[id] = held;
+        }
+        held.EnemyId = best.EnemyProfileId;
+        held.KeepUntil = time + Mathf.Max(0f, settings.ThreatTargetKeepTime);
         if (!_nextLog.TryGetValue(id, out float next) || time > next)
         {
             _nextLog[id] = time + 3f;
@@ -85,6 +105,36 @@ public static class ThreatPicker
                     + $"-> {best.EnemyPlayer?.Profile?.Nickname} ({bestThreat:0.00}): {bestWhy}");
         }
         return best;
+    }
+
+    /// <summary>
+    /// The current target is the one this picker chose: keep it while it is still shooting at / hitting the bot (plus a
+    /// second), and at least until the keep time runs out. Then SAIN's chooser may take over again.
+    /// </summary>
+    private static bool KeepHeld(string botId, Enemy goal, float time)
+    {
+        if (goal == null || !_held.TryGetValue(botId, out Held held) || held.EnemyId != goal.EnemyProfileId)
+        {
+            return false;
+        }
+        if (!Usable(goal))
+        {
+            held.EnemyId = null;
+            return false;
+        }
+        float hitAgo = goal.Status.TimeLastShotMe > 0f ? time - goal.Status.TimeLastShotMe : 999f;
+        float shotAtAgo = goal.Status.TimeLastShotAtMe > 0f ? time - goal.Status.TimeLastShotAtMe : 999f;
+        if (hitAgo < 3f || shotAtAgo < 2f)
+        {
+            held.KeepUntil = Mathf.Max(held.KeepUntil, time + 1f);
+        }
+        if (time < held.KeepUntil)
+        {
+            TacticDiagnostics.Count("threat.keep");
+            return true;
+        }
+        held.EnemyId = null;
+        return false;
     }
 
     private static bool Usable(Enemy e)
@@ -103,5 +153,6 @@ public static class ThreatPicker
     public static void Clear()
     {
         _nextLog.Clear();
+        _held.Clear();
     }
 }

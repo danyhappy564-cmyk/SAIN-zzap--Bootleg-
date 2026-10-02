@@ -1,7 +1,7 @@
 {
   "Info": {
     "Name": "zzap 저사양 [테스트]",
-    "Description": "[테스트] 저사양 PC용. zzap 보통 + 성능 설정(성능 모드 켬, 멀리 있는 봇끼리의 업데이트·시야·청각 제한 켬). 프레임은 조금 나아질 수 있지만, 멀리서 벌어지는 봇끼리의 싸움은 덜 정교해질 수 있음. 의도한 전투 경험과 다를 수 있는 시험용.",
+    "Description": "[테스트] 저사양 PC용. zzap 보통 + 성능 설정(성능 모드 켬, 멀리 있는 봇끼리의 업데이트·시야·청각 제한 켬, 조준선 자리 찾기 범위 축소). 프레임은 조금 나아질 수 있지만, 멀리서 벌어지는 봇끼리의 싸움은 덜 정교해질 수 있음. 의도한 전투 경험과 다를 수 있는 시험용.",
     "Creator": "R_F",
     "SAINVersion": "4.5.1",
     "SAINPresetVersion": "4.5.0",
@@ -151,7 +151,34 @@
         "SAINCombatSoloLayerPriority": 20
       },
       "CloseCombat": {
-        "UtilityMistakeMultiplier": 1.5
+        "UtilityMistakeMultiplier": 1.5,
+        "ThreatTargetKeepTime": 2.5,
+        "CornerChasePrefireChance": 45.0,
+        "CornerChaseJumpChance": 20.0,
+        "CornerJiggleChance": 35.0,
+        "LeanSpamChance": 45.0,
+        "GrenadeMaxInfoAge": 16.0,
+        "HoldStepToOpenAngleMax": 1.0
+      },
+      "DoorTactics": {
+        "ChanceMultiplier": 0.75,
+        "GigaChadFakeTrickChance": 30.0,
+        "ChadFakeTrickChance": 15.0,
+        "GigaChadTrapFakeHealChance": 20.0,
+        "RoomClearGrenadeChance": 45.0,
+        "RunByChance": 35.0
+      },
+      "SquadCombat": {
+        "SquadStormWeakness": 0.6,
+        "TradeWindow": 8.0
+      },
+      "Reposition": {
+        "BaitPeekChance": 25.0,
+        "FakeReloadChance": 20.0,
+        "RelocateChance": 60.0
+      },
+      "FreezeAmbush": {
+        "PeekSpotMaxStep": 1.5
       }
     },
     "Aiming": {

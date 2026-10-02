@@ -315,6 +315,11 @@ public class SelfActionDecisionClass : BotBase
 
         if (!canReload)
         {
+            // zzap: nothing to load (no spare mag / loose rounds for this gun). The reload utility asked again every tick
+            // (one machine-gunner with 45% in the box: 5139 "reload" picks in a raid, each walking the whole inventory).
+            // Rounds still in the gun -> ask again in 5s; dry -> 1s (the out-of-ammo fallback swaps guns meanwhile).
+            _reloadCheckBlockedUntil = Time.time + (botOwner.WeaponManager?.HaveBullets == true ? 5f : 1f);
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("reload.cantReload");
             return false;
         }
 

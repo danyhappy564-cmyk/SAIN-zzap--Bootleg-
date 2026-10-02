@@ -248,6 +248,21 @@ public class DoorTacticClass : BotComponentClassBase
         return true;
     }
 
+    /// <summary>
+    /// zzap: a squad role (overwatch / rear guard) handed over by the mate working a door. Checked early in the hidden-enemy
+    /// decision - before, only the push path ever looked at it, so roles mostly expired unstarted (3 sims: 7 assigned,
+    /// 2 started).
+    /// </summary>
+    public bool ShallStartSupportRole(Enemy enemy, out string reason)
+    {
+        reason = string.Empty;
+        if (_session != null || _pendingRole == null)
+        {
+            return false;
+        }
+        return TryStartSupportRole(enemy, out reason);
+    }
+
     private static readonly HashSet<string> _uncountedRejects = new() { "disabled", "personalityNoTactics", "enemyVisibleOrNull", "holdDoorDisabled" };
 
     // Funnel: why a hidden enemy did NOT get a door tactic (13th sim: Push top 467 times -> 29 door starts, no reasons kept).

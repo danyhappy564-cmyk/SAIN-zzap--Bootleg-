@@ -296,6 +296,13 @@ public class EnemyDecisionClass : BotBase
         {
             return false;
         }
+        // zzap: a mate working a door handed this bot a squad role (overwatch / rear guard) -> take it.
+        if (Bot.DoorTactic.ShallStartSupportRole(enemy, out reason))
+        {
+            result = ECombatDecision.DoorTactic;
+            TacticDiagnostics.Count("utility.do.doorRole");
+            return true;
+        }
         // zzap: a teammate just went down to this enemy -> trade first (push the killer / take his angle).
         if (Bot.SquadCombat.ShallTrade(enemy, out reason))
         {
@@ -309,6 +316,12 @@ public class EnemyDecisionClass : BotBase
             return false;
         }
         HiddenEnemyUtility.EStance top = ranked[0].stance;
+        // zzap: being shot right now (under fire / hit in the last 1.5s) -> never stand still holding an angle. The Hold
+        // stance mapped straight to Freeze here, skipping the old chain's "freeze breaks when shot" check (3 sims: 6 bots
+        // killed while frozen and under fire, e.g. hit from 2m behind, froze, dead 0.1s later). Falling back to cover may
+        // then run even when it isn't near the top.
+        bool beingShot = BotOwner.Memory.IsUnderFire || Bot.Medical.TimeSinceShot < 1.5f;
+        bool holdSkipped = false;
         foreach (var (stance, score) in ranked)
         {
             if (score <= 0.05f)
@@ -362,6 +375,12 @@ public class EnemyDecisionClass : BotBase
                     // Hold = bots camping for no reason). Otherwise the old chain decides (search / engage / cover).
                     if (stance == top || score >= ranked[0].score - 0.12f)
                     {
+                        if (beingShot)
+                        {
+                            holdSkipped = true;
+                            TacticDiagnostics.Count("utility.hold.skippedUnderFire");
+                            break;
+                        }
                         // zzap: he's in a room behind a door close by -> hold THAT door from beside the frame instead of
                         // freezing wherever the bot happens to stand (13th sim: Hold top 489 times, never at a door).
                         result = Bot.DoorTactic.ShallHoldDoor(enemy, out r) ? ECombatDecision.DoorTactic : ECombatDecision.Freeze;
@@ -391,8 +410,9 @@ public class EnemyDecisionClass : BotBase
                     break;
 
                 case HiddenEnemyUtility.EStance.FallBack:
-                    // Same as Hold: always runnable, so only when it is really wanted (3rd sim: 5.4k fall-throughs).
-                    if (stance == top || score >= ranked[0].score - 0.12f)
+                    // Same as Hold: always runnable, so only when it is really wanted (3rd sim: 5.4k fall-throughs) - or when
+                    // the bot is being shot and the hold it wanted was skipped (get out of the line of fire instead).
+                    if (stance == top || score >= ranked[0].score - 0.12f || holdSkipped)
                     {
                         result = ECombatDecision.SeekCover;
                     }
@@ -412,12 +432,33 @@ public class EnemyDecisionClass : BotBase
                 SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Begin(Bot, enemy,
                     SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Key("H", stance.ToString(), enemy.Path.PathLength, Bot));
                 reason = $"utility{stance}";
+                _utilityPickEnemy = enemy;
+                _utilityPickTime = Time.time;
+                _utilityPick = result;
                 return true;
             }
+        }
+        // zzap: nothing runnable THIS tick is often a blip (the path to him is being recomputed: "no path yet"), and the old
+        // chain then answered "seek cover" for a moment before the utility's pick ran again (3 sims: 39-45% of those cover
+        // decisions lasted under 1s - every switch restarts the movement). Keep the utility's last pick for up to 1.2s
+        // after it was made, unless the bot is being shot.
+        if (ReferenceEquals(_utilityPickEnemy, enemy) && Time.time - _utilityPickTime < UTILITY_KEEP_TIME && !beingShot
+            && Bot.Decision.CurrentCombatDecision == _utilityPick && _utilityPick is ECombatDecision.Freeze or ECombatDecision.RushEnemy
+                or ECombatDecision.Search or ECombatDecision.SeekCover or ECombatDecision.ShiftCover)
+        {
+            result = _utilityPick;
+            reason = "utilityKeep";
+            TacticDiagnostics.Count("utility.keepOnBlip");
+            return true;
         }
         TacticDiagnostics.Count("utility.noneRunnable");
         return false;
     }
+
+    private const float UTILITY_KEEP_TIME = 1.2f;
+    private Enemy _utilityPickEnemy;
+    private float _utilityPickTime = -100f;
+    private ECombatDecision _utilityPick;
 
     private const float CLOSE_OCCLUSION_KEEP_TIME = 0.8f;
     private const float CLOSE_OCCLUSION_DIST = 8f;
