@@ -67,6 +67,7 @@ public class DoorTacticClass : BotComponentClassBase
         RunByAcross,
         RunByTurn,
         RunByBack,
+        RunBySettle,
         ClearFakeDraw,
         ClearFakeHolster,
         ClearThrow,
@@ -88,7 +89,17 @@ public class DoorTacticClass : BotComponentClassBase
     private const float FAKE_NADE_SHOW_TIME = 1.2f;
     private const float FAKE_HEAL_SHOW_TIME = 0.4f;
     private const float FAKE_STIM_SHOW_TIME = 0.3f;
-    private const float FAKE_MAX_DOOR_DIST = 2.5f;
+    // 3.2 (was 2.5): the run-by now ends on an angle ~2.5m off the frame (gun on the doorway, not 0.9m beside it).
+    private const float FAKE_MAX_DOOR_DIST = 3.2f;
+    // Room enemy heard/located within this long for a fake at the frame to make sense. 15s (was 8): the walk to the
+    // stack alone takes 3-6s, so 8s threw away most planned fakes (8 sims: 48 planned, 13 done, 8 "enemyInfoOld").
+    private const float FAKE_MAX_INFO_AGE = 15f;
+    // A momentary occlusion mid-fight is not "he's in the room behind that door": 45 of 102 sessions that never reached
+    // the door ended within 1s, 73% of them started with the enemy seen 0.1s earlier (8 sims) - and each one put that
+    // door on a 60s cooldown.
+    private const float MIN_UNSEEN_TO_START = 1.5f;
+    // Sessions that fizzle this fast (enemy back in sight, rush, other decision) only get a short cooldown.
+    private const float FIZZLE_TIME = 1.5f;
     private const float EMERGENCY_MIN_RETREAT_TIME = 1.5f;
     private const float ARRIVE_DIST = 0.6f;
     private const float MOVE_STEP_TIMEOUT = 12f;
@@ -160,12 +171,98 @@ public class DoorTacticClass : BotComponentClassBase
             return true;
         }
 
-        if (!TryStart(enemy, out reason))
+        if (!TryStart(enemy, false, out reason))
         {
+            CountReject("door.reject", reason);
             LogVerbose(reason);
             return false;
         }
         return true;
+    }
+
+    /// <summary>
+    /// zzap: the hidden-enemy utility picked Hold and the enemy is in a room behind a door close by -> hold that door
+    /// from beside the frame (room trap, any personality; Rat silent and low) instead of a plain freeze in the open
+    /// (13th sim: Hold was the top pick 489 times, none of them at a door). No chance roll - the utility already decided.
+    /// </summary>
+    /// <param name="shortHold">From a push that won't go through the doorway: hold 8-15s, then decide again.</param>
+    public bool ShallHoldDoor(Enemy enemy, out string reason, bool shortHold = false)
+    {
+        if (_session != null)
+        {
+            return ShallUse(enemy, out reason);
+        }
+        if (!TryStart(enemy, true, out reason, shortHold))
+        {
+            CountReject("door.holdReject", reason);
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Is the enemy's last known position in a room behind a door close to the bot (same test the tactics use)? Cached
+    /// for 0.5s per enemy - asked by the decision code every tick.
+    /// </summary>
+    public bool EnemyBehindDoor(Enemy enemy)
+    {
+        if (enemy == null)
+        {
+            return false;
+        }
+        float time = Time.time;
+        if (ReferenceEquals(enemy, _behindDoorEnemy) && time < _behindDoorUntil)
+        {
+            return _behindDoor;
+        }
+        _behindDoorEnemy = enemy;
+        _behindDoorUntil = time + 0.5f;
+        Vector3? known = enemy.KnownPlaces.LastKnownPosition;
+        _behindDoor = known != null && FindDoor(known.Value, out _, out _);
+        return _behindDoor;
+    }
+
+    private Enemy _behindDoorEnemy;
+    private float _behindDoorUntil;
+    private bool _behindDoor;
+
+    /// <summary>
+    /// The open doorway (floor center) into the room the enemy was last known in, and the direction into that room -
+    /// for grenades rolled in through the door.
+    /// </summary>
+    public bool DoorToward(Enemy enemy, out Vector3 doorCenter, out Vector3 intoRoom)
+    {
+        doorCenter = default;
+        intoRoom = default;
+        Vector3? known = enemy?.KnownPlaces.LastKnownPosition;
+        if (known == null || !FindDoor(known.Value, out DoorGeometry geo, out _))
+        {
+            return false;
+        }
+        if (geo.Data.Door == null || geo.Data.Door.DoorState != EDoorState.Open)
+        {
+            return false;
+        }
+        doorCenter = geo.Center;
+        intoRoom = -geo.BotSide;
+        return true;
+    }
+
+    private static readonly HashSet<string> _uncountedRejects = new() { "disabled", "personalityNoTactics", "enemyVisibleOrNull", "holdDoorDisabled" };
+
+    // Funnel: why a hidden enemy did NOT get a door tactic (13th sim: Push top 467 times -> 29 door starts, no reasons kept).
+    private static void CountReject(string prefix, string reason)
+    {
+        if (!TacticDiagnostics.CountOn || string.IsNullOrEmpty(reason))
+        {
+            return;
+        }
+        int cut = reason.IndexOf('(');
+        string key = cut > 0 ? reason.Substring(0, cut) : reason;
+        if (!_uncountedRejects.Contains(key))
+        {
+            TacticDiagnostics.Count($"{prefix}.{key}");
+        }
     }
 
     /// <summary>
@@ -176,14 +273,16 @@ public class DoorTacticClass : BotComponentClassBase
         get { return _session != null && !_session.IsSupport ? _session.Door.Id : -1; }
     }
 
-    private bool TryStart(Enemy enemy, out string reason)
+    private bool TryStart(Enemy enemy, bool holdStance, out string reason, bool shortHold = false)
     {
         if (!Settings.Enabled)
         {
             reason = "disabled";
             return false;
         }
-        if (_nextAllowedTime > Time.time)
+        // A failed push roll only means "don't push this door": holding it from the side is still on.
+        bool rollCooldownOnly = holdStance && _cooldownFromRoll;
+        if (_nextAllowedTime > Time.time && !rollCooldownOnly)
         {
             reason = "globalCooldown";
             return false;
@@ -194,7 +293,12 @@ public class DoorTacticClass : BotComponentClassBase
         {
             personality = EPersonality.GigaChad;
         }
-        float baseChance = GetBaseChance(personality);
+        if (holdStance && (!Settings.RoomTrap || !Settings.HoldStanceDoorTrap))
+        {
+            reason = "holdDoorDisabled";
+            return false;
+        }
+        float baseChance = holdStance ? 1f : GetBaseChance(personality);
         if (baseChance <= 0f)
         {
             reason = "personalityNoTactics";
@@ -214,25 +318,32 @@ public class DoorTacticClass : BotComponentClassBase
         bool resumeCandidate = Settings.ResumeAfterThirdParty
             && _resumeUntil > Time.time
             && _resumeEnemyId == enemy.EnemyProfileId;
+        if (!resumeCandidate && enemy.Seen && enemy.TimeSinceSeen < MIN_UNSEEN_TO_START)
+        {
+            reason = "justLostSight";
+            return false;
+        }
         float maxSinceKnown = resumeCandidate ? Mathf.Max(MAX_TIME_SINCE_KNOWN, Settings.ResumeWindow) : MAX_TIME_SINCE_KNOWN;
         if (enemy.TimeSinceLastKnownUpdated > maxSinceKnown)
         {
             reason = "lastKnownTooOld";
             return false;
         }
-        if (OtherEnemyActive(enemy, out string otherEnemy))
+        if (!FindDoor(lastKnown.Value, out DoorGeometry geo, out reason))
+        {
+            return false;
+        }
+        // After the door is known: enemies heard on the room side of it are the room problem itself (a squad in there),
+        // not a third party - before, a second enemy in the room blocked every door tactic.
+        if (OtherEnemyActive(enemy, geo.Center, geo.BotSide, out string otherEnemy))
         {
             // Also stops the third-party resume from pulling the bot back to the door while that enemy is around.
             reason = $"otherEnemyActive({otherEnemy})";
             return false;
         }
-        if (!FindDoor(lastKnown.Value, out DoorGeometry geo, out reason))
-        {
-            return false;
-        }
 
         float time = Time.time;
-        if (_doorCooldowns.TryGetValue(geo.Data.Id, out float until) && until > time)
+        if (_doorCooldowns.TryGetValue(geo.Data.Id, out float until) && until > time && !(rollCooldownOnly && geo.Data.Id == _rollFailedDoor))
         {
             reason = "doorCooldown";
             return false;
@@ -256,7 +367,7 @@ public class DoorTacticClass : BotComponentClassBase
         float quiet = enemy.TimeSinceLastKnownUpdated;
         bool stalemate = quiet >= 10f && quiet <= 60f;
         float chance = testMode ? 1f : Mathf.Clamp01(baseChance * Settings.ChanceMultiplier * (stalemate ? 1.8f : 1f));
-        if (stalemate)
+        if (stalemate && !holdStance)
         {
             TacticDiagnostics.Count("door.stalemateBoost");
         }
@@ -266,31 +377,46 @@ public class DoorTacticClass : BotComponentClassBase
             TacticDiagnostics.Count("door.resume");
             if (LogOn) Log($"{Who()} RESUME door {geo.Data.Id} after third party ({_resumeReason}), no re-roll");
         }
-        else if (Random.value > chance)
+        else if (!holdStance && Random.value > chance)
         {
             _doorCooldowns[geo.Data.Id] = time + DOOR_COOLDOWN_AFTER_ROLL_FAIL;
             _nextAllowedTime = time + GLOBAL_COOLDOWN;
+            _cooldownFromRoll = true;
+            _rollFailedDoor = geo.Data.Id;
             reason = $"rollFailed({chance:0.00})";
             if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"door.rollFailed.{personality}");
             if (LogOn) Log($"{Who()} skipped door {geo.Data.Id}: chance roll failed ({chance:0.00}), door cooldown {DOOR_COOLDOWN_AFTER_ROLL_FAIL}s");
             return false;
         }
 
-        Session session = BuildSession(personality, enemy, geo, out reason);
+        Session session = BuildSession(personality, enemy, geo, holdStance, out reason);
+        if (session != null && shortHold)
+        {
+            session.HoldTime = Mathf.Min(session.HoldTime, Random.Range(8f, 15f));
+        }
+        // Can the bot actually walk to its spot beside the frame? (8 sims: sessions ending "noPath:MoveToStack" after 0.0s,
+        // the same bot again 60s later.) A loop round through other rooms doesn't count either.
+        if (session != null && !StackReachable(session, out string pathWhy))
+        {
+            session = null;
+            reason = pathWhy;
+        }
         if (session == null)
         {
             _doorCooldowns[geo.Data.Id] = time + DOOR_COOLDOWN_AFTER_ROLL_FAIL;
             _nextAllowedTime = time + GLOBAL_COOLDOWN;
+            _cooldownFromRoll = false;
             if (LogOn) Log($"{Who()} could not plan at door {geo.Data.Id}: {reason}");
             if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"door.planFailed.{reason}");
             return false;
         }
 
+        session.FromHold = holdStance;
         _session = session;
         _doorClaims[geo.Data.Id] = new DoorClaim(Bot.ProfileId, Bot.name, Time.time + SESSION_MAX_TIME);
-        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"door.start.{personality}.{session.Plan}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count(holdStance ? $"door.start.hold.{session.Plan}" : $"door.start.{personality}.{session.Plan}");
         if (LogOn) Log(
-            $"{Who()} START plan={session.Plan} door={geo.Data.Id} doorState={geo.Data.Door.DoorState} "
+            $"{Who()} START plan={session.Plan}{(holdStance ? " (hold stance)" : "")} door={geo.Data.Id} doorState={geo.Data.Door.DoorState} "
                 + $"botDist={geo.BotDistance:0.0}m enemyDepth={geo.EnemyDepth:0.0}m sinceKnown={enemy.TimeSinceLastKnownUpdated:0.0}s "
                 + $"fakeNade={session.WantFakeNade} fakeHeal={session.WantFakeHeal} hold={session.HoldTime:0}s"
         );
@@ -300,6 +426,27 @@ public class DoorTacticClass : BotComponentClassBase
             AssignSquadRoles(session, geo);
         }
         reason = $"start:{session.Plan}";
+        return true;
+    }
+
+    private bool StackReachable(Session s, out string why)
+    {
+        why = null;
+        float straight = HorizontalDistance(Bot.Position, s.Stack);
+        if (straight < ARRIVE_DIST * 1.5f)
+        {
+            return true;
+        }
+        if (!Bot.Mover.CanGoToPoint(s.Stack, out NavMeshPath path, true))
+        {
+            why = "noPathToStack";
+            return false;
+        }
+        if (PathLength(path) > Mathf.Max(14f, straight * 3f))
+        {
+            why = "stackPathDetour";
+            return false;
+        }
         return true;
     }
 
@@ -601,10 +748,15 @@ public class DoorTacticClass : BotComponentClassBase
         public Vector3 RushLook;
         public bool FledOwnNade;
         public bool NadeSeenLive;
+        public bool FromHold;
+        public float HalfWidth;
+        public bool RushPathChecked;
+        public bool RunByBackToAngle;
+        public Vector3 RunByBackTarget;
         public readonly HashSet<string> SupportIds = new();
     }
 
-    private Session BuildSession(EPersonality personality, Enemy enemy, DoorGeometry geo, out string reason)
+    private Session BuildSession(EPersonality personality, Enemy enemy, DoorGeometry geo, bool holdStance, out string reason)
     {
         bool testMode = Settings.TestModeAllPmcGigaChad && Bot.Info.Profile.IsPMC;
         bool doorOpen = geo.Data.Door.DoorState == EDoorState.Open;
@@ -617,6 +769,7 @@ public class DoorTacticClass : BotComponentClassBase
             Door = geo.Data,
             Center = geo.Center,
             BotSide = geo.BotSide,
+            HalfWidth = geo.HalfWidth,
             InsidePoint = geo.Center - geo.BotSide * 1.5f + Vector3.up * 1.2f,
             StartTime = Time.time,
         };
@@ -637,6 +790,35 @@ public class DoorTacticClass : BotComponentClassBase
         }
         bool peekPointOk = SampleOnBotSide(geo.Center + geo.BotSide * PEEK_DEPTH, geo, out s.PeekPoint);
         s.PeekPointOk = peekPointOk;
+
+        if (holdStance)
+        {
+            // Hold stance at a door: wait beside the frame for him to come out. Rat low and silent; the pushers may still
+            // bait with a fake (same F6 chances as their trap).
+            if (personality == EPersonality.Rat)
+            {
+                s.Plan = EPlan.Ambush;
+                s.FirstStep = EStep.MoveToStack;
+                s.HoldTime = Random.Range(40f, 80f);
+                s.HoldPose = 0.2f;
+            }
+            else
+            {
+                BuildTrap(s);
+                s.HoldTime = personality == EPersonality.SnappingTurtle ? Random.Range(30f, 60f) : Random.Range(15f, 35f);
+                s.HoldPose = personality == EPersonality.SnappingTurtle ? 0.4f : 0.7f;
+                float holdFake = personality switch
+                {
+                    EPersonality.GigaChad => Settings.GigaChadFakeTrickChance,
+                    EPersonality.Chad => Settings.ChadFakeTrickChance,
+                    _ => 0f,
+                } / 100f;
+                s.WantFakeNade = Settings.FakeGrenade && haveNade && Random.value < (testMode ? 1f : holdFake);
+                s.WantFakeHeal = !s.WantFakeNade && CanFakeHeal() && Random.value < holdFake;
+            }
+            reason = string.Empty;
+            return s;
+        }
 
         EPlan pushPick = EPlan.None;
         if (personality == EPersonality.GigaChad || personality == EPersonality.Chad)
@@ -913,7 +1095,7 @@ public class DoorTacticClass : BotComponentClassBase
             return;
         }
 
-        if (OtherEnemyActive(s.Enemy, out string other))
+        if (OtherEnemyActive(s.Enemy, s.Center, s.BotSide, out string other))
         {
             if (LogOn) Log($"{Who()} abort at step {s.Step}: {other}");
             TacticDiagnostics.Count("door.abort.otherEnemyActive");
@@ -1008,6 +1190,10 @@ public class DoorTacticClass : BotComponentClassBase
                 // to the far side of the frame...
                 Bot.Mover.IgnoreDoorSlow = true;
                 s.LookTarget = s.InsidePoint;
+                if (RunByAbort(s))
+                {
+                    break;
+                }
                 if (MoveStep(s, s.RunByFar, true, stepTime))
                 {
                     SetStep(EStep.RunByTurn, "pastDoorway");
@@ -1016,28 +1202,60 @@ public class DoorTacticClass : BotComponentClassBase
 
             case EStep.RunByTurn:
                 // ...turn around (a beat, gun toward the room)...
-                s.LookTarget = s.InsidePoint;
+                s.LookTarget = DoorMouth(s);
                 Bot.Mover.Stop();
+                if (RunByAbort(s))
+                {
+                    break;
+                }
                 if (stepTime > 0.35f)
                 {
-                    SetStep(EStep.RunByBack, "turned");
+                    // Back across WALKING with the gun up (2026-10-02 field report: sprinting both ways, the enemy who saw
+                    // the first pass came out and the bot, gun down mid-sprint, never got a shot off), ending on an angle
+                    // a couple of meters off the frame instead of right beside it.
+                    s.RunByBackToAngle = FindAngleHoldPoint(s, out s.RunByBackTarget);
+                    if (!s.RunByBackToAngle)
+                    {
+                        s.RunByBackTarget = s.Stack;
+                    }
+                    Player.EnableSprint(false);
+                    SetStep(EStep.RunByBack, s.RunByBackToAngle ? "turnedToAngle" : "turned");
                 }
                 break;
 
             case EStep.RunByBack:
-                // ...and run past it once more back to the stack, then settle in (step peeks / trick / hold).
+                // ...and walk past it once more, gun on the doorway, then settle in (trick / hold).
                 Bot.Mover.IgnoreDoorSlow = true;
-                s.LookTarget = s.InsidePoint;
-                if (MoveStep(s, s.Stack, true, stepTime))
+                s.LookTarget = DoorMouth(s);
+                if (RunByAbort(s))
                 {
-                    TacticDiagnostics.Count("door.runBy.done");
+                    break;
+                }
+                if (MoveStep(s, s.RunByBackTarget, false, stepTime, 1f))
+                {
+                    TacticDiagnostics.Count(s.RunByBackToAngle ? "door.runBy.doneAngle" : "door.runBy.done");
                     Bot.Mover.IgnoreDoorSlow = false;
-                    if (s.StepPeeksLeft == 0 && Settings.StepPeek && TryPrepareStepPeeks(s))
+                    s.HoldLook = DoorMouth(s);
+                    if (!s.RunByBackToAngle && s.StepPeeksLeft == 0 && Settings.StepPeek && TryPrepareStepPeeks(s))
                     {
                         SetStep(EStep.StepPeekOut, "runByDoneStepPeeks");
                         break;
                     }
                     SetStep(FakeOrHold(s), "runByDone");
+                }
+                break;
+
+            case EStep.RunBySettle:
+                // Run-by cut short (he's coming out): off the doorway line at a walk, gun on the frame, then hold it.
+                Bot.Mover.IgnoreDoorSlow = true;
+                s.LookTarget = DoorMouth(s);
+                if (MoveStep(s, s.RunByBackTarget, false, stepTime, 1f) || stepTime > 1.5f)
+                {
+                    Bot.Mover.IgnoreDoorSlow = false;
+                    s.HoldLook = DoorMouth(s);
+                    s.WantFakeNade = false;
+                    s.WantFakeHeal = false;
+                    SetStep(EStep.Hold, "runBySettled");
                 }
                 break;
 
@@ -1327,6 +1545,19 @@ public class DoorTacticClass : BotComponentClassBase
 
             case EStep.ClearDash:
                 // Short hard dash through the frame (no door slowdown, full speed) instead of walking in muzzle first.
+                if (!s.RushPathChecked)
+                {
+                    s.RushPathChecked = true;
+                    if (!EnsureRushPoint(s))
+                    {
+                        // No way in from here (14th sim: 3 clears ended "noPath:ClearDash"): hold the frame instead.
+                        TacticDiagnostics.Count("door.clear.noRushPath");
+                        if (LogOn) Log($"{Who()} room clear: no path into the room from the stack -> hold the door instead");
+                        s.HoldTime = Random.Range(4f, 8f);
+                        SetStep(EStep.Hold, "noRushPath");
+                        break;
+                    }
+                }
                 Bot.Mover.IgnoreDoorSlow = true;
                 Bot.Mover.SetTargetPose(1f);
                 Bot.Mover.SetTargetMoveSpeed(1f);
@@ -1353,7 +1584,7 @@ public class DoorTacticClass : BotComponentClassBase
                 {
                     Bot.Mover.Stop();
                 }
-                Bot.Mover.SetTargetPose(s.HoldPose);
+                Bot.Mover.SetTargetPose(_peek != null && ReferenceEquals(_peekSession, s) && _peek.StandToSee ? 1f : s.HoldPose);
                 EDoorState now = s.Door.Door != null ? s.Door.Door.DoorState : EDoorState.None;
                 if (now != s.DoorStateAtHoldStart)
                 {
@@ -1458,6 +1689,37 @@ public class DoorTacticClass : BotComponentClassBase
     }
 
     /// <summary>
+    /// The dash point (3m in, stepped away from his side) must be reachable through the doorway from here; otherwise
+    /// try straighter / shallower spots in the room before giving up on the dash.
+    /// </summary>
+    private bool EnsureRushPoint(Session s)
+    {
+        if (Bot.Mover.CanGoToPoint(s.RushPoint, out NavMeshPath first, true) && PathLength(first) < 9f)
+        {
+            return true;
+        }
+        Vector3 axis = Vector3.Cross(s.BotSide, Vector3.up).normalized;
+        float away = Mathf.Sign(Vector3.Dot(s.RushPoint - s.Center, axis));
+        foreach (float depth in new[] { 2.5f, 2f, 1.5f })
+        {
+            foreach (float lateral in new[] { 0.6f, 0f })
+            {
+                Vector3 raw = s.Center - s.BotSide * depth + axis * away * lateral;
+                if (!SampleNav(raw, out Vector3 point) || Vector3.Dot(point - s.Center, s.BotSide) > -0.5f)
+                {
+                    continue;
+                }
+                if (Bot.Mover.CanGoToPoint(point, out NavMeshPath path, true) && PathLength(path) < 9f)
+                {
+                    s.RushPoint = point;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
     /// First peek move after reaching the stack (and opening): jump peek, or the run-by when the jump isn't safe here
     /// (low ceiling / step or stairs between stack and peek point) or on the F6 run-by roll. Decided once per session.
     /// </summary>
@@ -1542,27 +1804,36 @@ public class DoorTacticClass : BotComponentClassBase
             stackSide = 1f;
         }
         float halfWidth = Mathf.Max(0.4f, Mathf.Abs(Vector3.Dot(s.Stack - center, axis)) - 0.4f);
-        foreach (float extra in new[] { 1.4f, 1.0f, 1.8f })
+        string lastWhy = "noNavmesh";
+        // Three lane depths (was 1.1m only): a narrow corridor or a leaf swinging into it blocked the single lane on most
+        // doors (8 sims: lane blocked 2-6 times per raid against 1-2 run-bys).
+        foreach (float depth in new[] { 1.1f, 0.8f, 1.5f })
         {
-            Vector3 raw = center + s.BotSide * 1.1f - axis * stackSide * (halfWidth + extra);
-            if (!NavMesh.SamplePosition(raw, out NavMeshHit hit, 0.5f, -1))
+            foreach (float extra in new[] { 1.4f, 1.0f, 1.8f })
             {
-                continue;
-            }
-            if (Vector3.Dot(hit.position - center, s.BotSide) < 0.3f)
-            {
-                continue;
-            }
-            if (!RunByLaneClear(s, s.Stack, hit.position))
-            {
-                continue;
-            }
-            if (Bot.Mover.CanGoToPoint(hit.position, out NavMeshPath path, true) && PathLength(path) < 9f)
-            {
-                s.RunByFar = hit.position;
-                return true;
+                Vector3 raw = center + s.BotSide * depth - axis * stackSide * (halfWidth + extra);
+                if (!NavMesh.SamplePosition(raw, out NavMeshHit hit, 0.5f, -1))
+                {
+                    continue;
+                }
+                if (Vector3.Dot(hit.position - center, s.BotSide) < 0.3f)
+                {
+                    lastWhy = "farSideOffNavmesh";
+                    continue;
+                }
+                if (!RunByLaneClear(s, s.Stack, hit.position, out lastWhy))
+                {
+                    continue;
+                }
+                if (Bot.Mover.CanGoToPoint(hit.position, out NavMeshPath path, true) && PathLength(path) < 9f)
+                {
+                    s.RunByFar = hit.position;
+                    return true;
+                }
+                lastWhy = "noPath";
             }
         }
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"door.runBy.noPoint.{lastWhy}");
         return false;
     }
 
@@ -1571,11 +1842,11 @@ public class DoorTacticClass : BotComponentClassBase
     /// corridor sticks out across it - the bot would run face-first into it, like the "stuck at the door" clip) or
     /// anything else on the navmesh (NavMesh.Raycast: the leaf's carve may not be in yet).
     /// </summary>
-    private bool RunByLaneClear(Session s, Vector3 from, Vector3 to)
+    private static bool RunByLaneClear(Session s, Vector3 from, Vector3 to, out string why)
     {
         if (NavMesh.Raycast(from, to, out _, -1))
         {
-            TacticDiagnostics.Count("door.runBy.laneBlocked");
+            why = "laneBlocked";
             return false;
         }
         OpenSegment(s.Door.Link, out Vector3 openA, out Vector3 openB);
@@ -1586,10 +1857,11 @@ public class DoorTacticClass : BotComponentClassBase
             Vector3 p = Vector3.Lerp(from, to, i / (float)samples);
             if (DistanceToSegmentFlat(p, openA, openB) < 0.55f)
             {
-                TacticDiagnostics.Count("door.runBy.leafInTheWay");
+                why = "leafInTheWay";
                 return false;
             }
         }
+        why = null;
         return true;
     }
 
@@ -1626,7 +1898,7 @@ public class DoorTacticClass : BotComponentClassBase
         return side * (s.StepPeeksLeft % 2 == 0 ? 1.5f : -1.5f);
     }
 
-    private bool MoveStep(Session s, Vector3 target, bool sprint, float stepTime)
+    private bool MoveStep(Session s, Vector3 target, bool sprint, float stepTime, float walkSpeed = 0.75f)
     {
         if (HorizontalDistance(Bot.Position, target) < ARRIVE_DIST)
         {
@@ -1670,8 +1942,106 @@ public class DoorTacticClass : BotComponentClassBase
         {
             // Approach at 0.75: at 0.45 a bot needed ~13s for an 8m approach and timed out at the door (second raid
             // test: 5 trap / 2 peek moveTimeouts, one bot restarting on door after door while walking slowly).
-            Bot.Mover.SetTargetMoveSpeed(0.75f);
+            Bot.Mover.SetTargetMoveSpeed(walkSpeed);
         }
+        return false;
+    }
+
+    /// <summary>Just inside the frame at chest height - where someone stepping out of the room shows up first.</summary>
+    private static Vector3 DoorMouth(Session s)
+    {
+        return s.Center - s.BotSide * 0.4f + Vector3.up * 1.3f;
+    }
+
+    private static bool InDoorwayLine(Session s, Vector3 position)
+    {
+        Vector3 axis = Vector3.Cross(s.BotSide, Vector3.up).normalized;
+        return Mathf.Abs(Vector3.Dot(position - s.Center, axis)) < s.HalfWidth + 0.35f;
+    }
+
+    /// <summary>
+    /// During the run-by: he's heard coming at the doorway (running, the door, a jump, or his footsteps right at the
+    /// frame) -> stop the show: off the doorway line at a walk (to whichever end is closer, or stay if already off it),
+    /// gun on the frame, hold. SAIN takes the shot the moment he's in sight.
+    /// </summary>
+    private bool RunByAbort(Session s)
+    {
+        if (!EnemyComingOut(s, out string heard) && !RoomEnemyAtDoor(s, out heard))
+        {
+            return false;
+        }
+        Player.EnableSprint(false);
+        Bot.Mover.Stop();
+        Vector3 position = Bot.Position;
+        if (InDoorwayLine(s, position))
+        {
+            s.RunByBackTarget = HorizontalDistance(position, s.Stack) <= HorizontalDistance(position, s.RunByFar) ? s.Stack : s.RunByFar;
+        }
+        else
+        {
+            s.RunByBackTarget = position;
+        }
+        TacticDiagnostics.Count("door.runBy.abortHeard");
+        if (LogOn) Log($"{Who()} run-by cut short at {s.Step}: heard {heard} -> off the doorway line, gun on the frame");
+        SetStep(EStep.RunBySettle, "heardComingOut");
+        return true;
+    }
+
+    /// <summary>The room enemy's footsteps (even walking) right at the doorway within the last second.</summary>
+    private bool RoomEnemyAtDoor(Session s, out string what)
+    {
+        what = string.Empty;
+        var hearing = s.Enemy?.Hearing;
+        if (hearing == null || Time.time - hearing.LastHeardSoundTime > 1f || hearing.LastHeardSoundType != SAINSoundType.FootStep)
+        {
+            return false;
+        }
+        float toDoor = HorizontalDistance(hearing.LastHeardSoundPosition, s.Center);
+        if (toDoor > 4f)
+        {
+            return false;
+        }
+        what = $"footsteps from {s.Enemy.EnemyName} {toDoor:0.0}m from the door";
+        return true;
+    }
+
+    private static readonly float[] ANGLE_DEPTHS = { 2.4f, 2.0f, 2.9f };
+    private static readonly float[] ANGLE_WIDTHS = { 0.8f, 0.4f, 1.3f };
+
+    /// <summary>
+    /// Where to hold after a run-by: on the stack's side of the frame, 2-2.9m back from the doorway and a bit wider than
+    /// the frame, with the doorway mouth in clear view - someone stepping out shows up 2-3m in front of the gun instead
+    /// of at arm's length beside it - and reachable in a straight line from here.
+    /// </summary>
+    private bool FindAngleHoldPoint(Session s, out Vector3 point)
+    {
+        Vector3 axis = Vector3.Cross(s.BotSide, Vector3.up).normalized;
+        float side = Mathf.Sign(Vector3.Dot(s.Stack - s.Center, axis));
+        Vector3 mouth = DoorMouth(s);
+        Vector3 from = Bot.Position;
+        foreach (float depth in ANGLE_DEPTHS)
+        {
+            foreach (float wide in ANGLE_WIDTHS)
+            {
+                Vector3 raw = s.Center + s.BotSide * depth + axis * side * (s.HalfWidth + wide);
+                if (!SampleNav(raw, out Vector3 candidate) || Vector3.Dot(candidate - s.Center, s.BotSide) < 1.4f)
+                {
+                    continue;
+                }
+                if (Physics.Linecast(candidate + Vector3.up * 1.4f, mouth, LayersMaskController.HighPolyWithTerrainMask))
+                {
+                    continue;
+                }
+                if (NavMesh.Raycast(from, candidate, out _, -1))
+                {
+                    continue;
+                }
+                point = candidate;
+                return true;
+            }
+        }
+        TacticDiagnostics.Count("door.runBy.noAnglePoint");
+        point = default;
         return false;
     }
 
@@ -1685,7 +2055,7 @@ public class DoorTacticClass : BotComponentClassBase
     /// <summary>
     /// Decides at the frame whether the planned fake is worth doing right now (2026-09-27: fakes fired "out of the
     /// blue" with nobody around to bait, so it looked like a random heal/throw). Only when the room enemy was heard
-    /// or located within the last 8s, is within 10m of the door, nobody is running at us, and the bot is at the frame.
+    /// or located within the last 15s, is within 10m of the door, nobody is running at us, and the bot is at the frame.
     /// </summary>
     private EStep FakeOrHold(Session s)
     {
@@ -1697,7 +2067,7 @@ public class DoorTacticClass : BotComponentClassBase
         string why = null;
         Enemy enemy = s.Enemy;
         Vector3? known = enemy?.KnownPlaces.LastKnownPosition;
-        if (enemy == null || known == null || enemy.TimeSinceLastKnownUpdated > 8f)
+        if (enemy == null || known == null || enemy.TimeSinceLastKnownUpdated > FAKE_MAX_INFO_AGE)
         {
             why = "enemyInfoOld";
         }
@@ -2439,7 +2809,7 @@ public class DoorTacticClass : BotComponentClassBase
     /// actually shot it. Now any other known enemy that is visible, or was heard within 25m in the last 3s, drops the
     /// door (and blocks starting / resuming one) so SAIN's normal decisions deal with them.
     /// </summary>
-    private bool OtherEnemyActive(Enemy goal, out string what)
+    private bool OtherEnemyActive(Enemy goal, Vector3 doorCenter, Vector3 botSide, out string what)
     {
         what = string.Empty;
         var enemies = Bot.EnemyController.KnownEnemies;
@@ -2458,7 +2828,14 @@ public class DoorTacticClass : BotComponentClassBase
             var hearing = other.Hearing;
             if (hearing != null && Time.time - hearing.LastHeardSoundTime < 3f)
             {
-                float dist = HorizontalDistance(hearing.LastHeardSoundPosition, Bot.Position);
+                Vector3 heardAt = hearing.LastHeardSoundPosition;
+                // zzap: heard inside the same room (beyond the door, near it) = one more enemy in the room we're working,
+                // e.g. his squadmate. Not a third party - before, a squad in a room made door tactics impossible.
+                if (Vector3.Dot(heardAt - doorCenter, botSide) < -0.3f && HorizontalDistance(heardAt, doorCenter) < MAX_ENEMY_DOOR_DIST + 4f)
+                {
+                    continue;
+                }
+                float dist = HorizontalDistance(heardAt, Bot.Position);
                 if (dist < 25f)
                 {
                     what = $"{other.EnemyName} heard ({hearing.LastHeardSoundType}) {dist:0}m away";
@@ -2692,6 +3069,16 @@ public class DoorTacticClass : BotComponentClassBase
         float time = Time.time;
         _doorCooldowns[s.Door.Id] = time + DOOR_COOLDOWN_AFTER_SESSION;
         _nextAllowedTime = time + GLOBAL_COOLDOWN;
+        _cooldownFromRoll = false;
+        if (time - s.StartTime < FIZZLE_TIME
+            && (resultKey == "enemySpotted" || resultKey == "rushInstead" || resultKey == "interrupted" || resultKey == "goalEnemyChanged"))
+        {
+            // Never got going (he came back in sight / SAIN switched straight away): not a used-up door. 60s here blocked
+            // the real chance a few seconds later.
+            _doorCooldowns[s.Door.Id] = time + 8f;
+            _nextAllowedTime = time + 3f;
+            TacticDiagnostics.Count("door.fizzled");
+        }
         if (resultKey == "moveTimeout" || resultKey == "stuck" || resultKey == "noPath" || resultKey == "doorDidNotOpen" || resultKey == "doorOpenFailed")
         {
             // Failed to even get going: don't chain straight into the next door (one bot started 8 sessions in a row).
@@ -2849,6 +3236,8 @@ public class DoorTacticClass : BotComponentClassBase
         return _peek.Tick(s.LookTarget.Value, s.Center, cc.HoldStepToOpenAngleMax, 0.8f);
     }
     private float _nextAllowedTime;
+    private bool _cooldownFromRoll;
+    private int _rollFailedDoor = -1;
     private float _nextVerboseLogTime;
     private readonly Dictionary<int, float> _doorCooldowns = new();
 }

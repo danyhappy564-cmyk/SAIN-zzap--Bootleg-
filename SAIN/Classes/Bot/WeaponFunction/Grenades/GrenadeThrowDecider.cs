@@ -113,7 +113,7 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
         {
             return false;
         }
-        if (!Judge(enemy, out reason))
+        if (!JudgeSafe(enemy, out reason))
         {
             return false;
         }
@@ -132,13 +132,32 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
             return false;
         }
 
-        if (FindThrowTarget(enemy) && TryThrowGrenade())
+        // zzap: arc first, dice second. Before, the "worth it?" roll came first and a clear arc was looked for only
+        // afterwards, with no pause when there was none - the same unthrowable spot was re-rolled every tick (13th/14th
+        // sims: "throw" judged 40-138 times per raid, 6-12 grenades actually thrown). Now: no arc -> wait 1.5s, and
+        // more spots are tried (the corner on his path, through the doorway of his room).
+        if (!FindThrowTarget(enemy, out string target))
+        {
+            _nextPossibleAttempt = Time.time + 1.5f;
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("nade.noArc");
+            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) LogJudge($"no clear arc to {enemy.EnemyPlayer?.Profile?.Nickname} ({enemy.KnownPlaces.BotDistanceFromLastKnown:0}m, {(Bot.Memory.Location.IsIndoors ? "indoors" : "outdoors")})");
+            reason = "noArc";
+            return false;
+        }
+        if (!JudgeRoll(enemy, out reason))
+        {
+            return false;
+        }
+        if (TryThrowGrenade())
         {
             _nextPossibleAttempt = Time.time + Random.Range(_throwGrenadeFreq, _throwGrenadeFreqMax);
+            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"nade.thrown.{target}");
             reason = "startThrow";
             return true;
         }
-        reason = "noGoodTarget";
+        _nextPossibleAttempt = Time.time + 0.5f;
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("nade.notReady");
+        reason = "notReady";
         return false;
     }
 
@@ -152,7 +171,7 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
     private float _stillSince;
     private float _nextJudgeLog;
 
-    private bool Judge(Enemy enemy, out string reason)
+    private bool JudgeSafe(Enemy enemy, out string reason)
     {
         var settings = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat;
         if (settings == null || !settings.GrenadeDiscipline)
@@ -201,33 +220,48 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
             reason = $"notSafe:{block}";
             return false;
         }
+        reason = string.Empty;
+        return true;
+    }
+
+    private bool JudgeRoll(Enemy enemy, out string reason)
+    {
+        var settings = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat;
+        if (settings == null || !settings.GrenadeDiscipline)
+        {
+            reason = string.Empty;
+            return true;
+        }
+        float time = Time.time;
+        float infoAge = enemy.TimeSinceLastKnownUpdated;
         float chance = 0.5f;
-        var why = new System.Text.StringBuilder();
+        bool logOn = SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn;
+        var why = logOn ? new System.Text.StringBuilder() : null;
         float still = time - _stillSince;
         if (still > 6f)
         {
             chance += 0.3f;
-            why.Append($"camping {still:0}s +30 ");
+            why?.Append($"camping {still:0}s +30 ");
         }
         if (enemy.EnemyPlayer?.Environment == EnvironmentType.Indoor)
         {
             chance += 0.1f;
-            why.Append("indoors +10 ");
+            why?.Append("indoors +10 ");
         }
         if (enemy.Status.VulnerableAction != SAIN.Models.Enums.EEnemyAction.None)
         {
             chance += 0.15f;
-            why.Append($"{enemy.Status.VulnerableAction} +15 ");
+            why?.Append($"{enemy.Status.VulnerableAction} +15 ");
         }
         if (infoAge > 10f)
         {
             chance -= 0.2f;
-            why.Append($"info {infoAge:0}s old -20 ");
+            why?.Append($"info {infoAge:0}s old -20 ");
         }
         chance = Mathf.Clamp(chance, 0.1f, 0.95f);
         bool go = Random.value < chance;
         SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(go ? "nade.judge.throw" : "nade.judge.hold");
-        if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) LogJudge($"{(go ? "THROW" : "hold")} ({chance:P0}: base 50 {why}) at {enemy.EnemyPlayer?.Profile?.Nickname} {enemy.KnownPlaces.BotDistanceFromLastKnown:0}m, info {infoAge:0.0}s, path {enemy.Path.PathLength:0}m");
+        if (logOn) LogJudge($"{(go ? "THROW" : "hold")} ({chance:P0}: base 50 {why}) at {enemy.EnemyPlayer?.Profile?.Nickname} {enemy.KnownPlaces.BotDistanceFromLastKnown:0}m, info {infoAge:0.0}s, path {enemy.Path.PathLength:0}m");
         if (!go)
         {
             _nextPossibleAttempt = time + Random.Range(3f, 6f);
@@ -341,24 +375,62 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
         return true;
     }
 
-    private bool FindThrowTarget(Enemy enemy)
+    // zzap: indoors a higher lob is fine when the target is far enough - the arc check rejects anything that would clip
+    // the ceiling or a frame, so trying it costs nothing but a few raycasts.
+    private static readonly AIGreandeAng[] _indoorAnglesFar =
+    [
+        AIGreandeAng.ang5,
+        AIGreandeAng.ang15,
+        AIGreandeAng.ang25,
+    ];
+
+    private static readonly AIGreandeAng[] _flatAngles = [AIGreandeAng.ang5, AIGreandeAng.ang15];
+    private static readonly float[] _throughDoorDepths = [1.8f, 1.2f, 2.6f];
+
+    private bool FindThrowTarget(Enemy enemy, out string target)
     {
+        target = null;
         EnemyPlace lastKnown = enemy.KnownPlaces.LastKnownPlace;
-        if (lastKnown != null)
+        if (lastKnown == null)
         {
-            Vector3 lastKnownPos = lastKnown.Position;
-            if (!CheckFriendlyDistances(lastKnownPos))
+            return false;
+        }
+        Vector3 lastKnownPos = lastKnown.Position;
+        if (!CheckFriendlyDistances(lastKnownPos))
+        {
+            return false;
+        }
+        bool indoors = Bot.Memory.Location.IsIndoors;
+        var angles = indoors ? (lastKnown.DistanceToBot >= 6f ? _indoorAnglesFar : _indoorAngles) : _outdoorAngles;
+        if (TryThrowToPos(lastKnownPos, "LastKnownPosition", lastKnown.DistanceToBot, angles))
+        {
+            target = "lastKnown";
+            return true;
+        }
+        if (CheckCanThrowBlindCorner(enemy, lastKnownPos))
+        {
+            target = "blindCorner";
+            return true;
+        }
+        // zzap: he's in a room behind an open door near us -> roll it in through the doorway (lands 1.2-2.6m inside),
+        // the way players clear a room they can't see into. Only where our own blast can't reach us.
+        if (Bot.DoorTactic != null && Bot.DoorTactic.DoorToward(enemy, out Vector3 doorCenter, out Vector3 intoRoom))
+        {
+            Vector3 from = Bot.Transform.WeaponData.WeaponRoot;
+            Vector3 chest = Bot.Position + Vector3.up * 1.2f;
+            foreach (float depth in _throughDoorDepths)
             {
-                return false;
-            }
-            var angles = Bot.Memory.Location.IsIndoors ? _indoorAngles : _outdoorAngles;
-            if (TryThrowToPos(lastKnownPos, "LastKnownPosition", lastKnown.DistanceToBot, angles))
-            {
-                return true;
-            }
-            if (CheckCanThrowBlindCorner(enemy, lastKnownPos))
-            {
-                return true;
+                Vector3 point = doorCenter + intoRoom * depth;
+                bool wall = Physics.Linecast(point + Vector3.up * 0.3f, chest, LayersMaskController.HighPolyWithTerrainMask);
+                if ((point - Bot.Position).magnitude < SAIN.SAINComponent.Classes.Tactics.OwnGrenadeTracker.DANGER_RADIUS && !wall)
+                {
+                    continue;
+                }
+                if (CanThrowAGrenade(from, point + Vector3.up * _checkThrowPos_HeightOffset, _flatAngles))
+                {
+                    target = "throughDoor";
+                    return true;
+                }
             }
         }
         return false;

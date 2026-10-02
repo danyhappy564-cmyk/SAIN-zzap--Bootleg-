@@ -22,7 +22,7 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
 
     [DataMember]
     [Name("Fake Grenade")]
-    [Description("GigaChad/Chad at the door frame: draw a grenade (the sound is the bait) and put it away the moment it is in hand. Only when the room enemy was heard/located within 8s and is within 10m of the door, and only from real cover (no known enemy has line of sight, indoors or boxed in, not under fire); running footsteps cancel it at any point. If the enemy rushes out before the gun is back up, the bot retreats to cover.")]
+    [Description("GigaChad/Chad at the door frame: draw a grenade (the sound is the bait) and put it away the moment it is in hand. Only when the room enemy was heard/located within 15s and is within 10m of the door, and only from real cover (no known enemy has line of sight, indoors or boxed in, not under fire); running footsteps cancel it at any point. If the enemy rushes out before the gun is back up, the bot retreats to cover.")]
     public bool FakeGrenade = true;
 
     [DataMember]
@@ -34,6 +34,11 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     [Name("Room Trap")]
     [Description("GigaChad/SnappingTurtle stack beside the door and hold it (the door is left as it is). Rat holds beside the door silently.")]
     public bool RoomTrap = true;
+
+    [DataMember]
+    [Name("Hold Stance Holds The Door")]
+    [Description("When the hidden-enemy decision picks 'hold' and the enemy is in a room behind a door close by (bot within 8m of it), any bot holds that door from beside the frame (room trap; Rat low and silent) instead of freezing in the open. Needs Room Trap on.")]
+    public bool HoldStanceDoorTrap = true;
 
     [DataMember]
     [Name("Emergency Retreat Distance")]

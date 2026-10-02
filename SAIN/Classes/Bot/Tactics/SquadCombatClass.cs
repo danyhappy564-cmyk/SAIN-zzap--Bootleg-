@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using EFT;
+using HarmonyLib;
 using SAIN.Components;
 using SAIN.Models.Enums;
 using SAIN.Preset.Shared.Enums;
@@ -178,14 +179,22 @@ public class SquadCombatClass : BotComponentClassBase
     private string _downedMateName;
     private float _downedTime = -1000f;
 
+    private float _nextTrackTime;
+
     private void TrackTeammates(float time)
     {
+        if (time < _nextTrackTime)
+        {
+            return;
+        }
+        _nextTrackTime = time + 0.5f;
         var members = Bot.Squad.Members;
         if (members == null)
         {
             return;
         }
         _stillHere.Clear();
+        _killers.Clear();
         foreach (var member in members.Values)
         {
             if (member == null || ReferenceEquals(member, Bot))
@@ -194,6 +203,13 @@ public class SquadCombatClass : BotComponentClassBase
             }
             if (member.IsDead)
             {
+                // zzap: who actually killed him (his last aggressor), not just who he was aiming at - he is often shot by
+                // someone else (8 sims: 8-14 teammates down per raid, 0-2 trades).
+                string killer = KillerOf(member.Player);
+                if (!string.IsNullOrEmpty(killer))
+                {
+                    _killers[member.ProfileId] = killer;
+                }
                 continue;
             }
             _stillHere.Add(member.ProfileId);
@@ -214,12 +230,74 @@ public class SquadCombatClass : BotComponentClassBase
             _mateNames.TryGetValue(id, out string name);
             _mateEnemy.Remove(id);
             _mateNames.Remove(id);
+            _killers.TryGetValue(id, out string killerId);
             _downedTime = time;
-            _downedMateEnemyId = enemyId;
+            _downedMateEnemyId = killerId ?? enemyId;
+            _downedMateAimedAt = enemyId;
             _downedMateName = name;
             TacticDiagnostics.Count("squad.teammateDown");
-            if (LogOn) Log($"{Who()} teammate {name} went down (was fighting {enemyId ?? "nobody"})");
+            if (LogOn) Log($"{Who()} teammate {name} went down (killed by {killerId ?? "?"}, was fighting {enemyId ?? "nobody"})");
         }
+    }
+
+    private readonly Dictionary<string, string> _killers = new();
+    private string _downedMateAimedAt;
+
+    // Player.LastAggressor is protected - read it through a cached field ref; give up quietly if it ever changes.
+    private static AccessTools.FieldRef<Player, IPlayer> _lastAggressorRef;
+    private static bool _lastAggressorFailed;
+
+    private static string KillerOf(Player player)
+    {
+        if (player == null || _lastAggressorFailed)
+        {
+            return null;
+        }
+        try
+        {
+            _lastAggressorRef ??= AccessTools.FieldRefAccess<Player, IPlayer>("LastAggressor");
+            return _lastAggressorRef(player)?.ProfileId;
+        }
+        catch (System.Exception ex)
+        {
+            _lastAggressorFailed = true;
+            Logger.LogWarning($"[SAIN zzap] squad trades: can't read Player.LastAggressor ({ex.Message}) - trading the teammate's own target instead");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// zzap: checked by the hidden-enemy decision before anything else - a teammate just went down to this enemy -> trade
+    /// now. Before, the trade was only looked at deep in the decision chain (flank stance / nothing else runnable) and
+    /// teammate deaths were only noticed then.
+    /// </summary>
+    public bool ShallTrade(Enemy enemy, out string reason)
+    {
+        reason = string.Empty;
+        if (_session != null || !Settings.Enabled || !Settings.Trade)
+        {
+            return false;
+        }
+        if (!Bot.Squad.BotInGroup || Bot.Squad.Members == null || Bot.Squad.Members.Count <= 1)
+        {
+            return false;
+        }
+        float time = Time.time;
+        TrackTeammates(time);
+        if (time - _downedTime > Settings.TradeWindow || _downedMateEnemyId == null || _cooldownUntil > time || Bot.DoorTactic.Active)
+        {
+            return false;
+        }
+        if (enemy == null || enemy.IsVisible || BotOwner.Memory.IsUnderFire)
+        {
+            return false;
+        }
+        Vector3? known = enemy.KnownPlaces.LastKnownPosition;
+        if (known == null || enemy.TimeSinceLastKnownUpdated > 20f || Flat(known.Value - Bot.Position).magnitude > Settings.MaxEnemyDistance)
+        {
+            return false;
+        }
+        return TryStartTrade(enemy, known.Value, out reason);
     }
 
     private readonly HashSet<string> _stillHere = new();
@@ -232,12 +310,13 @@ public class SquadCombatClass : BotComponentClassBase
         {
             return false;
         }
-        if (_downedMateEnemyId != enemy.EnemyProfileId)
+        if (_downedMateEnemyId != enemy.EnemyProfileId && _downedMateAimedAt != enemy.EnemyProfileId)
         {
             reason = "tradeOtherEnemy";
             return false;
         }
         _downedMateEnemyId = null;
+        _downedMateAimedAt = null;
         bool aggressive = Bot.Info.PersonalitySettings.Rush.CanRushEnemyReloadHeal;
         if (aggressive)
         {
@@ -256,8 +335,11 @@ public class SquadCombatClass : BotComponentClassBase
             reason = "tradeAngle";
             return true;
         }
-        reason = $"tradeNoAngle({why})";
-        return false;
+        // No better angle: hold the killer's spot from right here (gun on it, peek-spot step if a wall is in the way)
+        // instead of dropping the trade.
+        Start(EMode.TradeAngle, enemy, Bot.Position, known + Vector3.up * 1.3f, null, $"trade for {_downedMateName}: holding the killer's spot from here ({why})");
+        reason = "tradeHoldHere";
+        return true;
     }
 
     // ---------------------------------------------------------------- cover a reloading / healing teammate
@@ -851,7 +933,7 @@ public class SquadCombatClass : BotComponentClassBase
         {
             Bot.Mover.Stop();
         }
-        Bot.Mover.SetTargetPose(s.HoldPose);
+        Bot.Mover.SetTargetPose(_peek != null && ReferenceEquals(_peekSession, s) && _peek.StandToSee ? 1f : s.HoldPose);
     }
 
     // zzap: holding a squad angle with the wall between the gun and the angle -> step to the first spot where it's in view.

@@ -176,22 +176,56 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             _tapDir = -_tapDir;
             TacticDiagnostics.Count("diamond.avoidOwnNade");
         }
-        // Never walk off a ledge / into a wall mid-tap: if the next 0.5m is blocked, flip the tap.
+        // Never walk off a ledge / into a wall mid-tap: if the next 0.5m is blocked, take the first open direction
+        // (opposite, then across, then diagonal back). Before it only flipped and then re-rolled every frame, so in a
+        // corridor the bot stood still re-picking (13th/14th sims: "blocked" 394-552 times against 340-521 starts).
         if (NavMesh.Raycast(Bot.Position, Bot.Position + _tapDir * 0.5f, out _, -1))
         {
-            _tapDir = -_tapDir;
-            if (NavMesh.Raycast(Bot.Position, Bot.Position + _tapDir * 0.5f, out _, -1))
+            if (!TryOpenTapDirection(out Vector3 open))
             {
-                // Both ways blocked (narrow spot): force a new pick next frame instead of standing still.
-                _tapEnd = 0f;
+                // Boxed in: re-pick in 0.1s instead of every frame.
+                _tapEnd = Time.time + 0.1f;
                 TacticDiagnostics.Count("diamond.blocked");
                 return true;
             }
+            _tapDir = open;
         }
         Bot.PlayerComponent.CharacterController.SetWantToSprint(false);
         // Far-away "destination" so SAIN's arrival slowdown never kicks in during a tap.
         Bot.PlayerComponent.CharacterController.SetTargetMoveDirection(_tapDir, Bot.Position + _tapDir * 5f, Bot.PlayerComponent, 0f, 1f);
         return true;
+    }
+
+    private readonly Vector3[] _tapCandidates = new Vector3[5];
+
+    private bool TryOpenTapDirection(out Vector3 open)
+    {
+        Vector3 across = Vector3.Cross(Vector3.up, _tapDir).normalized;
+        if (Random.value < 0.5f)
+        {
+            across = -across;
+        }
+        _tapCandidates[0] = -_tapDir;
+        _tapCandidates[1] = across;
+        _tapCandidates[2] = -across;
+        _tapCandidates[3] = (across - _tapDir).normalized;
+        _tapCandidates[4] = (-across - _tapDir).normalized;
+        Vector3 position = Bot.Position;
+        for (int i = 0; i < _tapCandidates.Length; i++)
+        {
+            Vector3 dir = _tapCandidates[i];
+            if (!NavMesh.Raycast(position, position + dir * 0.5f, out _, -1))
+            {
+                open = dir;
+                if (i > 0)
+                {
+                    TacticDiagnostics.Count("diamond.redirected");
+                }
+                return true;
+            }
+        }
+        open = default;
+        return false;
     }
 
     /// <summary>A corner: one side step (0.8m, walkable) puts the bot's chest out of the enemy's sight.</summary>

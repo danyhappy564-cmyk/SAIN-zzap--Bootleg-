@@ -17,4 +17,22 @@ if [ "$CUR_NAME" != "$EXPECTED_NAME" ] || [ "$CUR_EMAIL" != "$EXPECTED_EMAIL" ];
   echo "pre-commit: git author를 $EXPECTED_NAME <$EXPECTED_EMAIL>로 재설정했습니다 (이전: $CUR_NAME <$CUR_EMAIL>)." >&2
 fi
 
+# ⚠️ git은 이 훅이 돌기 **전에** 이번 커밋의 작성자/커미터를 이미 정해 둔다(훅 환경변수
+# GIT_AUTHOR_NAME/EMAIL로 넘어옴). 위에서 설정을 고쳐도 이번 커밋에는 반영되지 않는다 —
+# 2026-09-29 RamCleanerInterval에서 "재설정했습니다"가 찍혔는데도 Claude 작성자로 커밋·푸시된
+# 실사고가 있었다. 그래서 이번 커밋의 실제 작성자/커미터가 틀리면 여기서 막는다.
+# 설정은 이미 고쳤으니 같은 git commit을 한 번 더 실행하면 R_F로 들어간다.
+AUTHOR_IDENT=$(git var GIT_AUTHOR_IDENT 2>/dev/null || echo "")
+COMMITTER_IDENT=$(git var GIT_COMMITTER_IDENT 2>/dev/null || echo "")
+case "$AUTHOR_IDENT|$COMMITTER_IDENT" in
+  "$EXPECTED_NAME <$EXPECTED_EMAIL> "*"|$EXPECTED_NAME <$EXPECTED_EMAIL> "*) ;;
+  *)
+    echo "pre-commit: 이번 커밋의 작성자/커미터가 R_F가 아닙니다 → 커밋을 막았습니다." >&2
+    echo "  author:    $AUTHOR_IDENT" >&2
+    echo "  committer: $COMMITTER_IDENT" >&2
+    echo "  git 설정은 방금 R_F로 고쳤으니 같은 git commit 명령을 다시 실행하세요." >&2
+    exit 1
+    ;;
+esac
+
 exit 0

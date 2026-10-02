@@ -28,12 +28,21 @@ public sealed class PeekSpot(BotComponent bot, string owner)
         get { return _spot != null; }
     }
 
+    /// <summary>
+    /// zzap: the angle is hidden only by low cover in front of a crouched gun - standing up right here opens it, no step
+    /// needed. Callers raise the pose while this is set (kept until Reset, so the bot doesn't bob up and down).
+    /// </summary>
+    public bool StandToSee { get; private set; }
+
     public void Reset()
     {
         _spot = null;
         _tries = 0;
         _nextCheck = Time.time + 0.3f;
+        StandToSee = false;
     }
+
+    private const float STAND_GUN_HEIGHT = 1.45f;
 
     /// <param name="aim">What the bot aims at while holding.</param>
     /// <param name="toward">Where the angle opens from (corner edge, door) - searched first.</param>
@@ -60,6 +69,18 @@ public sealed class PeekSpot(BotComponent bot, string owner)
         Vector3 from = _bot.Position;
         float gunUp = gun.y - from.y;
 
+        // zzap: crouched behind low cover - standing up here is the smallest change that opens the angle.
+        if (!StandToSee && gunUp < STAND_GUN_HEIGHT - 0.2f && !Physics.Linecast(from + Vector3.up * STAND_GUN_HEIGHT, aim, mask))
+        {
+            StandToSee = true;
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"peekSpot.stand.{_owner}");
+            return false;
+        }
+        if (StandToSee)
+        {
+            gunUp = Mathf.Max(gunUp, STAND_GUN_HEIGHT);
+        }
+
         Vector3 toTarget = toward - from;
         toTarget.y = 0f;
         float toDist = toTarget.magnitude;
@@ -71,7 +92,15 @@ public sealed class PeekSpot(BotComponent bot, string owner)
         float bestStep = float.MaxValue;
         if (toDist > keepFromToward + STEP)
         {
-            Search(from, toTarget / toDist, Mathf.Min(maxStep, toDist - keepFromToward), gunUp, aim, mask, ref best, ref bestStep, 0f);
+            Vector3 toward1 = toTarget / toDist;
+            Search(from, toward1, Mathf.Min(maxStep, toDist - keepFromToward), gunUp, aim, mask, ref best, ref bestStep, 0f);
+            if (side != Vector3.zero)
+            {
+                // zzap: half toward the corner, half sideways (most "no spot" cases: the opening is diagonal from the bot -
+                // 13th/14th sims, no spot 497-622 times against 111-165 steps).
+                Search(from, (toward1 + side).normalized, maxStep, gunUp, aim, mask, ref best, ref bestStep, STEP * 0.5f);
+                Search(from, (toward1 - side).normalized, maxStep, gunUp, aim, mask, ref best, ref bestStep, STEP * 0.5f);
+            }
         }
         if (side != Vector3.zero)
         {

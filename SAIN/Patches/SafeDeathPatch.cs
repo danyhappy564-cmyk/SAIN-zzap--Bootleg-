@@ -197,6 +197,12 @@ internal static class UnprocessedDeathRescue
         {
             return;
         }
+        // A switched-off body (ORBIT 2.x Ghost Mode puts far bots to sleep that way) can't build a ragdoll until it is
+        // switched back on - ORBIT wakes a ghost before killing it, so don't force a death through on a sleeping body.
+        if (player.gameObject == null || !player.gameObject.activeInHierarchy)
+        {
+            return;
+        }
         int id = player.GetInstanceID();
         if (_rescued.Contains(id) || DeathRescuePatch.CorpseRef(player) != null)
         {

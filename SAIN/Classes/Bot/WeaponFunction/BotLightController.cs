@@ -77,8 +77,16 @@ public class BotLightController : BotComponentClassBase
         return false;
     }
 
+    // zzap: how many 60s back-offs in a row this bot hit without the light ever coming on (a gun with no usable light
+    // retried every minute all raid: 70-104 back-offs per raid in the 12th-14th sims, each one two more clicks).
+    private int _lightBackoffRounds;
+
     private void updateLightToggle()
     {
+        if (wantLightOn && IsLightEnabled)
+        {
+            _lightBackoffRounds = 0;
+        }
         if ((Bot.SAINLayersActive || Bot.HasEnemy) && IsLightEnabled != wantLightOn && _nextLightChangeTime < Time.time)
         {
             // zzap: a bot whose weapon has no usable light (laser only, IR, or nothing that turns on) never reaches
@@ -98,7 +106,9 @@ public class BotLightController : BotComponentClassBase
                 _lightOnFailures++;
                 if (_lightOnFailures >= 2)
                 {
-                    _lightRetryAfter = Time.time + 60f;
+                    // 60s, then 120s, 240s, ... up to 10 min while it keeps failing.
+                    _lightRetryAfter = Time.time + Mathf.Min(60f * (1 << Mathf.Min(_lightBackoffRounds, 4)), 600f);
+                    _lightBackoffRounds++;
                     SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("light.turnOnFailedBackoff");
                     return;
                 }

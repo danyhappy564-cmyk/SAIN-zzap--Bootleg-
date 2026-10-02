@@ -182,6 +182,13 @@ public sealed class CornerChase(BotComponent bot)
         {
             return false;
         }
+        if (!_styleCounted)
+        {
+            // Counted when the style actually comes into play (within 7m of the corner), not at every sight break -
+            // "chase.style.*" used to read as executions and didn't match chase.prefire.fired / chase.jumpShot.jumped.
+            _styleCounted = true;
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"chase.style.{_style}");
+        }
         LookPoint = SAIN.SAINComponent.Classes.Mover.SAINSteeringClass.PastCorner(Bot.Transform.WeaponRoot, corner, lastKnown, Bot.Transform.LookDirection);
         if (OwnGrenadeTracker.Threatens(Bot.ProfileId, corner) || OwnGrenadeTracker.Threatens(Bot.ProfileId, Bot.Position))
         {
@@ -240,8 +247,11 @@ public sealed class CornerChase(BotComponent bot)
         return false;
     }
 
+    private bool _styleCounted;
+
     private void PickStyle(CloseCombatSettings settings, Enemy enemy)
     {
+        _styleCounted = false;
         _jumped = false;
         _prefireDone = false;
         _wideReached = false;
@@ -346,7 +356,6 @@ public sealed class CornerChase(BotComponent bot)
         float total = wPrefire + wJump + wLean + wPie;
         float roll = Random.value * total;
         _style = roll < wPrefire ? EStyle.Prefire : roll < wPrefire + wJump ? EStyle.JumpShot : roll < wPrefire + wJump + wLean ? EStyle.LeanIn : EStyle.Pie;
-        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"chase.style.{_style}");
         if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
             $"[Chase] [{Bot.name}] [{personality}] enemy broke sight {enemy.TimeSinceSeen:0.0}s ago, corner {(corner != null ? (corner.Value - Bot.Position).magnitude : -1f):0.0}m {_side} -> {_style} "
                 + $"(weights prefire {wPrefire:0.0} / jump {wJump:0.0} / lean {wLean:0.0} / pie {wPie:0.0}; mag {rounds}/{max}, headroom {headroom}) because: {reasons}"

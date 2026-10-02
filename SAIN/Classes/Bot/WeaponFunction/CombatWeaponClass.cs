@@ -57,15 +57,24 @@ public class CombatWeaponClass : BotComponentClassBase
         {
             return false;
         }
+        if (Time.time < _pistolRefusedUntil)
+        {
+            return false;
+        }
         var pistol = wm.PistolWeaponInfo;
         return pistol != null && pistol.BulletCount > 0;
     }
+
+    // zzap: the game refused the holster swap (13th/14th sims: 245-306 refusals, the same bots re-asking every tick and
+    // never reloading in between) - don't offer the pistol again for 3s.
+    private float _pistolRefusedUntil;
 
     /// <summary>ReloadUtility picked the pistol (mag nearly empty, enemy in sight within 30m).</summary>
     public bool SwapToPistol(Enemy enemy, float ammoRatio)
     {
         if (!PistolReady() || !ForceChange(EquipmentSlot.Holster))
         {
+            _pistolRefusedUntil = Time.time + 3f;
             TacticDiagnostics.Count("weapon.pistolSwap.refused");
             return false;
         }
@@ -88,7 +97,7 @@ public class CombatWeaponClass : BotComponentClassBase
         {
             return false;
         }
-        if (selector.EquipmentSlot == EquipmentSlot.Holster)
+        if (selector.EquipmentSlot == EquipmentSlot.Holster || Time.time < _pistolRefusedUntil)
         {
             return false;
         }
@@ -105,6 +114,7 @@ public class CombatWeaponClass : BotComponentClassBase
         }
         if (!ForceChange(EquipmentSlot.Holster))
         {
+            _pistolRefusedUntil = Time.time + 3f;
             TacticDiagnostics.Count("weapon.pistolSwap.refused");
             return false;
         }

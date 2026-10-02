@@ -16,6 +16,11 @@ internal class FreezeAction(BotOwner bot) : BotAction(bot, nameof(FreezeAction))
         Enemy Enemy = Bot.GoalEnemy;
         Bot.Mover.Pose.SetPoseToCover(Enemy);
         TickPeekStep();
+        if (_peek != null && _peek.StandToSee)
+        {
+            // Low cover between the crouched gun and the corner: stand up to see it (PeekSpot.StandToSee).
+            Bot.Mover.SetTargetPose(1f);
+        }
     }
 
     public override void Start()

@@ -98,6 +98,7 @@ public class EnemyDecisionClass : BotBase
         // zzap: enemy in sight -> shoot / cover / push by expected gain (falls through to SAIN's own logic when it doesn't apply).
         if (TryVisibleUtility(enemy, out result, out LastReason))
         {
+            MarkVisibleFight(enemy);
             return true;
         }
 
@@ -115,6 +116,7 @@ public class EnemyDecisionClass : BotBase
                 Bot.Info.CalcHoldGroundDelay();
             }
             result = ECombatDecision.StandAndShoot;
+            MarkVisibleFight(enemy);
             return true;
         }
         bool shallShootDistant = shallShootDistantEnemy(enemy, out LastReason);
@@ -127,6 +129,15 @@ public class EnemyDecisionClass : BotBase
         if (shallShootDistant)
         {
             result = ECombatDecision.ShootDistantEnemy;
+            return true;
+        }
+
+        // zzap: close-range occlusion. A few meters away an enemy flickers behind a door frame / pillar for a split second;
+        // switching to the hidden-enemy logic each time restarted the action (14th sim, 2m: StandAndShoot -> Freeze ->
+        // DogFight in 0.4s, sprint run-by bot shot). Keep the fight going on the spot he just was.
+        if (KeepCloseFight(enemy, out result))
+        {
+            LastReason = "closeOcclusionKeep";
             return true;
         }
 
@@ -285,6 +296,13 @@ public class EnemyDecisionClass : BotBase
         {
             return false;
         }
+        // zzap: a teammate just went down to this enemy -> trade first (push the killer / take his angle).
+        if (Bot.SquadCombat.ShallTrade(enemy, out reason))
+        {
+            result = ECombatDecision.SquadTactic;
+            TacticDiagnostics.Count("utility.do.trade");
+            return true;
+        }
         var ranked = HiddenEnemyUtility.Rank(Bot, enemy);
         if (ranked == null)
         {
@@ -312,7 +330,22 @@ public class EnemyDecisionClass : BotBase
                     else if (enemy.Path.PathToEnemyStatus == NavMeshPathStatus.PathComplete && enemy.Path.PathLength <= 40f
                         && SAINBotSuppressClass.CalcAmmoRatio(BotOwner, out _) >= 0.35f)
                     {
-                        result = ECombatDecision.RushEnemy;
+                        // zzap: he's in a room behind a door near us and no door tactic right now (cooldown, door taken, roll):
+                        // running straight through the doorway was the fallback for most pushes (13th sim: 467 push picks,
+                        // 29 door tactics, the rest rushed in). Only reckless bots or against a weak enemy; otherwise hold
+                        // that door from the side, or let the next stance decide.
+                        if (Bot.DoorTactic.EnemyBehindDoor(enemy) && !RushThroughDoorOk(enemy))
+                        {
+                            if (Bot.DoorTactic.ShallHoldDoor(enemy, out r, true))
+                            {
+                                result = ECombatDecision.DoorTactic;
+                            }
+                            TacticDiagnostics.Count(result == ECombatDecision.DoorTactic ? "utility.push.holdDoorInstead" : "utility.push.notThroughDoor");
+                        }
+                        else
+                        {
+                            result = ECombatDecision.RushEnemy;
+                        }
                     }
                     break;
 
@@ -329,7 +362,9 @@ public class EnemyDecisionClass : BotBase
                     // Hold = bots camping for no reason). Otherwise the old chain decides (search / engage / cover).
                     if (stance == top || score >= ranked[0].score - 0.12f)
                     {
-                        result = ECombatDecision.Freeze;
+                        // zzap: he's in a room behind a door close by -> hold THAT door from beside the frame instead of
+                        // freezing wherever the bot happens to stand (13th sim: Hold top 489 times, never at a door).
+                        result = Bot.DoorTactic.ShallHoldDoor(enemy, out r) ? ECombatDecision.DoorTactic : ECombatDecision.Freeze;
                     }
                     break;
 
@@ -382,6 +417,64 @@ public class EnemyDecisionClass : BotBase
         }
         TacticDiagnostics.Count("utility.noneRunnable");
         return false;
+    }
+
+    private const float CLOSE_OCCLUSION_KEEP_TIME = 0.8f;
+    private const float CLOSE_OCCLUSION_DIST = 8f;
+    private Enemy _visibleFightEnemy;
+    private float _visibleFightTime = -100f;
+
+    private void MarkVisibleFight(Enemy enemy)
+    {
+        _visibleFightEnemy = enemy;
+        _visibleFightTime = Time.time;
+    }
+
+    /// <summary>
+    /// zzap: the same enemy was being fought in sight a moment ago, close, and is now hidden for under 0.8s -> keep the
+    /// current shoot / push decision (aimed at where he just was) instead of re-deciding as a hidden enemy. Not when
+    /// someone else is shooting at the bot (then the fresh decision matters).
+    /// </summary>
+    private bool KeepCloseFight(Enemy enemy, out ECombatDecision result)
+    {
+        result = ECombatDecision.None;
+        if (enemy.IsVisible || !enemy.Seen || enemy.TimeSinceSeen > CLOSE_OCCLUSION_KEEP_TIME || enemy.RealDistance > CLOSE_OCCLUSION_DIST)
+        {
+            return false;
+        }
+        if (!ReferenceEquals(_visibleFightEnemy, enemy) || Time.time - _visibleFightTime > CLOSE_OCCLUSION_KEEP_TIME + 0.4f)
+        {
+            return false;
+        }
+        ECombatDecision current = Bot.Decision.CurrentCombatDecision;
+        if (current != ECombatDecision.StandAndShoot && current != ECombatDecision.RushEnemy)
+        {
+            return false;
+        }
+        var known = Bot.EnemyController.KnownEnemies;
+        for (int i = 0; i < known.Count; i++)
+        {
+            Enemy other = known[i];
+            if (other != null && !ReferenceEquals(other, enemy) && (other.IsVisible || other.Status.ShotAtMeRecently))
+            {
+                return false;
+            }
+        }
+        result = current;
+        TacticDiagnostics.Count("decision.closeOcclusionKeep");
+        return true;
+    }
+
+    /// <summary>
+    /// zzap: running through a doorway into his room without a plan is only OK for a reckless bot or against a weak enemy.
+    /// </summary>
+    private bool RushThroughDoorOk(Enemy enemy)
+    {
+        if (Bot.Info.Personality == EPersonality.Wreckless)
+        {
+            return true;
+        }
+        return SquadStorm.Weakness(Bot, enemy, out _) >= 0.5f;
     }
 
     private bool TryVisibleUtility(Enemy enemy, out ECombatDecision result, out string reason)

@@ -1011,27 +1011,41 @@ public class RepositionClass : BotComponentClassBase
         return false;
     }
 
+    private static readonly float[] BAIT_DISTANCES = { 1.1f, 1.5f, 0.9f, 2.0f };
+    private static readonly float[] BAIT_FORWARD = { 0f, 0.6f };
+
     /// <summary>
-    /// 0.9-1.5m sideways out of cover to a spot that can see the enemy's position (so they see a shoulder).
+    /// Out of cover to a spot that can see the enemy's position (so they see a shoulder): 0.9-2m sideways, or around the
+    /// cover edge (sideways and a little forward - 13th/14th sims: no spot 6-13 times per raid against 0-3 bait peeks with
+    /// the straight sideways spots only), walkable in a straight line from here.
     /// </summary>
     private bool FindBaitPoint(Vector3 enemyPos, out Vector3 result)
     {
         Vector3 bot = Bot.Position;
         Vector3 toEnemy = Flat(enemyPos - bot).normalized;
         Vector3 lateral = Vector3.Cross(Vector3.up, toEnemy);
+        Vector3 enemyChest = enemyPos + Vector3.up * 1.3f;
         float first = Random.value < 0.5f ? 1f : -1f;
         foreach (float side in new[] { first, -first })
         {
-            foreach (float d in new[] { 1.1f, 1.5f, 0.9f })
+            foreach (float forward in BAIT_FORWARD)
             {
-                if (!NavMesh.SamplePosition(bot + lateral * side * d, out NavMeshHit hit, 0.6f, -1))
+                foreach (float d in BAIT_DISTANCES)
                 {
-                    continue;
-                }
-                if (!Physics.Linecast(hit.position + Vector3.up * 1.4f, enemyPos + Vector3.up * 1.3f, LayersMaskController.HighPolyWithTerrainMask))
-                {
-                    result = hit.position;
-                    return true;
+                    Vector3 raw = bot + lateral * side * d + toEnemy * forward * d;
+                    if (!NavMesh.SamplePosition(raw, out NavMeshHit hit, 0.6f, -1))
+                    {
+                        continue;
+                    }
+                    if (NavMesh.Raycast(bot, hit.position, out _, -1))
+                    {
+                        continue;
+                    }
+                    if (!Physics.Linecast(hit.position + Vector3.up * 1.4f, enemyChest, LayersMaskController.HighPolyWithTerrainMask))
+                    {
+                        result = hit.position;
+                        return true;
+                    }
                 }
             }
         }
