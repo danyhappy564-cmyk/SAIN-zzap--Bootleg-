@@ -93,6 +93,23 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float DiamondStepTapTimeNoInertia = 0.3f;
 
     [DataMember]
+    [Name("Diamond Step: Plant To Fire")]
+    [Description("While the bot is firing a burst at an enemy at least the distance below away, it stops for a split second (like a player letting go of A/D to shoot), then goes back to tapping. EFT gives a moving bot 1.5x wider spread and 1.5x longer aim time; this keeps the shots accurate without standing still - at most one stop every two taps. Closer than the distance it never stops.")]
+    public bool DiamondStepPlant = true;
+
+    [DataMember]
+    [Name("Diamond Step: Plant Min Distance")]
+    [Description("Meters. No plant closer than this - up close moving matters more than spread (and under 3m EFT adds no aim offset at all).")]
+    [MinMax(3f, 30f, 1f)]
+    public float DiamondStepPlantMinDistance = 8f;
+
+    [DataMember]
+    [Name("Diamond Step: Plant Time")]
+    [Description("Seconds one stop lasts (randomized 0.8x-1.25x). About 0.15s is needed for the body to stop under EFT's inertia, so below that the shot is still a moving shot.")]
+    [MinMax(0.1f, 0.4f, 100f)]
+    public float DiamondStepPlantTime = 0.22f;
+
+    [DataMember]
     [Name("TEST MODE: Diamond Step For Everyone")]
     [Description("For testing only. Every bot (every personality, scavs too) diamond-steps while shooting.")]
     public bool DiamondStepTestMode = false;

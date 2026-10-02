@@ -41,6 +41,7 @@ public static class VisibleEnemyUtility
         public string EnemyId;
         public EStance LastTop;
         public float NextLog;
+        public float ScoredAt;
     }
 
     private static readonly Dictionary<string, Memory> _memory = new();
@@ -83,6 +84,7 @@ public static class VisibleEnemyUtility
         }
         m.Ranked = ranked;
         m.EnemyId = enemy.EnemyProfileId;
+        m.ScoredAt = time;
         // 2-3s (was 1-1.8s - user: longer so bots don't look like they flip back and forth; roll back if it feels sluggish).
         m.Until = time + Random.Range(2f, 3f);
         if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utilityV.top.{ranked[0].stance}");
@@ -256,6 +258,17 @@ public static class VisibleEnemyUtility
             }
         }
         return n;
+    }
+
+    /// <summary>
+    /// zzap (10/2 14:38 sim): the last in-sight pick for this enemy was Cover, within <paramref name="within"/> seconds.
+    /// The hidden-enemy utility uses it so "just lost sight" momentum doesn't send the bot straight back at him (one bot
+    /// flipped Push (hidden) / Cover (in sight) every half second, walking from 24m into 9m of the player).
+    /// </summary>
+    public static bool PickedCoverRecently(BotComponent bot, Enemy enemy, float within)
+    {
+        return _memory.TryGetValue(bot.ProfileId, out Memory m) && m.EnemyId == enemy.EnemyProfileId && m.Ranked != null
+            && m.Ranked[0].stance == EStance.Cover && Time.time - m.ScoredAt < within;
     }
 
     public static void Clear()

@@ -43,6 +43,18 @@ public sealed class PeekSpot(BotComponent bot, string owner)
     }
 
     private const float STAND_GUN_HEIGHT = 1.45f;
+    // Head above the weapon root (standing ~1.6 vs 1.45, crouched about the same gap). Bots see from the head.
+    private const float EYE_ABOVE_GUN = 0.15f;
+    // zzap (10/2 14:38 sim + screenshot): the first spot where the gun line clears is the knife edge - body on the wall,
+    // barrel past the frame, head still behind it (the bot "holds" an angle it can't see; one was killed holding it by a
+    // player it never saw). Go one more step past the edge when the navmesh allows.
+    private const float EDGE_MARGIN = 0.25f;
+    // zzap (same sim): stepped out, got hit, backed off, then stepped out to the very same spot again 3 times and died.
+    // A spot where we were shot is burned for a few seconds.
+    private const float BURN_RADIUS = 0.6f;
+    private const float BURN_TIME = 6f;
+    private Vector3 _lastSpot;
+    private float _lastSpotTime = -100f;
 
     /// <param name="aim">What the bot aims at while holding.</param>
     /// <param name="toward">Where the angle opens from (corner edge, door) - searched first.</param>
@@ -61,16 +73,16 @@ public sealed class PeekSpot(BotComponent bot, string owner)
         _nextCheck = Time.time + 1.5f;
         Vector3 gun = _bot.Transform.WeaponRoot;
         int mask = LayersMaskController.HighPolyWithTerrainMask;
-        if (!Physics.Linecast(gun, aim, mask))
+        Vector3 from = _bot.Position;
+        float gunUp = gun.y - from.y;
+        if (Sees(from, gunUp, aim, mask))
         {
             return false;
         }
         _tries++;
-        Vector3 from = _bot.Position;
-        float gunUp = gun.y - from.y;
 
         // zzap: crouched behind low cover - standing up here is the smallest change that opens the angle.
-        if (!StandToSee && gunUp < STAND_GUN_HEIGHT - 0.2f && !Physics.Linecast(from + Vector3.up * STAND_GUN_HEIGHT, aim, mask))
+        if (!StandToSee && gunUp < STAND_GUN_HEIGHT - 0.2f && Sees(from, STAND_GUN_HEIGHT, aim, mask))
         {
             StandToSee = true;
             if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"peekSpot.stand.{_owner}");
@@ -114,6 +126,8 @@ public sealed class PeekSpot(BotComponent bot, string owner)
             return false;
         }
         _spot = best;
+        _lastSpot = best.Value;
+        _lastSpotTime = Time.time;
         _moveUntil = Time.time + 4f;
         if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"peekSpot.step.{_owner}");
         if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
@@ -121,7 +135,7 @@ public sealed class PeekSpot(BotComponent bot, string owner)
         return Walk();
     }
 
-    private static void Search(Vector3 from, Vector3 dir, float max, float gunUp, Vector3 aim, int mask, ref Vector3? best, ref float bestStep, float penalty)
+    private void Search(Vector3 from, Vector3 dir, float max, float gunUp, Vector3 aim, int mask, ref Vector3? best, ref float bestStep, float penalty)
     {
         for (float step = STEP; step <= max + 0.01f && step + penalty < bestStep; step += STEP)
         {
@@ -134,14 +148,43 @@ public sealed class PeekSpot(BotComponent bot, string owner)
             {
                 return;
             }
-            if (Physics.Linecast(spot + Vector3.up * gunUp, aim, mask))
+            if (!Sees(spot, gunUp, aim, mask))
             {
                 continue;
+            }
+            // Off the knife edge: a little further out if that is walkable and still sees the angle.
+            Vector3 past = spot + dir * EDGE_MARGIN;
+            if (!NavMesh.Raycast(spot, past, out NavMeshHit pastHit, -1) && Sees(pastHit.position, gunUp, aim, mask))
+            {
+                spot = pastHit.position;
+            }
+            if (Burned(spot))
+            {
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("peekSpot.burned");
+                return;
             }
             best = spot;
             bestStep = step + penalty;
             return;
         }
+    }
+
+    /// <summary>Both the gun and the head clear the wall (a gun past the frame with the head behind it sees nothing).</summary>
+    private static bool Sees(Vector3 spot, float gunUp, Vector3 aim, int mask)
+    {
+        return !Physics.Linecast(spot + Vector3.up * gunUp, aim, mask) && !Physics.Linecast(spot + Vector3.up * (gunUp + EYE_ABOVE_GUN), aim, mask);
+    }
+
+    private bool Burned(Vector3 spot)
+    {
+        if (Time.time - _lastSpotTime > BURN_TIME + 4f)
+        {
+            return false;
+        }
+        // Shot since we last stepped out there.
+        float sinceShot = _bot.Medical.TimeSinceShot;
+        bool shotThere = sinceShot < BURN_TIME && Time.time - sinceShot >= _lastSpotTime - 0.5f;
+        return shotThere && (spot - _lastSpot).sqrMagnitude < BURN_RADIUS * BURN_RADIUS;
     }
 
     private bool Walk()

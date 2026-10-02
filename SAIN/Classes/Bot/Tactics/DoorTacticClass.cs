@@ -81,7 +81,7 @@ public class DoorTacticClass : BotComponentClassBase
     private const float MIN_BOT_DEPTH = 0.3f;
     private const float MAX_TIME_SINCE_KNOWN = 25f;
     private const float STACK_DEPTH = 0.9f;
-    private const float STACK_SIDE_GAP = 0.7f;
+    private const float STACK_SIDE_GAP = 0.8f;
     private const float PEEK_DEPTH = 1.25f;
     private const float PEEK_LOOK_TIME = 0.15f;
     private const float EMERGENCY_WINDOW_AFTER_FAKE = 2.5f;
@@ -615,7 +615,9 @@ public class DoorTacticClass : BotComponentClassBase
     /// onto the enemy's side of the door.
     /// </summary>
     private static readonly float[] STACK_DEPTHS = { STACK_DEPTH, 1.3f, 0.6f, 1.8f };
-    private static readonly float[] STACK_GAPS = { STACK_SIDE_GAP, 0.4f, 1.1f, 0.15f };
+    // zzap (10/2 screenshot: bot flat on the wall by the frame, barrel poking past it into the doorway): a 0.15m gap put
+    // the muzzle in the opening - seen from inside before the bot sees anything. Gaps start where the gun stays behind the frame.
+    private static readonly float[] STACK_GAPS = { STACK_SIDE_GAP, 1.1f, 0.55f, 1.5f };
 
     /// <summary>
     /// Beside the frame on the bot's side. The first test (Customs) failed with the single 0.9m/0.7m spot on

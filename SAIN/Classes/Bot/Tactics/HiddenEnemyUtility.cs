@@ -143,7 +143,9 @@ public static class HiddenEnemyUtility
             && enemy.KnownPlaces.BotDistanceFromLastKnown > 8f && enemy.KnownPlaces.BotDistanceFromLastKnown < 45f
             && infoAge <= settings.GrenadeMaxInfoAge && healthStatus != ETagStatus.BadlyInjured && healthStatus != ETagStatus.Dying;
         // Just broke line of sight and he isn't holding an angle: momentum - follow him while he's still moving.
-        bool justLost = infoAge < 3f && !holdsAngle;
+        // ...unless we were the ones breaking off: in sight we just picked Cover, so following him now undoes it.
+        bool brokeOff = VisibleEnemyUtility.PickedCoverRecently(bot, enemy, 4f);
+        bool justLost = infoAge < 3f && !holdsAngle && !brokeOff;
         bool pushyPlayer = SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.AgainstPlayer(enemy)
             && SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.Aggression > 0.6f;
 
@@ -151,7 +153,7 @@ public static class HiddenEnemyUtility
         // A long gun wants distance: an enemy closing inside 40% of its ideal range is a reason to back off.
         bool closingOnLongGun = load.Long > 0.7f && path < load.IdealRange * 0.4f;
         float push = 0.15f * load.Cqb - 0.3f * load.Long + 0.25f + 0.3f * weak + (busy ? 0.25f : 0f) + 0.15f * numbers + 0.15f * aggr + 0.1f * quiet
-            - (holdsAngle ? 0.35f : 0f) + (justLost ? 0.15f : 0f) - 0.35f * (1f - health) - (ammo < 0.5f ? 0.3f : 0f) - 0.15f * dist;
+            - (holdsAngle ? 0.35f : 0f) + (justLost ? 0.15f : 0f) - (brokeOff ? 0.2f : 0f) - 0.35f * (1f - health) - (ammo < 0.5f ? 0.3f : 0f) - 0.15f * dist;
         float nade = nadeReady
             ? 0.3f + 0.05f * Mathf.Min(load.Grenades, 3) + (load.Grenades >= 3 ? 0.1f : 0f) + 0.4f * quiet + (busy ? 0.15f : 0f) + (indoor ? 0.1f : 0f) + (holdsAngle ? 0.1f : 0f) - 0.25f * info
             : 0f;
@@ -188,6 +190,11 @@ public static class HiddenEnemyUtility
         if (busy) sb.Append($"he's {enemy.Status.VulnerableAction}; ");
         if (holdsAngle) sb.Append("he's holding an angle on us; ");
         if (justLost) sb.Append("just lost sight (momentum); ");
+        if (brokeOff)
+        {
+            sb.Append("I just broke off to cover - not running back at him; ");
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("utility.brokeOff");
+        }
         if (coming) sb.Append("he's coming our way; ");
         if (quiet > 0.3f) sb.Append($"he's been quiet {infoAge:0}s (clock favors him); ");
         if (info > 0.5f) sb.Append($"info {infoAge:0}s old; ");

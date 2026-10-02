@@ -100,6 +100,8 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             }
             _diamondCenter = Bot.Position;
             _tapEnd = 0f;
+            _plantUntil = 0f;
+            _tapsSincePlant = 0;
             _jiggleChecked = false;
             _jiggle = false;
             Bot.Mover.Stop();
@@ -153,8 +155,17 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
                 if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] corner jiggle peek: cover on the {(Vector3.Dot(_jiggleCoverDir, right) > 0f ? "right" : "left")}, enemy {dist:0}m");
             }
         }
+        // zzap (10/2 14:38 sim, user: "peek-shooting accuracy is a bit off"): every tap is a moving shot - EFT gives
+        // a moving bot 1.5x spread and 1.5x aim time (BotAimingData COEF_IF_MOVE / TIME_COEF_IF_MOVE). Firing a burst at
+        // range -> let go of the keys for a split second like a player does, then back to tapping. Never up close (the
+        // dance is the point there), never in a jiggle peek, at most one plant per two taps so it never turns into standing.
+        if (Plant(settings, dist))
+        {
+            return true;
+        }
         if (Time.time >= _tapEnd)
         {
+            _tapsSincePlant++;
             if (_jiggle)
             {
                 PickJiggleTap();
@@ -193,6 +204,38 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         Bot.PlayerComponent.CharacterController.SetWantToSprint(false);
         // Far-away "destination" so SAIN's arrival slowdown never kicks in during a tap.
         Bot.PlayerComponent.CharacterController.SetTargetMoveDirection(_tapDir, Bot.Position + _tapDir * 5f, Bot.PlayerComponent, 0f, 1f);
+        return true;
+    }
+
+    private float _plantUntil;
+    private int _tapsSincePlant;
+
+    private bool Plant(CloseCombatSettings settings, float dist)
+    {
+        float time = Time.time;
+        if (_plantUntil > 0f)
+        {
+            if (time < _plantUntil)
+            {
+                // Nothing else feeds BSG's aim its "moving" flag while SAIN steers (it's set from SetTargetMoveDirection),
+                // so without this the stale "moving" from the last tap would keep the 1.5x spread through the plant.
+                Bot.BotOwner.AimingManager?.CurrentAiming?.Move(0f);
+                return true;
+            }
+            _plantUntil = 0f;
+            _tapsSincePlant = 0;
+            _tapEnd = 0f;
+            return false;
+        }
+        if (!settings.DiamondStepPlant || _jiggle || _tapsSincePlant < 2 || dist < settings.DiamondStepPlantMinDistance
+            || Bot.BotOwner.ShootData?.Shooting != true)
+        {
+            return false;
+        }
+        _plantUntil = time + settings.DiamondStepPlantTime * Random.Range(0.8f, 1.25f);
+        Bot.Player.Move(Vector2.zero);
+        Bot.BotOwner.AimingManager?.CurrentAiming?.Move(0f);
+        TacticDiagnostics.Count("diamond.plant");
         return true;
     }
 
