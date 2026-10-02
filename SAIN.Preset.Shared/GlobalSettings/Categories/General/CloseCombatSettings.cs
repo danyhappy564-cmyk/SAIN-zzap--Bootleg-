@@ -98,6 +98,12 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public bool DiamondStepPlant = true;
 
     [DataMember]
+    [Name("Diamond Step: Plant Chance")]
+    [Description("Percent, rolled once per engagement (each time the diamond step starts): this bot plants to fire, the others keep the pure A/D dance - so not every bot moves the same way. Never while it is being hit (the last second): under fire it keeps moving.")]
+    [MinMax(0f, 100f, 1f)]
+    public float DiamondStepPlantChance = 45f;
+
+    [DataMember]
     [Name("Diamond Step: Plant Min Distance")]
     [Description("Meters. No plant closer than this - up close moving matters more than spread (and under 3m EFT adds no aim offset at all).")]
     [MinMax(3f, 30f, 1f)]
@@ -371,7 +377,7 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     [Name("Retreat Weave Jump Chance")]
     [Description("Percent per left/right switch (headroom needed).")]
     [MinMax(0f, 100f, 1f)]
-    public float RetreatWeaveJumpChance = 12f;
+    public float RetreatWeaveJumpChance = 20f;
 
     [DataMember]
     [Name("Retreat Head Down Max Distance")]

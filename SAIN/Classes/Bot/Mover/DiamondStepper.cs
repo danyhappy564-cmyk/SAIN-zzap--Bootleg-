@@ -111,6 +111,9 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             _diamondActive = true;
             float leanChance = settings.LeanSpamChance + SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.LeanSpamBonus(Bot, enemy);
             _leanSpam = settings.LeanSpam && Random.value * 100f < leanChance;
+            // zzap (user 2026-10-02 19:46 sim: "the dance got monotone - every bot the same, some just stand there taking hits"):
+            // planting is a style, rolled per engagement, not something every bot does on every burst.
+            _plantStyle = settings.DiamondStepPlant && Random.value * 100f < settings.DiamondStepPlantChance;
             if (_leanSpam)
             {
                 TacticDiagnostics.Count("diamond.leanSpam");
@@ -126,7 +129,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             TacticDiagnostics.SetDiamond(Bot.ProfileId, "active");
             TacticDiagnostics.Count("diamond.start");
             if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
-                $"[Diamond] [{Bot.name}] [{Bot.Info.Personality}] start ({_owner}): enemy {dist:0}m, tap {TapTime(settings):0.00}s ({(ClassicMovementInterop.BotsNoInertia ? "no-inertia bots" : "inertia")})"
+                $"[Diamond] [{Bot.name}] [{Bot.Info.Personality}] start ({_owner}): enemy {dist:0}m, tap {TapTime(settings):0.00}s ({(ClassicMovementInterop.BotsNoInertia ? "no-inertia bots" : "inertia")}), style: steps{(_leanSpam ? " + Q/E" : "")}{(_plantStyle ? " + plant to fire" : "")}"
             );
         }
         Bot.Mover.SetTargetPose(1f);
@@ -229,6 +232,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
     }
 
     private float _plantUntil;
+    private bool _plantStyle;
     private int _tapsSincePlant;
 
     private bool Plant(CloseCombatSettings settings, float dist)
@@ -248,9 +252,15 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             _tapEnd = 0f;
             return false;
         }
-        if (!settings.DiamondStepPlant || _jiggle || _tapsSincePlant < 2 || dist < settings.DiamondStepPlantMinDistance
+        if (!_plantStyle || _jiggle || _tapsSincePlant < 2 || dist < settings.DiamondStepPlantMinDistance
             || Bot.BotOwner.ShootData?.Shooting != true)
         {
+            return false;
+        }
+        // Being hit: keep moving (standing still under fire was what it looked like - "just standing there taking hits").
+        if (Bot.Medical.TimeSinceShot < 1f)
+        {
+            TacticDiagnostics.Count("diamond.plantSkippedHit");
             return false;
         }
         _plantUntil = time + settings.DiamondStepPlantTime * Random.Range(0.8f, 1.25f);
