@@ -381,10 +381,87 @@ public sealed class PlayerStyleRecorder
         PlayerOutcomeLearner.OnPlayerHit(damage.Player?.iPlayer?.ProfileId);
         _d.HitsTaken++;
         _d.DamageTaken += Mathf.Max(0f, damage.Damage);
+        if (damage.Damage <= 0f)
+        {
+            _d.HitsNoDamage++;
+        }
+        VirtualHit(part, damage.Damage, attacker?.Profile?.Nickname);
         // A PMC has 440 HP in total - soaking well over that and still standing = invincible.
         if (!_d.GodMode && _d.DamageTaken > 1000f && _d.HitsTaken >= 15 && _player != null && _player.HealthController?.IsAlive == true)
         {
             MarkTest(ref _d.GodMode, $"god mode (took {_d.DamageTaken:0} damage in {_d.HitsTaken} hits, still alive)");
+        }
+    }
+
+    // ---- virtual HP (user 2026-10-02: "player kills mean nothing in god mode - judge the bots by how often they would
+    // have killed me"). The damage here is after armor (Player.ApplyDamageInfo), so it is replayed on a copy of the
+    // player's max HP per part: head or thorax at 0 = a death that god mode hid, then a fresh body. A destroyed limb passes
+    // damage on to the living parts (EFT: arms x0.7, legs x1, stomach x1.5). No healing - an upper bound for a tester who
+    // doesn't heal while invincible.
+    private static readonly EBodyPart[] _vParts = { EBodyPart.Head, EBodyPart.Chest, EBodyPart.Stomach, EBodyPart.LeftArm, EBodyPart.RightArm, EBodyPart.LeftLeg, EBodyPart.RightLeg };
+    private readonly Dictionary<EBodyPart, float> _vHp = new();
+    private readonly Dictionary<EBodyPart, float> _vMax = new();
+
+    private void VirtualHit(EBodyPart part, float dmg, string by)
+    {
+        if (_vMax.Count == 0)
+        {
+            ResetVirtualHp();
+        }
+        if (dmg <= 0f || !_vHp.ContainsKey(part))
+        {
+            return;
+        }
+        if (_vHp[part] > 0f)
+        {
+            _vHp[part] -= dmg;
+        }
+        else
+        {
+            float coef = part == EBodyPart.Stomach ? 1.5f : part == EBodyPart.LeftArm || part == EBodyPart.RightArm ? 0.7f : 1f;
+            int alive = 0;
+            foreach (var p in _vParts) if (_vHp[p] > 0f) alive++;
+            if (alive > 0)
+            {
+                foreach (var p in _vParts) if (_vHp[p] > 0f) _vHp[p] -= dmg * coef / alive;
+            }
+        }
+        if (_vHp[EBodyPart.Head] <= 0f || _vHp[EBodyPart.Chest] <= 0f)
+        {
+            _d.VirtualDeaths++;
+            if (SAIN.SAINComponent.Classes.Tactics.RaidJournal.IsOpen) SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line(
+                $"[PlayerHit] WOULD DIE #{_d.VirtualDeaths} - by {by ?? "?"} ({part}), {_d.HitsTaken - _d.HitsNoDamage - _vLifeStartHits} damaging hits this life");
+            _vLifeStartHits = _d.HitsTaken - _d.HitsNoDamage;
+            ResetVirtualHp();
+        }
+    }
+
+    private int _vLifeStartHits;
+
+    private void ResetVirtualHp()
+    {
+        var hc = _player?.HealthController;
+        foreach (var p in _vParts)
+        {
+            float max = 0f;
+            try
+            {
+                max = hc != null ? hc.GetBodyPartHealth(p, false).Maximum : 0f;
+            }
+            catch { }
+            if (max <= 0f)
+            {
+                max = p switch
+                {
+                    EBodyPart.Head => 35f,
+                    EBodyPart.Chest => 85f,
+                    EBodyPart.Stomach => 70f,
+                    EBodyPart.LeftArm or EBodyPart.RightArm => 60f,
+                    _ => 65f,
+                };
+            }
+            _vMax[p] = max;
+            _vHp[p] = max;
         }
     }
 
@@ -668,7 +745,7 @@ public sealed class PlayerStyleRecorder
         {
             sb.Append($" | TEST SESSION: {d.TestReasons}");
         }
-        sb.Append($" | hits taken={d.HitsTaken} ({d.DamageTaken:0} dmg)");
+        sb.Append($" | hits taken={d.HitsTaken} (no damage/armor {d.HitsNoDamage}, {d.DamageTaken:0} dmg = {d.DamageTaken / 440f:0.0}x a PMC's 440 HP) would-die={d.VirtualDeaths}");
         if (d.Died)
         {
             sb.Append($" | DIED {d.DeathDistance:0}m part={d.DeathPart} by={d.KilledBy} ({d.KilledByPersonality}, {d.KilledByDecision})");
@@ -752,6 +829,8 @@ public sealed class PlayerStyleRecorder
         public bool InfiniteAmmo;
         public string DevToolsPlugins;
         public int HitsTaken;
+        public int HitsNoDamage;
+        public int VirtualDeaths;
         public float DamageTaken;
         public int ShotsNoAmmoUse;
     }
