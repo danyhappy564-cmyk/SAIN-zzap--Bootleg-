@@ -19,6 +19,7 @@ namespace SAIN.SAINComponent.Classes.Tactics;
 /// PMCs off each other. Now: an enemy still in a duel with me (shot at / hit me in the last 10s) +0.25, a PMC +0.3 over a scav
 /// (gear, skill, loot motive), and while my target is IN SIGHT an unseen enemy only takes over by actually hitting me -
 /// turning away from a visible gunfight for bullets snapping by gets you killed by the one in front.
+/// 10/2: a silent enemy in sight closing in on the bot's side (flanker, see Flanker) can take the target too.
 /// </summary>
 public static class ThreatPicker
 {
@@ -56,20 +57,22 @@ public static class ThreatPicker
             }
             float hitAgo = e.Status.TimeLastShotMe > 0f ? time - e.Status.TimeLastShotMe : 999f;
             float shotAtAgo = e.Status.TimeLastShotAtMe > 0f ? time - e.Status.TimeLastShotAtMe : 999f;
-            if (hitAgo > 3f && shotAtAgo > 2f)
+            bool flanker = Flanker(e, goal, bot, out bool heardOnly);
+            if (hitAgo > 3f && shotAtAgo > 2f && !flanker)
             {
                 continue;
             }
-            if (goal != null && goal.IsVisible && !e.IsVisible && hitAgo > 3f)
+            if (goal != null && goal.IsVisible && !e.IsVisible && hitAgo > 3f && !heardOnly)
             {
                 continue;
             }
-            float t = Threat(e, hitAgo, shotAtAgo);
+            float t = Threat(e, hitAgo, shotAtAgo) + (flanker ? FlankBonus(e, heardOnly) : 0f);
             if (t > bestThreat)
             {
                 bestThreat = t;
                 best = e;
-                bestWhy = !TacticDiagnostics.LogOn ? null : $"{(hitAgo < 3f ? $"hit me {hitAgo:0.0}s ago" : $"shooting at me {shotAtAgo:0.0}s ago")}, {e.RealDistance:0}m, {(e.IsVisible ? "in sight" : "unseen")}, {e.EnemyPlayer.Side}";
+                bestWhy = !TacticDiagnostics.LogOn ? null
+                    : $"{(hitAgo < 3f ? $"hit me {hitAgo:0.0}s ago" : shotAtAgo < 2f ? $"shooting at me {shotAtAgo:0.0}s ago" : (heardOnly ? "footsteps right next to me" : "not shooting yet - closing in on my side"))}, {e.RealDistance:0}m, {(e.IsVisible ? "in sight" : "unseen")}, {e.EnemyPlayer.Side}";
             }
         }
         if (best == null)
@@ -83,12 +86,23 @@ public static class ThreatPicker
             float gShot = goal.Status.TimeLastShotAtMe > 0f ? time - goal.Status.TimeLastShotAtMe : 999f;
             goalThreat = Threat(goal, gHit, gShot) + 0.35f
                 + (goal.IsVisible && (goal.EnemyPlayer.HealthStatus == ETagStatus.Dying || goal.EnemyPlayer.HealthStatus == ETagStatus.BadlyInjured) ? 0.3f : 0f);
+            // A flanker we already turned to keeps its flank weight against the one we turned away from - otherwise the
+            // old target (still shooting) took it straight back after the keep time: flanker <-> shooter ping-pong.
+            if (Flanker(goal, best, bot, out bool goalHeardOnly))
+            {
+                goalThreat += FlankBonus(goal, goalHeardOnly);
+            }
         }
         if (bestThreat <= goalThreat)
         {
             return KeepHeld(bot.ProfileId, goal, time) ? goal : null;
         }
-        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"threat.switch.{(best.IsVisible ? "seen" : "unseen")}");
+        if (TacticDiagnostics.CountOn)
+        {
+            float bHit = best.Status.TimeLastShotMe > 0f ? time - best.Status.TimeLastShotMe : 999f;
+            float bShot = best.Status.TimeLastShotAtMe > 0f ? time - best.Status.TimeLastShotAtMe : 999f;
+            TacticDiagnostics.Count(bHit > 3f && bShot > 2f ? "threat.switch.flanker" : $"threat.switch.{(best.IsVisible ? "seen" : "unseen")}");
+        }
         string id = bot.ProfileId;
         if (!_held.TryGetValue(id, out Held held))
         {
@@ -135,6 +149,59 @@ public static class ThreatPicker
         }
         held.EnemyId = null;
         return false;
+    }
+
+    // zzap (user 2026-10-02, said before too: "while it's aiming at someone else I don't register, and if I don't shoot it
+    // never takes me as its target"): only an enemy already shooting could take the target, and SAIN's own chooser keeps a
+    // visible target unless a non-shooter is within a third of its distance (target 20m -> him under 6.6m). A player turns
+    // to the one walking up on his side before he opens fire. A flanker = in sight, within FLANK_DIST, and clearly closer
+    // than the current target (or point-blank). Its bonus beats a target that is only "there"; against a target that is
+    // shooting at the bot right now it only wins when the flanker also looks at the bot or is point-blank.
+    private const float FLANK_DIST = 15f;
+    private const float FLANK_POINT_BLANK = 6f;
+
+    // User (same day): "footsteps that close are always audible - not reacting is odd". Unseen but his steps were heard
+    // within HEARD_FLANK_DIST in the last 1.5s: the bot turns to him (taking him as the target turns its head, and the front
+    // of its view gains sight fastest) - only when the current target is clearly farther.
+    private const float HEARD_FLANK_DIST = 10f;
+
+    private static bool Flanker(Enemy e, Enemy goal, BotComponent bot, out bool heardOnly)
+    {
+        heardOnly = false;
+        if (goal == null || ReferenceEquals(goal, e))
+        {
+            return false;
+        }
+        if (e.IsVisible)
+        {
+            if (e.RealDistance > FLANK_DIST)
+            {
+                return false;
+            }
+            return e.RealDistance < FLANK_POINT_BLANK || e.RealDistance < goal.RealDistance * 0.6f;
+        }
+        var hearing = e.Hearing;
+        if (hearing == null || Time.time - hearing.LastHeardSoundTime > 1.5f
+            || (hearing.LastHeardSoundType != SAIN.Preset.Shared.Enums.SAINSoundType.FootStep && hearing.LastHeardSoundType != SAIN.Preset.Shared.Enums.SAINSoundType.Sprint))
+        {
+            return false;
+        }
+        float heardDist = (hearing.LastHeardSoundPosition - bot.Position).magnitude;
+        if (heardDist > HEARD_FLANK_DIST || heardDist > goal.RealDistance * 0.6f)
+        {
+            return false;
+        }
+        heardOnly = true;
+        return true;
+    }
+
+    private static float FlankBonus(Enemy e, bool heardOnly)
+    {
+        if (heardOnly)
+        {
+            return 1.0f + (e.RealDistance < FLANK_POINT_BLANK ? 0.5f : 0f);
+        }
+        return 1.2f + (e.RealDistance < FLANK_POINT_BLANK ? 0.5f : 0f);
     }
 
     private static bool Usable(Enemy e)

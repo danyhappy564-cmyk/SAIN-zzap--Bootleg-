@@ -69,6 +69,14 @@ public class DogFightDecisionClass : BotBase
         {
             if (ShallDogfightEnemy(_lastDogFightTarget))
             {
+                // zzap (user 2026-10-02: "busy with another target, it ignores me walking up unless I shoot"): the
+                // close-fight target was locked until it left range. A different enemy in sight and clearly closer takes it.
+                Enemy closer = CloserVisible(KnownEnemies, _lastDogFightTarget);
+                if (closer != null)
+                {
+                    _lastDogFightTarget = closer;
+                    SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("dogfight.switchCloser");
+                }
                 result = _lastDogFightTarget;
                 return true;
             }
@@ -97,6 +105,32 @@ public class DogFightDecisionClass : BotBase
         }
         result = _lastDogFightTarget;
         return _lastDogFightTarget != null;
+    }
+
+    private float _nextCloserCheck;
+
+    private Enemy CloserVisible(EnemyList known, Enemy current)
+    {
+        if (Time.time < _nextCloserCheck)
+        {
+            return null;
+        }
+        _nextCloserCheck = Time.time + 0.25f;
+        float limit = current.Path.PathLength * 0.6f;
+        Enemy best = null;
+        for (int i = 0; i < known.Count; i++)
+        {
+            Enemy e = known[i];
+            if (e == null || ReferenceEquals(e, current) || !e.IsVisible || e.Path.PathLength >= limit || !ShallDogfightEnemy(e))
+            {
+                continue;
+            }
+            if (best == null || e.Path.PathLength < best.Path.PathLength)
+            {
+                best = e;
+            }
+        }
+        return best;
     }
 
     private bool ShallDogfightEnemy(Enemy enemy)
