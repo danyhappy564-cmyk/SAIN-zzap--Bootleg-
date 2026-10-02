@@ -158,6 +158,7 @@
         "CornerJiggleChance": 35.0,
         "LeanSpamChance": 45.0,
         "GrenadeMaxInfoAge": 16.0,
+        "GrenadeMaxThrowDistance": 38.0,
         "HoldStepToOpenAngleMax": 1.0
       },
       "DoorTactics": {

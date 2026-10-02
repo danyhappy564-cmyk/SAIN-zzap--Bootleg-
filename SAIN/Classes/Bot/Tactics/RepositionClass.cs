@@ -174,7 +174,7 @@ public class RepositionClass : BotComponentClassBase
         {
             return -1f;
         }
-        bool indoors = Bot.Memory.Location.IsIndoors;
+        bool indoors = Bot.Memory.Location.UnderRoof;
         float dist = (target - from).magnitude;
         bool shortest = indoors || dist < Settings.ShortFuseDistance;
         ThrowWeap pick = PickFrag(shortest);
@@ -416,7 +416,7 @@ public class RepositionClass : BotComponentClassBase
     private bool TryStartRelocate(Enemy enemy, Vector3 enemyPos, float enemyDist, out string reason)
     {
         reason = "noRelocate";
-        if (!Settings.Relocate || Bot.Memory.Location.IsIndoors || Bot.Cover.CoverInUse == null)
+        if (!Settings.Relocate || Bot.Memory.Location.UnderRoof || Bot.Cover.CoverInUse == null)
         {
             return false;
         }

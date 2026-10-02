@@ -94,6 +94,9 @@ public class DoorTacticClass : BotComponentClassBase
     // Room enemy heard/located within this long for a fake at the frame to make sense. 15s (was 8): the walk to the
     // stack alone takes 3-6s, so 8s threw away most planned fakes (8 sims: 48 planned, 13 done, 8 "enemyInfoOld").
     private const float FAKE_MAX_INFO_AGE = 15f;
+    // How far in the room he may be for a fake to be worth it. 14m (was 10): the tactic itself starts with him up to 12m from
+    // the door, so on Factory's big rooms every planned fake was dropped at the frame (10/2 sim: 3 of 3 "enemyNotNearDoor").
+    private const float FAKE_MAX_ENEMY_DOOR_DIST = MAX_ENEMY_DOOR_DIST + 2f;
     // A momentary occlusion mid-fight is not "he's in the room behind that door": 45 of 102 sessions that never reached
     // the door ended within 1s, 73% of them started with the enemy seen 0.1s earlier (8 sims) - and each one put that
     // door on a 60s cooldown.
@@ -413,8 +416,29 @@ public class DoorTacticClass : BotComponentClassBase
         // the same bot again 60s later.) A loop round through other rooms doesn't count either.
         if (session != null && !StackReachable(session, out string pathWhy))
         {
-            session = null;
-            reason = pathWhy;
+            // The near edge needs a long way round (a leaf, railing or wall in the corridor - 10/2 sim: 5 "stackPathDetour"):
+            // try the frame's other edge before giving up on the door.
+            float usedEdge = Mathf.Sign(Vector3.Dot(session.Stack - geo.Center, geo.Axis));
+            Vector3 nearStack = session.Stack;
+            if (usedEdge != 0f && FindStackPoint(geo, -usedEdge, out Vector3 otherStack, true))
+            {
+                session.Stack = otherStack;
+                if (StackReachable(session, out string otherWhy))
+                {
+                    TacticDiagnostics.Count("door.stackOtherEdge");
+                    pathWhy = null;
+                }
+                else
+                {
+                    session.Stack = nearStack;
+                    pathWhy = otherWhy;
+                }
+            }
+            if (pathWhy != null)
+            {
+                session = null;
+                reason = pathWhy;
+            }
         }
         if (session == null)
         {
@@ -599,9 +623,9 @@ public class DoorTacticClass : BotComponentClassBase
     /// preferring the edge closer to the bot. The spot must stay outside the doorway's width (not visible
     /// straight through the opening).
     /// </summary>
-    private static bool FindStackPoint(DoorGeometry geo, float side, out Vector3 result)
+    private static bool FindStackPoint(DoorGeometry geo, float side, out Vector3 result, bool thisEdgeOnly = false)
     {
-        foreach (float edge in new[] { side, -side })
+        foreach (float edge in thisEdgeOnly ? new[] { side } : new[] { side, -side })
         {
             foreach (float depth in STACK_DEPTHS)
             {
@@ -2086,7 +2110,7 @@ public class DoorTacticClass : BotComponentClassBase
         {
             why = "enemyInfoOld";
         }
-        else if (HorizontalDistance(known.Value, s.Center) > 10f)
+        else if (HorizontalDistance(known.Value, s.Center) > FAKE_MAX_ENEMY_DOOR_DIST)
         {
             why = "enemyNotNearDoor";
         }
@@ -2151,7 +2175,7 @@ public class DoorTacticClass : BotComponentClassBase
                 return false;
             }
         }
-        if (!Bot.Memory.Location.IsIndoors)
+        if (!Bot.Memory.Location.UnderRoof)
         {
             int blocked = 0;
             for (int k = 0; k < 8; k++)

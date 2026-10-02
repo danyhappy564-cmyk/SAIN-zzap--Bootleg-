@@ -140,7 +140,7 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
         {
             _nextPossibleAttempt = Time.time + 1.5f;
             SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("nade.noArc");
-            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) LogJudge($"no clear arc to {enemy.EnemyPlayer?.Profile?.Nickname} ({enemy.KnownPlaces.BotDistanceFromLastKnown:0}m, {(Bot.Memory.Location.IsIndoors ? "indoors" : "outdoors")})");
+            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) LogJudge($"no clear arc to {enemy.EnemyPlayer?.Profile?.Nickname} ({enemy.KnownPlaces.BotDistanceFromLastKnown:0}m, {(Bot.Memory.Location.UnderRoof ? "indoors" : "outdoors")})");
             reason = "noArc";
             return false;
         }
@@ -361,7 +361,12 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
             reason = "nullLastKnown";
             return false;
         }
-        if (lastKnown.DistanceToBot > _maxEnemyDistToCheckThrow)
+        // zzap: with the grenade judgment on, nobody lobs a grenade 60-70m (10/2 sim: arcs tried out to 72m, all failing).
+        var discipline = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat;
+        float maxDist = discipline != null && discipline.GrenadeDiscipline
+            ? Mathf.Min(_maxEnemyDistToCheckThrow, discipline.GrenadeMaxThrowDistance)
+            : _maxEnemyDistToCheckThrow;
+        if (lastKnown.DistanceToBot > maxDist)
         {
             reason = "tooFar";
             return false;
@@ -400,7 +405,7 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
         {
             return false;
         }
-        bool indoors = Bot.Memory.Location.IsIndoors;
+        bool indoors = Bot.Memory.Location.UnderRoof;
         var angles = indoors ? (lastKnown.DistanceToBot >= 6f ? _indoorAnglesFar : _indoorAngles) : _outdoorAngles;
         if (TryThrowToPos(lastKnownPos, "LastKnownPosition", lastKnown.DistanceToBot, angles))
         {
@@ -507,7 +512,7 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
 
         float maxJitter = Mathf.Lerp(0.05f, 0.40f, t);
 
-        if (Bot.Memory.Location.IsIndoors)
+        if (Bot.Memory.Location.UnderRoof)
         {
             maxJitter *= 0.5f;
         }

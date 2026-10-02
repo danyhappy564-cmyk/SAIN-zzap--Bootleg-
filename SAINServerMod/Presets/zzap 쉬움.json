@@ -1,7 +1,7 @@
 {
   "Info": {
     "Name": "zzap 쉬움",
-    "Description": "zzap 난이도 1/3 (쉬움). 전술 종류(문 피킹·페이크, 다이아몬드 스텝, 코너 지키기 등)와 ORBIT 권장 설정은 zzap과 같고, 트릭이 나오는 빈도만 난이도에 맞게 낮춤. 원본 SAIN '쉬움' 보정: 반동 크고 탄이 많이 퍼짐, 시야 거리 절반, 늦게 발견, 청각 약함, 시야각 120°, 연사 느림, 조준 최소 2초, 사람 같은 실수 2배. 문 전술 ×0.5, 페이크·미끼·코너 흔들기 크게 줄임, 분대 일제 돌격 없음.",
+    "Description": "zzap 난이도 1/3 (쉬움). 전술 종류(문 피킹·페이크, 다이아몬드 스텝, 코너 지키기 등)와 ORBIT 권장 설정은 zzap과 같고, 트릭이 나오는 빈도만 난이도에 맞게 낮춤. 원본 SAIN '쉬움' 보정: 반동 크고 탄이 많이 퍼짐, 시야 거리 절반, 늦게 발견, 청각 약함, 시야각 120°, 연사 느림, 조준 최소 2초, 사람 같은 실수 2배. 문 전술 ×0.5, 페이크·미끼·코너 흔들기 크게 줄임, 분대 일제 돌격 없음, 수류탄 30m까지.",
     "Creator": "R_F",
     "SAINVersion": "4.5.1",
     "SAINPresetVersion": "4.5.0",
@@ -157,7 +157,8 @@
         "CornerChaseJumpChance": 10.0,
         "CornerJiggleChance": 20.0,
         "LeanSpamChance": 25.0,
-        "GrenadeMaxInfoAge": 12.0
+        "GrenadeMaxInfoAge": 12.0,
+        "GrenadeMaxThrowDistance": 30.0
       },
       "DoorTactics": {
         "ChanceMultiplier": 0.5,

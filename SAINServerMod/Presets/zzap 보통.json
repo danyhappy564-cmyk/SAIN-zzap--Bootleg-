@@ -1,7 +1,7 @@
 {
   "Info": {
     "Name": "zzap 보통",
-    "Description": "zzap 난이도 2/3 (보통). 전술 종류(문 피킹·페이크, 다이아몬드 스텝, 코너 지키기 등)와 ORBIT 권장 설정은 zzap과 같고, 트릭이 나오는 빈도만 난이도에 맞게 낮춤. 원본 SAIN '보통' 보정: 반동·탄 퍼짐 중간, 시야 거리 보통, 발견·청각 약간 약함, 시야각 150°, 연사 중간, 조준 최소 1초, 사람 같은 실수 1.5배. 문 전술 ×0.75, 페이크·미끼·코너 흔들기 조금 줄임.",
+    "Description": "zzap 난이도 2/3 (보통). 전술 종류(문 피킹·페이크, 다이아몬드 스텝, 코너 지키기 등)와 ORBIT 권장 설정은 zzap과 같고, 트릭이 나오는 빈도만 난이도에 맞게 낮춤. 원본 SAIN '보통' 보정: 반동·탄 퍼짐 중간, 시야 거리 보통, 발견·청각 약간 약함, 시야각 150°, 연사 중간, 조준 최소 1초, 사람 같은 실수 1.5배. 문 전술 ×0.75, 페이크·미끼·코너 흔들기 조금 줄임, 수류탄 38m까지.",
     "Creator": "R_F",
     "SAINVersion": "4.5.1",
     "SAINPresetVersion": "4.5.0",
@@ -157,7 +157,8 @@
         "CornerChaseJumpChance": 20.0,
         "CornerJiggleChance": 35.0,
         "LeanSpamChance": 45.0,
-        "GrenadeMaxInfoAge": 16.0
+        "GrenadeMaxInfoAge": 16.0,
+        "GrenadeMaxThrowDistance": 38.0
       },
       "DoorTactics": {
         "ChanceMultiplier": 0.75,

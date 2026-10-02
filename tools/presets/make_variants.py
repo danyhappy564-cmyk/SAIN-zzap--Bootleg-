@@ -41,7 +41,8 @@ TACTICS = {
                             GigaChadTrapFakeHealChance=10.0, RoomClearGrenadeChance=30.0, RunByChance=25.0),
         "SquadCombat": dict(SquadStorm=False, CrossfireBackDoorPush=False, TradeWindow=6.0),
         "CloseCombat": dict(ThreatTargetKeepTime=3.0, CornerChasePrefireChance=25.0, CornerChaseJumpChance=10.0,
-                            CornerJiggleChance=20.0, LeanSpamChance=25.0, GrenadeMaxInfoAge=12.0),
+                            CornerJiggleChance=20.0, LeanSpamChance=25.0, GrenadeMaxInfoAge=12.0,
+                            GrenadeMaxThrowDistance=30.0),
         "Reposition": dict(BaitPeekChance=15.0, FakeReloadChance=10.0, RelocateChance=45.0),
     },
     "normal": {
@@ -49,7 +50,8 @@ TACTICS = {
                             GigaChadTrapFakeHealChance=20.0, RoomClearGrenadeChance=45.0, RunByChance=35.0),
         "SquadCombat": dict(SquadStormWeakness=0.6, TradeWindow=8.0),
         "CloseCombat": dict(ThreatTargetKeepTime=2.5, CornerChasePrefireChance=45.0, CornerChaseJumpChance=20.0,
-                            CornerJiggleChance=35.0, LeanSpamChance=45.0, GrenadeMaxInfoAge=16.0),
+                            CornerJiggleChance=35.0, LeanSpamChance=45.0, GrenadeMaxInfoAge=16.0,
+                            GrenadeMaxThrowDistance=38.0),
         "Reposition": dict(BaitPeekChance=25.0, FakeReloadChance=20.0, RelocateChance=60.0),
     },
 }
@@ -122,11 +124,11 @@ def main():
     easy = tune(zzap, "easy")
     write(easy, "zzap 쉬움",
           "zzap 난이도 1/3 (쉬움). " + tactics + " 원본 SAIN '쉬움' 보정: 반동 크고 탄이 많이 퍼짐, 시야 거리 절반, 늦게 발견, "
-          "청각 약함, 시야각 120°, 연사 느림, 조준 최소 2초, 사람 같은 실수 2배. 문 전술 ×0.5, 페이크·미끼·코너 흔들기 크게 줄임, 분대 일제 돌격 없음.")
+          "청각 약함, 시야각 120°, 연사 느림, 조준 최소 2초, 사람 같은 실수 2배. 문 전술 ×0.5, 페이크·미끼·코너 흔들기 크게 줄임, 분대 일제 돌격 없음, 수류탄 30m까지.")
     normal = tune(zzap, "normal")
     write(normal, "zzap 보통",
           "zzap 난이도 2/3 (보통). " + tactics + " 원본 SAIN '보통' 보정: 반동·탄 퍼짐 중간, 시야 거리 보통, 발견·청각 약간 약함, "
-          "시야각 150°, 연사 중간, 조준 최소 1초, 사람 같은 실수 1.5배. 문 전술 ×0.75, 페이크·미끼·코너 흔들기 조금 줄임.")
+          "시야각 150°, 연사 중간, 조준 최소 1초, 사람 같은 실수 1.5배. 문 전술 ×0.75, 페이크·미끼·코너 흔들기 조금 줄임, 수류탄 38m까지.")
     write(lowspec(normal), "zzap 저사양 [테스트]",
           "[테스트] 저사양 PC용. zzap 보통 + 성능 설정(성능 모드 켬, 멀리 있는 봇끼리의 업데이트·시야·청각 제한 켬, 조준선 자리 찾기 범위 축소). "
           "프레임은 조금 나아질 수 있지만, 멀리서 벌어지는 봇끼리의 싸움은 덜 정교해질 수 있음. 의도한 전투 경험과 다를 수 있는 시험용.")

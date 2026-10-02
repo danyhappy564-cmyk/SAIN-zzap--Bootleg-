@@ -266,6 +266,12 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float GrenadeMaxInfoAge = 20f;
 
     [DataMember]
+    [Name("Grenade Max Throw Distance")]
+    [Description("Meters. With grenade judgment on, no grenade at an enemy known further away than this (a hand throw doesn't reach 60-70m; those attempts only searched for an arc that never existed).")]
+    [MinMax(15f, 75f, 1f)]
+    public float GrenadeMaxThrowDistance = 45f;
+
+    [DataMember]
     [Name("Grenade Min Rush Distance")]
     [Description("Meters of path from the enemy to the thrower - closer and he could push it during the throw.")]
     [MinMax(0f, 40f, 1f)]

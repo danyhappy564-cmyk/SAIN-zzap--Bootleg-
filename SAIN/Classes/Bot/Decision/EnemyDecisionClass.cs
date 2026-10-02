@@ -163,6 +163,14 @@ public class EnemyDecisionClass : BotBase
                 DecisionReasons.AppendLine($"4. Shall Rush: [{shallRush}, {LastReason}]");
             }
 #endif
+            // zzap: a door session already running isn't dropped for a corner chase - the chase is for an enemy who just
+            // ducked around a corner, the door tactic is the plan for exactly this enemy behind this door (10/2 sim: door
+            // holds / peeks ended "rushInstead" 0.1-0.7s after starting). Storm / he's reloading / he's dying still win.
+            if (shallRush && Bot.DoorTactic.Active && LastReason == "cornerChase")
+            {
+                shallRush = false;
+                TacticDiagnostics.Count("door.keptOverChase");
+            }
             if (shallRush)
             {
                 if (Bot.DoorTactic.Active)
@@ -320,7 +328,7 @@ public class EnemyDecisionClass : BotBase
         // stance mapped straight to Freeze here, skipping the old chain's "freeze breaks when shot" check (3 sims: 6 bots
         // killed while frozen and under fire, e.g. hit from 2m behind, froze, dead 0.1s later). Falling back to cover may
         // then run even when it isn't near the top.
-        bool beingShot = BotOwner.Memory.IsUnderFire || Bot.Medical.TimeSinceShot < 1.5f;
+        bool beingShot = BotOwner.Memory.IsUnderFire || Bot.Medical.TimeSinceShot < 1.5f || AnyEnemyShootingAtMe();
         bool holdSkipped = false;
         foreach (var (stance, score) in ranked)
         {
@@ -452,6 +460,24 @@ public class EnemyDecisionClass : BotBase
             return true;
         }
         TacticDiagnostics.Count("utility.noneRunnable");
+        return false;
+    }
+
+    /// <summary>
+    /// SAIN's own "he shot at me / hit me recently" - it is set the moment the shots are registered, before BSG's
+    /// Memory.IsUnderFire turns on (10/2 sim: a bot picked Hold 0.1s after "shooting at me 0.0s ago" and died frozen).
+    /// </summary>
+    private bool AnyEnemyShootingAtMe()
+    {
+        var known = Bot.EnemyController.KnownEnemies;
+        for (int i = 0; i < known.Count; i++)
+        {
+            var status = known[i]?.Status;
+            if (status != null && (status.ShotAtMeRecently || status.ShotMeRecently))
+            {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -597,7 +623,7 @@ public class EnemyDecisionClass : BotBase
             reason = "notHeardFromPeace";
             return false;
         }
-        if (!freeze.AllowOutdoors && !Bot.Memory.Location.IsIndoors)
+        if (!freeze.AllowOutdoors && !Bot.Memory.Location.UnderRoof)
         {
             reason = "outside";
             return false;
@@ -642,12 +668,12 @@ public class EnemyDecisionClass : BotBase
             float timeToFreeze = UnityEngine.Random.Range(min, max) / Bot.Info.AggressionMultiplier;
             FrozenDuration = timeToFreeze;
             TimeToUnfreeze = Time.time + timeToFreeze;
-            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"freeze.start.{Bot.Info.Personality}.{(Bot.Memory.Location.IsIndoors ? "indoors" : "outdoors")}");
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"freeze.start.{Bot.Info.Personality}.{(Bot.Memory.Location.UnderRoof ? "indoors" : "outdoors")}");
             if (freeze.DiagnosticLogs)
             {
                 Logger.LogWarning(
                     $"[Freeze] [{Bot.name}] [{Bot.Info.Personality}] START ambush {timeToFreeze:0}s "
-                        + $"enemyDist={enemy.KnownPlaces.BotDistanceFromLastKnown:0}m indoors={Bot.Memory.Location.IsIndoors} "
+                        + $"enemyDist={enemy.KnownPlaces.BotDistanceFromLastKnown:0}m indoors={Bot.Memory.Location.UnderRoof} "
                         + $"heard={enemy.TimeSinceLastKnownUpdated:0.0}s ago corner={(enemy.VisiblePathPoint != null ? "yes" : "no")}"
                 );
             }
