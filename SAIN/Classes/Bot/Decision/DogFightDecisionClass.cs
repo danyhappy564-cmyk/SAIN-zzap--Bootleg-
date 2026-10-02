@@ -80,7 +80,9 @@ public class DogFightDecisionClass : BotBase
 
         if (_changeDFTargetTime < Time.time)
         {
-            _changeDFTargetTime = Time.time + 0.5f;
+            // zzap (10/2 21:37 raid: corner contacts went StandAndShoot -> DogFight 0.1-0.5s later, restarting the action
+            // and its aim each time): with an enemy in sight, look again every 0.1s instead of 0.5s.
+            _changeDFTargetTime = Time.time + (Bot.GoalEnemy?.IsVisible == true ? 0.1f : 0.5f);
             KnownEnemies.Sort((x, y) => x.Path.PathLength.CompareTo(y.Path.PathLength));
             for (int i = 0; i < KnownEnemies.Count; i++)
             {

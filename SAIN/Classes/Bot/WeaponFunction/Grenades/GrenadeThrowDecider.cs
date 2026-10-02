@@ -23,8 +23,8 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
 
     private static readonly AIGreandeAng[] _indoorAngles =
     [
-        AIGreandeAng.ang5,
         AIGreandeAng.ang15,
+        AIGreandeAng.ang25,
         //AIGreandeAng.ang25,
         //AIGreandeAng.ang35,
     ];
@@ -382,14 +382,19 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
 
     // zzap: indoors a higher lob is fine when the target is far enough - the arc check rejects anything that would clip
     // the ceiling or a frame, so trying it costs nothing but a few raycasts.
+    // 10/2 21:37 raid (user: "grenade angles got weird - they bounce off walls"): since Factory counts as indoors (06a2f40)
+    // its 20-37m throws only had 5-25 degrees, i.e. fast flat throws that skim and bounce; before, as "outdoors", they
+    // were 15-45 degree lobs. A flat 5 degree throw is never a good indoor throw past a few meters - lobs first.
     private static readonly AIGreandeAng[] _indoorAnglesFar =
     [
-        AIGreandeAng.ang5,
         AIGreandeAng.ang15,
         AIGreandeAng.ang25,
+        AIGreandeAng.ang35,
+        AIGreandeAng.ang45,
     ];
 
-    private static readonly AIGreandeAng[] _flatAngles = [AIGreandeAng.ang5, AIGreandeAng.ang15];
+    // Rolled through a doorway: a short lob, not a 5 degree fling (lands, then rolls in).
+    private static readonly AIGreandeAng[] _flatAngles = [AIGreandeAng.ang15, AIGreandeAng.ang25];
     private static readonly float[] _throughDoorDepths = [1.8f, 1.2f, 2.6f];
 
     private bool FindThrowTarget(Enemy enemy, out string target)
@@ -458,7 +463,7 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
         {
             return false;
         }
-        if (TryThrowToPos(blindCornerPos, "BlindCornerToEnemy", Mathf.Sqrt(sqrMag), AIGreandeAng.ang5))
+        if (TryThrowToPos(blindCornerPos, "BlindCornerToEnemy", Mathf.Sqrt(sqrMag), AIGreandeAng.ang15, AIGreandeAng.ang5))
         {
             return true;
         }

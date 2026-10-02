@@ -986,6 +986,8 @@ internal static class KoreanSettingText
         { "Verbose Logs", "상세 로그" },
         { "Also logs why a nearby door was NOT used (rate limited). Noisy, for debugging only.", "근처 문을 왜 안 썼는지도 기록(빈도 제한). 시끄러움, 디버그 전용." },
         // ExtractSettings
+        { "Disable Vanilla Bot Extract", "게임 기본 봇 탈출 끄기" },
+        { "REQUIRES GAME RESTART. Remove BSG's own bot extract behavior even when SAIN Extract Behavior is off - for setups where another mod (ORBIT) does or disables extraction. With both off, SAIN bots never walk to an exit on their own.", "게임 재시작 필요. SAIN 탈출 행동을 꺼 둔 상태에서도 게임(BSG) 기본 봇 탈출 행동을 제거 — 다른 모드(ORBIT)가 탈출을 맡거나 꺼 둔 경우용. 둘 다 끄면 SAIN 봇이 스스로 출구로 걸어가지 않음." },
         { "SAIN Extract Behavior", "SAIN 탈출 행동" },
         { "REQUIRES GAME RESTART. Disable vanilla bot extract behavior and use SAIN decision making instead.", "게임 재시작 필요. 바닐라 봇 탈출 행동을 끄고 SAIN 판단을 씀." },
         // FlashlightSettings

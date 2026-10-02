@@ -55,6 +55,8 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         _jiggling.Clear();
     }
 
+    private const float JIGGLE_DELAY = 0.6f;
+    private float _jiggleFrom;
     private bool _jiggleChecked;
     private bool _jiggle;
     private bool _jiggleHide;
@@ -170,7 +172,11 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             _jiggle = settings.CornerJiggle && Random.value * 100f < settings.CornerJiggleChance && FindCoverSide(enemy, right, out _jiggleCoverDir);
             if (_jiggle)
             {
-                _jiggleHide = false;
+                // zzap (10/2 21:37 raid, user: "at a corner they look at me 1-2s late, then shoot"): the first jiggle tap was
+                // a HIDE (toggle from false), so a bot that had just spotted him ducked behind the corner before its first
+                // burst. Shoot first: plain taps for JIGGLE_DELAY, then the jiggle starts with a peek.
+                _jiggleHide = true;
+                _jiggleFrom = Time.time + JIGGLE_DELAY;
                 TacticDiagnostics.Count("diamond.jiggle");
                 if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] corner jiggle peek: cover on the {(Vector3.Dot(_jiggleCoverDir, right) > 0f ? "right" : "left")}, enemy {dist:0}m");
             }
@@ -190,7 +196,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         if (Time.time >= _tapEnd)
         {
             _tapsSincePlant++;
-            if (_jiggle)
+            if (_jiggle && Time.time >= _jiggleFrom)
             {
                 PickJiggleTap();
             }

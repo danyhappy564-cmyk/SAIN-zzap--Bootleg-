@@ -600,7 +600,8 @@ public static class BigBrainHandler
 
         private static void CheckExtractEnabled(List<string> layersToRemove)
         {
-            if (GlobalSettingsClass.Instance.General.Extract.SAIN_EXTRACT_TOGGLE)
+            var extract = GlobalSettingsClass.Instance.General.Extract;
+            if ((extract.SAIN_EXTRACT_TOGGLE || extract.DisableVanillaExtract) && !layersToRemove.Contains("Exfiltration"))
             {
                 layersToRemove.Add("Exfiltration");
             }
