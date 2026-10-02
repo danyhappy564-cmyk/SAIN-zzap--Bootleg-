@@ -50,9 +50,12 @@ public sealed class PeekSpot(BotComponent bot, string owner)
     // player it never saw). Go one more step past the edge when the navmesh allows.
     private const float EDGE_MARGIN = 0.25f;
     // zzap (same sim): stepped out, got hit, backed off, then stepped out to the very same spot again 3 times and died.
-    // A spot where we were shot is burned for a few seconds.
+    // A spot where we were shot is burned for a few seconds: the search keeps going past it (a wider peek from another
+    // spot, like a player changing his peek). Only when there is no other spot does it wait out the burn - and that wait
+    // doesn't use up one of the 3 tries, so the bot peeks again right after instead of camping behind the wall.
     private const float BURN_RADIUS = 0.6f;
-    private const float BURN_TIME = 6f;
+    private const float BURN_TIME = 4f;
+    private bool _skippedBurned;
     private Vector3 _lastSpot;
     private float _lastSpotTime = -100f;
 
@@ -102,6 +105,7 @@ public sealed class PeekSpot(BotComponent bot, string owner)
 
         Vector3? best = null;
         float bestStep = float.MaxValue;
+        _skippedBurned = false;
         if (toDist > keepFromToward + STEP)
         {
             Vector3 toward1 = toTarget / toDist;
@@ -122,9 +126,18 @@ public sealed class PeekSpot(BotComponent bot, string owner)
         }
         if (best == null)
         {
+            if (_skippedBurned)
+            {
+                // Only the burned spot opens the angle: peek it again once the burn is over (not a used-up try).
+                _tries--;
+                _nextCheck = Time.time + BURN_TIME * 0.5f;
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("peekSpot.burned.wait");
+                return false;
+            }
             if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("peekSpot.none");
             return false;
         }
+        if (_skippedBurned && TacticDiagnostics.CountOn) TacticDiagnostics.Count("peekSpot.burned.otherSpot");
         _spot = best;
         _lastSpot = best.Value;
         _lastSpotTime = Time.time;
@@ -160,8 +173,8 @@ public sealed class PeekSpot(BotComponent bot, string owner)
             }
             if (Burned(spot))
             {
-                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("peekSpot.burned");
-                return;
+                _skippedBurned = true;
+                continue;
             }
             best = spot;
             bestStep = step + penalty;

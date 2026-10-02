@@ -147,7 +147,9 @@ public static class VisibleEnemyUtility
         float reachable = Mathf.Clamp01((6f - cover) / 5f);
         float coverScore = 0.1f + 0.35f * (1f - health) * (0.4f + 0.6f * reachable) + (ammo < 0.25f ? 0.35f : 0f) + (hit ? 0.1f * reachable + 0.15f * closeness : 0f) + 0.3f * exposure * lk
             + 0.15f * (1f - aggr) + 0.2f * reachable - runCost - (cover > 12f ? (dist < 25f ? 0.7f : 0.35f) : 0f) - (looking ? 0f : 0.2f)
-            + (tooClose ? 0.3f : 0f) + (tooFar ? 0.2f : 0f) - (finishHim ? 0.15f : 0f)
+            // Wrong range for the gun is a reason to get to cover only if there is cover to get to (14:38 sim: a DMR bot 7m from
+            // the player, cover 99m away, picked Cover over Shoot on the "too close" bonus alone and walked off in the open).
+            + (cover <= 12f ? (tooClose ? 0.3f : 0f) + (tooFar ? 0.2f : 0f) : 0f) - (finishHim ? 0.15f : 0f)
             // He's reloading/healing = he can't shoot back right now; that is the window to trade, not to turn around.
             - (busy && cover > 2f ? 0.25f : 0f);
         float push = 0.1f + 0.3f * weak + (busy ? 0.35f : 0f) + 0.2f * aggr + 0.15f * numbers + (dist < 12f ? 0.15f : 0f)
