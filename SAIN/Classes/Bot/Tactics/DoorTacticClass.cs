@@ -79,7 +79,11 @@ public class DoorTacticClass : BotComponentClassBase
     private const float MAX_ENEMY_DOOR_DIST = 12f;
     private const float MIN_ENEMY_DEPTH = 0.6f;
     private const float MIN_BOT_DEPTH = 0.3f;
-    private const float MAX_TIME_SINCE_KNOWN = 25f;
+    // zzap (user 2026-10-02: "camped in a room - never a grenade or a fake, they opened the door and walked in"): was 25s
+    // (first door tactic, 9/26). The stalemate boost added 9/28 for exactly this camper (2a4189ce: "quiet in a room for
+    // 10-60s -> act on the door, clear with a grenade") was cut off at 25s by it - in the 14:38 sim the boost fired 3 times
+    // against 15,369 "lastKnownTooOld" rejects. 60s = the stalemate window.
+    private const float MAX_TIME_SINCE_KNOWN = 60f;
     private const float STACK_DEPTH = 0.9f;
     private const float STACK_SIDE_GAP = 0.7f;
     private const float PEEK_DEPTH = 1.25f;
@@ -93,7 +97,9 @@ public class DoorTacticClass : BotComponentClassBase
     private const float FAKE_MAX_DOOR_DIST = 3.2f;
     // Room enemy heard/located within this long for a fake at the frame to make sense. 15s (was 8): the walk to the
     // stack alone takes 3-6s, so 8s threw away most planned fakes (8 sims: 48 planned, 13 done, 8 "enemyInfoOld").
-    private const float FAKE_MAX_INFO_AGE = 15f;
+    // 60s (10/2): matches the start gate above - a camper quiet 20-60s is exactly who the fake is meant to bait out, and a
+    // tighter fake gate than start gate drops the planned fake at the frame (same lesson as the 10m/12m distance mismatch).
+    private const float FAKE_MAX_INFO_AGE = MAX_TIME_SINCE_KNOWN;
     // How far in the room he may be for a fake to be worth it. 14m (was 10): the tactic itself starts with him up to 12m from
     // the door, so on Factory's big rooms every planned fake was dropped at the frame (10/2 sim: 3 of 3 "enemyNotNearDoor").
     private const float FAKE_MAX_ENEMY_DOOR_DIST = MAX_ENEMY_DOOR_DIST + 2f;
@@ -2130,7 +2136,7 @@ public class DoorTacticClass : BotComponentClassBase
     /// <summary>
     /// Decides at the frame whether the planned fake is worth doing right now (2026-09-27: fakes fired "out of the
     /// blue" with nobody around to bait, so it looked like a random heal/throw). Only when the room enemy was heard
-    /// or located within the last 15s, is within 10m of the door, nobody is running at us, and the bot is at the frame.
+    /// or located within the last 60s, is within 14m of the door, nobody is running at us, and the bot is at the frame.
     /// </summary>
     private EStep FakeOrHold(Session s)
     {
