@@ -40,6 +40,21 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
     private bool _lastTapLateralLeft;
 
     // zzap (user 2026-09-29): at a corner / door frame, jiggle peek - A/D taps out of cover and back while shooting.
+    // zzap: bots in a jiggle right now (last tick time). The decision keeps the shooting action through the jiggle's own
+    // hide phase (EnemyDecisionClass.KeepCloseFight) instead of re-deciding "enemy hidden" and ending the jiggle.
+    public const float JIGGLE_SIGHT_TOLERANCE = 1.2f;
+    private static readonly System.Collections.Generic.Dictionary<string, float> _jiggling = new();
+
+    public static bool JiggleActive(string profileId)
+    {
+        return _jiggling.TryGetValue(profileId, out float t) && Time.time - t < 0.3f;
+    }
+
+    public static void ClearAll()
+    {
+        _jiggling.Clear();
+    }
+
     private bool _jiggleChecked;
     private bool _jiggle;
     private bool _jiggleHide;
@@ -60,7 +75,9 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             return Stop("off");
         }
         // Keep dancing through a sub-second loss of sight (enemy ducks behind a frame) instead of freezing in place.
-        if (enemy == null || (!enemy.IsVisible && !(enemy.Seen && enemy.TimeSinceSeen < 1f)))
+        // In a jiggle the bot hides itself on purpose - a little longer before calling him gone.
+        float sightTolerance = _diamondActive && _jiggle ? JIGGLE_SIGHT_TOLERANCE : 1f;
+        if (enemy == null || (!enemy.IsVisible && !(enemy.Seen && enemy.TimeSinceSeen < sightTolerance)))
         {
             return Stop("enemyNotVisible");
         }
@@ -162,6 +179,10 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         if (Plant(settings, dist))
         {
             return true;
+        }
+        if (_jiggle)
+        {
+            _jiggling[Bot.ProfileId] = Time.time;
         }
         if (Time.time >= _tapEnd)
         {
@@ -351,6 +372,14 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
 
     public bool Stop(string why = "actionStopped")
     {
+        if (_jiggle)
+        {
+            _jiggle = false;
+            if (Bot?.ProfileId != null)
+            {
+                _jiggling.Remove(Bot.ProfileId);
+            }
+        }
         if (Bot.Mover?.Lean != null && Bot.Mover.Lean.LeanSpamActive)
         {
             Bot.Mover.Lean.SetLeanSpam(false, 0.13f);

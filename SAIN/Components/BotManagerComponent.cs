@@ -154,6 +154,7 @@ public class BotManagerComponent : MonoBehaviour
         SAIN.SAINComponent.Classes.Tactics.HiddenEnemyUtility.Clear();
         SAIN.SAINComponent.Classes.Tactics.VisibleEnemyUtility.Clear();
         SAIN.SAINComponent.Classes.Tactics.ReloadUtility.Clear();
+        SAIN.SAINComponent.Classes.Mover.DiamondStepper.ClearAll();
         SAIN.SAINComponent.Classes.Tactics.HealUtility.Clear();
         SAIN.SAINComponent.Classes.Tactics.LoadoutProfile.Clear();
         SAIN.SAINComponent.Classes.Tactics.FearModel.Clear();

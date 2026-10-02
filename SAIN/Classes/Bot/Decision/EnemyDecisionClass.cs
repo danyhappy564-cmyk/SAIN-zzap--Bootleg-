@@ -501,6 +501,8 @@ public class EnemyDecisionClass : BotBase
 
     private const float CLOSE_OCCLUSION_KEEP_TIME = 0.8f;
     private const float CLOSE_OCCLUSION_DIST = 8f;
+    // A jiggle hide tap is 0.18-0.32s; he may also step aside meanwhile. Same value as DiamondStepper's sight tolerance.
+    private const float JIGGLE_KEEP_TIME = SAIN.SAINComponent.Classes.Mover.DiamondStepper.JIGGLE_SIGHT_TOLERANCE;
     private Enemy _visibleFightEnemy;
     private float _visibleFightTime = -100f;
 
@@ -518,16 +520,22 @@ public class EnemyDecisionClass : BotBase
     private bool KeepCloseFight(Enemy enemy, out ECombatDecision result)
     {
         result = ECombatDecision.None;
-        if (enemy.IsVisible || !enemy.Seen || enemy.TimeSinceSeen > CLOSE_OCCLUSION_KEEP_TIME || enemy.RealDistance > CLOSE_OCCLUSION_DIST)
+        // zzap (user 2026-10-02 19:46 sim: "the in-and-out A/D peek shots at doors/corners got rare"): a corner jiggle
+        // ducks the bot behind cover on purpose, so the enemy drops out of sight - and the hidden-enemy decision took over
+        // and stopped the action (57 of 70 jiggles ended that way, median 0.5s = one peek). While jiggling, the bot's own
+        // duck is not a reason to re-decide: keep the fight up to JIGGLE_KEEP_TIME, at any jiggle distance.
+        bool jiggling = SAIN.SAINComponent.Classes.Mover.DiamondStepper.JiggleActive(Bot.ProfileId);
+        float keepTime = jiggling ? JIGGLE_KEEP_TIME : CLOSE_OCCLUSION_KEEP_TIME;
+        if (enemy.IsVisible || !enemy.Seen || enemy.TimeSinceSeen > keepTime || (!jiggling && enemy.RealDistance > CLOSE_OCCLUSION_DIST))
         {
             return false;
         }
-        if (!ReferenceEquals(_visibleFightEnemy, enemy) || Time.time - _visibleFightTime > CLOSE_OCCLUSION_KEEP_TIME + 0.4f)
+        if (!ReferenceEquals(_visibleFightEnemy, enemy) || Time.time - _visibleFightTime > keepTime + 0.4f)
         {
             return false;
         }
         ECombatDecision current = Bot.Decision.CurrentCombatDecision;
-        if (current != ECombatDecision.StandAndShoot && current != ECombatDecision.RushEnemy)
+        if (current != ECombatDecision.StandAndShoot && current != ECombatDecision.RushEnemy && !(jiggling && current == ECombatDecision.DogFight))
         {
             return false;
         }
@@ -541,7 +549,7 @@ public class EnemyDecisionClass : BotBase
             }
         }
         result = current;
-        TacticDiagnostics.Count("decision.closeOcclusionKeep");
+        TacticDiagnostics.Count(jiggling ? "diamond.jiggleKept" : "decision.closeOcclusionKeep");
         return true;
     }
 
