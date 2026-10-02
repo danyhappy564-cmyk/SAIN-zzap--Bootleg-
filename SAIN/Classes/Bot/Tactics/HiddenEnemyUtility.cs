@@ -43,6 +43,8 @@ public static class HiddenEnemyUtility
         public float Until;
         public string EnemyId;
         public float HoldSince = -1f;
+        public EStance LastTop;
+        public float NextLog;
     }
 
     private static readonly Dictionary<string, Memory> _memory = new();
@@ -99,9 +101,15 @@ public static class HiddenEnemyUtility
         float heldFor = m != null && m.EnemyId == enemy.EnemyProfileId && m.HoldSince > 0f ? time - m.HoldSince : 0f;
         var ranked = Score(bot, enemy, settings, heldFor, out string why, out float hold);
         float holdSince = ranked[0].stance == EStance.Hold ? (heldFor > 0f ? m.HoldSince : time) : -1f;
-        _memory[id] = new Memory { Ranked = ranked, Until = time + hold, EnemyId = enemy.EnemyProfileId, HoldSince = holdSince };
-        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utility.top.{ranked[0].stance}");
-        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
+        // Under fire it re-scores every tick (15:43 sim: the same line 9 times in 1s) - log on a change of pick or every 2s.
+        bool sameTop = m != null && m.EnemyId == enemy.EnemyProfileId && m.LastTop == ranked[0].stance && time < m.NextLog;
+        _memory[id] = new Memory
+        {
+            Ranked = ranked, Until = time + hold, EnemyId = enemy.EnemyProfileId, HoldSince = holdSince,
+            LastTop = ranked[0].stance, NextLog = sameTop ? m.NextLog : time + 2f,
+        };
+        if (TacticDiagnostics.CountOn && !sameTop) TacticDiagnostics.Count($"utility.top.{ranked[0].stance}");
+        if (TacticDiagnostics.LogOn && !sameTop) TacticDiagnostics.LogCloseCombat(
             $"[Utility] [{bot.name}] [{bot.Info.Personality}] enemy {enemy.EnemyPlayer?.Profile?.Nickname} hidden -> "
                 + $"{ranked[0].stance} {ranked[0].score:0.00} > {ranked[1].stance} {ranked[1].score:0.00} > {ranked[2].stance} {ranked[2].score:0.00} | {why}"
         );

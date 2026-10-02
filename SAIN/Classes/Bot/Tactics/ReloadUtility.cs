@@ -47,7 +47,8 @@ public static class ReloadUtility
         // zzap (10/2 14:38 sim: 6 of 15 player kills were bots reloading in the open at 55-77% the moment he ducked
         // behind a frame 6-16m away - "out of sight" counted as a safe moment, he re-peeked mid-reload). Sight lost under
         // 2s ago within 25m = he's about to come back out: not a reload window unless we're in cover or the mag is low.
-        float sinceSeen = enemy.Seen ? enemy.TimeSinceSeen : 99f;
+        // Heard counts too (15:43 sim: footsteps 13m away 1s ago, never seen -> "out of sight" -> reloaded, shot 4s later).
+        float sinceSeen = Mathf.Min(enemy.Seen ? enemy.TimeSinceSeen : 99f, enemy.TimeSinceLastKnownUpdated);
         bool justDucked = !visible && !inCover && sinceSeen < 2f && dist < 25f;
         bool keepGunUp = justDucked && r >= 0.3f;
 
@@ -70,7 +71,7 @@ public static class ReloadUtility
         if (flipped || !_nextLog.TryGetValue(id, out float next) || Time.time > next)
         {
             _nextLog[id] = Time.time + 3f;
-            string why = $"mag {r:P0}; {(visible ? (looking ? "he's looking at me" : "he isn't looking") : justDucked ? $"he ducked {sinceSeen:0.0}s ago (re-peek likely)" : "he's out of sight")}; "
+            string why = $"mag {r:P0}; {(visible ? (looking ? "he's looking at me" : "he isn't looking") : justDucked ? $"he ducked/was heard {sinceSeen:0.0}s ago (re-peek likely)" : "he's out of sight")}; "
                 + $"{dist:0}m; {(inCover ? "in cover; " : "")}{(busy ? $"he's {enemy.Status.VulnerableAction}; " : "")}{(hit ? "just hit; " : "")}pistol {(pistolReady ? "ready" : "no")}";
             if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
                 $"[Reload] [{bot.name}] {list[0].choice}{(mistake ? " (mistake)" : "")} {list[0].score:0.00} > {list[1].choice} {list[1].score:0.00} > {list[2].choice} {list[2].score:0.00} | {why}");
