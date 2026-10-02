@@ -31,7 +31,7 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 직전(14:24): 페이크 수류탄 거리, 공장 실내 판정, 수류탄 최대 거리, 문 세션 유지.
 이전: remake3 릴리즈(프리셋 5종 — `zzap 쉬움` / `zzap 보통` / `zzap` / `zzap 저사양 [테스트]` / `zzap TEST [시뮬 전용]`).
 
-릴리즈별 변경 요약: [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
+릴리즈별 변경 요약: [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
 
 ## 설치 / 업데이트
 
