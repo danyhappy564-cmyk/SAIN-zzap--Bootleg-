@@ -240,6 +240,13 @@ public class EnemyDecisionClass : BotBase
                 DecisionReasons.AppendLine($"6. Shall Search: [{search}, {LastReason}]");
             }
 #endif
+            // zzap: searching toward a room behind a door -> clear it first instead of walking in.
+            if (search && Bot.DoorTactic.ShallClearOnSearch(enemy, out string clearWhy))
+            {
+                LastReason = "searchClear";
+                result = ECombatDecision.DoorTactic;
+                return true;
+            }
             if (search)
             {
                 if (Bot.Decision.CurrentCombatDecision != ECombatDecision.Search)
@@ -409,6 +416,12 @@ public class EnemyDecisionClass : BotBase
                 case HiddenEnemyUtility.EStance.Search:
                     if (shallSearch(enemy, out r))
                     {
+                        // zzap: searching toward a room behind a door -> clear it first instead of walking in.
+                        if (Bot.DoorTactic.ShallClearOnSearch(enemy, out r))
+                        {
+                            result = ECombatDecision.DoorTactic;
+                            break;
+                        }
                         if (Bot.Decision.CurrentCombatDecision != ECombatDecision.Search)
                         {
                             enemy.Status.NumberOfSearchesStarted++;

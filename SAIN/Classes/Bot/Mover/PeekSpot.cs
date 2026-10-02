@@ -49,15 +49,6 @@ public sealed class PeekSpot(BotComponent bot, string owner)
     // barrel past the frame, head still behind it (the bot "holds" an angle it can't see; one was killed holding it by a
     // player it never saw). Go one more step past the edge when the navmesh allows.
     private const float EDGE_MARGIN = 0.25f;
-    // zzap (same sim): stepped out, got hit, backed off, then stepped out to the very same spot again 3 times and died.
-    // A spot where we were shot is burned for a few seconds: the search keeps going past it (a wider peek from another
-    // spot, like a player changing his peek). Only when there is no other spot does it wait out the burn - and that wait
-    // doesn't use up one of the 3 tries, so the bot peeks again right after instead of camping behind the wall.
-    private const float BURN_RADIUS = 0.6f;
-    private const float BURN_TIME = 4f;
-    private bool _skippedBurned;
-    private Vector3 _lastSpot;
-    private float _lastSpotTime = -100f;
 
     /// <param name="aim">What the bot aims at while holding.</param>
     /// <param name="toward">Where the angle opens from (corner edge, door) - searched first.</param>
@@ -105,7 +96,6 @@ public sealed class PeekSpot(BotComponent bot, string owner)
 
         Vector3? best = null;
         float bestStep = float.MaxValue;
-        _skippedBurned = false;
         if (toDist > keepFromToward + STEP)
         {
             Vector3 toward1 = toTarget / toDist;
@@ -126,21 +116,10 @@ public sealed class PeekSpot(BotComponent bot, string owner)
         }
         if (best == null)
         {
-            if (_skippedBurned)
-            {
-                // Only the burned spot opens the angle: peek it again once the burn is over (not a used-up try).
-                _tries--;
-                _nextCheck = Time.time + BURN_TIME * 0.5f;
-                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("peekSpot.burned.wait");
-                return false;
-            }
             if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("peekSpot.none");
             return false;
         }
-        if (_skippedBurned && TacticDiagnostics.CountOn) TacticDiagnostics.Count("peekSpot.burned.otherSpot");
         _spot = best;
-        _lastSpot = best.Value;
-        _lastSpotTime = Time.time;
         _moveUntil = Time.time + 4f;
         if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"peekSpot.step.{_owner}");
         if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
@@ -148,7 +127,7 @@ public sealed class PeekSpot(BotComponent bot, string owner)
         return Walk();
     }
 
-    private void Search(Vector3 from, Vector3 dir, float max, float gunUp, Vector3 aim, int mask, ref Vector3? best, ref float bestStep, float penalty)
+    private static void Search(Vector3 from, Vector3 dir, float max, float gunUp, Vector3 aim, int mask, ref Vector3? best, ref float bestStep, float penalty)
     {
         for (float step = STEP; step <= max + 0.01f && step + penalty < bestStep; step += STEP)
         {
@@ -171,11 +150,6 @@ public sealed class PeekSpot(BotComponent bot, string owner)
             {
                 spot = pastHit.position;
             }
-            if (Burned(spot))
-            {
-                _skippedBurned = true;
-                continue;
-            }
             best = spot;
             bestStep = step + penalty;
             return;
@@ -186,18 +160,6 @@ public sealed class PeekSpot(BotComponent bot, string owner)
     private static bool Sees(Vector3 spot, float gunUp, Vector3 aim, int mask)
     {
         return !Physics.Linecast(spot + Vector3.up * gunUp, aim, mask) && !Physics.Linecast(spot + Vector3.up * (gunUp + EYE_ABOVE_GUN), aim, mask);
-    }
-
-    private bool Burned(Vector3 spot)
-    {
-        if (Time.time - _lastSpotTime > BURN_TIME + 4f)
-        {
-            return false;
-        }
-        // Shot since we last stepped out there.
-        float sinceShot = _bot.Medical.TimeSinceShot;
-        bool shotThere = sinceShot < BURN_TIME && Time.time - sinceShot >= _lastSpotTime - 0.5f;
-        return shotThere && (spot - _lastSpot).sqrMagnitude < BURN_RADIUS * BURN_RADIUS;
     }
 
     private bool Walk()

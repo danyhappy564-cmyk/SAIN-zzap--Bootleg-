@@ -157,6 +157,23 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float RoomClearNormalChance = 25f;
 
     [DataMember]
+    [Name("Search: Clear The Room First")]
+    [Description("A bot that goes searching for an enemy who has gone quiet in a room behind a door (camping) clears that room on the way in - fakes, a real grenade or a dash, picked as in a room clear - instead of opening the door and walking in. Any personality that searches. The normal door tactics stop once the enemy has been quiet for 25s, which is exactly when a camper is in there.")]
+    public bool SearchRoomClear = true;
+
+    [DataMember]
+    [Name("Search: Clear The Room Chance")]
+    [Description("Percent, rolled once per door (times the chance multiplier above). A failed roll walks in as before (door cooldown 25s).")]
+    [MinMax(0f, 100f, 1f)]
+    public float SearchRoomClearChance = 70f;
+
+    [DataMember]
+    [Name("Search: Max Info Age (s)")]
+    [Description("Seconds since the enemy was last seen/heard. Older than this the search no longer assumes he is still in that room.")]
+    [MinMax(25f, 300f, 1f)]
+    public float SearchRoomClearMaxInfoAge = 120f;
+
+    [DataMember]
     [Name("Room Clear Real Grenade Chance")]
     [Description("Percent, when the bot has a grenade. Otherwise (or when unsafe) it dashes in without one - possibly after a fake.")]
     [MinMax(0f, 100f, 1f)]

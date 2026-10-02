@@ -204,6 +204,31 @@ public class DoorTacticClass : BotComponentClassBase
     }
 
     /// <summary>
+    /// zzap (user 2026-10-02: "camped in a room, never saw a grenade or a fake - they opened the door and walked in"): the
+    /// search path. A camper goes quiet, the door tactics stop at 25s of no info ("lastKnownTooOld" 15k times in the 14:38
+    /// sim) and SAIN's search just walks through the door. Now a bot searching toward a room behind a door clears it
+    /// first (BuildClear: fakes / real grenade / dash, weighted for a quiet enemy).
+    /// </summary>
+    public bool ShallClearOnSearch(Enemy enemy, out string reason)
+    {
+        if (_session != null)
+        {
+            return ShallUse(enemy, out reason);
+        }
+        if (!Settings.SearchRoomClear || !Settings.RoomClear)
+        {
+            reason = "disabled";
+            return false;
+        }
+        if (!TryStart(enemy, false, out reason, false, true))
+        {
+            CountReject("door.searchReject", reason);
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
     /// Is the enemy's last known position in a room behind a door close to the bot (same test the tactics use)? Cached
     /// for 0.5s per enemy - asked by the decision code every tick.
     /// </summary>
@@ -291,7 +316,7 @@ public class DoorTacticClass : BotComponentClassBase
         get { return _session != null && !_session.IsSupport ? _session.Door.Id : -1; }
     }
 
-    private bool TryStart(Enemy enemy, bool holdStance, out string reason, bool shortHold = false)
+    private bool TryStart(Enemy enemy, bool holdStance, out string reason, bool shortHold = false, bool searchClear = false)
     {
         if (!Settings.Enabled)
         {
@@ -316,7 +341,7 @@ public class DoorTacticClass : BotComponentClassBase
             reason = "holdDoorDisabled";
             return false;
         }
-        float baseChance = holdStance ? 1f : GetBaseChance(personality);
+        float baseChance = holdStance ? 1f : searchClear ? Settings.SearchRoomClearChance / 100f : GetBaseChance(personality);
         if (baseChance <= 0f)
         {
             reason = "personalityNoTactics";
@@ -341,7 +366,8 @@ public class DoorTacticClass : BotComponentClassBase
             reason = "justLostSight";
             return false;
         }
-        float maxSinceKnown = resumeCandidate ? Mathf.Max(MAX_TIME_SINCE_KNOWN, Settings.ResumeWindow) : MAX_TIME_SINCE_KNOWN;
+        float maxSinceKnown = searchClear ? Settings.SearchRoomClearMaxInfoAge
+            : resumeCandidate ? Mathf.Max(MAX_TIME_SINCE_KNOWN, Settings.ResumeWindow) : MAX_TIME_SINCE_KNOWN;
         if (enemy.TimeSinceLastKnownUpdated > maxSinceKnown)
         {
             reason = "lastKnownTooOld";
@@ -384,8 +410,8 @@ public class DoorTacticClass : BotComponentClassBase
         // just held far away until a third party showed up) -> much more likely to act on the door now.
         float quiet = enemy.TimeSinceLastKnownUpdated;
         bool stalemate = quiet >= 10f && quiet <= 60f;
-        float chance = testMode ? 1f : Mathf.Clamp01(baseChance * Settings.ChanceMultiplier * (stalemate ? 1.8f : 1f));
-        if (stalemate && !holdStance)
+        float chance = testMode ? 1f : Mathf.Clamp01(baseChance * Settings.ChanceMultiplier * (stalemate && !searchClear ? 1.8f : 1f));
+        if (stalemate && !holdStance && !searchClear)
         {
             TacticDiagnostics.Count("door.stalemateBoost");
         }
@@ -407,7 +433,7 @@ public class DoorTacticClass : BotComponentClassBase
             return false;
         }
 
-        Session session = BuildSession(personality, enemy, geo, holdStance, out reason);
+        Session session = BuildSession(personality, enemy, geo, holdStance, out reason, searchClear);
         if (session != null && shortHold)
         {
             session.HoldTime = Mathf.Min(session.HoldTime, Random.Range(8f, 15f));
@@ -451,11 +477,12 @@ public class DoorTacticClass : BotComponentClassBase
         }
 
         session.FromHold = holdStance;
+        session.FromSearch = searchClear;
         _session = session;
         _doorClaims[geo.Data.Id] = new DoorClaim(Bot.ProfileId, Bot.name, Time.time + SESSION_MAX_TIME);
-        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count(holdStance ? $"door.start.hold.{session.Plan}" : $"door.start.{personality}.{session.Plan}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count(holdStance ? $"door.start.hold.{session.Plan}" : searchClear ? $"door.start.search.{session.Plan}" : $"door.start.{personality}.{session.Plan}");
         if (LogOn) Log(
-            $"{Who()} START plan={session.Plan}{(holdStance ? " (hold stance)" : "")} door={geo.Data.Id} doorState={geo.Data.Door.DoorState} "
+            $"{Who()} START plan={session.Plan}{(holdStance ? " (hold stance)" : searchClear ? " (search: clear before entering)" : "")} door={geo.Data.Id} doorState={geo.Data.Door.DoorState} "
                 + $"botDist={geo.BotDistance:0.0}m enemyDepth={geo.EnemyDepth:0.0}m sinceKnown={enemy.TimeSinceLastKnownUpdated:0.0}s "
                 + $"fakeNade={session.WantFakeNade} fakeHeal={session.WantFakeHeal} hold={session.HoldTime:0}s"
         );
@@ -788,6 +815,7 @@ public class DoorTacticClass : BotComponentClassBase
         public bool FledOwnNade;
         public bool NadeSeenLive;
         public bool FromHold;
+        public bool FromSearch;
         public float HalfWidth;
         public bool RushPathChecked;
         public bool RunByBackToAngle;
@@ -795,7 +823,7 @@ public class DoorTacticClass : BotComponentClassBase
         public readonly HashSet<string> SupportIds = new();
     }
 
-    private Session BuildSession(EPersonality personality, Enemy enemy, DoorGeometry geo, bool holdStance, out string reason)
+    private Session BuildSession(EPersonality personality, Enemy enemy, DoorGeometry geo, bool holdStance, out string reason, bool searchClear = false)
     {
         bool testMode = Settings.TestModeAllPmcGigaChad && Bot.Info.Profile.IsPMC;
         bool doorOpen = geo.Data.Door.DoorState == EDoorState.Open;
@@ -855,6 +883,14 @@ public class DoorTacticClass : BotComponentClassBase
                 s.WantFakeNade = Settings.FakeGrenade && haveNade && Random.value < (testMode ? 1f : holdFake);
                 s.WantFakeHeal = !s.WantFakeNade && CanFakeHeal() && Random.value < holdFake;
             }
+            reason = string.Empty;
+            return s;
+        }
+
+        if (searchClear)
+        {
+            // Going in anyway (search) - the only question is how: fakes / grenade / dash.
+            BuildClear(s, geo, enemy, haveNade, doorOpen);
             reason = string.Empty;
             return s;
         }
