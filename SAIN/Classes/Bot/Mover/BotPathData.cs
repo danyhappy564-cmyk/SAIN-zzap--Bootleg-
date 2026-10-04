@@ -789,6 +789,18 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
         return EBotSprintStatus.None;
     }
 
+    private void TickSprintSteering(BotPathCorner corner)
+    {
+        Bot.Steering.LookToFloorPoint(corner.Position);
+        // Retreat Head Down judges "back to the enemy" on this leg's straight direction, not the bearing to the corner
+        // (that one swings with the retreat weave).
+        if (corner.DirectionFromPrevious != null)
+        {
+            Bot.Steering.SetRunHeading(corner.DirectionFromPrevious.DirectionNormalized);
+        }
+        Bot.Steering.TickPlayerSteering();
+    }
+
     private bool CheckSprintSteering(BotPathCorner corner)
     {
         if (WantToSprint)
@@ -797,15 +809,13 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
             {
                 case EBotSprintStatus.Running:
                 case EBotSprintStatus.Turning:
-                    Bot.Steering.LookToFloorPoint(corner.Position);
-                    Bot.Steering.TickPlayerSteering();
+                    TickSprintSteering(corner);
                     return true;
 
                 case EBotSprintStatus.Canceling:
                     if (Bot.Player.IsSprintEnabled)
                     {
-                        Bot.Steering.LookToFloorPoint(corner.Position);
-                        Bot.Steering.TickPlayerSteering();
+                        TickSprintSteering(corner);
                         return true;
                     }
                     break;

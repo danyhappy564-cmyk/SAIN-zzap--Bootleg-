@@ -396,13 +396,51 @@ public class SAINSteeringClass : BotComponentClassBase
     private bool _headDown;
     private float _headDownUntil;
 
+    // zzap (2026-10-04, user: the head nodded in time with the retreat zig-zag - the point of Head Down is that the
+    // shooter behind never gets the head while the bot shows him its back). Two things blinked it off on every swing:
+    // the "back to the enemy" angle was measured on the bearing to the next path corner, which swings 15-20 deg when the
+    // weave carries the bot 1-2m sideways near a corner, and the path's own corner check (45 deg between view and
+    // corner; the weave already turns the view 30) can cancel the sprint for a few frames. Measure on the straight path
+    // leg instead (it doesn't move with the weave), keep a 10 deg margin once down (never past side-on), and ride out
+    // sprint gaps of up to 0.3s inside a run to cover while still moving at running speed. A real stop (cover reached,
+    // door slowdown, stamina, stopping to fight back) still lifts the head.
+    private const float HEAD_DOWN_ANGLE_MARGIN = 10f;
+    private const float HEAD_DOWN_SPRINT_GAP = 0.3f;
+    private const float HEAD_DOWN_GAP_MIN_SPEED = 2.5f;
+    private Vector3 _runHeading;
+    private float _runHeadingTime = -1f;
+    private float _lastSprintTime = -1f;
+    private bool _steadiedThisRun;
+    private bool _sprintGapThisRun;
+
+    /// <summary>Direction of the path leg being sprinted (previous corner -> current corner), set by
+    /// BotPathData right before it ticks the steering.</summary>
+    public void SetRunHeading(Vector3 heading)
+    {
+        _runHeading = heading;
+        _runHeadingTime = Time.time;
+    }
+
     private bool ShallHideHeadRunning(Vector3 lookDir, out float pitch)
     {
         pitch = 0f;
         bool result = false;
         var settings = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat;
         Enemy enemy = Bot.GoalEnemy;
-        if (settings != null && settings.RetreatHeadDown && enemy != null && Bot.Player.IsSprintEnabled)
+        float now = Time.time;
+        bool sprinting = Bot.Player.IsSprintEnabled;
+        if (sprinting)
+        {
+            _lastSprintTime = now;
+        }
+        // Only a blink inside a run away: still a cover/retreat decision and the sprint path steered within 0.15s. A bot
+        // that stops to fight back lifts the head at once (no aim delay).
+        bool sprintGap = !sprinting && _headDown && now - _lastSprintTime < HEAD_DOWN_SPRINT_GAP
+            && now - _runHeadingTime < 0.15f
+            && Bot.Decision?.CurrentCombatDecision is ECombatDecision.SeekCover or ECombatDecision.Retreat or ECombatDecision.RunAway
+            && Bot.Player.Velocity.sqrMagnitude > HEAD_DOWN_GAP_MIN_SPEED * HEAD_DOWN_GAP_MIN_SPEED;
+        bool running = sprinting || sprintGap;
+        if (settings != null && settings.RetreatHeadDown && enemy != null && running)
         {
             float lastShot = enemy.Status.TimeLastShotAtMe;
             bool exposed = enemy.IsVisible || (enemy.Seen && enemy.TimeSinceSeen < 2f) || (lastShot > 0f && Time.time - lastShot < 3f);
@@ -416,22 +454,42 @@ public class SAINSteeringClass : BotComponentClassBase
             {
                 Vector3 toEnemy = enemy.EnemyPosition - Bot.Position;
                 toEnemy.y = 0f;
-                Vector3 flatLook = new(lookDir.x, 0f, lookDir.z);
-                float limit = runningToCover ? 90f : 110f;
+                Vector3 heading = now - _runHeadingTime < 0.25f && _runHeading.sqrMagnitude > 0.01f ? _runHeading : lookDir;
+                Vector3 flatLook = new(heading.x, 0f, heading.z);
+                float baseLimit = runningToCover ? 90f : 110f;
+                // The margin never goes past side-on (90): with the enemy ahead of the shoulder line the back isn't shown.
+                float limit = _headDown ? Mathf.Max(90f, baseLimit - HEAD_DOWN_ANGLE_MARGIN) : baseLimit;
                 result = toEnemy.sqrMagnitude > 0.01f && flatLook.sqrMagnitude > 0.01f && Vector3.Angle(flatLook, toEnemy) > limit;
+                if (result && _headDown && !_steadiedThisRun && SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
+                {
+                    // The old check (bearing to the corner, no margin) would have lifted the head here.
+                    Vector3 bearing = new(lookDir.x, 0f, lookDir.z);
+                    if (bearing.sqrMagnitude > 0.01f && Vector3.Angle(bearing, toEnemy) <= baseLimit)
+                    {
+                        _steadiedThisRun = true;
+                        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("retreat.headDownSteadied");
+                    }
+                }
             }
         }
         // Keep it at least 0.8s once started - at 40 deg for a split second it wasn't noticeable (field report).
-        if (!result && _headDown && Time.time < _headDownUntil && Bot.Player.IsSprintEnabled)
+        if (!result && _headDown && now < _headDownUntil && running && settings != null)
         {
             result = true;
+        }
+        if (result && sprintGap && !_sprintGapThisRun)
+        {
+            _sprintGapThisRun = true;
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("retreat.headDownSprintGap");
         }
         if (result)
         {
             pitch = settings.RetreatHeadDownPitch;
             if (!_headDown)
             {
-                _headDownUntil = Time.time + 0.8f;
+                _headDownUntil = now + 0.8f;
+                _steadiedThisRun = false;
+                _sprintGapThisRun = false;
             }
         }
         if (result != _headDown)
