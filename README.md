@@ -27,8 +27,8 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 
 변경 이력은 [`changelog/CHANGELOG.md`](changelog/CHANGELOG.md), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
 
-**최근 변경 (2026-10-02 23:02):** 다른 적과 싸우는 중 가까이 다가오는(보이거나 발소리가 들리는) 적으로 목표를 바꿈 — 쏘기 전까지 무시하던 것. 그 전: 게임 기본 봇 탈출 제거(F6, 재시작), 코너에서 먼저 쏘기, 실내 수류탄 포물선. 상세는 변경 이력.
-직전(14:24): 페이크 수류탄 거리, 공장 실내 판정, 수류탄 최대 거리, 문 세션 유지.
+**최근 변경 (2026-10-04 09:59):** 플레이어가 문을 발로 차면 애니메이션 없이 바로 열리고 잠긴 문까지 열리던 문제 수정 — 봇용 "문 상태 강제 완료" 장치가 발차기 동작 도중에 끼어들던 것. 상세는 변경 이력.
+직전(10/2 23:02): 다른 적과 싸우는 중 가까이 다가오는(보이거나 발소리가 들리는) 적으로 목표를 바꿈. 그 전: 게임 기본 봇 탈출 제거(F6, 재시작), 코너에서 먼저 쏘기, 실내 수류탄 포물선.
 이전: remake3 릴리즈(프리셋 5종 — `zzap 쉬움` / `zzap 보통` / `zzap` / `zzap 저사양 [테스트]` / `zzap TEST [시뮬 전용]`).
 
 릴리즈별 변경 요약: [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).

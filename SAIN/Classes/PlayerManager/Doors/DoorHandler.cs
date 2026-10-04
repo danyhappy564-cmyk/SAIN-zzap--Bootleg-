@@ -211,6 +211,15 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
     // walked into the pocket behind it. A door swing takes ~1s.
     private const float DOOR_FINALIZE_WATCH_TIMEOUT = 1.2f;
 
+    // zzap (2026-10-04, user report "kicking a door opens it instantly with no animation - even locked doors"): a kick
+    // puts the door in Interacting when it STARTS (MovementContext.StartDoorBreak -> LockForInteraction), then the
+    // player walks to the kick spot (Approach) and the foot lands at 45% of the BreachDoor animation - past 1.2s. The
+    // watchdog snapped the door to Open with no swing, and on a failed kick (FailBreach puts a locked door back to Locked)
+    // the leaf was left standing open. While someone is still in their own door animation for this door BSG finishes it
+    // itself, so wait for them (players up to 10s, bots 4s, then the old force).
+    private const float DOOR_FINALIZE_MAX_WAIT_PLAYER = 10f;
+    private const float DOOR_FINALIZE_MAX_WAIT_BOT = 4f;
+
     // GameWorldComponent.Init() (where Init() above used to do this scan) runs as soon as the
     // GameWorld object exists, before the map's scene content - including every Door - has finished
     // loading, so a FindObjectsOfType<Door> there reliably finds 0 doors (confirmed via a field log:
@@ -282,6 +291,7 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
             _watchedDoors = null;
         }
         _pendingDoorWatches.Clear();
+        _doorWaitCounted.Clear();
     }
 
     // WorldInteractiveObject.OnDoorStateChanged(WorldInteractiveObject obj, EDoorState prevState, EDoorState nextState)
@@ -293,7 +303,8 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
         }
         // The event only tells us the door started interacting, not which way it's headed - infer
         // that from what it was doing before: already Open means this transition is a close, so the
-        // completion target is Shut; anything else (Shut, Locked-being-breached) is an open.
+        // completion target is Shut; anything else (Shut, Locked-being-breached) is an open. A locked door is re-checked
+        // when the force actually happens (ResolveForcedState) - only a kick that landed may open it.
         EDoorState targetState = prevState == EDoorState.Open ? EDoorState.Shut : EDoorState.Open;
         _pendingDoorWatches[door.GetInstanceID()] = new PendingDoorWatch(door, targetState, Time.time);
     }
@@ -352,6 +363,7 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
             if (watch.Door == null)
             {
                 _resolvedDoorWatches.Add(kv.Key);
+                _doorWaitCounted.Remove(kv.Key);
                 continue;
             }
             if (time - watch.RequestedAt < DOOR_FINALIZE_WATCH_TIMEOUT)
@@ -360,22 +372,94 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
             }
             if (watch.Door.DoorState == EDoorState.Interacting)
             {
-                watch.Door.DoorState = watch.TargetState;
-                watch.Door.CurrentAngle = watch.Door.GetAngle(watch.TargetState);
+                if (time - watch.RequestedAt < DoorAnimationWait(watch.Door, out bool byPlayer))
+                {
+                    if (_doorWaitCounted.Add(kv.Key) && SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
+                    {
+                        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(byPlayer ? "door.finalizeWait.player" : "door.finalizeWait.bot");
+                    }
+                    continue;
+                }
+                EDoorState target = ResolveForcedState(watch.Door, watch.TargetState);
+                watch.Door.DoorState = target;
+                watch.Door.CurrentAngle = watch.Door.GetAngle(target);
                 SyncInteraction(watch.Door, "force-finalize");
                 _recentlyForced[watch.Door] = time;
-                GlobalEventsController.CreateEvent<InteractiveObjectInteractionResultEvent>().Invoke(watch.Door, watch.TargetState);
+                GlobalEventsController.CreateEvent<InteractiveObjectInteractionResultEvent>().Invoke(watch.Door, target);
                 Logger.LogWarning(
                     $"[DoorHandler] [{watch.Door.Id}] never left EDoorState.Interacting {time - watch.RequestedAt:F1}s "
-                        + $"after a state change - force-finalized to {watch.TargetState} (BSG's completion callback "
+                        + $"after a state change - force-finalized to {target} (BSG's completion callback "
                         + "only fires for player-driven animation events)"
                 );
             }
             _resolvedDoorWatches.Add(kv.Key);
+            _doorWaitCounted.Remove(kv.Key);
         }
         for (int i = 0; i < _resolvedDoorWatches.Count; i++)
         {
             _pendingDoorWatches.Remove(_resolvedDoorWatches[i]);
         }
+    }
+
+    private readonly HashSet<int> _doorWaitCounted = new();
+
+    // How long (seconds since the watch started) to leave this door in Interacting because a player is still in their
+    // own door animation for it - walking to it (Approach), kicking it (BreachDoor) or turning the handle/key
+    // (DoorInteraction). 0 = nobody is. MovementContext.InteractionInfo is set by StartInteraction/StartDoorBreak right
+    // before the door goes Interacting; SAIN's own bot opens go through Player.ExecuteInteraction, which neither sets it
+    // nor changes the bot's state, so they keep the 1.2s force.
+    private static float DoorAnimationWait(Door door, out bool byPlayer)
+    {
+        byPlayer = false;
+        var players = Singleton<EFT.GameWorld>.Instance?.AllAlivePlayersList;
+        if (players == null)
+        {
+            return 0f;
+        }
+        float wait = 0f;
+        for (int i = 0; i < players.Count; i++)
+        {
+            EFT.Player player = players[i];
+            if (player == null || player.MovementContext?.CurrentState == null)
+            {
+                continue;
+            }
+            if (player.MovementContext.InteractionInfo.WorldInteractiveObject != door)
+            {
+                continue;
+            }
+            switch (player.CurrentStateName)
+            {
+                case EPlayerState.Approach:
+                case EPlayerState.BreachDoor:
+                case EPlayerState.DoorInteraction:
+                case EPlayerState.DoorInteractionZombieState:
+                    if (!player.IsAI)
+                    {
+                        byPlayer = true;
+                    }
+                    wait = Mathf.Max(wait, player.IsAI ? DOOR_FINALIZE_MAX_WAIT_BOT : DOOR_FINALIZE_MAX_WAIT_PLAYER);
+                    break;
+            }
+        }
+        return wait;
+    }
+
+    // A locked door only leaves Interacting three ways: a key turn (UnlockCoroutine -> Shut), a kick that landed (KickOpen
+    // starts a Breaching swing that ends Open) or a kick that missed (FailBreach -> back to Locked). Guessing Open for it
+    // opened locked doors for free - keep it Locked unless the kick actually landed.
+    private static EDoorState ResolveForcedState(Door door, EDoorState inferred)
+    {
+        if (door.FallbackState != EDoorState.Locked)
+        {
+            return inferred;
+        }
+        var interaction = _interactionField?.GetValue(door) as WorldInteractiveObject.InteractionState;
+        if (interaction != null && interaction.ResultState == EDoorState.Breaching)
+        {
+            return EDoorState.Open;
+        }
+        if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("door.forceKeptLocked");
+        return EDoorState.Locked;
     }
 }
