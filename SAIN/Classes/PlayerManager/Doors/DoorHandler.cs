@@ -447,15 +447,27 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
 
     // A locked door only leaves Interacting three ways: a key turn (UnlockCoroutine -> Shut), a kick that landed (KickOpen
     // starts a Breaching swing that ends Open) or a kick that missed (FailBreach -> back to Locked). Guessing Open for it
-    // opened locked doors for free - keep it Locked unless the kick actually landed.
+    // opened locked doors for free - keep it Locked unless the kick actually landed, or the game is already swinging it
+    // open itself (KeycardDoor with _openOnUnlock: card -> handle -> sound -> Interact(Open) while still Interacting;
+    // forcing Locked there labelled an opening door Locked until the swing ended, or for good if the swing stalled).
     private static EDoorState ResolveForcedState(Door door, EDoorState inferred)
     {
         if (door.FallbackState != EDoorState.Locked)
         {
             return inferred;
         }
-        var interaction = _interactionField?.GetValue(door) as WorldInteractiveObject.InteractionState;
-        if (interaction != null && interaction.ResultState == EDoorState.Breaching)
+        WorldInteractiveObject.InteractionState interaction = null;
+        try
+        {
+            interaction = _interactionField?.GetValue(door) as WorldInteractiveObject.InteractionState;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning($"[DoorHandler] interaction read failed: {ex.Message}");
+        }
+        if (interaction != null
+            && (interaction.ResultState == EDoorState.Breaching
+                || (interaction.IsInProgress && interaction.ResultState == EDoorState.Open)))
         {
             return EDoorState.Open;
         }
