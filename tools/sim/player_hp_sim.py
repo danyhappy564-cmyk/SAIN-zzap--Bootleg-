@@ -9,11 +9,15 @@ legs x1.0, stomach x1.5), split evenly. No healing (the tester in god mode doesn
 import re, sys
 BASE = {"Head": 35, "Chest": 85, "Stomach": 70, "LeftArm": 60, "RightArm": 60, "LeftLeg": 65, "RightLeg": 65}
 SPREAD = {"LeftArm": 0.7, "RightArm": 0.7, "LeftLeg": 1.0, "RightLeg": 1.0, "Stomach": 1.5}
+# 10/6: one burst of 4 headshots in 2s counted as 4 deaths - a real player dies once. Hits within this window after a
+# virtual death belong to the same death.
+DEAD_WINDOW = 3.0
 hit_re = re.compile(r"^t=([\d.]+) \[PlayerHit\] by (.+?) (\w+) (-?\d+) dmg(?: from (\d+)m)?")
 
 def run(path):
     hp = dict(BASE); deaths = []; hits = 0; dmg = 0.0; zero = 0; attackers = {}; life_start = None; first_t = last_t = None
     dists = []
+    dead_until = -1.0
     raid_end = None
     kills = 0
     for line in open(path, encoding="utf-8", errors="replace"):
@@ -32,6 +36,7 @@ def run(path):
         dmg += d
         if dist: dists.append(int(dist))
         attackers[who] = attackers.get(who, 0) + d
+        if t < dead_until: continue  # rest of the burst that already killed him
         if part not in hp: part = "Chest"
         if hp[part] > 0:
             hp[part] -= d
@@ -41,6 +46,7 @@ def run(path):
         if hp["Head"] <= 0 or hp["Chest"] <= 0:
             deaths.append((t, who, part))
             hp = dict(BASE)
+            dead_until = t + DEAD_WINDOW
     return dict(hits=hits, zero=zero, dmg=dmg, deaths=deaths, attackers=len(attackers), first=first_t, last=last_t,
                 end=raid_end, dists=dists, kills=kills)
 

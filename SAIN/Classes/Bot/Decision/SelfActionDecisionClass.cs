@@ -153,7 +153,11 @@ public class SelfActionDecisionClass : BotBase
                         return false;
 
                     case SAIN.SAINComponent.Classes.Tactics.ReloadUtility.EChoice.Pistol:
-                        if (Bot.CombatWeapon.SwapToPistol(enemy, _ammoRatio))
+                        // zzap (10/6 sim: 301 "refused" in 300s from one Rat with an empty gun, no reload ammo and no pistol):
+                        // Pistol is always in the ranked list (score 0 when no pistol is ready), so a failed reload fell through
+                        // to SwapToPistol every tick, counted a refusal and pushed its 3s backoff forward forever. Only ask when
+                        // a loaded pistol is actually ready.
+                        if (pistolReady && Bot.CombatWeapon.SwapToPistol(enemy, _ammoRatio))
                         {
                             _lastReloadTime = Time.time;
                             return false;

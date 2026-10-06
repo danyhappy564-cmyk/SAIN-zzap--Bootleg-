@@ -412,6 +412,11 @@ public sealed class PlayerStyleRecorder
         {
             return;
         }
+        // The rest of the burst that already "killed" him is the same death (10/6: 4 headshots in 2s counted as 4).
+        if (Time.time < _vDeadUntil)
+        {
+            return;
+        }
         if (_vHp[part] > 0f)
         {
             _vHp[part] -= dmg;
@@ -432,11 +437,13 @@ public sealed class PlayerStyleRecorder
             if (SAIN.SAINComponent.Classes.Tactics.RaidJournal.IsOpen) SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line(
                 $"[PlayerHit] WOULD DIE #{_d.VirtualDeaths} - by {by ?? "?"} ({part}), {_d.HitsTaken - _d.HitsNoDamage - _vLifeStartHits} damaging hits this life");
             _vLifeStartHits = _d.HitsTaken - _d.HitsNoDamage;
+            _vDeadUntil = Time.time + 3f;
             ResetVirtualHp();
         }
     }
 
     private int _vLifeStartHits;
+    private float _vDeadUntil;
 
     private void ResetVirtualHp()
     {
