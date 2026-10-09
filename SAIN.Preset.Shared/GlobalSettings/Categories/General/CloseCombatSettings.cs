@@ -380,7 +380,7 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
 
     [DataMember]
     [Name("Retreat Weave Jump Chance")]
-    [Description("Percent per left/right switch (headroom needed).")]
+    [Description("zzap: chance (x3, per run to a cover) that a retreat ends in one long straight jump landing at the cover, taken 3-5 m before it on a clear level line. No more hops on the left/right switches.")]
     [MinMax(0f, 100f, 1f)]
     public float RetreatWeaveJumpChance = 20f;
 

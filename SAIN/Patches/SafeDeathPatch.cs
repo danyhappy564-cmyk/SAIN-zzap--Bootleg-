@@ -433,3 +433,51 @@ public class DeadVaultPatch : ModulePatch
         return false;
     }
 }
+
+/// <summary>
+/// zzap fork (sim 2026-10-10: "NullReferenceException in MuzzleSmoke.OnRenderObject" 401 / 709 / 1275 times on Factory /
+/// Customs / Shoreline, first at t=459s / 1005s / 164s - long before any sim corpse was removed): EFT's muzzle smoke draws itself
+/// every rendered frame while it has smoke points; once one of them throws it keeps throwing every frame (log spam, frame
+/// cost). The throwing component is switched off and cleared (the next shot starts its smoke again), and the first one is
+/// described once in the log - whose weapon, alive or not, material / camera present - to find the cause.
+/// </summary>
+public class SafeMuzzleSmokePatch : ModulePatch
+{
+    private static int _described;
+
+    protected override MethodBase GetTargetMethod()
+    {
+        return AccessTools.Method(typeof(MuzzleSmoke), nameof(MuzzleSmoke.OnRenderObject));
+    }
+
+    [PatchFinalizer]
+    public static Exception Finalizer(Exception __exception, MuzzleSmoke __instance)
+    {
+        if (__exception == null)
+        {
+            return null;
+        }
+        TacticDiagnostics.Count("deadBug.muzzleSmokeThrew");
+        try
+        {
+            if (_described < 3)
+            {
+                _described++;
+                Player owner = __instance != null ? __instance.GetComponentInParent<Player>() : null;
+                string who = owner == null ? "no player above it (dropped/loose weapon?)"
+                    : $"{owner.Profile?.Nickname} ({owner.Profile?.Info?.Settings?.Role}) alive={owner.HealthController?.IsAlive} ai={owner.IsAI}";
+                Logger.LogWarning(
+                    $"[SAIN zzap] MuzzleSmoke.OnRenderObject threw {__exception.GetType().Name} - smoke switched off. On: {(__instance != null ? __instance.gameObject.name : "destroyed")}, "
+                        + $"{who}, material {(__instance != null && __instance.Material != null ? "ok" : "MISSING")}, main camera {(EFT.CameraControl.CameraManager.Instance.Camera != null ? "ok" : "MISSING")}");
+            }
+            if (__instance != null)
+            {
+                __instance.Clear(); // empties the points and disables it
+            }
+        }
+        catch
+        {
+        }
+        return null;
+    }
+}

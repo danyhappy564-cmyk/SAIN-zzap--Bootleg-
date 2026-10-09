@@ -581,6 +581,10 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
             _nextJumpTime = Time.time + 0.5f;
             Player.MovementContext?.TryJump();
             TimeLastJumped = Time.time;
+            // zzap (user 2026-10-10: "jump shots aim terribly"): EFT's spread in the air is huge - no shooting until landed,
+            // for every SAIN jump (corner chase, jump peeks, bait peek, retreat hop).
+            BotOwner.ShootData?.EndShoot();
+            BotOwner.ShootData?.BlockFor(0.55f);
             return true;
         }
         return false;

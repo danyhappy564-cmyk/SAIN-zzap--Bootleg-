@@ -226,13 +226,7 @@ public sealed class CornerChase(BotComponent bot)
                 return false;
 
             case EStyle.JumpShot:
-                Bot.Mover.SetTargetMoveSpeed(1f);
-                if (!_jumped && cornerDist < 1.8f && Bot.Player.MovementContext.IsGrounded && Bot.Mover.TryJump())
-                {
-                    _jumped = true;
-                    TacticDiagnostics.Count("chase.jumpShot.jumped");
-                }
-                return false;
+                return TickJumpShot(cornerDist);
 
             case EStyle.Prefire:
                 Bot.Mover.SetTargetMoveSpeed(0.6f);
@@ -249,10 +243,61 @@ public sealed class CornerChase(BotComponent bot)
 
     private bool _styleCounted;
 
+    // zzap (user 2026-10-10: "the jump shot aims badly and the jump length is awkward"): the hop came at a fixed 1.8m from the
+    // corner whatever the speed, and the bot fired in the air (EFT's spread while airborne is huge). Now: take off so the peak
+    // is at the corner (distance from the run speed), no shooting in the air, and on landing stop for a moment to fire
+    // planted (same steadying as the diamond step plant) before carrying on.
+    private float _jumpTime;
+    private float _landPlantUntil;
+
+    private bool TickJumpShot(float cornerDist)
+    {
+        float time = Time.time;
+        var player = Bot.Player;
+        if (_landPlantUntil > 0f)
+        {
+            if (time < _landPlantUntil)
+            {
+                player.Move(Vector2.zero);
+                Bot.BotOwner.AimingManager?.CurrentAiming?.Move(0f);
+                return true;
+            }
+            _landPlantUntil = 0f;
+            return false;
+        }
+        Bot.Mover.SetTargetMoveSpeed(1f);
+        if (_jumped)
+        {
+            // landed: plant to shoot
+            if (_jumpTime > 0f && time - _jumpTime > 0.25f && player.MovementContext.IsGrounded)
+            {
+                _jumpTime = 0f;
+                _landPlantUntil = time + Random.Range(0.3f, 0.45f);
+                player.Move(Vector2.zero);
+                TacticDiagnostics.Count("chase.jumpShot.landedPlant");
+            }
+            return false;
+        }
+        Vector3 v = player.Velocity;
+        v.y = 0f;
+        float takeOff = Mathf.Clamp(v.magnitude * 0.42f, 1.6f, 3f); // ~0.42s to the top of a sprint hop
+        if (cornerDist < takeOff && player.MovementContext.IsGrounded && Bot.Mover.TryJump())
+        {
+            _jumped = true;
+            _jumpTime = time;
+            Bot.BotOwner.ShootData?.EndShoot();
+            Bot.BotOwner.ShootData?.BlockFor(0.55f); // no shots in the air
+            TacticDiagnostics.Count("chase.jumpShot.jumped");
+        }
+        return false;
+    }
+
     private void PickStyle(CloseCombatSettings settings, Enemy enemy)
     {
         _styleCounted = false;
         _jumped = false;
+        _jumpTime = 0f;
+        _landPlantUntil = 0f;
         _prefireDone = false;
         _wideReached = false;
         _side = Bot.Mover.Lean.FindLeanFromBlindCornerAngle(enemy);

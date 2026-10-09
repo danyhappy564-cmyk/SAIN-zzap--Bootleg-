@@ -180,6 +180,9 @@ public class SimBeat
     /// <summary>Samples (2 s, per bot) of a hostile bot within 4 m that this bot doesn't know about (user screenshot 2026-10-09:
     /// two enemies shoulder to shoulder, then a scramble), and a few examples.</summary>
     /// <summary>In-game clock at the raid start (hour, 0-24) and whether it is night (before 6 or from 21, or Factory night).</summary>
+    /// <summary>Managed heap in the main menu right before this raid was started, after a full GC (MB, -1 = unknown). Rising map
+    /// after map = something keeps old raids alive (user 2026-10-10: "looks like a RAM leak").</summary>
+    public long MenuMonoMB = -1;
     public int LeashTeleports;
     public float RaidHour = -1f;
     public bool Night;

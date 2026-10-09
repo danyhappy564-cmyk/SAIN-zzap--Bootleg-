@@ -371,6 +371,18 @@ public sealed class SimLabRunner : MonoBehaviour
         // Do NOT set _menuOperation.IsInSession here: its setter clears the menu's health controller, and
         // OnReadyToStartMatchingAsync -> MainMenuShowOperation.StoreProfile() reads it first (field 2026-10-09: NRE in StoreProfile).
         // The menu's own Ready path never sets it either - only reconnect and BSG's InternalStartGame do.
+        try
+        {
+            // leak check: what is still alive from earlier raids once everything collectable is collected (menu, before loading)
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true);
+            SimLab.MenuMonoMB = UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong() / (1024 * 1024);
+            Logger.LogWarning($"[SimLab] menu managed heap before {map}: {SimLab.MenuMonoMB} MB (after a full GC)");
+        }
+        catch (Exception ex)
+        {
+            SimLab.MenuMonoMB = -1;
+            Logger.LogWarning($"[SimLab] menu heap not measured: {ex.Message}");
+        }
         if (SimLab.Plan?.OriginalMaps != false)
         {
             // Must land before the raid's location is generated (MapVariants swaps the served map data at that point).
@@ -901,6 +913,7 @@ public sealed class SimLabRunner : MonoBehaviour
             Kind = kind,
             RaidHour = SimLab.RaidHour,
             LeashTeleports = SimLabLeash.Teleports,
+            MenuMonoMB = SimLab.MenuMonoMB,
             Night = IsNight(SimLab.RaidHour),
             ClientTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             Build = SimLab.Build,

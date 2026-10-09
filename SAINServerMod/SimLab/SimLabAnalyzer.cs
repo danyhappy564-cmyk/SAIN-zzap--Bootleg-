@@ -581,7 +581,7 @@ public static class SimLabAnalyzer
             var b = m.Last;
             sb.AppendLine($"## {m.Index + 1}. {m.MapName} (`{m.Map}`) — {m.Scenario}");
             sb.AppendLine();
-            sb.AppendLine($"- 상태 **{StatusText(m.Status)}**, 진행 {PlayedMinutes(m):0.0}/{m.PlannedMinutes:0}분, 시작 {m.Started:HH:mm:ss}, 게임 시각 {DayNight(m.Last)}");
+            sb.AppendLine($"- 상태 **{StatusText(m.Status)}**, 진행 {PlayedMinutes(m):0.0}/{m.PlannedMinutes:0}분, 시작 {m.Started:HH:mm:ss}, 게임 시각 {DayNight(m.Last)}, 시작 전 메뉴 관리 메모리(GC 뒤) {(m.Last?.MenuMonoMB > 0 ? $"{m.Last.MenuMonoMB}MB" : "?")}");
             sb.AppendLine($"- 목적: {m.Focus}");
             if (m.Raid != null)
             {
@@ -736,9 +736,41 @@ public static class SimLabAnalyzer
     /// The to-do list at the top of the Claude summary (user 2026-10-09): every high/warn finding of every map with how to fix it.
     /// User's rule: [high] = fix right away, [warn] = ask the user before fixing.
     /// </summary>
+    /// <summary>Leak check over the run: the menu's managed heap (after a full GC) before each map. Climbing map after map,
+    /// whatever the map, means old raids are kept alive; up and down with the map size is just the map.</summary>
+    public static SimFinding? MenuHeapFinding(SimRunRecord run)
+    {
+        var points = run.Maps.Where(m => m.Last != null && m.Last.MenuMonoMB > 0).Select(m => (m.MapName, Mb: m.Last!.MenuMonoMB)).ToList();
+        if (points.Count < 3)
+        {
+            return null;
+        }
+        bool rising = true;
+        for (int i = 1; i < points.Count; i++)
+        {
+            rising &= points[i].Mb > points[i - 1].Mb + 150;
+        }
+        long growth = points[^1].Mb - points[0].Mb;
+        if (!rising || growth < 800)
+        {
+            return null;
+        }
+        string list = string.Join(" → ", points.Select(p => $"{p.MapName} {p.Mb}MB"));
+        return new SimFinding(WARN, T("맵이 바뀔 때마다 메뉴 메모리가 계속 오름 (누수 의심)", "Menu memory keeps rising map after map (leak suspected)"),
+            T($"레이드 시작 전 메뉴에서 GC 뒤 관리 메모리: {list} (+{growth}MB).", $"Managed heap in the menu after a full GC before each raid: {list} (+{growth} MB)."))
+        {
+            Fix = "레이드가 끝나도 남는 참조 찾기: SAIN/다른 모드의 정적 목록·이벤트 구독(Player/BotOwner/GameWorld), BotManagerComponent.OnDestroy의 Clear 누락. 같은 맵을 두 번 넣은 순회로 재확인.",
+        };
+    }
+
     private static void AppendTodo(StringBuilder sb, SimRunRecord run)
     {
         var items = run.Maps.SelectMany(m => Findings(m).Where(f => f.Severity is HIGH or WARN).Select(f => (m, f))).ToList();
+        var leak = MenuHeapFinding(run);
+        if (leak != null && run.Maps.Count > 0)
+        {
+            items.Add((run.Maps[^1], leak));
+        }
         sb.AppendLine("## Claude 할 일 (자동 생성)");
         sb.AppendLine();
         if (items.Count == 0)

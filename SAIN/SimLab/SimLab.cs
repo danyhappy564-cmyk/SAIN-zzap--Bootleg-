@@ -36,6 +36,8 @@ public static class SimLab
     public static bool SpectatorActive;
     /// <summary>In-game hour the last sim raid was started at (-1 = unknown).</summary>
     public static float RaidHour = -1f;
+    /// <summary>Managed heap after a full GC in the menu right before the last sim raid start (MB).</summary>
+    public static long MenuMonoMB = -1;
     public static string SpectatorProfileId;
 
     /// <summary>Set when the sim ended a raid itself: the next session result screens are skipped.</summary>

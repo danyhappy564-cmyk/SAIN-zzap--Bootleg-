@@ -23,6 +23,9 @@ public static class RetreatWeave
         public float AppliedAngle;
         public float AppliedUntil;
         public bool BlockedThisSwing;
+        public float StraightUntil;
+        public bool LandingJumpDone;
+        public Vector3 LastDestination;
     }
 
     private static Vector3 Bend(Vector3 flat, float angle)
@@ -48,7 +51,54 @@ public static class RetreatWeave
 
     private static readonly Dictionary<string, State> _states = new();
 
+    // zzap (user 2026-10-10: "running to cover, the jump is too short - it should be one fast long jump that lands right there,
+    // now it feels like one more hide"): the hop came on a weave switch, i.e. while the run was turning 30 deg - short and
+    // sideways. Now there is no hop on a switch; one straight hop when the cover is 3-5 m ahead on a clear, level line, and
+    // the weave holds straight while airborne so the jump keeps the sprint's full length.
+    private const float LANDING_JUMP_MIN = 3f;
+    private const float LANDING_JUMP_MAX = 5f;
+
+    private static bool TryLandingJump(BotComponent bot, State st, Vector3 destination, float time, float chance)
+    {
+        if (st.LandingJumpDone)
+        {
+            return false;
+        }
+        Vector3 pos = bot.Position;
+        Vector3 to = destination - pos;
+        float dy = Mathf.Abs(to.y);
+        to.y = 0f;
+        float dist = to.magnitude;
+        if (dist < LANDING_JUMP_MIN || dist > LANDING_JUMP_MAX || dy > 0.4f || !bot.Player.MovementContext.IsGrounded)
+        {
+            return false;
+        }
+        Vector3 dir = to / dist;
+        int mask = LayersMaskController.HighPolyWithTerrainMask;
+        // clear, level run-up to the landing spot: navmesh straight line, nothing at knee/chest height, headroom
+        if (NavMesh.Raycast(pos, destination, out _, -1)
+            || Physics.Raycast(pos + Vector3.up * 0.5f, dir, dist, mask)
+            || Physics.Raycast(pos + Vector3.up * 1.2f, dir, dist, mask)
+            || Physics.Raycast(pos + Vector3.up * 1.7f, Vector3.up, 0.7f, mask))
+        {
+            return false;
+        }
+        st.LandingJumpDone = true; // one roll per run to a cover, taken the first time the line is clear
+        if (Random.value * 100f >= chance || !bot.Mover.TryJump())
+        {
+            return false;
+        }
+        st.StraightUntil = time + 0.8f;
+        TacticDiagnostics.Count("retreat.landingJump");
+        return true;
+    }
+
     public static void Filter(BotComponent bot, ref Vector3 direction)
+    {
+        Filter(bot, ref direction, null);
+    }
+
+    public static void Filter(BotComponent bot, ref Vector3 direction, Vector3? destination)
     {
         var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
         if (bot == null || settings == null || !settings.RetreatWeave || !bot.Steering.HeadDownActive || !bot.Player.IsSprintEnabled)
@@ -62,18 +112,28 @@ public static class RetreatWeave
             _states[id] = st;
         }
         float time = Time.time;
+        if (destination != null)
+        {
+            if ((destination.Value - st.LastDestination).sqrMagnitude > 4f)
+            {
+                st.LastDestination = destination.Value; // a new cover to run to: one landing jump allowed again
+                st.LandingJumpDone = false;
+            }
+            // the jump chance setting now decides how often the run ends in a landing jump (x3: one roll per run, not per switch)
+            TryLandingJump(bot, st, destination.Value, time, settings.RetreatWeaveJumpChance * 3f);
+        }
+        // airborne / just jumped: run straight, no weave - the hop keeps the sprint's full length
+        if (time < st.StraightUntil || !bot.Player.MovementContext.IsGrounded)
+        {
+            st.AppliedUntil = 0f;
+            return;
+        }
         if (time >= st.NextSwitch)
         {
             st.Sign = -st.Sign;
             st.NextSwitch = time + Random.Range(0.45f, 0.8f);
             st.BlockedThisSwing = false;
             TacticDiagnostics.Count("retreat.weave");
-            if (Random.value * 100f < settings.RetreatWeaveJumpChance && bot.Player.MovementContext.IsGrounded
-                && !Physics.Raycast(bot.Position + Vector3.up * 1.7f, Vector3.up, 0.7f, LayersMaskController.HighPolyWithTerrainMask)
-                && bot.Mover.TryJump())
-            {
-                TacticDiagnostics.Count("retreat.weaveJump");
-            }
         }
         Vector3 flat = direction;
         flat.y = 0f;
