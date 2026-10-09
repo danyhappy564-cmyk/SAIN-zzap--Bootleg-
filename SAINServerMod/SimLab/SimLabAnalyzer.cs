@@ -202,6 +202,31 @@ public static class SimLabAnalyzer
             }
         }
 
+        // ORBIT telemetry (ORBIT 2.1.1: Ghost Mode sleeps bots > 250 m from the player, objectives/extracts walk squads away)
+        float orbitTotal = b.LayerSeconds?.Values.Sum() ?? 0f;
+        if (orbitTotal > 60f && b.OrbitGhostSeconds > orbitTotal * 0.05f)
+        {
+            list.Add(new(WARN, T("ORBIT 고스트 모드가 봇을 재움", "ORBIT Ghost Mode put bots to sleep"),
+                T($"봇 시간의 {b.OrbitGhostSeconds / orbitTotal:P0}를 잠든 상태(고스트)로 보냄. 잠든 봇끼리 싸움은 실제 사격 없이 주사위로 처리돼 SAIN 측정이 안 됨. 시뮬 설정의 'ORBIT 고스트 모드 끄기'를 켜세요.",
+                  $"{b.OrbitGhostSeconds / orbitTotal:P0} of bot time asleep (ghost). Ghost fights are rolled, not fought, so SAIN isn't measured. Turn on 'ORBIT ghost mode off' in the sim settings.")));
+        }
+        float away = b.OrbitObjectiveSeconds != null && b.OrbitObjectiveSeconds.TryGetValue(SimOrbitKeys.AwayFromArena, out float a) ? a : 0f;
+        float objTotal = b.OrbitObjectiveSeconds?.Where(kv => kv.Key != SimOrbitKeys.AwayFromArena).Sum(kv => kv.Value) ?? 0f;
+        if (objTotal > 120f && away > objTotal * 0.4f)
+        {
+            list.Add(new(WARN, T("ORBIT 목적지가 싸움 구역 밖", "ORBIT objectives outside the arena"),
+                T($"ORBIT가 봇을 보낸 시간의 {away / objTotal:P0}가 싸움 구역(양쪽 스폰 사이 원) 밖 목적지였음. 'ORBIT 싸움 구역 고정'이 켜져 있는지, 존 에디터의 맵 설정이 덮였는지 확인.",
+                  $"{away / objTotal:P0} of ORBIT objective time pointed outside the arena circle. Check 'ORBIT arena zone' is on and the map's zones were replaced.")));
+        }
+        float extractSeconds = b.OrbitObjectiveSeconds?.Where(kv => kv.Key.StartsWith("extract:", StringComparison.Ordinal)).Sum(kv => kv.Value) ?? 0f;
+        if (extractSeconds > 60f)
+        {
+            var why = b.OrbitObjectiveSeconds!.Where(kv => kv.Key.StartsWith("extract:", StringComparison.Ordinal)).OrderByDescending(kv => kv.Value).Take(3).Select(kv => $"{kv.Key.Substring(8).Trim()} {kv.Value / 60f:0.0}분");
+            list.Add(new(WARN, T("ORBIT가 봇을 탈출시키려 함", "ORBIT sends bots to extract"),
+                T($"탈출하러 가는 봇 시간 {extractSeconds / 60f:0.0}분 ({string.Join(", ", why)}). 탈출하면 싸움 구역에서 빠짐 — 'ORBIT 탈출 끄기'를 켜세요.",
+                  $"{extractSeconds / 60f:0.0} bot-minutes heading to extract ({string.Join(", ", why)}). Turn on 'ORBIT no extract'.")));
+        }
+
         if (b.TeamKills > 0)
         {
             list.Add(new(INFO, T("아군 사격 사망", "Team kills"), T($"{b.TeamKills}회.", $"{b.TeamKills}.")));
@@ -356,6 +381,12 @@ public static class SimLabAnalyzer
             lines.Add(T($"봇 시간: SAIN 전투 {LayerShare(b, "combat"):P0}, ORBIT {LayerShare(b, "orbit"):P0}, 바닐라·기타 {LayerShare(b, "other"):P0}.",
                         $"Bot time: SAIN combat {LayerShare(b, "combat"):P0}, ORBIT {LayerShare(b, "orbit"):P0}, vanilla/other {LayerShare(b, "other"):P0}."));
         }
+        if (b.OrbitGhostSeconds > 0f || (b.OrbitObjectiveSeconds?.Count ?? 0) > 0)
+        {
+            var top = b.OrbitObjectiveSeconds?.Where(kv => kv.Key != SimOrbitKeys.AwayFromArena).OrderByDescending(kv => kv.Value).Take(3).Select(kv => $"{kv.Key} {kv.Value / 60f:0.0}") ?? [];
+            lines.Add(T($"ORBIT: 잠든 시간 {b.OrbitGhostSeconds / 60f:0.0}분, 주요 목적지(분) {string.Join(", ", top)}.",
+                        $"ORBIT: asleep {b.OrbitGhostSeconds / 60f:0.0} min, top objectives (min) {string.Join(", ", top)}."));
+        }
         var best = b.ByPersonality?.Where(kv => kv.Value.Kills + kv.Value.Deaths >= 3).OrderByDescending(kv => kv.Value.Deaths > 0 ? (float)kv.Value.Kills / kv.Value.Deaths : kv.Value.Kills).FirstOrDefault();
         if (best != null && best.Value.Key != null)
         {
@@ -429,6 +460,20 @@ public static class SimLabAnalyzer
                 sb.AppendLine();
                 sb.AppendLine("### 레이어 시간 (봇 전체 합, 2초 표본)");
                 sb.AppendLine(string.Join("; ", b.LayerSeconds.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} {kv.Value / 60f:0.0}분 ({kv.Value / total:P0}) [{LayerGroup(kv.Key)}]")));
+            }
+            if (m.Raid != null || (b != null && (b.OrbitGhostSeconds > 0f || (b.OrbitObjectiveSeconds?.Count ?? 0) > 0)))
+            {
+                sb.AppendLine();
+                sb.AppendLine("### ORBIT");
+                sb.AppendLine($"- 서버가 바꾼 ORBIT 설정: {(string.IsNullOrEmpty(m.Raid?.OrbitOverrides) ? "없음 (ORBIT 없음/끔/요청 전)" : m.Raid!.OrbitOverrides)}");
+                if (m.Raid?.HasArena == true)
+                {
+                    sb.AppendLine($"- 싸움 구역 원: 중심 ({m.Raid.ArenaX:0},{m.Raid.ArenaZ:0}) 반지름 {m.Raid.ArenaRadius:0}m");
+                }
+                if (b != null)
+                {
+                    sb.AppendLine($"- 고스트(잠듦) 봇초 {b.OrbitGhostSeconds:0}; 목적지 봇초: " + string.Join(", ", (b.OrbitObjectiveSeconds ?? new()).OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}={kv.Value:0}")));
+                }
             }
             if (b != null && b.SpawnInZone + b.SpawnOffZone > 0)
             {

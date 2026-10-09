@@ -34,6 +34,8 @@ public static class SimLabProbe
     private static int _stareTowardEnemy;
     private static int _spawnIn;
     private static int _spawnOffCount;
+    private static float _orbitGhost;
+    private static readonly Dictionary<string, float> _orbitObjective = new();
     private static HashSet<string> _wantedA = new(StringComparer.OrdinalIgnoreCase);
     private static HashSet<string> _wantedB = new(StringComparer.OrdinalIgnoreCase);
     private static SimRaidInfo _info;
@@ -51,6 +53,8 @@ public static class SimLabProbe
         _stareTowardEnemy = 0;
         _spawnIn = 0;
         _spawnOffCount = 0;
+        _orbitGhost = 0f;
+        _orbitObjective.Clear();
         _wantedA = Split(info?.ZonesA);
         _wantedB = Split(info?.ZonesB);
         try
@@ -146,6 +150,7 @@ public static class SimLabProbe
         string layer = owner.Brain?.ActiveLayerName() ?? "none";
         _layerSeconds.TryGetValue(layer, out float seconds);
         _layerSeconds[layer] = seconds + dt;
+        SampleOrbit(player, dt);
 
         if (layer != SAIN.SAINComponent.Classes.Tactics.LayerHandoff.SainCombat || !SAINEnableClass.GetSAIN(player.ProfileId, out BotComponent bot) || bot == null)
         {
@@ -175,6 +180,77 @@ public static class SimLabProbe
         }
     }
 
+    // ORBIT's public read-only telemetry (Orbit.Api.OrbitTelemetry in ORBIT.dll), found by reflection so SAIN has no
+    // dependency on it: Ghost Mode sleep and the objective each bot walks to. ORBIT itself is never changed.
+    private static bool _orbitLooked;
+    private static System.Reflection.MethodInfo _isDormant;
+    private static System.Reflection.MethodInfo _getObjective;
+    private static System.Reflection.FieldInfo _objStatus, _objCategory, _objExtract, _objX, _objZ;
+
+    private static void SampleOrbit(Player player, float dt)
+    {
+        if (!_orbitLooked)
+        {
+            _orbitLooked = true;
+            try
+            {
+                var type = HarmonyLib.AccessTools.TypeByName("Orbit.Api.OrbitTelemetry");
+                _isDormant = type?.GetMethod("IsBotDormant", new[] { typeof(string) });
+                _getObjective = type?.GetMethod("GetBotObjective", new[] { typeof(string) });
+                var obj = _getObjective?.ReturnType;
+                _objStatus = obj?.GetField("Status");
+                _objCategory = obj?.GetField("Category");
+                _objExtract = obj?.GetField("ExtractReason");
+                _objX = obj?.GetField("ObjectiveX");
+                _objZ = obj?.GetField("ObjectiveZ");
+                Logger.LogInfo($"[SimLab] ORBIT telemetry {(type != null ? "found" : "not installed")}");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning($"[SimLab] ORBIT telemetry not readable: {ex.Message}");
+                _isDormant = null;
+                _getObjective = null;
+            }
+        }
+        try
+        {
+            if (_isDormant != null && _isDormant.Invoke(null, new object[] { player.ProfileId }) is bool dormant && dormant)
+            {
+                _orbitGhost += dt;
+            }
+            object obj = _getObjective?.Invoke(null, new object[] { player.ProfileId });
+            if (obj == null)
+            {
+                return;
+            }
+            string extract = _objExtract?.GetValue(obj) as string;
+            string key = !string.IsNullOrEmpty(extract) ? "extract: " + extract : $"{_objCategory?.GetValue(obj)}/{_objStatus?.GetValue(obj)}";
+            AddOrbit(key, dt);
+            // objective outside the sim arena = ORBIT is walking this bot away from the fight we set up
+            if (_info != null && _info.HasArena && _objX != null && _objZ != null)
+            {
+                float dx = (float)_objX.GetValue(obj) - _info.ArenaX;
+                float dz = (float)_objZ.GetValue(obj) - _info.ArenaZ;
+                if (dx * dx + dz * dz > _info.ArenaRadius * _info.ArenaRadius)
+                {
+                    AddOrbit(SimOrbitKeys.AwayFromArena, dt);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning($"[SimLab] ORBIT telemetry stopped: {ex.Message}");
+            _isDormant = null;
+            _getObjective = null;
+        }
+    }
+
+    private static void AddOrbit(string key, float dt)
+    {
+        _orbitObjective.TryGetValue(key, out float seconds);
+        _orbitObjective[key] = seconds + dt;
+    }
+
     private static string ReasonKey(string reason)
     {
         if (string.IsNullOrEmpty(reason))
@@ -196,6 +272,8 @@ public static class SimLabProbe
         beat.SpawnInZone = _spawnIn;
         beat.SpawnOffZone = _spawnOffCount;
         beat.SpawnOff = new List<SimSpawnSample>(_spawnOff);
+        beat.OrbitGhostSeconds = _orbitGhost;
+        beat.OrbitObjectiveSeconds = new Dictionary<string, float>(_orbitObjective);
     }
 
     public static void Clear()

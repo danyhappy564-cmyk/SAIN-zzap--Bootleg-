@@ -263,6 +263,33 @@
                                     </MudSimpleTable>
                                 </MudExpansionPanel>
                             }
+                            @if (m.Raid != null || b.OrbitGhostSeconds > 0f || (b.OrbitObjectiveSeconds?.Count ?? 0) > 0)
+                            {
+                                <MudExpansionPanel Text="@T("ORBIT (설정 덮어쓰기 / 잠듦 / 목적지)", "ORBIT (overrides / asleep / objectives)")" Class="sain-subpanel">
+                                    <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
+                                        @T("서버가 이번 판에 ORBIT에 보낸 설정을 어떻게 바꿨는지, 봇이 ORBIT 고스트 모드로 잠든 시간, ORBIT이 봇을 어디로 보냈는지(봇 시간 합, 2초 표본). '싸움 구역 밖'이 크면 ORBIT이 봇을 우리가 만든 싸움터 밖으로 데려간 것입니다.",
+                                           "How the server changed ORBIT's settings for this raid, bot time asleep in ORBIT Ghost Mode, and where ORBIT sent bots (bot time, 2 s samples). A large 'outside arena' means ORBIT walked bots out of the arena.")
+                                    </MudText>
+                                    <MudText Typo="Typo.body2">@T("바꾼 설정", "Overrides"): @(string.IsNullOrEmpty(m.Raid?.OrbitOverrides) ? T("없음 (ORBIT 없음 / 끔 / 아직 요청 안 함)", "none (no ORBIT / off / not requested yet)") : m.Raid!.OrbitOverrides)</MudText>
+                                    @if (m.Raid?.HasArena == true)
+                                    {
+                                        <MudText Typo="Typo.body2">@T("싸움 구역 원", "Arena circle"): (@m.Raid.ArenaX.ToString("0"), @m.Raid.ArenaZ.ToString("0")) r=@m.Raid.ArenaRadius.ToString("0")m</MudText>
+                                    }
+                                    <MudText Typo="Typo.body2" Class="mb-2">@T("고스트(잠듦) 시간", "Asleep (ghost)"): @((b.OrbitGhostSeconds / 60f).ToString("0.0")) @T("분", "min")</MudText>
+                                    @if ((b.OrbitObjectiveSeconds?.Count ?? 0) > 0)
+                                    {
+                                        <MudSimpleTable Dense="true">
+                                            <thead><tr><th>@T("ORBIT 목적지 / 상태", "ORBIT objective / status")</th><th>@T("시간(분)", "Minutes")</th></tr></thead>
+                                            <tbody>
+                                                @foreach (var kv in b.OrbitObjectiveSeconds!.OrderByDescending(kv => kv.Value))
+                                                {
+                                                    <tr><td>@(kv.Key == SAIN.Preset.Shared.SimLab.SimOrbitKeys.AwayFromArena ? T("(그중) 싸움 구역 밖 목적지", "(of which) outside the arena") : kv.Key)</td><td>@((kv.Value / 60f).ToString("0.0"))</td></tr>
+                                                }
+                                            </tbody>
+                                        </MudSimpleTable>
+                                    }
+                                </MudExpansionPanel>
+                            }
                             @if (b.CombatSamples > 0)
                             {
                                 <MudExpansionPanel Text="@T($"벽 보기 {(float)b.WallStareSamples / Math.Max(1, b.CombatSamples):P0} (전투 중)", $"Wall stare {(float)b.WallStareSamples / Math.Max(1, b.CombatSamples):P0} (in combat)")" Class="sain-subpanel">

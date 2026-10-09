@@ -97,6 +97,29 @@
                     <MudText Typo="Typo.body2">@T("게임 화면 오른쪽 위에 남은 시뮬 시간 표시", "Show the remaining sim time at the top right of the game")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.ShowTimer" Color="Color.Primary" />
                 </div>
+                <MudText Typo="Typo.subtitle2" Class="mt-3">@T("ORBIT 조정 (시뮬 레이드에만, ORBIT 파일은 안 바뀜)", "ORBIT overrides (sim raids only, ORBIT's files are untouched)")</MudText>
+                <MudText Typo="Typo.caption" Class="spt-muted d-block mb-1">
+                    @(Sim.OrbitFound
+                        ? T("ORBIT 설치됨. 켜 둔 항목은 시뮬이 켜져 있을 때만 ORBIT에 보내는 설정을 바꿉니다. 시뮬을 멈추면 원래 설정 그대로입니다.",
+                            "ORBIT found. Checked items change only what ORBIT receives while the sim is armed; stopping the sim gives ORBIT its normal settings.")
+                        : T("ORBIT이 설치되어 있지 않아 이 항목들은 아무 효과가 없습니다.", "ORBIT isn't installed; these do nothing."))
+                </MudText>
+                <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">@T("ORBIT 고스트 모드 끄기 (관전자에서 250m 넘게 떨어진 봇을 재우고 싸움을 주사위로 처리하는 기능)", "ORBIT ghost mode off (sleeps bots > 250 m from the spectator and rolls their fights)")</MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.OrbitGhostOff" Color="Color.Primary" />
+                </div>
+                <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">@T("ORBIT 탈출 끄기 (전리품·목표 완료·시간 탈출, 비상 탈출)", "ORBIT no extract (loot / objectives done / timed / emergency)")</MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.OrbitNoExtract" Color="Color.Primary" />
+                </div>
+                <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">@T("ORBIT PMC 주 목표 끄기 (맵 곳곳 목표를 찾아 떠나는 것)", "ORBIT PMC main objectives off (leaving to visit objectives across the map)")</MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.OrbitNoObjectives" Color="Color.Primary" />
+                </div>
+                <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">@T("ORBIT 싸움 구역 고정 (그 맵의 존 에디터 구역 대신 양쪽 스폰 사이 한 곳으로 끌어당김)", "ORBIT arena zone (replace the map's zone-editor zones with one attractor between both sides)")</MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.OrbitArenaZone" Color="Color.Primary" />
+                </div>
                 <div class="sain-toggle-row">
                     <MudText Typo="Typo.body2">@T("시간이 끝나면 다음 맵으로", "Move to the next map when time is up")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.AutoRotate" Color="Color.Primary" />

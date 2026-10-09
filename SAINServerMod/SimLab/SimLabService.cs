@@ -71,7 +71,72 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         {
             logger.Error($"[SAIN SimLab] raid patch failed - sim spawns will not apply: {ex}");
         }
+        if (SimLabOrbitBridge.Method("ConfigForGame") != null)
+        {
+            try
+            {
+                new SimLabOrbitConfigPatch().Enable();
+                new SimLabOrbitZonesPatch().Enable();
+                OrbitFound = true;
+                logger.Info("[SAIN SimLab] ORBIT server mod found - its config/zones are adjusted during sim raids only");
+            }
+            catch (Exception ex)
+            {
+                logger.Warning($"[SAIN SimLab] ORBIT bridge failed (sim runs with ORBIT's normal settings): {ex.Message}");
+            }
+        }
         return Task.CompletedTask;
+    }
+
+    public bool OrbitFound { get; private set; }
+
+    /// <summary>ORBIT's /orbit/config answer, changed only while the sim runs (armed + started on the web) (see SimLabOrbitBridge).</summary>
+    public void OrbitConfig(ref string json)
+    {
+        if (!Armed || !Running)
+        {
+            return;
+        }
+        try
+        {
+            var changes = new List<string>();
+            json = SimLabOrbitBridge.EditConfig(json, Config, changes) ?? json;
+            NoteOrbit("config: " + string.Join(", ", changes));
+        }
+        catch (Exception ex)
+        {
+            logger.Warning($"[SAIN SimLab] ORBIT config not adjusted: {ex.Message}");
+        }
+    }
+
+    /// <summary>ORBIT's /orbit/zones answer: the sim map's hotspots become one arena attractor (sim armed + arena known).</summary>
+    public void OrbitZones(ref string json)
+    {
+        var raid = LastRaid;
+        if (!Armed || !Running || !Config.OrbitArenaZone || raid == null || !raid.Applied)
+        {
+            return;
+        }
+        try
+        {
+            var changes = new List<string>();
+            json = SimLabOrbitBridge.EditZones(json, raid.Map, raid, changes) ?? json;
+            NoteOrbit("zones: " + string.Join(", ", changes));
+        }
+        catch (Exception ex)
+        {
+            logger.Warning($"[SAIN SimLab] ORBIT zones not adjusted: {ex.Message}");
+        }
+    }
+
+    private void NoteOrbit(string what)
+    {
+        var raid = LastRaid;
+        if (raid != null && (raid.OrbitOverrides == null || !raid.OrbitOverrides.Contains(what, StringComparison.Ordinal)))
+        {
+            raid.OrbitOverrides = string.IsNullOrEmpty(raid.OrbitOverrides) ? what : raid.OrbitOverrides + " | " + what;
+        }
+        logger.Info($"[SAIN SimLab] ORBIT {what}");
     }
 
     /// <summary>Adds the built-in scenarios / rotation entries that the saved config does not have yet (new maps, first run).</summary>
@@ -492,7 +557,43 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         {
             PickSpectatorPoint(location, info);
         }
+        FindArena(location, info);
         return info;
+    }
+
+    /// <summary>Arena = middle of side A's and side B's spawn points, radius covering both (for ORBIT's sim attractor).</summary>
+    private static void FindArena(LocationBase location, SimRaidInfo info)
+    {
+        var points = (location.SpawnPointParams ?? []).Where(p => p.Position.HasValue).ToList();
+        Vector3? Center(string zones)
+        {
+            var set = new HashSet<string>(zones.Split(',', StringSplitOptions.RemoveEmptyEntries), StringComparer.OrdinalIgnoreCase);
+            if (set.Count == 0)
+            {
+                return null;
+            }
+            var inZone = points.Where(p => set.Contains(p.BotZoneName ?? string.Empty)).Select(p => p.Position!.Value).ToList();
+            if (inZone.Count == 0)
+            {
+                return null;
+            }
+            return new Vector3(inZone.Average(v => v.X), 0f, inZone.Average(v => v.Z));
+        }
+        var a = Center(info.ZonesA);
+        var b = Center(info.ZonesB);
+        if (a == null && b == null)
+        {
+            return;
+        }
+        var ca = a ?? b!.Value;
+        var cb = b ?? a!.Value;
+        float dx = ca.X - cb.X;
+        float dz = ca.Z - cb.Z;
+        float span = MathF.Sqrt(dx * dx + dz * dz);
+        info.HasArena = true;
+        info.ArenaX = (ca.X + cb.X) / 2f;
+        info.ArenaZ = (ca.Z + cb.Z) / 2f;
+        info.ArenaRadius = Math.Clamp(span / 2f + 60f, 80f, 450f);
     }
 
     private static string KeepKnownZones(string zones, HashSet<string> known, out string dropped)

@@ -19,6 +19,17 @@ public sealed class SimLabConfig
     /// <summary>Move the player next to side A's zone at raid start (bots far from the player run with reduced AI).</summary>
     public bool TeleportToArena = true;
 
+    // ORBIT during sim raids (user 2026-10-09: "ORBIT settings / zones can spoil the fight we want"). Applied by overriding
+    // what ORBIT's server mod hands the game at raid start - ORBIT's own files and code are never changed.
+    /// <summary>Ghost Mode off: every arena bot is a real bot (no off-screen simulated fights, no sleeping bodies).</summary>
+    public bool OrbitGhostOff = true;
+    /// <summary>ORBIT bots don't extract (loot / objectives done / raid clock / emergency) - squads stay in the arena.</summary>
+    public bool OrbitNoExtract = true;
+    /// <summary>ORBIT PMC objectives (loot runs, kill hunts elsewhere, quests) off for PMCs.</summary>
+    public bool OrbitNoObjectives = true;
+    /// <summary>This map's ORBIT hotspots replaced by one attractor over the arena (both sides' zones).</summary>
+    public bool OrbitArenaZone = true;
+
     /// <summary>Remaining sim time at the top right of the game screen (user 2026-10-09: on by default, switchable on the page).</summary>
     public bool ShowTimer = true;
 

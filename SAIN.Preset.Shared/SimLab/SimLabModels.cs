@@ -72,6 +72,14 @@ public class SimRaidInfo
     public int RemovedBossWaves;
     public int RemovedWaves;
     public string Note;
+
+    /// <summary>Arena center (between side A's and side B's zones) and radius covering both - ORBIT's sim attractor.</summary>
+    public bool HasArena;
+    public float ArenaX;
+    public float ArenaZ;
+    public float ArenaRadius;
+    /// <summary>What the server changed in ORBIT's config / zones for this raid (empty = ORBIT not installed or nothing).</summary>
+    public string OrbitOverrides;
 }
 
 /// <summary>A sim bot that spawned outside the zones its side was given.</summary>
@@ -156,4 +164,15 @@ public class SimBeat
     public int SpawnInZone;
     public int SpawnOffZone;
     public List<SimSpawnSample> SpawnOff = new();
+
+    /// <summary>ORBIT telemetry (read-only API): bot seconds asleep in Ghost Mode, and bot seconds per ORBIT objective
+    /// ("Kills/Active", "Loot/Active", "extract: loot threshold reached"...). Empty without ORBIT.</summary>
+    public float OrbitGhostSeconds;
+    public Dictionary<string, float> OrbitObjectiveSeconds = new();
+}
+
+public static class SimOrbitKeys
+{
+    /// <summary>OrbitObjectiveSeconds key: bot seconds whose ORBIT objective lay outside the sim arena circle.</summary>
+    public const string AwayFromArena = "_awayFromArena";
 }
