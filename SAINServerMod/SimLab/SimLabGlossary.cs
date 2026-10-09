@@ -88,7 +88,8 @@ public static class SimLabGlossary
         new("peekSpot.", "피킹 자리 찾기 (none=못 찾음, step=한 걸음 옮겨 자리 잡음)", "Peek spot search (none / step)", "PeekSpot"),
         new("postCombat.", "교전이 끝난 뒤 행동 (regroup=모이기, heal=치료, advance=전진, reload=장전)", "After-fight actions (regroup, heal, advance, reload)", "PostCombatAction"),
         new("lean.", "기울이기 (hold=기울인 채 유지, rock=좌우 흔들기, stoppedForMeds=치료 때문에 멈춤)", "Leaning (hold, rock, stopped for meds)", "LeanClass"),
-        new("retreat.", "후퇴 동작 (weave=지그재그, headDown=고개 숙여 뛰기, weaveJump=점프)", "Retreat (weave, head down, jump)", "RetreatWeave / SAINSteeringClass"),
+        new("retreat.", "후퇴 동작 (weave=지그재그, headDown=고개 숙여 뛰기, weaveJump=꺾을 때 점프, landingJump=엄폐 앞 착지 점프)", "Retreat (weave, head down, switch hop, landing jump)", "RetreatWeave / SAINSteeringClass"),
+        new("jump.airShot.", "점프 중 사격 굴림 (allowed=공중에서도 쏨, held=착지까지 참음; 봇·적마다 한 번)", "Air-shot roll per bot and enemy (allowed / held until landing)", "SAINMoverClass.TryJump"),
         new("suppress.", "제압 사격 (burstPause=점사 사이 쉼)", "Suppression (burst pause)", "SAINBotSuppressClass"),
         new("light.", "손전등 켜기/끄기", "Flashlight use", "BotLightController"),
         // ORBIT handoff / stuck / sim

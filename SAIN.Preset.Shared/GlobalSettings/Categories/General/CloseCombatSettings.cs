@@ -380,9 +380,21 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
 
     [DataMember]
     [Name("Retreat Weave Jump Chance")]
-    [Description("zzap: chance (x3, per run to a cover) that a retreat ends in one long straight jump landing at the cover, taken 3-5 m before it on a clear level line. No more hops on the left/right switches.")]
+    [Description("zzap: chance per left/right switch of a hop (bunny retreat). The run holds straight while airborne so the hop keeps the sprint's length; no hop within 6 m of the cover (the landing jump's part).")]
     [MinMax(0f, 100f, 1f)]
     public float RetreatWeaveJumpChance = 20f;
+
+    [DataMember]
+    [Name("Retreat Landing Jump Chance")]
+    [Description("zzap: chance per run to a cover that it ends in one long straight jump landing at the cover, taken 3-5 m before it on a clear level line.")]
+    [MinMax(0f, 100f, 1f)]
+    public float RetreatLandingJumpChance = 60f;
+
+    [DataMember]
+    [Name("Jump Air Shot Chance")]
+    [Description("zzap: chance, rolled once per bot per enemy, that the bot keeps firing while airborne on its jumps (jump shots, jump peeks, retreat hops). Otherwise it holds fire until it lands (EFT's spread in the air is huge).")]
+    [MinMax(0f, 100f, 1f)]
+    public float JumpAirShotChance = 25f;
 
     [DataMember]
     [Name("Retreat Head Down Max Distance")]

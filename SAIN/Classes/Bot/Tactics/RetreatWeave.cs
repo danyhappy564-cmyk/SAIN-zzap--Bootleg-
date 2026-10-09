@@ -10,7 +10,7 @@ namespace SAIN.SAINComponent.Classes.Tactics;
 /// zzap fork: weave while running away under fire (user 2026-09-29: "when running away, zig-zag left/right, sometimes a
 /// jump mixed in"). Same trigger as Retreat Head Down (running to cover with the back to the enemy): like a player holding
 /// W + sprint and swinging the MOUSE left/right (not A/D), the view yaw swings 30 deg left/right every 0.45-0.8s and the
-/// run follows the view; on some switches the bot hops (headroom only). The move direction is bent here
+/// run follows the view; on some switches the bot hops (headroom only) and flies straight. The move direction is bent here
 /// (PlayerMovementController.SetTargetMoveDirection) and the look by the same angle (SAINSteeringClass via LookYaw).
 /// Never swings toward a wall / door frame (navmesh edge or anything solid at chest height).
 /// </summary>
@@ -53,8 +53,10 @@ public static class RetreatWeave
 
     // zzap (user 2026-10-10: "running to cover, the jump is too short - it should be one fast long jump that lands right there,
     // now it feels like one more hide"): the hop came on a weave switch, i.e. while the run was turning 30 deg - short and
-    // sideways. Now there is no hop on a switch; one straight hop when the cover is 3-5 m ahead on a clear, level line, and
-    // the weave holds straight while airborne so the jump keeps the sprint's full length.
+    // sideways. Now the weave holds straight while airborne so a hop keeps the sprint's full length, and one straight hop
+    // when the cover is 3-5 m ahead on a clear, level line lands at the cover. The switch hops stay (user 2026-10-02:
+    // "fewer bunny retreats" -> chance 12 -> 20), just not within 6 m of the cover, where the landing jump takes over.
+    private const float SWITCH_HOP_MIN_COVER = 6f;
     private const float LANDING_JUMP_MIN = 3f;
     private const float LANDING_JUMP_MAX = 5f;
 
@@ -119,8 +121,7 @@ public static class RetreatWeave
                 st.LastDestination = destination.Value; // a new cover to run to: one landing jump allowed again
                 st.LandingJumpDone = false;
             }
-            // the jump chance setting now decides how often the run ends in a landing jump (x3: one roll per run, not per switch)
-            TryLandingJump(bot, st, destination.Value, time, settings.RetreatWeaveJumpChance * 3f);
+            TryLandingJump(bot, st, destination.Value, time, settings.RetreatLandingJumpChance);
         }
         // airborne / just jumped: run straight, no weave - the hop keeps the sprint's full length
         if (time < st.StraightUntil || !bot.Player.MovementContext.IsGrounded)
@@ -134,6 +135,17 @@ public static class RetreatWeave
             st.NextSwitch = time + Random.Range(0.45f, 0.8f);
             st.BlockedThisSwing = false;
             TacticDiagnostics.Count("retreat.weave");
+            bool nearCover = destination != null
+                && (destination.Value - bot.Position).sqrMagnitude < SWITCH_HOP_MIN_COVER * SWITCH_HOP_MIN_COVER;
+            if (!nearCover && Random.value * 100f < settings.RetreatWeaveJumpChance && bot.Player.MovementContext.IsGrounded
+                && !Physics.Raycast(bot.Position + Vector3.up * 1.7f, Vector3.up, 0.7f, LayersMaskController.HighPolyWithTerrainMask)
+                && bot.Mover.TryJump())
+            {
+                st.StraightUntil = time + 0.8f; // fly along the run line, not the bent one
+                st.AppliedUntil = 0f;
+                TacticDiagnostics.Count("retreat.weaveJump");
+                return;
+            }
         }
         Vector3 flat = direction;
         flat.y = 0f;

@@ -581,10 +581,14 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
             _nextJumpTime = Time.time + 0.5f;
             Player.MovementContext?.TryJump();
             TimeLastJumped = Time.time;
-            // zzap (user 2026-10-10: "jump shots aim terribly"): EFT's spread in the air is huge - no shooting until landed,
-            // for every SAIN jump (corner chase, jump peeks, bait peek, retreat hop).
-            BotOwner.ShootData?.EndShoot();
-            BotOwner.ShootData?.BlockFor(0.55f);
+            // zzap (user 2026-10-10: "jump shots aim terribly"): EFT's spread in the air is huge - no shooting until landed
+            // (corner chase, jump peeks, bait peek, retreat hop). A style, so rolled once per bot per enemy (rule 2026-10-02
+            // "style = chance, never one fixed rule for all"): a few keep firing in the air.
+            if (!AirShotAllowed())
+            {
+                BotOwner.ShootData?.EndShoot();
+                BotOwner.ShootData?.BlockFor(0.55f);
+            }
             return true;
         }
         return false;
@@ -695,6 +699,21 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
     }
 
     private float _nextJumpTime = 0f;
+    private string _airShotEnemyId;
+    private bool _airShotAllowed;
+
+    private bool AirShotAllowed()
+    {
+        string id = Bot.GoalEnemy?.EnemyProfileId;
+        if (id != _airShotEnemyId)
+        {
+            _airShotEnemyId = id;
+            float chance = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat?.JumpAirShotChance ?? 0f;
+            _airShotAllowed = UnityEngine.Random.value * 100f < chance;
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(_airShotAllowed ? "jump.airShot.allowed" : "jump.airShot.held");
+        }
+        return _airShotAllowed;
+    }
 
     private const float CHANGE_STANCE_INTERVAL = 0.25f;
     private float _nextChangeStanceTime;
