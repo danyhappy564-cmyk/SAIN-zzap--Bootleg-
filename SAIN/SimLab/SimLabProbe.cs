@@ -34,6 +34,10 @@ public static class SimLabProbe
     private static int _stareTowardEnemy;
     private static int _spawnIn;
     private static int _spawnOffCount;
+    private const float CLOSE_UNAWARE = 4f;
+    private const int MAX_CLOSE_SAMPLES = 20;
+    private static int _closeUnaware;
+    private static readonly List<SimCloseSample> _closeSamples = new();
     private static float _orbitGhost;
     private static readonly Dictionary<string, float> _orbitObjective = new();
     private static HashSet<string> _wantedA = new(StringComparer.OrdinalIgnoreCase);
@@ -54,6 +58,8 @@ public static class SimLabProbe
         _spawnIn = 0;
         _spawnOffCount = 0;
         _orbitGhost = 0f;
+        _closeUnaware = 0;
+        _closeSamples.Clear();
         _orbitObjective.Clear();
         _wantedA = Split(info?.ZonesA);
         _wantedB = Split(info?.ZonesB);
@@ -152,6 +158,7 @@ public static class SimLabProbe
         _layerSeconds.TryGetValue(layer, out float seconds);
         _layerSeconds[layer] = seconds + dt;
         SampleOrbit(player, dt);
+        SampleCloseUnaware(player, owner, layer);
 
         if (layer != SAIN.SAINComponent.Classes.Tactics.LayerHandoff.SainCombat || !SAINEnableClass.GetSAIN(player.ProfileId, out BotComponent bot) || bot == null)
         {
@@ -177,6 +184,46 @@ public static class SimLabProbe
             if (toEnemy.sqrMagnitude > 0.01f && flatLook.sqrMagnitude > 0.01f && Vector3.Angle(flatLook, toEnemy) < 30f)
             {
                 _stareTowardEnemy++;
+            }
+        }
+    }
+
+    private static void SampleCloseUnaware(Player player, BotOwner owner, string layer)
+    {
+        var world = Comfort.Common.Singleton<GameWorld>.Instance;
+        var group = owner.BotsGroup;
+        var known = owner.EnemiesController?.EnemyInfos;
+        if (world == null || group == null || known == null)
+        {
+            return;
+        }
+        foreach (var other in world.AllAlivePlayersList)
+        {
+            if (other == null || other == player || !other.IsAI || other.AIData?.BotOwner == null)
+            {
+                continue;
+            }
+            float d = Vector3.Distance(player.Position, other.Position);
+            if (d > CLOSE_UNAWARE || group.IsAlly(other) || other.AIData.BotOwner.BotsGroup == group || known.ContainsKey(other) || !group.IsPlayerEnemy(other))
+            {
+                continue;
+            }
+            _closeUnaware++;
+            if (_closeSamples.Count < MAX_CLOSE_SAMPLES)
+            {
+                Vector3 pos = player.Position;
+                _closeSamples.Add(new SimCloseSample
+                {
+                    Role = player.Profile?.Info?.Settings?.Role.ToString(),
+                    OtherRole = other.Profile?.Info?.Settings?.Role.ToString(),
+                    Layer = layer,
+                    Distance = d,
+                    OtherKnows = other.AIData.BotOwner.EnemiesController?.EnemyInfos?.ContainsKey(player) == true,
+                    X = pos.x,
+                    Y = pos.y,
+                    Z = pos.z,
+                    RaidTime = SimLogListener.RaidSeconds,
+                });
             }
         }
     }
@@ -273,6 +320,8 @@ public static class SimLabProbe
         beat.SpawnInZone = _spawnIn;
         beat.SpawnOffZone = _spawnOffCount;
         beat.SpawnOff = new List<SimSpawnSample>(_spawnOff);
+        beat.CloseUnawareSamples = _closeUnaware;
+        beat.CloseUnaware = new List<SimCloseSample>(_closeSamples);
         beat.OrbitGhostSeconds = _orbitGhost;
         beat.OrbitObjectiveSeconds = new Dictionary<string, float>(_orbitObjective);
     }

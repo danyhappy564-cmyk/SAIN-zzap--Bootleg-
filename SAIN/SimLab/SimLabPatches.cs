@@ -93,3 +93,66 @@ public class SimLabSkipResultsPatch : ModulePatch
         await app.ComebackToMainMenu();
     }
 }
+
+/// <summary>
+/// zzap SimLab: where a PMC squad spawns in a sim raid (user 2026-10-09 screenshot: two USEC from different squads standing
+/// shoulder to shoulder in a doorway, then turning on each other). BSG's <c>SpawnSystem.GetPmcSpawnPoints</c> sorts the zone's
+/// PMC points by distance from the alive HUMAN PMCs only and ignores bots - with the spectator as the only human and Factory's
+/// one big zone, every squad of both sides went to the same far corner. In a sim raid the point farthest from every alive
+/// player (bots included) wins instead; filters (PMC category, spawn cooldown, side, not inside someone) are BSG's own.
+/// Normal raids run the original.
+/// </summary>
+public class SimLabSpawnPointPatch : ModulePatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return AccessTools.Method(typeof(EFT.Game.Spawning.SpawnSystem), nameof(EFT.Game.Spawning.SpawnSystem.GetPmcSpawnPoints));
+    }
+
+    [PatchPrefix]
+    public static bool PatchPrefix(EFT.Game.Spawning.SpawnSystem.SpawnPointsFilteredCollection filteredPoints, int maxCount, BotZone zone, BotCreationData creationData, float time)
+    {
+        if (!SimLab.Active || SimLab.Raid?.Applied != true || filteredPoints == null || zone == null || creationData == null)
+        {
+            return true;
+        }
+        try
+        {
+            var alive = Comfort.Common.Singleton<GameWorld>.Instance?.AllAlivePlayersList;
+            if (alive == null)
+            {
+                return true;
+            }
+            var players = new System.Collections.Generic.List<IPlayer>(alive.Count);
+            foreach (var p in alive)
+            {
+                if (p != null)
+                {
+                    players.Add(p);
+                }
+            }
+            filteredPoints.InsertRange(zone.SpawnPoints);
+            filteredPoints.ApplyFilter(sp => EFT.Game.Spawning.SpawnCategoryExtension.ContainBotPmcCategory(sp.Categories));
+            filteredPoints.ApplyFilter(sp => EFT.Game.Spawning.SpawnPointExtension.IsValid(sp, time));
+            filteredPoints.ApplyFilter(sp => EFT.Game.Spawning.SpawnPointExtension.IsValid(sp, creationData.Side));
+            filteredPoints.ApplyFilter(sp => EFT.Game.Spawning.SpawnPointExtension.IsNotCollided(sp, players, out _));
+            if (filteredPoints.ValidPointsCount == 0)
+            {
+                return false;
+            }
+            filteredPoints.ApplySorting(sp => -EFT.Game.Spawning.SpawnPointExtension.MinDistanceSqr(sp, players));
+            filteredPoints.ClampPointsCountToMaximum(maxCount);
+            if (filteredPoints.ValidPointsCount != 0)
+            {
+                filteredPoints.MultiplicatePointOnIndex(0, maxCount);
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning($"[SimLab] spawn point pick failed, game's own pick used: {ex.Message}");
+            filteredPoints.Clear();
+            return true;
+        }
+    }
+}

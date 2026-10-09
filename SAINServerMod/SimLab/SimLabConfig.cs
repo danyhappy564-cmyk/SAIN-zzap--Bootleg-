@@ -39,6 +39,10 @@ public sealed class SimLabConfig
     /// installed (the backport/classic Factory); the game asks for "original" through MapVariants' own choice route before each start.</summary>
     public bool OriginalMaps = true;
 
+    /// <summary>Every other squad is an enemy, own faction included (user 2026-10-09: "every squad a different team"). SPT's pmc.json
+    /// otherwise makes same-faction squads friendly 15% of the time.</summary>
+    public bool AllSquadsEnemies = true;
+
     /// <summary>Remaining sim time at the top right of the game screen (user 2026-10-09: on by default, switchable on the page).</summary>
     public bool ShowTimer = true;
 

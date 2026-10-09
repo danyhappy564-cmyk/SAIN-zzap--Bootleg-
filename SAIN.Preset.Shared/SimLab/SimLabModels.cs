@@ -84,6 +84,8 @@ public class SimRaidInfo
     public string OrbitOverrides;
     /// <summary>The server told ABPS to leave this raid alone (squads spawn in their own zones through the game's boss spawner).</summary>
     public bool AbpsOff;
+    /// <summary>The server made every other squad an enemy (own faction included) for this raid.</summary>
+    public bool AllSquadsEnemies;
 }
 
 /// <summary>A sim bot that spawned outside the zones its side was given.</summary>
@@ -171,8 +173,27 @@ public class SimBeat
 
     /// <summary>ORBIT telemetry (read-only API): bot seconds asleep in Ghost Mode, and bot seconds per ORBIT objective
     /// ("Kills/Active", "Loot/Active", "extract: loot threshold reached"...). Empty without ORBIT.</summary>
+    /// <summary>Samples (2 s, per bot) of a hostile bot within 4 m that this bot doesn't know about (user screenshot 2026-10-09:
+    /// two enemies shoulder to shoulder, then a scramble), and a few examples.</summary>
+    public int CloseUnawareSamples;
+    public List<SimCloseSample> CloseUnaware = new();
+
     public float OrbitGhostSeconds;
     public Dictionary<string, float> OrbitObjectiveSeconds = new();
+}
+
+/// <summary>A bot with a hostile bot within 4 m that it doesn't know about.</summary>
+public class SimCloseSample
+{
+    public string Role;
+    public string OtherRole;
+    public string Layer;
+    public float Distance;
+    public bool OtherKnows;
+    public float X;
+    public float Y;
+    public float Z;
+    public float RaidTime;
 }
 
 public static class SimOrbitKeys

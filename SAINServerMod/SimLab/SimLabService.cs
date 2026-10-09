@@ -66,6 +66,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         {
             _patch = new SimLabRaidPatch();
             _patch.Enable();
+            new SimLabHostilityPatch().Enable();
         }
         catch (Exception ex)
         {
@@ -91,6 +92,30 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
     public bool OrbitFound { get; private set; }
 
     public bool AbpsFound => SimLabAbpsBridge.Found;
+
+    /// <summary>Called after SPT applied pmc.json hostility to the raid's location (SimLabHostilityPatch).</summary>
+    public void ApplySimHostility(SPTarkov.Server.Core.Models.Eft.Common.LocationBase location)
+    {
+        var raid = LastRaid;
+        if (!Armed || !Running || !Config.AllSquadsEnemies || raid == null || !raid.Applied || location == null
+            || !string.Equals(location.Id, raid.Map, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+        try
+        {
+            string? roles = SimLabHostilityPatch.Apply(location, raid.SideA, raid.SideB);
+            if (roles != null)
+            {
+                raid.AllSquadsEnemies = true;
+                logger.Info($"[SAIN SimLab] {raid.Map}: every other squad is an enemy ({roles}: USEC/BEAR enemy chance 100)");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.Warning($"[SAIN SimLab] hostility not adjusted: {ex.Message}");
+        }
+    }
 
     /// <summary>ORBIT's /orbit/config answer, changed only while the sim runs (armed + started on the web) (see SimLabOrbitBridge).</summary>
     public void OrbitConfig(ref string json)

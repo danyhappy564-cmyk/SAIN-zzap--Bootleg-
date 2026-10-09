@@ -120,6 +120,10 @@
                     <MudText Typo="Typo.body2">@T("ORBIT 싸움 구역 고정 (그 맵의 존 에디터 구역 대신 양쪽 스폰 사이 한 곳으로 끌어당김)", "ORBIT arena zone (replace the map's zone-editor zones with one attractor between both sides)")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.OrbitArenaZone" Color="Color.Primary" />
                 </div>
+                <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">@T("분대마다 다른 팀 (자기 분대 말고는 USEC·BEAR 상관없이 전부 적. 끄면 SPT 기본: 같은 진영끼리 15% 확률로 아군)", "Every squad its own team (all other squads are enemies, own faction included; off = SPT default: same faction friendly 15% of the time)")</MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.AllSquadsEnemies" Color="Color.Primary" />
+                </div>
                 <MudText Typo="Typo.subtitle2" Class="mt-3">@T("다른 모드", "Other mods")</MudText>
                 <div class="sain-toggle-row">
                     <MudText Typo="Typo.body2">

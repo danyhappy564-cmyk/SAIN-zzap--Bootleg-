@@ -205,6 +205,15 @@ public static class SimLabAnalyzer
             }
         }
 
+        // enemies shoulder to shoulder without knowing (user screenshot 2026-10-09)
+        if (b.CloseUnawareSamples > 0)
+        {
+            var ex = b.CloseUnaware?.Take(3).Select(x => $"{x.Role}↔{x.OtherRole} {x.Distance:0.0}m t={x.RaidTime / 60f:0.0}분 [{x.Layer}]") ?? [];
+            list.Add(new(b.CloseUnawareSamples >= 10 ? WARN : INFO, T("4m 안 적을 모름", "Enemy within 4 m unnoticed"),
+                T($"적 봇이 4m 안에 있는데 모르는 표본 {b.CloseUnawareSamples}개 (2초마다·봇마다). 예: {string.Join(", ", ex)}. 같은 자리 동시 생성이나 등 뒤 감지 문제.",
+                  $"{b.CloseUnawareSamples} samples of a hostile bot within 4 m that the bot didn't know about. e.g. {string.Join(", ", ex)}. Spawned on the same spot, or no sense of someone right behind.")));
+        }
+
         // ORBIT telemetry (ORBIT 2.1.1: Ghost Mode sleeps bots > 250 m from the player, objectives/extracts walk squads away)
         float orbitTotal = b.LayerSeconds?.Values.Sum() ?? 0f;
         if (orbitTotal > 60f && b.OrbitGhostSeconds > orbitTotal * 0.05f)
@@ -439,7 +448,7 @@ public static class SimLabAnalyzer
             sb.AppendLine($"- 목적: {m.Focus}");
             if (m.Raid != null)
             {
-                sb.AppendLine($"- 스폰: A {m.Raid.SideA}@[{m.Raid.ZonesA}] vs B {m.Raid.SideB}@[{m.Raid.ZonesB}], 동시 최대 {m.Raid.MaxAliveBots}, 분대 {m.Raid.SquadSizeMin}~{m.Raid.SquadSizeMax}, 지운 웨이브 {m.Raid.RemovedBossWaves}+{m.Raid.RemovedWaves}, ABPS {(m.Raid.AbpsOff ? "끔(서버)" : "안 건드림")}");
+                sb.AppendLine($"- 스폰: A {m.Raid.SideA}@[{m.Raid.ZonesA}] vs B {m.Raid.SideB}@[{m.Raid.ZonesB}], 동시 최대 {m.Raid.MaxAliveBots}, 분대 {m.Raid.SquadSizeMin}~{m.Raid.SquadSizeMax}, 지운 웨이브 {m.Raid.RemovedBossWaves}+{m.Raid.RemovedWaves}, ABPS {(m.Raid.AbpsOff ? "끔(서버)" : "안 건드림")}, 분대끼리 {(m.Raid.AllSquadsEnemies ? "전부 적" : "SPT 기본(같은 진영 85% 적)")}");
             }
             if (b != null)
             {
@@ -486,6 +495,15 @@ public static class SimLabAnalyzer
                 foreach (var x in b.SpawnOff ?? [])
                 {
                     sb.AppendLine($"- 밖: {x.Role}({x.Side}) zone={x.Zone} wanted={x.Wanted} pos=({x.X:0},{x.Y:0},{x.Z:0}) 가까운 지정 지점까지 {x.Distance:0}m t={x.RaidTime:0}s");
+                }
+            }
+            if (b != null && b.CloseUnawareSamples > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"### 4m 안 적을 모름 (표본 {b.CloseUnawareSamples})");
+                foreach (var x in b.CloseUnaware ?? [])
+                {
+                    sb.AppendLine($"- {x.Role}↔{x.OtherRole} {x.Distance:0.0}m, 상대도 모름 {!x.OtherKnows}, 레이어 {x.Layer}, pos=({x.X:0},{x.Y:0},{x.Z:0}) t={x.RaidTime:0}s");
                 }
             }
             if (b != null && b.CombatSamples > 0)
