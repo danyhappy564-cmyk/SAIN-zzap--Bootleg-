@@ -2,6 +2,12 @@
 
 최신이 위. 시간은 KST.
 
+- 2026-10-09 17:51 — **시뮬 예비 분대를 불러도 봇이 안 나옴 (사용자 제보: 공장, 분대 2개 호출·봇 0, LogOutput).**
+  - 로그: 공장(클래식, MapVariants 백포트) 판 1분 동안 오류 없이 분대 2개 호출, 봇 0명. `[ABPS] Setting max bots to 15 on factory4_day` = ABPS가 이 판에 켜져 있었음. 이후 추가 호출이 없었던 건 게임이 "생성 중"으로 세는 봇이 상한을 채웠기 때문(코드상 추정).
+  - 원인: 시뮬 분대는 `pmcUSEC`/`pmcBEAR` 보스 웨이브라 ABPS 게임 플러그인(`PmcSpawnHookPatch`, 보스 생성 함수 `BotBossSpawn.TrySpawn` 앞에서 실행)이 **전부 가로챔** — 웨이브의 구역은 무시하고 플레이어 스폰 지점 중 모든 PMC(관전자 포함)·예약 지점에서 먼 곳을 고르고, 없으면 **말없이 건너뛰면서 게임엔 성공이라고 알림**. 세관에서 "엉뚱한 곳에서 태어남"도 같은 원인.
+  - 수정: `SimLabAbpsBridge` — ABPS에 원래 있는 "이 맵 버전엔 ABPS 끄기" 경로를 이용. ABPS 서버가 레이드 데이터 만들 때 정하는 `MapSpawns.LastRaidState`를 시뮬 판에만 (맵, 꺼짐)으로 바꿈 → ABPS 게임 플러그인이 `/botplacementsystem/raidstate`를 보고 이 판에서 손을 뗌 → 분대가 게임 기본 보스 생성으로 정한 구역에 나옴. 웹 스위치 `ABPS 끄기`(기본 켬). ABPS 코드·설정·일반 판은 그대로.
+  - 진단 추가: 분대 호출마다 LogOutput에 `[SimLab] squad N: 역할 x호위 in [구역] (alive, spawner total, abpsOff)`, 생성 대기 봇이 45초 넘게 안 나오면 경고 + 분석 메모. "봇이 생성되지 않음" 진단 문구에 ABPS 상태 반영.
+  - 다음 판에서 볼 것: LogOutput `[ABPS] ABPS is turned off for this version of factory4_day`, `[SimLab] squad` 뒤 봇 등장, 분석 "스폰 위치 검사"에서 정한 구역 비율↑.
 - 2026-10-09 17:37 — **시뮬 중 ORBIT 간섭 차단 (사용자: "스폰 구역·싸움 빈도를 ORBIT이랑 대조해 봤나, 존 에디터 등 문제 될 것 SAIN 쪽에서 고쳐라").**
   - ORBIT 2.1.1은 이미 포크에 들어와 있음(원본 최신과 동일). ORBIT은 수정하지 않고, SAIN 서버 모드가 ORBIT의 `/orbit/config`·`/orbit/zones` 응답만 **시뮬이 돌 때만** 바꿈(`SimLabOrbitBridge`, 시뮬 멈추면 원래 설정).
   - 문제였던 것: ① **고스트 모드** — 관전자(사람)에게서 250m 넘는 봇을 재우고 잠든 봇끼리 싸움을 주사위로 처리 → SAIN 전투가 아예 안 일어남(세관·숲 등 넓은 맵). ② **탈출·주 목표** — 전리품·목표 완료·시간이 되면 분대가 싸움터를 떠남. ③ **존 에디터 핫스팟·플레이어 수렴** — 세관은 기숙사 1.5·스캐브 기지 1.5·주유소 0.75로 끌어당기고, 대부분 맵이 관전자 쪽으로 봇을 모음 → 우리가 정한 A/B 구역 싸움이 흩어짐.

@@ -30,6 +30,10 @@ public sealed class SimLabConfig
     /// <summary>This map's ORBIT hotspots replaced by one attractor over the arena (both sides' zones).</summary>
     public bool OrbitArenaZone = true;
 
+    /// <summary>ABPS leaves sim raids alone (user 2026-10-09: "reserve squads called, no bot came"). ABPS's game plugin otherwise takes
+    /// over the sim's PMC squads: ignores their zones, needs spawn points far from every PMC incl. the spectator, and skips silently.</summary>
+    public bool AbpsOffInSim = true;
+
     /// <summary>Remaining sim time at the top right of the game screen (user 2026-10-09: on by default, switchable on the page).</summary>
     public bool ShowTimer = true;
 

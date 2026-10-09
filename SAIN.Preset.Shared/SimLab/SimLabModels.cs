@@ -80,6 +80,8 @@ public class SimRaidInfo
     public float ArenaRadius;
     /// <summary>What the server changed in ORBIT's config / zones for this raid (empty = ORBIT not installed or nothing).</summary>
     public string OrbitOverrides;
+    /// <summary>The server told ABPS to leave this raid alone (squads spawn in their own zones through the game's boss spawner).</summary>
+    public bool AbpsOff;
 }
 
 /// <summary>A sim bot that spawned outside the zones its side was given.</summary>

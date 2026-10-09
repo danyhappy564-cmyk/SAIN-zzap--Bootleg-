@@ -82,8 +82,11 @@ public static class SimLabAnalyzer
         if (b.SimWavesActivated > 0 && b.BotsSeen == 0)
         {
             list.Add(new(HIGH, T("봇이 생성되지 않음", "No bots spawned"),
-                T($"예비 분대 {b.SimWavesActivated}개를 불렀지만 봇이 하나도 안 나왔습니다. 구역 이름({m.Raid?.ZonesA} / {m.Raid?.ZonesB})이나 스폰 모드 충돌 의심.",
-                  $"{b.SimWavesActivated} reserve squads were called but no bot appeared. Suspect the zone names ({m.Raid?.ZonesA} / {m.Raid?.ZonesB}) or a spawn mod conflict.")));
+                m.Raid?.AbpsOff == true
+                    ? T($"예비 분대 {b.SimWavesActivated}개를 불렀지만 봇이 하나도 안 나왔습니다 (ABPS는 꺼 둔 상태). 구역 이름({m.Raid?.ZonesA} / {m.Raid?.ZonesB})이 이 맵 버전(MapVariants 원본/변형)에 있는지, LogOutput의 `[SimLab] squad` 줄을 확인.",
+                        $"{b.SimWavesActivated} reserve squads were called but no bot appeared (ABPS was off). Check the zones ({m.Raid?.ZonesA} / {m.Raid?.ZonesB}) exist in this map version and the `[SimLab] squad` lines in LogOutput.")
+                    : T($"예비 분대 {b.SimWavesActivated}개를 불렀지만 봇이 하나도 안 나왔습니다. ABPS가 켜져 있으면 PMC 분대를 가로채 정한 구역({m.Raid?.ZonesA} / {m.Raid?.ZonesB})을 무시하고, 관전자·다른 PMC와 충분히 먼 자리가 없으면 말없이 건너뜀 — 시뮬 설정의 'ABPS 끄기'를 켜세요.",
+                        $"{b.SimWavesActivated} reserve squads were called but no bot appeared. With ABPS on, it takes over PMC squads, ignores the zones ({m.Raid?.ZonesA} / {m.Raid?.ZonesB}) and silently skips them when no spot is far enough from the spectator and other PMCs - turn on 'ABPS off' in the sim settings.")));
         }
 
         var sides = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "pmcUSEC", "pmcBEAR", m.Raid?.SideA ?? "", m.Raid?.SideB ?? "" };
@@ -436,7 +439,7 @@ public static class SimLabAnalyzer
             sb.AppendLine($"- 목적: {m.Focus}");
             if (m.Raid != null)
             {
-                sb.AppendLine($"- 스폰: A {m.Raid.SideA}@[{m.Raid.ZonesA}] vs B {m.Raid.SideB}@[{m.Raid.ZonesB}], 동시 최대 {m.Raid.MaxAliveBots}, 분대 {m.Raid.SquadSizeMin}~{m.Raid.SquadSizeMax}, 지운 웨이브 {m.Raid.RemovedBossWaves}+{m.Raid.RemovedWaves}");
+                sb.AppendLine($"- 스폰: A {m.Raid.SideA}@[{m.Raid.ZonesA}] vs B {m.Raid.SideB}@[{m.Raid.ZonesB}], 동시 최대 {m.Raid.MaxAliveBots}, 분대 {m.Raid.SquadSizeMin}~{m.Raid.SquadSizeMax}, 지운 웨이브 {m.Raid.RemovedBossWaves}+{m.Raid.RemovedWaves}, ABPS {(m.Raid.AbpsOff ? "끔(서버)" : "안 건드림")}");
             }
             if (b != null)
             {

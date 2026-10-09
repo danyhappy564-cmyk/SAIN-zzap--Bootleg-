@@ -90,6 +90,8 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
 
     public bool OrbitFound { get; private set; }
 
+    public bool AbpsFound => SimLabAbpsBridge.Found;
+
     /// <summary>ORBIT's /orbit/config answer, changed only while the sim runs (armed + started on the web) (see SimLabOrbitBridge).</summary>
     public void OrbitConfig(ref string json)
     {
@@ -437,6 +439,11 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             try
             {
                 LastRaid = Apply(map, location);
+                if (Config.AbpsOffInSim && SimLabAbpsBridge.TurnOffForRaid(map))
+                {
+                    LastRaid.AbpsOff = true;
+                    logger.Info($"[SAIN SimLab] {map}: ABPS told to leave this sim raid alone (its game plugin spawns our PMC squads elsewhere or not at all)");
+                }
                 logger.Success(
                     $"[SAIN SimLab] {map}: '{LastRaid.ScenarioName}' A={LastRaid.SideA}@[{LastRaid.ZonesA}] B={LastRaid.SideB}@[{LastRaid.ZonesB}] "
                         + $"cap {LastRaid.MaxAliveBots}, {LastRaid.Minutes:0} min, removed {LastRaid.RemovedBossWaves} boss/PMC + {LastRaid.RemovedWaves} scav waves"

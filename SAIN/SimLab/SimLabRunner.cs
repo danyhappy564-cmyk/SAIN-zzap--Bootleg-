@@ -70,6 +70,8 @@ public sealed class SimLabRunner : MonoBehaviour
     private float _lastSpawn = -999f;
     private bool _nextIsA = true;
     private bool _reserveEmptyNoted;
+    private float _waitingSince = -1f;
+    private bool _waitingNoted;
 
     // stats
     private readonly Dictionary<string, string> _seenBots = new();
@@ -473,6 +475,8 @@ public sealed class SimLabRunner : MonoBehaviour
         _lastSpawn = -999f;
         _nextIsA = true;
         _reserveEmptyNoted = false;
+        _waitingSince = -1f;
+        _waitingNoted = false;
         _seenBots.Clear();
         _roles.Clear();
         _notes.Clear();
@@ -699,6 +703,7 @@ public sealed class SimLabRunner : MonoBehaviour
         }
         var spawner = Singleton<IBotGame>.Instance?.BotsController?.BotSpawner;
         int total = spawner?.AllBotsWithDelayed ?? alive;
+        NoteStuckSpawns(total, alive, now);
         int squad = Math.Max(1, info.SquadSizeMax);
         if (total + squad > info.MaxAliveBots || now - _lastSpawn < Math.Max(5f, info.RespawnSeconds))
         {
@@ -706,6 +711,30 @@ public sealed class SimLabRunner : MonoBehaviour
         }
         bool sideA = info.SideA != info.SideB ? (aliveA != aliveB ? aliveA < aliveB : _nextIsA) : _nextIsA;
         Spawn(sideA, now);
+    }
+
+    // Squads the game counts as "being spawned" (AllBotsWithDelayed) that never appear block every later call (the cap counts
+    // them). 2026-10-09: 2 squads called on Factory, 0 bots in 1 min, no error - ABPS had taken the PMC waves over.
+    private void NoteStuckSpawns(int total, int alive, float now)
+    {
+        if (total <= alive)
+        {
+            _waitingSince = -1f;
+            return;
+        }
+        if (_waitingSince < 0f)
+        {
+            _waitingSince = now;
+            return;
+        }
+        if (_waitingNoted || now - _waitingSince < 45f)
+        {
+            return;
+        }
+        _waitingNoted = true;
+        string abps = SimLab.Raid?.AbpsOff == true ? "ABPS는 서버가 끔" : "ABPS가 켜져 있으면 PMC 분대를 가로챔";
+        _notes.Add($"봇 {total - alive}명이 45초 넘게 생성 대기에서 안 나옴 (분대 호출 {_activated}, 살아 있는 봇 {alive}; {abps})");
+        Logger.LogWarning($"[SimLab] {total - alive} bots stuck waiting to spawn for 45 s (squads called {_activated}, alive {alive}, abpsOff {SimLab.Raid?.AbpsOff})");
     }
 
     private void Spawn(bool sideA, float now)
@@ -736,6 +765,8 @@ public sealed class SimLabRunner : MonoBehaviour
         {
             game.BossSpawnScenario.ActivateWave(wave);
             _activated++;
+            var spawner = Singleton<IBotGame>.Instance?.BotsController?.BotSpawner;
+            Logger.LogWarning($"[SimLab] squad {_activated}: {wave.BossName} x{wave.BossEscortAmount}+1 in [{wave.BossZone}] (alive bots {_alive}, spawner total {spawner?.AllBotsWithDelayed ?? -1}, abpsOff {SimLab.Raid?.AbpsOff})");
             if (TacticDiagnostics.LogOn)
             {
                 RaidJournal.Line($"[SimLab] squad {_activated}: {wave.BossName} x{wave.BossEscortAmount}+1 in [{wave.BossZone}] (alive bots {_alive})");
