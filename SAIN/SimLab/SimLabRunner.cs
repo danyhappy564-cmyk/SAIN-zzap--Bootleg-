@@ -45,6 +45,7 @@ public sealed class SimLabRunner : MonoBehaviour
     private bool _menuHelloDone;
     private bool _pausedNoted;
     private float _lastRaidEnd = -1f;
+    private volatile bool _startFailed;
     private bool _gapCleaned;
 
     // raid
@@ -158,6 +159,13 @@ public sealed class SimLabRunner : MonoBehaviour
             _menuHelloDone = false;
             _nextPoll = 0f;
         }
+        if (_startFailed)
+        {
+            _startFailed = false;
+            _startRequestedAt = -1f;
+            Notify("[시뮬] 자동 시작 실패 — LogOutput.log의 [SimLab] raid start failed 줄을 보내 주세요. 웹에서 '시뮬 정지'를 눌러 멈출 수 있습니다", true);
+            _nextPoll = Time.realtimeSinceStartup + 60f; // don't hammer a failing start
+        }
         if (_startRequestedAt > 0f)
         {
             return; // raid is loading
@@ -241,7 +249,7 @@ public sealed class SimLabRunner : MonoBehaviour
         {
             _nextCountdownNote = now + (left > 30f ? 15f : 5f);
             var plan = SimLab.Plan;
-            Notify($"[시뮬] {left:0}초 후 {plan?.NextMapName ?? _autoStartMap} 시작 ({(plan?.Step ?? 0) + 1}/{plan?.StepCount}, {plan?.Minutes:0}분) — 멈추려면 웹 /sain/sim에서 일시정지", false);
+            Notify($"[시뮬] {left:0}초 후 {plan?.NextMapName ?? _autoStartMap} 시작 ({(plan?.Step ?? 0) + 1}/{plan?.StepCount}, {plan?.Minutes:0}분) — 멈추려면 웹 /sain/sim에서 '시뮬 정지'", false);
         }
         if (left > 0f)
         {
@@ -294,17 +302,9 @@ public sealed class SimLabRunner : MonoBehaviour
         raid.SelectedDateTime = EDateTime.CURR;
         raid.MetabolismDisabled = true;
         raid.BotSettings = new BotControllerSettings(false, EBotAmount.AsOnline); // same as BSG's own quick start (InternalStartGame)
-        try
-        {
-            if (AccessTools.Field(typeof(TarkovApplication), "_menuOperation")?.GetValue(app) is MainMenuShowOperation menu)
-            {
-                menu.IsInSession = true;
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning($"[SimLab] could not flag the menu as in session: {ex.Message}");
-        }
+        // Do NOT set _menuOperation.IsInSession here: its setter clears the menu's health controller, and
+        // OnReadyToStartMatchingAsync -> MainMenuShowOperation.StoreProfile() reads it first (field 2026-10-09: NRE in StoreProfile).
+        // The menu's own Ready path never sets it either - only reconnect and BSG's InternalStartGame do.
         _startRequestedAt = Time.realtimeSinceStartup;
         Logger.LogWarning(
             $"[SimLab] auto start: {map} ({location.Name}, id {location.Id}), side {raid.Side}, mode {raid.RaidMode}, pveOffline {raid.IsPveOffline}, run {SimLab.Plan?.RunId}"
@@ -318,6 +318,7 @@ public sealed class SimLabRunner : MonoBehaviour
                 if (t.IsFaulted)
                 {
                     Logger.LogError($"[SimLab] raid start failed: {t.Exception}");
+                    _startFailed = true; // handled on the main thread (Notify needs it)
                 }
                 else
                 {
