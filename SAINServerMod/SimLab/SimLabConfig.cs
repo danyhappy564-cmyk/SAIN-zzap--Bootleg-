@@ -47,6 +47,10 @@ public sealed class SimLabConfig
     /// into its side's zone (user 2026-10-09: "on Customs they keep leaving the place under test").</summary>
     public bool ArenaLeash = true;
 
+    /// <summary>Stop after one pass through the rotation and say so (user 2026-10-10: "when a cycle is over: 'well done, sim
+    /// complete' - running forever makes the logs heavy and the RAM keeps piling up"). Off = loop forever as before.</summary>
+    public bool StopAfterOneCycle = true;
+
     /// <summary>Every other squad is an enemy, own faction included (user 2026-10-09: "every squad a different team"). SPT's pmc.json
     /// otherwise makes same-faction squads friendly 15% of the time.</summary>
     public bool AllSquadsEnemies = true;
@@ -125,6 +129,10 @@ public sealed class SimLabState
 {
     public string RunId = string.Empty;
     public int Step;
+    /// <summary>Maps finished (time up) since the start button; one full rotation = done.</summary>
+    public int MapsDone;
+    /// <summary>The last run went once through the whole rotation and stopped (user 2026-10-10).</summary>
+    public bool Completed;
 }
 
 public sealed class SimSample

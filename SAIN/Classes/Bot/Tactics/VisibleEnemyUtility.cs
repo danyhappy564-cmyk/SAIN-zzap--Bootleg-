@@ -160,6 +160,14 @@ public static class VisibleEnemyUtility
         push -= 0.4f * fear;
         shoot -= 0.1f * fear;
         coverScore += 0.4f * fear + (fear > 0.75f ? 0.3f : 0f);
+        // zzap (sims 2026-10-10: Cover deaths were 5-10m from an enemy in sight, under fire, never reaching cover 3m+ away -
+        // the fear bonus above (up to +0.7) outweighed the run cost): point blank, with him looking or shooting, a run of
+        // more than a dash is a shot in the back. Only a 3m dash stays worth it; otherwise fight it out.
+        bool pointBlankRun = dist < 12f && cover > 3f && (looking || hit);
+        if (pointBlankRun)
+        {
+            coverScore -= 0.6f + 0.3f * Mathf.Clamp01((12f - dist) / 6f);
+        }
         if (fearWhy.Length > 0) sb.Append(fearWhy).Append("; ");
         if (!looking) sb.Append("he isn't looking at me; ");
         if (busy) sb.Append($"he's {enemy.Status.VulnerableAction}; ");
@@ -168,6 +176,7 @@ public static class VisibleEnemyUtility
         if (hit) sb.Append("just got hit; ");
         if (health < 1f) sb.Append($"I'm {hs}; ");
         if (ammo < 0.25f) sb.Append($"mag {ammo:P0}; ");
+        if (pointBlankRun) sb.Append($"he's {dist:0}m and on me - a {cover:0.0}m run = shot in the back; ");
         if (cover > 12f && dist < 25f) sb.Append($"cover {cover:0}m away - too far to run; ");
         else if (runCost > 0.1f) sb.Append($"cover {cover:0.0}m - {cover / 3.5f:0.0}s back turned to get there; ");
         else if (cover <= 6f) sb.Append($"cover {cover:0.0}m; ");

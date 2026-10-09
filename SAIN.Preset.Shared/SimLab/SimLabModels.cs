@@ -41,6 +41,9 @@ public class SimPlan
     public bool OriginalMaps = true;
     /// <summary>Start each sim raid at the daytime one of the two raid times (user 2026-10-09: "sometimes a night raid gets picked").</summary>
     public bool DayOnly = true;
+    /// <summary>The run went once through the rotation and stopped (user 2026-10-10: "well done, sim complete").</summary>
+    public bool Completed;
+    public int MapsDone;
 }
 
 /// <summary>Server -> client after the raid's location was generated: how this raid was set up.</summary>

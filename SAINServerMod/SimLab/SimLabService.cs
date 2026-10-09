@@ -345,6 +345,9 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
     /// </summary>
     public bool Running { get; private set; }
 
+    public bool CycleCompleted => State.Completed;
+    public int MapsDone => State.MapsDone;
+
     public void SetRunning(bool running)
     {
         lock (_lock)
@@ -354,9 +357,15 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
                 logger.Info($"[SAIN SimLab] rotation {(running ? "started" : "stopped")} from the web page");
             }
             Running = running;
-            if (running && string.IsNullOrEmpty(State.RunId))
+            if (running && (string.IsNullOrEmpty(State.RunId) || State.Completed))
             {
-                NewRun();
+                NewRun(); // a finished cycle is not continued - the next start is a new run from the first map
+            }
+            if (running)
+            {
+                State.MapsDone = 0;
+                State.Completed = false;
+                SaveState();
             }
         }
     }
@@ -429,6 +438,8 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             OriginalMaps = Config.OriginalMaps,
             DayOnly = Config.DayOnly,
             StepCount = rotation.Count,
+            Completed = State.Completed,
+            MapsDone = State.MapsDone,
         };
         if (rotation.Count == 0)
         {
@@ -901,6 +912,14 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
                     int index = rotation.FindIndex(x => string.Equals(x.Map, beat.Map, StringComparison.OrdinalIgnoreCase));
                     int count = Math.Max(1, rotation.Count);
                     State.Step = index >= 0 ? (index + 1) % count : (State.Step + 1) % count;
+                    State.MapsDone++;
+                    if (Config.StopAfterOneCycle && State.MapsDone >= rotation.Count)
+                    {
+                        Running = false;
+                        State.Completed = true;
+                        State.Step = 0;
+                        logger.Success($"[SAIN SimLab] run {runId}: one full rotation done ({State.MapsDone} maps) - rotation stopped");
+                    }
                     SaveState();
                 }
             }

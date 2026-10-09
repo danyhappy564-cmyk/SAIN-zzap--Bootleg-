@@ -203,7 +203,7 @@ public static class SimLabAnalyzer
                 T($"사망 {deaths} 중 {switching}이 싸우던 중 엄폐·후퇴·수색 같은 비사격 판단으로 바꾼 지 1.5초 안 (30% 이상, 근접전 사격 판단 재선택은 제외). 카운터 death.switchedAway.*·일지 [Death] why=·decisionAge= 확인.", $"{switching} of {deaths} deaths within 1.5 s of switching away from fighting (cover/retreat/search; re-picking 'shoot' in a dogfight is excluded). See death.switchedAway.* and the journal's [Death] lines.")));
         }
 
-        int freezeDeaths = Get(b, "death.Freeze");
+        int freezeDeaths = Get(b, "death.Freeze") - Get(b, "death.bySpectator.Freeze"); // the spectator can't be reacted to
         if (freezeDeaths > 0)
         {
             list.Add(new(WARN, T("얼음 매복 중 사망", "Died while freeze-ambushing"), T($"death.Freeze={freezeDeaths} (0이어야 정상).", $"death.Freeze={freezeDeaths} (should be 0).")));

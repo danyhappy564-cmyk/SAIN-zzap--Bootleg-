@@ -110,7 +110,10 @@ public static class SimLabOddity
         }
         bool gunIdle = s.LastShotOrReload < 0f || now - s.LastShotOrReload >= 4f;
 
-        Check(s, "noShoot", enemy != null && visible && enemy.CanShoot && enemyDist < 40f && bullets > 0 && gunIdle, 4f, now);
+        // not an oddity: a squadmate in the line of fire (the bot holds fire on purpose) or sprinting to cover
+        bool mateInLine = bot.FriendlyFire?.FriendlyFireStatus == SAIN.Preset.Shared.Enums.FriendlyFireStatus.FriendlyBlock;
+        bool runningToCover = decision == "SeekCover" && speed > 2.5f;
+        Check(s, "noShoot", enemy != null && visible && enemy.CanShoot && enemyDist < 40f && bullets > 0 && gunIdle && !mateInLine && !runningToCover, 4f, now);
         Check(s, "backTurned", enemy != null && enemy.EnemyKnown && enemyDist < 12f && angle > 120f && speed < 0.7f, 4f, now);
         Check(s, "hitNoReact", enemy != null && enemy.Status.TimeLastShotMe > 0f && now - enemy.Status.TimeLastShotMe < 6f && speed < 0.25f && gunIdle, 4f, now);
         Check(s, "flipFlop", Changes(s.Decisions) >= 4, 0f, now);

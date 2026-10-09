@@ -3210,6 +3210,12 @@ public class DoorTacticClass : BotComponentClassBase
             Enemy goal = Bot.GoalEnemy;
             string enemyInfo = goal == null ? "none" : $"{(goal.IsVisible ? "visible" : "notVisible")} {goal.RealDistance:0}m";
             if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"death.{decision.CurrentCombatDecision}");
+            // zzap SimLab: the spectator can't be an enemy (bots can't react to him), so a kill by him says nothing about the
+            // bot's behavior (sim 2026-10-10: the only "died while freeze-ambushing" was the spectator sniping a frozen bot).
+            if (lastAggressor != null && SAIN.SimLab.SimLab.SpectatorActive && lastAggressor.ProfileId == SAIN.SimLab.SimLab.SpectatorProfileId)
+            {
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"death.bySpectator.{decision.CurrentCombatDecision}");
+            }
             SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.OnBotKilled(Bot.ProfileId, lastAggressor?.ProfileId);
             FearModel.OnBotDied(Bot);
             bool teamKill = lastAggressor != null && Bot.Squad?.Members?.ContainsKey(lastAggressor.ProfileId) == true;

@@ -303,10 +303,57 @@ public class EnemyDecisionClass : BotBase
     /// checks). The first one that can run wins; if none can, the old chain below decides as before. Ongoing door /
     /// squad sessions keep going untouched.
     /// </summary>
+    // zzap (sims 2026-10-09/10, "should move but stands" 14-28 per map): a FallBack pick maps to SeekCover, which stands still
+    // when there is no cover to go to ("standing in the open - no place to hold from") - a dying Coward on Customs did it for
+    // over a minute. FallBack only runs when there is a cover point, and after 5 s of SeekCover without moving 0.5 m (not in
+    // cover) it is off for 15 s, so the next stance (hold an angle, search...) runs instead.
+    private float _fallBackBanUntil;
+    private float _fallBackWatchSince = -1f;
+    private Vector3 _fallBackWatchPos;
+
+    private bool FallBackAllowed(float time)
+    {
+        if (time < _fallBackBanUntil)
+        {
+            return false;
+        }
+        var points = Bot.Cover.CoverPoints;
+        return points != null && points.Count > 0;
+    }
+
+    private void WatchFallBackStall(float time)
+    {
+        bool fallingBack = Bot.Decision.CurrentCombatDecision == ECombatDecision.SeekCover && LastReason == "utilityFallBack"
+            && Bot.Cover.CoverInUse == null;
+        if (!fallingBack)
+        {
+            _fallBackWatchSince = -1f;
+            return;
+        }
+        Vector3 pos = Bot.Position;
+        if (_fallBackWatchSince < 0f || (pos - _fallBackWatchPos).sqrMagnitude > 0.25f)
+        {
+            _fallBackWatchSince = time;
+            _fallBackWatchPos = pos;
+            return;
+        }
+        if (time - _fallBackWatchSince >= 5f)
+        {
+            _fallBackBanUntil = time + 15f;
+            _fallBackWatchSince = -1f;
+            TacticDiagnostics.Count("utility.fallBackStalled");
+            if (TacticDiagnostics.LogOn)
+            {
+                RaidJournal.Line($"[Utility] [{Bot.name}] [{Bot.Info.Personality}] fall back went nowhere for 5s (no cover reached) - no falling back for 15s");
+            }
+        }
+    }
+
     private bool TryUtility(Enemy enemy, out ECombatDecision result, out string reason)
     {
         result = ECombatDecision.None;
         reason = string.Empty;
+        WatchFallBackStall(Time.time);
         if (Bot.DoorTactic.Active || Bot.SquadCombat.Active)
         {
             return false;
@@ -433,7 +480,7 @@ public class EnemyDecisionClass : BotBase
                 case HiddenEnemyUtility.EStance.FallBack:
                     // Same as Hold: always runnable, so only when it is really wanted (3rd sim: 5.4k fall-throughs) - or when
                     // the bot is being shot and the hold it wanted was skipped (get out of the line of fire instead).
-                    if (stance == top || score >= ranked[0].score - 0.12f || holdSkipped)
+                    if ((stance == top || score >= ranked[0].score - 0.12f || holdSkipped) && FallBackAllowed(Time.time))
                     {
                         result = ECombatDecision.SeekCover;
                     }
@@ -463,7 +510,12 @@ public class EnemyDecisionClass : BotBase
         // chain then answered "seek cover" for a moment before the utility's pick ran again (3 sims: 39-45% of those cover
         // decisions lasted under 1s - every switch restarts the movement). Keep the utility's last pick for up to 1.2s
         // after it was made, unless the bot is being shot.
-        if (ReferenceEquals(_utilityPickEnemy, enemy) && Time.time - _utilityPickTime < UTILITY_KEEP_TIME && !beingShot
+        // zzap (sims 2026-10-10: "decision flip-flop" 16-34 per map - utility picks and the old chain's cover moves taking turns
+        // every 1.5-3 s, often while the goal enemy switched between two unseen enemies): the keep also covers a change of goal
+        // enemy as long as the new one is out of sight and not close.
+        bool sameFight = ReferenceEquals(_utilityPickEnemy, enemy)
+            || (_utilityPickEnemy != null && !enemy.IsVisible && enemy.RealDistance > 15f);
+        if (sameFight && Time.time - _utilityPickTime < UTILITY_KEEP_TIME && !beingShot
             && Bot.Decision.CurrentCombatDecision == _utilityPick && _utilityPick is ECombatDecision.Freeze or ECombatDecision.RushEnemy
                 or ECombatDecision.Search or ECombatDecision.SeekCover or ECombatDecision.ShiftCover)
         {
@@ -494,7 +546,7 @@ public class EnemyDecisionClass : BotBase
         return false;
     }
 
-    private const float UTILITY_KEEP_TIME = 1.2f;
+    private const float UTILITY_KEEP_TIME = 2f;
     private Enemy _utilityPickEnemy;
     private float _utilityPickTime = -100f;
     private ECombatDecision _utilityPick;

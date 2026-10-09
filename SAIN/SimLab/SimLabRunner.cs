@@ -195,6 +195,15 @@ public sealed class SimLabRunner : MonoBehaviour
         }
         if (plan.Paused)
         {
+            if (plan.Completed && _completedNoted != plan.RunId)
+            {
+                // user 2026-10-10: say it when a cycle is over instead of looping forever (logs and RAM keep piling up)
+                _completedNoted = plan.RunId;
+                _pausedNoted = true;
+                Notify($"[시뮬] 수고했습니다. 시뮬레이션 완료됨 ({plan.MapsDone}맵 한 바퀴, 실행 {plan.RunId}) — 결과는 웹 /sain/sim/analysis", false);
+                ShowBanner($"수고했습니다. 시뮬레이션 완료됨 ({plan.MapsDone}맵)");
+                return;
+            }
             if (!_pausedNoted)
             {
                 _pausedNoted = true;
@@ -296,6 +305,10 @@ public sealed class SimLabRunner : MonoBehaviour
         {
             float left = Mathf.Max(0f, _autoStartAt - Time.realtimeSinceStartup);
             text = $"시뮬 다음 맵 {SimLab.Plan?.NextMapName ?? _autoStartMap}  {(int)(left / 60f):00}:{(int)(left % 60f):00} 뒤 시작";
+        }
+        else if (!_inRaid && _bannerText != null && Time.realtimeSinceStartup < _bannerUntil)
+        {
+            text = _bannerText;
         }
         if (text == null)
         {
@@ -1025,6 +1038,17 @@ public sealed class SimLabRunner : MonoBehaviour
     {
         // Alt+F4 / closing the window mid-map: one last report on the way out (the local file already has the last 10 s).
         FinishRaid("gameClosed");
+    }
+
+    private string _completedNoted;
+    private string _bannerText;
+    private float _bannerUntil;
+
+    /// <summary>Top-right box in the menu for a while (same place as the sim timer).</summary>
+    private void ShowBanner(string text)
+    {
+        _bannerText = text;
+        _bannerUntil = Time.realtimeSinceStartup + 120f;
     }
 
     private static void Notify(string message, bool warning)
