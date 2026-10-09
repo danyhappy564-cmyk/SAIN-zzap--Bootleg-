@@ -205,6 +205,16 @@ public static class SimLabAnalyzer
             }
         }
 
+        // automatic oddity detector (user 2026-10-09: "can't you measure it yourself?")
+        int odd = b.OddityCounts?.Values.Sum() ?? 0;
+        if (odd > 0)
+        {
+            var parts = b.OddityCounts!.OrderByDescending(kv => kv.Value).Select(kv => $"{OddityName(kv.Key)} {kv.Value}");
+            list.Add(new(b.OddityCounts.Values.Max() >= 10 ? WARN : INFO, T("이상 행동 자동 감지", "Automatic oddity detector"),
+                T($"{played:0}분 동안 {odd}회: {string.Join(", ", parts)}. 장면별 봇·판단·적 거리·위치·레이드 시각은 md '이상 행동' 절과 일지 [Oddity] 줄.",
+                  $"{odd} in {played:0} min: {string.Join(", ", parts)}. Who/decision/enemy distance/position/raid time per scene in the md 'oddities' section and journal [Oddity] lines.")));
+        }
+
         // enemies shoulder to shoulder without knowing (user screenshot 2026-10-09)
         if (b.CloseUnawareSamples > 0)
         {
@@ -252,6 +262,20 @@ public static class SimLabAnalyzer
     }
 
     /// <summary>Share of bot time in a layer group: "orbit", "combat" (SAIN combat), "sain" (any SAIN layer), "other".</summary>
+    public static string OddityName(string kind)
+    {
+        return kind switch
+        {
+            "noShoot" => T("보이는 적에게 안 쏨", "visible enemy not shot"),
+            "backTurned" => T("가까운 적에게 등 돌림", "back to a close enemy"),
+            "hitNoReact" => T("맞고도 반응 없음", "hit, no reaction"),
+            "flipFlop" => T("판단이 계속 뒤집힘", "decision flip-flop"),
+            "bunched" => T("아군과 몸이 겹침", "bunched with a mate"),
+            "stalledMove" => T("움직여야 하는데 제자리", "should move, standing"),
+            _ => kind,
+        };
+    }
+
     public static float LayerShare(SimBeat b, string group)
     {
         float total = b.LayerSeconds?.Values.Sum() ?? 0f;
@@ -495,6 +519,16 @@ public static class SimLabAnalyzer
                 foreach (var x in b.SpawnOff ?? [])
                 {
                     sb.AppendLine($"- 밖: {x.Role}({x.Side}) zone={x.Zone} wanted={x.Wanted} pos=({x.X:0},{x.Y:0},{x.Z:0}) 가까운 지정 지점까지 {x.Distance:0}m t={x.RaidTime:0}s");
+                }
+            }
+            if (b != null && (b.OddityCounts?.Count ?? 0) > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("### 이상 행동 자동 감지 (SimLabOddity, SAIN 전투 레이어 봇, 2초 표본, 상태가 풀릴 때까지 1회)");
+                sb.AppendLine("- 종류별: " + string.Join(", ", b.OddityCounts!.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}({OddityName(kv.Key)})={kv.Value}")));
+                foreach (var x in (b.Oddities ?? []).OrderBy(x => x.RaidTime))
+                {
+                    sb.AppendLine($"- t={x.RaidTime / 60f:0.0}분 {x.Kind} [{x.Name}] {x.Role}/{x.Personality} {x.Decision}/{x.Reason} layer={x.Layer} 적 {x.EnemyDistance:0.0}m 보임={x.EnemyVisible} 각도={x.EnemyAngle:0} 속도={x.Speed:0.0} 탄={x.Bullets} {x.Seconds:0}초 pos=({x.X:0},{x.Y:0},{x.Z:0})");
                 }
             }
             if (b != null && b.CloseUnawareSamples > 0)

@@ -99,6 +99,7 @@ public static class SimLabGlossary
         new("handoff.gapLayer.", "교전 끝~ORBIT 사이에 잠깐 잡은 다른 레이어 (바닐라 순찰 등)", "Other layer in the gap between combat and ORBIT", "LayerHandoff"),
         new("handoff.", "레이어 넘기기 기타", "Other handoff events", "LayerHandoff"),
         new("stuck.", "막힘 감지·탈출 단계 (stage1~4, freed=풀려남, layer=막힌 레이어)", "Stuck detection / escape stages", "SAINBotUnstuckClass"),
+        new("oddity.", "이상 행동 자동 감지 (noShoot=보이는 적에게 안 쏨, backTurned=가까운 적에게 등 돌림, hitNoReact=맞고도 반응 없음, flipFlop=판단이 계속 뒤집힘, bunched=아군과 몸이 겹침, stalledMove=움직여야 하는데 제자리). 한 번 걸린 상태가 풀릴 때까지 1회", "Automatic oddity detector (noShoot / backTurned / hitNoReact / flipFlop / bunched / stalledMove), one per episode", "SimLabOddity"),
         new("look.wallFix.", "벽을 보고 있던 봇이 시선을 고침 (corner=적이 나올 코너, open=트인 방향, none=고칠 곳 없음)", "Wall stare corrected (corner / open / none)", "SAINSteeringClass.AvoidWallStare"),
         new("hear.firstSeen.", "처음 적을 봤을 때 10초 안에 소리로 먼저 들었는지 (heard.move=발소리·문·덤불, heard.gun=총소리, notHeard=못 들음) · 거리 close<15m mid<40m far", "On first sight: was the enemy heard in the 10 s before (move / gun / not heard) and range", "EnemyEvents.CountFirstSeen"),
         new("sim.", "시뮬 전용 (시체 정리 등)", "Sim only (corpse cleanup)", "CorpseCleanup"),

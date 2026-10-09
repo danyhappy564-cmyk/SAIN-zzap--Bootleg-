@@ -60,6 +60,7 @@ public static class SimLabProbe
         _orbitGhost = 0f;
         _closeUnaware = 0;
         _closeSamples.Clear();
+        SimLabOddity.Reset();
         _orbitObjective.Clear();
         _wantedA = Split(info?.ZonesA);
         _wantedB = Split(info?.ZonesB);
@@ -165,6 +166,7 @@ public static class SimLabProbe
             return;
         }
         _combatSamples++;
+        SimLabOddity.Sample(player, owner, bot, layer, dt);
         Vector3 eye = bot.Transform.EyePosition;
         Vector3 look = bot.Transform.LookDirection;
         if (look.sqrMagnitude < 0.01f || !Physics.Raycast(eye, look.normalized, WALL_DISTANCE, LayersMaskController.HighPolyWithTerrainMask))
@@ -322,6 +324,7 @@ public static class SimLabProbe
         beat.SpawnOff = new List<SimSpawnSample>(_spawnOff);
         beat.CloseUnawareSamples = _closeUnaware;
         beat.CloseUnaware = new List<SimCloseSample>(_closeSamples);
+        SimLabOddity.Fill(beat);
         beat.OrbitGhostSeconds = _orbitGhost;
         beat.OrbitObjectiveSeconds = new Dictionary<string, float>(_orbitObjective);
     }

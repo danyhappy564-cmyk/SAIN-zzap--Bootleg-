@@ -177,9 +177,34 @@ public class SimBeat
     /// two enemies shoulder to shoulder, then a scramble), and a few examples.</summary>
     public int CloseUnawareSamples;
     public List<SimCloseSample> CloseUnaware = new();
+    /// <summary>Automatic oddity detector (user 2026-10-09: "can't you measure it yourself?"): episodes per kind and examples.</summary>
+    public Dictionary<string, int> OddityCounts = new();
+    public List<SimOddity> Oddities = new();
 
     public float OrbitGhostSeconds;
     public Dictionary<string, float> OrbitObjectiveSeconds = new();
+}
+
+/// <summary>One moment the oddity detector flagged, with what the bot was doing (to match with what the user saw).</summary>
+public class SimOddity
+{
+    public string Kind;
+    public string Name;
+    public string Role;
+    public string Personality;
+    public string Decision;
+    public string Reason;
+    public string Layer;
+    public float EnemyDistance;
+    public bool EnemyVisible;
+    public float EnemyAngle;
+    public float Speed;
+    public int Bullets;
+    public float Seconds;
+    public float X;
+    public float Y;
+    public float Z;
+    public float RaidTime;
 }
 
 /// <summary>A bot with a hostile bot within 4 m that it doesn't know about.</summary>
