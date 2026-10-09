@@ -1,0 +1,327 @@
+@page "/sain/sim/analysis"
+@attribute [Authorize(Policy = "Administrator")]
+@implements IDisposable
+@layout BaseMudBlazorLayout
+@using SAINServerMod.SimLab
+@inject SimLabService Sim
+@inject ISnackbar Snackbar
+
+<PageTitle>SAIN 시뮬 분석</PageTitle>
+<HeadContent>
+    <link rel="stylesheet" href="/SAIN/css/sain.css" />
+</HeadContent>
+
+<div class="spt-page">
+    <MudContainer MaxWidth="MaxWidth.False" Class="sain-container pa-4">
+        <SainNav Current="simAnalysis" />
+        <MudPaper Elevation="0" Class="spt-panel sain-hero pa-4 mb-4">
+            <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="3">
+                <MudStack Row AlignItems="AlignItems.Center" Spacing="3">
+                    <div class="sain-hero-icon">
+                        <MudIcon Icon="@Icons.Material.Filled.Analytics" Color="Color.Warning" Size="Size.Large" />
+                    </div>
+                    <div>
+                        <MudText Typo="Typo.h5" Class="spt-title">시뮬 분석</MudText>
+                        <MudText Typo="Typo.caption" Class="spt-muted">맵마다 무엇이 문제였는지. 게임이 1분마다 보낸 기록이라 강제 종료된 판도 마지막 1분까지 남아 있습니다.</MudText>
+                    </div>
+                </MudStack>
+                <MudStack Row Spacing="2" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center">
+                    <MudSelect T="string" Value="_runId" ValueChanged="SelectRun" Label="실행" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width:260px;">
+                        @foreach (var r in _runs)
+                        {
+                            <MudSelectItem T="string" Value="@r.RunId">@r.RunId (맵 @(r.Maps.Count)개)</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="Reload">새로고침</MudButton>
+                    @if (_run != null)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Description" OnClick="MakeSummary">Claude용 요약 만들기</MudButton>
+                        <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteRun">삭제</MudButton>
+                    }
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+
+        @if (_run == null)
+        {
+            <MudAlert Severity="Severity.Info">아직 기록된 시뮬이 없습니다. 게임에서 시뮬 프리셋으로 레이드를 하면 여기에 쌓입니다.</MudAlert>
+        }
+        else
+        {
+            @if (_summary != null)
+            {
+                <MudPaper Elevation="0" Class="spt-panel pa-4 mb-4">
+                    <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+                        <MudText Typo="Typo.subtitle1" Class="spt-title">Claude용 요약</MudText>
+                        <MudStack Row Spacing="2">
+                            <MudButton Href="@SummaryHref" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Download"
+                                       UserAttributes="@(new Dictionary<string, object> { ["download"] = $"sim_{_run.RunId}.md" })">md 파일 받기</MudButton>
+                            <MudButton Variant="Variant.Text" OnClick="@(() => _summary = null)">닫기</MudButton>
+                        </MudStack>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
+                        같은 내용이 서버 폴더에도 저장됐습니다: <code>@_summaryPath</code>. 이 파일(또는 아래 글)을 그대로 주시면 전체 로그 없이도 어디를 볼지 바로 압니다.
+                    </MudText>
+                    <MudTextField T="string" Value="_summary" ReadOnly="true" Lines="18" Variant="Variant.Outlined" Class="sain-mono" />
+                </MudPaper>
+            }
+
+            <MudPaper Elevation="0" Class="spt-panel pa-4 mb-4">
+                <MudText Typo="Typo.subtitle1" Class="spt-title mb-2">한눈에 보기</MudText>
+                <MudSimpleTable Dense="true" Hover="true">
+                    <thead>
+                        <tr><th>#</th><th>맵</th><th>시나리오</th><th>상태</th><th>진행(분)</th><th>봇 사망</th><th>최저 fps</th><th>오류</th><th>문제</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in _run.Maps)
+                        {
+                            var findings = SimLabAnalyzer.Findings(m);
+                            <tr>
+                                <td>@(m.Index + 1)</td>
+                                <td>@m.MapName</td>
+                                <td>@m.Scenario</td>
+                                <td><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@StatusColor(m.Status)">@SimLabAnalyzer.StatusText(m.Status)</MudChip></td>
+                                <td>@(SimLabAnalyzer.PlayedMinutes(m).ToString("0.0"))/@(m.PlannedMinutes.ToString("0"))</td>
+                                <td>@(m.Last?.BotDeaths ?? 0)</td>
+                                <td>@((m.Last?.FpsMin ?? 0f).ToString("0"))</td>
+                                <td>@SimLabAnalyzer.ErrorTotal(m)</td>
+                                <td>@(findings.Count(f => f.Severity == SimLabAnalyzer.HIGH)) 심각 / @(findings.Count(f => f.Severity == SimLabAnalyzer.WARN)) 주의</td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+
+            @foreach (var m in _run.Maps.AsEnumerable().Reverse())
+            {
+                var b = m.Last;
+                <MudPaper Elevation="0" Class="spt-panel pa-4 mb-4">
+                    <MudStack Row AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-1">
+                        <MudText Typo="Typo.h6" Class="spt-title">@(m.Index + 1). @m.MapName — @m.Scenario</MudText>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@StatusColor(m.Status)">@SimLabAnalyzer.StatusText(m.Status)</MudChip>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Class="spt-muted d-block">
+                        @m.Started.ToString("MM-dd HH:mm") 시작 · @(SimLabAnalyzer.PlayedMinutes(m).ToString("0.0"))/@(m.PlannedMinutes.ToString("0"))분 · 목적: @m.Focus
+                    </MudText>
+                    @if (m.Raid != null)
+                    {
+                        <MudText Typo="Typo.caption" Class="spt-muted d-block">
+                            스폰: A @m.Raid.SideA [@m.Raid.ZonesA] vs B @m.Raid.SideB [@m.Raid.ZonesB] · 동시 최대 @m.Raid.MaxAliveBots · 지운 웨이브 @(m.Raid.RemovedBossWaves)+@(m.Raid.RemovedWaves)
+                        </MudText>
+                    }
+                    <div class="mt-2">
+                        @foreach (var f in SimLabAnalyzer.Findings(m))
+                        {
+                            <MudAlert Severity="@Sev(f.Severity)" Dense="true" Variant="Variant.Outlined" Class="mb-1">
+                                <b>@f.Title</b> — @f.Detail
+                            </MudAlert>
+                        }
+                    </div>
+                    @if (b != null)
+                    {
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            본 봇 @(b.BotsSeen) · 봇 사망 @(b.BotDeaths) (봇에게 @(b.BotKillsByBots), 기타 @(b.OtherKills), 아군 @(b.TeamKills)) · 분대 호출 @(b.SimWavesActivated) ·
+                            마지막 @(b.Fps.ToString("0")) fps / 최저 @(b.FpsMin.ToString("0")) · 멈춤 @(b.Stalls) · 관리 메모리 @(b.MonoUsedMB) MB
+                        </MudText>
+                        @if (!string.IsNullOrEmpty(b.JournalFile))
+                        {
+                            <MudText Typo="Typo.caption" Class="spt-muted d-block">일지: <code>@b.JournalFile</code></MudText>
+                        }
+                        <MudExpansionPanels Elevation="0" Class="sain-panels mt-2" MultiExpansion="true">
+                            @if (b.Errors?.Count > 0)
+                            {
+                                <MudExpansionPanel Text="@($"오류 {b.Errors.Count}종")" Class="sain-subpanel">
+                                    <MudSimpleTable Dense="true">
+                                        <thead><tr><th>횟수</th><th>종류</th><th>처음(t초)</th><th>내용</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var e in b.Errors.OrderByDescending(e => e.Count))
+                                            {
+                                                <tr>
+                                                    <td>@e.Count</td>
+                                                    <td>@e.Level / @e.Source</td>
+                                                    <td>@e.FirstRaidTime.ToString("0")</td>
+                                                    <td><code style="white-space:pre-wrap;">@e.Key@(string.IsNullOrEmpty(e.Sample) ? "" : "\n" + e.Sample)</code></td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </MudSimpleTable>
+                                </MudExpansionPanel>
+                            }
+                            <MudExpansionPanel Text="@($"카운터 {b.Counters?.Count ?? 0}개 (★ = 이 맵에서 볼 것)")" Class="sain-subpanel">
+                                <MudStack Row Wrap="Wrap.Wrap" Spacing="1">
+                                    @foreach (var kv in SimLabAnalyzer.OrderedCounters(m))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(SimLabAnalyzer.IsWatched(m, kv.Key) ? Color.Warning : Color.Default)">
+                                            @(SimLabAnalyzer.IsWatched(m, kv.Key) ? "★ " : "")@kv.Key = @kv.Value
+                                        </MudChip>
+                                    }
+                                </MudStack>
+                            </MudExpansionPanel>
+                            <MudExpansionPanel Text="성격별 · 판단 이유별 킬/사망" Class="sain-subpanel">
+                                <MudStack Row Wrap="Wrap.Wrap" Spacing="4">
+                                    @RowTable("성격", b.ByPersonality)
+                                    @RowTable("죽을 때 하던 판단", b.ByReason)
+                                    @RowTable("전투 행동", b.ByCombat)
+                                </MudStack>
+                            </MudExpansionPanel>
+                            @if (b.SpawnedRoles?.Count > 0)
+                            {
+                                <MudExpansionPanel Text="등장한 봇 역할" Class="sain-subpanel">
+                                    @string.Join(", ", b.SpawnedRoles.Select(kv => $"{kv.Key} ×{kv.Value}"))
+                                </MudExpansionPanel>
+                            }
+                            @if (m.Samples.Count > 0)
+                            {
+                                <MudExpansionPanel Text="@($"시간대별 기록 {m.Samples.Count}개")" Class="sain-subpanel">
+                                    <MudSimpleTable Dense="true">
+                                        <thead><tr><th>t(분)</th><th>생존 봇</th><th>누적 사망</th><th>fps</th><th>메모리 MB</th><th>누적 오류</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var s in m.Samples)
+                                            {
+                                                <tr><td>@((s.T / 60f).ToString("0.0"))</td><td>@s.Alive</td><td>@s.Deaths</td><td>@s.Fps.ToString("0")</td><td>@s.Mono</td><td>@s.Errors</td></tr>
+                                            }
+                                        </tbody>
+                                    </MudSimpleTable>
+                                </MudExpansionPanel>
+                            }
+                            @if (b.Notes?.Count > 0)
+                            {
+                                <MudExpansionPanel Text="메모" Class="sain-subpanel">
+                                    @foreach (string n in b.Notes)
+                                    {
+                                        <MudText Typo="Typo.body2">• @n</MudText>
+                                    }
+                                </MudExpansionPanel>
+                            }
+                        </MudExpansionPanels>
+                    }
+                </MudPaper>
+            }
+        }
+    </MudContainer>
+</div>
+
+@code {
+    private List<SimRunRecord> _runs = [];
+    private string? _runId;
+    private SimRunRecord? _run;
+    private string? _summary;
+    private string? _summaryPath;
+    private System.Threading.Timer? _timer;
+
+    private string SummaryHref => "data:text/markdown;charset=utf-8;base64," + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(_summary ?? string.Empty));
+
+    protected override void OnInitialized()
+    {
+        Reload();
+        // A running sim keeps reporting: refresh the shown run every 30 s.
+        _timer = new System.Threading.Timer(_ => InvokeAsync(() =>
+        {
+            if (_run != null && _run.Maps.LastOrDefault()?.Status == "running")
+            {
+                _run = Sim.LoadRun(_run.RunId) ?? _run;
+                StateHasChanged();
+            }
+        }), null, 30000, 30000);
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+
+    private void Reload()
+    {
+        _runs = Sim.ListRuns();
+        if (_runId == null || !_runs.Any(r => r.RunId == _runId))
+        {
+            _runId = _runs.FirstOrDefault()?.RunId;
+        }
+        _run = _runId == null ? null : _runs.FirstOrDefault(r => r.RunId == _runId);
+    }
+
+    private void SelectRun(string runId)
+    {
+        _runId = runId;
+        _summary = null;
+        _run = _runs.FirstOrDefault(r => r.RunId == runId);
+    }
+
+    private void MakeSummary()
+    {
+        if (_run == null)
+        {
+            return;
+        }
+        _summary = SimLabAnalyzer.Markdown(_run);
+        try
+        {
+            _summaryPath = Path.Combine(Sim.RunsDir, $"{JsonFileStoreUtilName(_run.RunId)}.summary.md");
+            File.WriteAllText(_summaryPath, _summary);
+        }
+        catch (Exception ex)
+        {
+            _summaryPath = "(저장 실패: " + ex.Message + ")";
+        }
+    }
+
+    private static string JsonFileStoreUtilName(string name)
+    {
+        return SAINServerMod.Utils.JsonFileStoreUtil.SanitizeFileName(name);
+    }
+
+    private void DeleteRun()
+    {
+        if (_run == null)
+        {
+            return;
+        }
+        Sim.DeleteRun(_run.RunId);
+        Snackbar.Add($"실행 {_run.RunId} 기록을 지웠습니다.", Severity.Warning);
+        _runId = null;
+        _summary = null;
+        Reload();
+    }
+
+    private static Color StatusColor(string status)
+    {
+        return status switch
+        {
+            "done" => Color.Success,
+            "running" => Color.Info,
+            "interrupted" => Color.Error,
+            _ => Color.Warning,
+        };
+    }
+
+    private static Severity Sev(string severity)
+    {
+        return severity switch
+        {
+            SimLabAnalyzer.HIGH => Severity.Error,
+            SimLabAnalyzer.WARN => Severity.Warning,
+            SimLabAnalyzer.OK => Severity.Success,
+            _ => Severity.Info,
+        };
+    }
+
+    private static RenderFragment RowTable(string title, Dictionary<string, SAIN.Preset.Shared.SimLab.SimRow>? rows) => __builder =>
+    {
+        if (rows == null || rows.Count == 0)
+        {
+            return;
+        }
+        <div>
+            <MudText Typo="Typo.overline" Class="spt-muted">@title</MudText>
+            <MudSimpleTable Dense="true">
+                <thead><tr><th>이름</th><th>킬</th><th>사망</th><th>전환 직후 사망</th></tr></thead>
+                <tbody>
+                    @foreach (var kv in rows.OrderByDescending(x => x.Value.Kills + x.Value.Deaths).Take(15))
+                    {
+                        <tr><td>@kv.Key</td><td>@kv.Value.Kills</td><td>@kv.Value.Deaths</td><td>@kv.Value.DiedSwitching</td></tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        </div>
+    };
+}

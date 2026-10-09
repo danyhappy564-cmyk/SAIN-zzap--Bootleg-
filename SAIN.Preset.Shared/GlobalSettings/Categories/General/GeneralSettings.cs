@@ -73,6 +73,11 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
     public PlayerStyleSettings PlayerStyle = new();
 
     [DataMember]
+    [Name("Simulation Lab (zzap)")]
+    [Description("Map rotation simulation for testing bot behavior. Only the simulation preset turns it on.")]
+    public SimLabSettings SimLab = new();
+
+    [DataMember]
     public ExtractSettings Extract = new();
 
     [DataMember]
@@ -107,6 +112,7 @@ public class GeneralSettings : SAINSettingsBase<GeneralSettings>, ISAINSettings
         list.Add(CloseCombat);
         list.Add(Reposition);
         list.Add(PlayerStyle);
+        list.Add(SimLab);
         list.Add(Extract);
         list.Add(Flashlight);
         list.Add(LootingBots);

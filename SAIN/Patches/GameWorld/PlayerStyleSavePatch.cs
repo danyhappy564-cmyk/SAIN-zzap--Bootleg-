@@ -22,6 +22,15 @@ public class PlayerStyleSavePatch : ModulePatch
     {
         try
         {
+            // zzap SimLab: the sim's final report needs the raid's scoreboard before SAIN's raid-end saves clear it.
+            SAIN.SimLab.SimLabRunner.OnRaidWorldDisposing();
+        }
+        catch (System.Exception ex)
+        {
+            Logger.LogWarning($"[SimLab] final report at GameWorld.Dispose failed: {ex}");
+        }
+        try
+        {
             PlayerStyleRecorder.Instance?.Dispose("gameWorldDispose");
         }
         catch (System.Exception ex)

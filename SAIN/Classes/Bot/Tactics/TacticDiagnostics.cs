@@ -89,6 +89,16 @@ internal static class TacticDiagnostics
         }
     }
 
+    /// <summary>zzap SimLab: this raid's counters so far (empty when counting is off).</summary>
+    public static void CopyCounts(Dictionary<string, int> to)
+    {
+        to.Clear();
+        foreach (var kv in _counts)
+        {
+            to[kv.Key] = kv.Value;
+        }
+    }
+
     public static void Count(string key)
     {
         if (!Enabled)

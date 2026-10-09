@@ -214,6 +214,11 @@ public class EnemyListController : BotSubClass<SAINEnemyController>, IBotClass
             //Logger.LogDebug("Cannot add dead player as an enemy.");
             return null;
         }
+        if (SAIN.SimLab.SimLab.SpectatorActive && SAIN.SimLab.SimLab.IsSpectatorPlayer(enemyPlayer))
+        {
+            // zzap SimLab spectator: the watching player is never an enemy
+            return null;
+        }
         if (enemyPlayer.ProfileId == Bot.ProfileId)
         {
             //string debugString = $"Cannot add enemy that matches this bot: ";

@@ -74,6 +74,8 @@ public class SAINPlugin : BaseUnityPlugin
         BindConfigs();
         _patchManager.EnablePatches();
         BigBrainHandler.Init();
+        // zzap SimLab: map rotation runner (idle unless the simulation preset is loaded)
+        gameObject.AddComponent<SAIN.SimLab.SimLabRunner>();
     }
 
     /// <summary>

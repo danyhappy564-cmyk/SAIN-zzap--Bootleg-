@@ -168,6 +168,27 @@ public static class BattleStats
         return sb.ToString();
     }
 
+    /// <summary>zzap SimLab: copy the scoreboard into a sim report (no strings built unless the sim is running).</summary>
+    public static void FillSim(SAIN.Preset.Shared.SimLab.SimBeat beat)
+    {
+        beat.BotDeaths = _personality.Values.Sum(x => x.Deaths);
+        beat.BotKillsByBots = _botKills;
+        beat.OtherKills = _otherKills;
+        beat.TeamKills = _teamKills;
+        CopyRows(_personality, beat.ByPersonality);
+        CopyRows(_reason, beat.ByReason);
+        CopyRows(_combat, beat.ByCombat);
+    }
+
+    private static void CopyRows(Dictionary<string, Row> from, Dictionary<string, SAIN.Preset.Shared.SimLab.SimRow> to)
+    {
+        to.Clear();
+        foreach (var kv in from)
+        {
+            to[kv.Key] = new SAIN.Preset.Shared.SimLab.SimRow { Kills = kv.Value.Kills, Deaths = kv.Value.Deaths, DiedSwitching = kv.Value.DiedSwitching };
+        }
+    }
+
     public static void Clear()
     {
         _personality.Clear();

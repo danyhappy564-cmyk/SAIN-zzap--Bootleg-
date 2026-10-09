@@ -173,6 +173,11 @@
         "DiamondStepTestMode": true,
         "UtilityMistakes": false
       },
+      "SimLab": {
+        "Enabled": true,
+        "AutoStart": true,
+        "AutoStartDelay": 15.0
+      },
       "PlayerStyle": {
         "AdaptEnabled": false,
         "RaidJournal": true
