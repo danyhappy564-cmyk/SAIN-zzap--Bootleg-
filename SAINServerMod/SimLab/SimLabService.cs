@@ -214,12 +214,25 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
 
     // ---------------------------------------------------------------- rotation
 
-    public void Pause(bool paused)
+    /// <summary>
+    /// Only the web page's start button starts the rotation (user 2026-10-09: "the countdown ran as soon as the game started").
+    /// Memory only: a server restart, the game starting, or the stop button turns it off again.
+    /// </summary>
+    public bool Running { get; private set; }
+
+    public void SetRunning(bool running)
     {
         lock (_lock)
         {
-            Config.Paused = paused;
-            WriteJson(ConfigPath, Config);
+            if (Running != running)
+            {
+                logger.Info($"[SAIN SimLab] rotation {(running ? "started" : "stopped")} from the web page");
+            }
+            Running = running;
+            if (running && string.IsNullOrEmpty(State.RunId))
+            {
+                NewRun();
+            }
         }
     }
 
@@ -259,6 +272,11 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             {
                 logger.Info($"[SAIN SimLab] {(Armed ? "armed" : "disarmed")} by client ({hello?.Reason}, preset '{ArmedPreset}')");
             }
+            if (hello?.Reason == "start" && Running)
+            {
+                Running = false; // game (re)started: wait for the start button again
+                logger.Info("[SAIN SimLab] game started - rotation waits for the start button on /sain/sim");
+            }
             if (Armed && hello?.Reason == "menu")
             {
                 MarkStaleRunning("main menu reached without an end report");
@@ -277,7 +295,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         var plan = new SimPlan
         {
             Armed = Armed,
-            Paused = Config.Paused,
+            Paused = !Running,
             AutoRotate = Config.AutoRotate,
             RunId = State.RunId,
             GapSeconds = Config.GapSeconds,

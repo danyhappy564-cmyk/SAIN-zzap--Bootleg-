@@ -186,7 +186,7 @@ public sealed class SimLabRunner : MonoBehaviour
             if (!_pausedNoted)
             {
                 _pausedNoted = true;
-                Notify("[시뮬] 순회 일시정지 중 — 웹 /sain/sim에서 재개하면 바로 이어서 시작합니다", false);
+                Notify("[시뮬] 대기 중 — 웹 https://127.0.0.1:6969/sain/sim 에서 '시뮬 시작'을 누르면 시작합니다", false);
             }
             return;
         }
@@ -200,8 +200,9 @@ public sealed class SimLabRunner : MonoBehaviour
             return;
         }
         _pausedNoted = false;
-        // Gap between maps (user 2026-10-09: RAM has to come back in the main menu before the next map).
-        float gapLeft = _lastRaidEnd > 0f ? plan.GapSeconds - (now - _lastRaidEnd) : 0f;
+        // Gap between maps (user 2026-10-09: RAM has to come back in the main menu before the next map). Counted from the moment the
+        // main menu finished loading after the raid, not from the raid's end - leaving a raid takes a different time on every map.
+        float gapLeft = _lastRaidEnd > 0f ? plan.GapSeconds - (now - SimLab.MenuReadyTime) : 0f;
         float wait = Mathf.Max(Mathf.Max(5f, settings.AutoStartDelay), gapLeft);
         if (_lastRaidEnd > 0f && plan.CleanMemory && !_gapCleaned)
         {
@@ -260,6 +261,17 @@ public sealed class SimLabRunner : MonoBehaviour
 
     private void StartRaid(string map)
     {
+        // Last safety check: only from a fully loaded main menu with no raid (or raid leftover) in the way.
+        // (A preloaded hideout world is fine - only a raid world / raid game blocks.)
+        var world = Singleton<GameWorld>.Instance;
+        bool raidWorld = world != null && !string.Equals(world.LocationId, "hideout", StringComparison.OrdinalIgnoreCase);
+        bool raidGame = Singleton<AbstractGame>.Instance is LocalGame;
+        if (SimLab.MenuReadyTime < 0f || raidWorld || raidGame)
+        {
+            Logger.LogWarning($"[SimLab] start of {map} skipped: menu not ready (menuReady={SimLab.MenuReadyTime:0}, raidWorld={raidWorld}, raidGame={raidGame})");
+            _nextPoll = 0f;
+            return;
+        }
         if (!TarkovApplication.Exist(out TarkovApplication app) || app.Session?.LocationSettings?.locations == null)
         {
             Logger.LogError("[SimLab] no TarkovApplication/session - cannot start a raid");
@@ -384,6 +396,7 @@ public sealed class SimLabRunner : MonoBehaviour
         _setupDone = false;
         _startRequestedAt = -1f;
         _autoStartAt = -1f;
+        SimLab.MenuReadyTime = -1f; // a raid world exists: the menu has to load again before anything starts
         if (!SimLab.Active)
         {
             return;
@@ -761,6 +774,9 @@ public sealed class SimLabRunner : MonoBehaviour
         }
         _inRaid = false;
         _lastRaidEnd = Time.realtimeSinceStartup;
+        // The menu we waited in before this raid is gone: nothing may start until the main menu has loaded again
+        // (OnApplicationLoaded), so the next map can never start while the game is still leaving this raid.
+        SimLab.MenuReadyTime = -1f;
         _gapCleaned = false;
         try
         {

@@ -28,9 +28,9 @@
                     </div>
                 </MudStack>
                 <MudStack Row Spacing="2" Wrap="Wrap.Wrap">
-                    <MudButton Variant="Variant.Outlined" Color="@(Sim.Config.Paused ? Color.Success : Color.Default)"
-                               StartIcon="@(Sim.Config.Paused ? Icons.Material.Filled.PlayArrow : Icons.Material.Filled.Pause)" OnClick="TogglePause">
-                        @(Sim.Config.Paused ? T("순회 재개", "Resume rotation") : T("순회 일시정지", "Pause rotation"))
+                    <MudButton Variant="@(Sim.Running ? Variant.Outlined : Variant.Filled)" Color="@(Sim.Running ? Color.Error : Color.Success)"
+                               StartIcon="@(Sim.Running ? Icons.Material.Filled.Stop : Icons.Material.Filled.PlayArrow)" OnClick="ToggleRunning">
+                        @(Sim.Running ? T("시뮬 정지", "Stop sim") : T("시뮬 시작", "Start sim"))
                     </MudButton>
                     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FiberNew" OnClick="NewRun">@T("새 실행 시작", "Start new run")</MudButton>
                     <MudButton Href="/sain/sim/analysis" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Analytics">@T("분석 보기", "Analysis")</MudButton>
@@ -49,10 +49,9 @@
                 {
                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@T("게임 마지막 연락", "Last contact from game") @(Sim.LastHello.ToString("HH:mm:ss"))</MudChip>
                 }
-                @if (Sim.Config.Paused)
-                {
-                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">@T("순회 일시정지됨", "Rotation paused")</MudChip>
-                }
+                <MudChip T="string" Size="Size.Small" Color="@(Sim.Running ? Color.Success : Color.Warning)" Variant="Variant.Outlined">
+                    @(Sim.Running ? T("순회 진행 중", "Rotation running") : T("대기 — '시뮬 시작'을 눌러야 시작", "Waiting — press 'Start sim'"))
+                </MudChip>
                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@T("실행", "Run") @(string.IsNullOrEmpty(Sim.State.RunId) ? "-" : Sim.State.RunId)</MudChip>
             </MudStack>
             @{
@@ -124,16 +123,16 @@
                     @if (Korean)
                     {
                         <span>1. 게임 F6에서 프리셋을 "zzap TEST [시뮬 전용]"으로 고릅니다.<br />
-                        2. 메인 메뉴에서 기다리면 아래 순서의 다음 맵이 자동으로 시작됩니다(F6 → 시뮬레이션 랩에서 대기 시간 조절·자동 시작 끄기). 일시정지를 풀거나 "다음으로 지정"을 누르면 메뉴에 있는 채로 10초 안에 반영됩니다.<br />
-                        3. 맵마다 정한 분이 지나면 레이드가 "생존"으로 끝나고 결과 화면 없이 메뉴로 돌아옵니다. 메뉴에서 "맵 사이 대기" 동안 메모리를 정리한 뒤 다음 맵을 시작합니다.<br />
+                        2. 게임이 메인 메뉴에 있을 때 이 페이지 위쪽의 <b>"시뮬 시작"</b>을 누르면 10초 안에 카운트다운이 시작되고 아래 순서의 다음 맵이 시작됩니다. 게임을 켜기만 해서는 시작하지 않습니다(게임을 다시 켜면 다시 눌러야 함). "다음으로 지정"도 메뉴에 있는 채로 반영됩니다.<br />
+                        3. 맵마다 정한 분이 지나면 레이드가 "생존"으로 끝나고 결과 화면 없이 메뉴로 돌아옵니다. "맵 사이 대기"는 메인 메뉴가 <b>다 뜬 순간부터</b> 셉니다(레이드에서 나오는 시간은 맵마다 달라서). 나오는 도중에는 절대 다음 맵을 시작하지 않습니다.<br />
                         4. 결과는 "분석 보기"에서 확인합니다. 게임을 강제로 꺼도 1분마다 보낸 기록과 PC에 남긴 파일로 어디까지 했는지 남습니다.<br />
                         5. 실제 내 프로필로 레이드를 하므로(경험치·시간 진행), 시뮬 전용 프로필을 쓰는 것을 권장합니다.</span>
                     }
                     else
                     {
                         <span>1. In game, select the "zzap TEST [시뮬 전용]" preset in F6.<br />
-                        2. Wait in the main menu: the next map of the list below starts by itself (F6 → Simulation Lab sets the delay or turns auto start off). Un-pausing or "Make next" here takes effect within 10 s while you stay in the menu.<br />
-                        3. After each map's minutes the raid ends as "Survived" and returns to the menu without the result screens. The "gap between maps" is spent in the menu (memory is cleaned) before the next map.<br />
+                        2. With the game in the main menu, press <b>"Start sim"</b> at the top of this page: the countdown starts within 10 s and the next map below starts. Just launching the game never starts it (press again after restarting the game). "Make next" also applies while in the menu.<br />
+                        3. After each map's minutes the raid ends as "Survived" and returns to the menu without the result screens. The "gap between maps" counts from the moment the main menu has <b>fully loaded</b> (leaving a raid takes a different time per map); nothing starts while the game is still leaving the raid.<br />
                         4. Results are on "Analysis". Even if the game is killed, the per-minute reports and the file on the PC show how far it got.<br />
                         5. Raids run on your real profile (XP, time pass) — a separate sim profile is recommended.</span>
                     }
@@ -319,10 +318,13 @@
             .ToList();
     }
 
-    private void TogglePause()
+    private void ToggleRunning()
     {
-        Sim.Pause(!Sim.Config.Paused);
-        Snackbar.Add(Sim.Config.Paused ? T("순회를 멈췄습니다. 지금 레이드는 끝까지 진행되고, 메뉴에서 다음 맵을 자동으로 시작하지 않습니다.", "Rotation paused. The current raid plays to its end; the menu will not start the next map.") : T("순회를 다시 시작합니다. 메뉴에 있으면 10초 안에 카운트다운이 시작됩니다.", "Rotation resumed. In the menu the countdown starts within 10 s."), Severity.Info);
+        Sim.SaveConfig();
+        Sim.SetRunning(!Sim.Running);
+        Snackbar.Add(Sim.Running
+            ? T("시뮬을 시작합니다. 게임이 메인 메뉴에 있으면 10초 안에 카운트다운이 시작됩니다.", "Sim started. If the game is in the main menu, the countdown starts within 10 s.")
+            : T("시뮬을 멈췄습니다. 지금 레이드는 끝까지 진행되고, 메뉴에서 다음 맵을 시작하지 않습니다.", "Sim stopped. The current raid plays to its end; the menu will not start the next map."), Severity.Info);
     }
 
     private void NewRun()
