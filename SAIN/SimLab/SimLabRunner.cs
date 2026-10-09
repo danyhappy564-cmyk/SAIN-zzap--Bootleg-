@@ -71,6 +71,7 @@ public sealed class SimLabRunner : MonoBehaviour
     private bool _nextIsA = true;
     private bool _reserveEmptyNoted;
     private float _waitingSince = -1f;
+    private bool _firstSquadsPending;
     private bool _probeErrorLogged;
     private bool _waitingNoted;
 
@@ -516,6 +517,7 @@ public sealed class SimLabRunner : MonoBehaviour
         _reserveEmptyNoted = false;
         _waitingSince = -1f;
         _waitingNoted = false;
+        _firstSquadsPending = false;
         _probeErrorLogged = false;
         _seenBots.Clear();
         _roles.Clear();
@@ -603,8 +605,8 @@ public sealed class SimLabRunner : MonoBehaviour
             SimLabLeash.Reset();
             SimLabAbpsSpawn.EnsurePatched();
             CollectReserves(info);
-            Spawn(true, now);
-            Spawn(false, now);
+            // First squads wait until the game (and ABPS) can spawn - see TickFirstSquads.
+            _firstSquadsPending = true;
         }
 
         var start = BuildBeat("start");
@@ -770,6 +772,11 @@ public sealed class SimLabRunner : MonoBehaviour
             return;
         }
         var spawner = Singleton<IBotGame>.Instance?.BotsController?.BotSpawner;
+        if (_firstSquadsPending)
+        {
+            TickFirstSquads(spawner, now);
+            return;
+        }
         int total = spawner?.AllBotsWithDelayed ?? alive;
         NoteStuckSpawns(total, alive, now);
         int squad = Math.Max(1, info.SquadSizeMax);
@@ -779,6 +786,28 @@ public sealed class SimLabRunner : MonoBehaviour
         }
         bool sideA = info.SideA != info.SideB ? (aliveA != aliveB ? aliveA < aliveB : _nextIsA) : _nextIsA;
         Spawn(sideA, now);
+    }
+
+    // The first two squads used to be called the moment the raid started (user 2026-10-09: "early Factory spawns don't work").
+    // Then the game may still be loading bot profiles (BotSpawner.IsProfilesLoaded false: its boss spawner parks the wave in a
+    // 20 s retry loop) and ABPS's group spawner may not be set up yet. So wait for both, 3 s at least, 60 s at most.
+    private void TickFirstSquads(BotSpawner spawner, float now)
+    {
+        float waited = now - _raidStart;
+        bool profiles = spawner?.IsProfilesLoaded == true;
+        bool abps = SimLabAbpsSpawn.Ready;
+        if (waited < 3f || (waited < 60f && !(profiles && abps)))
+        {
+            return;
+        }
+        _firstSquadsPending = false;
+        Logger.LogWarning($"[SimLab] first squads after {waited:0}s (bot profiles loaded {profiles}, ABPS ready {abps})");
+        if (!(profiles && abps))
+        {
+            _notes.Add($"첫 분대를 60초 기다린 뒤 부름 (봇 프로필 준비 {profiles}, ABPS 준비 {abps})");
+        }
+        Spawn(true, now);
+        Spawn(false, now);
     }
 
     // Squads the game counts as "being spawned" (AllBotsWithDelayed) that never appear block every later call (the cap counts

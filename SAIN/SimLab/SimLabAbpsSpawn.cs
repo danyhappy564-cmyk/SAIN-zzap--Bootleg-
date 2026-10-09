@@ -27,6 +27,27 @@ public static class SimLabAbpsSpawn
 
     private static bool _tried;
     public static bool Active { get; private set; }
+    private static System.Reflection.FieldInfo _abpsReady;
+
+    /// <summary>ABPS's group spawner is set up for this raid (always true without ABPS).</summary>
+    public static bool Ready
+    {
+        get
+        {
+            if (!Active)
+            {
+                return true;
+            }
+            try
+            {
+                return _abpsReady == null || _abpsReady.GetValue(null) is true;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+    }
 
     [ThreadStatic]
     private static BossLocationSpawn _wave;
@@ -52,6 +73,7 @@ public static class SimLabAbpsSpawn
             harmony.Patch(trySpawn, prefix: new HarmonyMethod(typeof(SimLabAbpsSpawn), nameof(RememberWave)) { priority = Priority.First });
             harmony.Patch(picker, postfix: new HarmonyMethod(typeof(SimLabAbpsSpawn), nameof(PickInZone)));
             Active = true;
+            _abpsReady = AccessTools.Field(AccessTools.TypeByName("BotPlacementSystemClient.Spawning.PmcGroupSpawner"), "Initialized");
             Logger.LogWarning("[SimLab] ABPS found - sim squads are spawned by ABPS in the sim zones");
         }
         catch (Exception ex)

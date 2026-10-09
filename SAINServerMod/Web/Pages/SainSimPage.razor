@@ -86,8 +86,16 @@
                     <MudSwitch T="bool" @bind-Value="Sim.Config.TeleportToArena" Color="Color.Primary" />
                 </div>
                 <div class="sain-toggle-row">
-                    <MudText Typo="Typo.body2">@T("다른 스폰 전부 제거 (ABPS·기본 PMC·스캐브·보스)", "Remove all other spawns (ABPS, default PMCs, scavs, bosses)")</MudText>
+                    <MudText Typo="Typo.body2">@T("맵 원래 스폰 지우기 — 맵에 들어 있던 PMC·스캐브·보스 웨이브(ABPS가 서버에서 넣은 웨이브 포함)를 지우고 시뮬 분대만 나오게. 시뮬 분대를 누가 만드는지와는 별개", "Clear the map's own spawns - removes the map's PMC/scav/boss waves (incl. the ones ABPS put in on the server) so only sim squads appear. Separate from who spawns the sim squads")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.RemoveOtherSpawns" Color="Color.Primary" />
+                </div>
+                <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">
+                        @T("시뮬 분대를 ABPS로 생성 (권장) — ABPS가 분대를 만들고 SAIN은 자리만 시뮬 구역 안으로 고름. 끄면 게임 기본 생성(분대가 잘 안 나옴)",
+                           "Spawn sim squads with ABPS (recommended) - ABPS spawns the squads, SAIN points the spot at the sim zones. Off = the game's own spawner (squads often stall)")
+                        @(Sim.AbpsFound ? "" : T(" — ABPS 서버 모드 없음", " — ABPS server mod not found"))
+                    </MudText>
+                    <MudSwitch T="bool" Value="@(!Sim.Config.AbpsOffInSim)" ValueChanged="@((bool on) => Sim.Config.AbpsOffInSim = !on)" Color="Color.Primary" />
                 </div>
                 <div class="sain-toggle-row">
                     <MudText Typo="Typo.body2">@T("맵 사이 대기 시작 때 메모리 정리 (안 쓰는 리소스 해제 + GC)", "Clean memory at the start of the gap (unload unused assets + GC)")</MudText>
@@ -139,14 +147,6 @@
                 <div class="sain-toggle-row">
                     <MudText Typo="Typo.body2">@T("싸움 구역 줄 — 싸우지 않는 봇(ORBIT 이동 등)이 싸움 구역 원 밖에 15초 넘게 있으면 자기 편 구역으로 순간이동", "Arena leash - a bot not fighting (ORBIT roaming...) outside the arena circle for 15 s is teleported back into its side's zone")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.ArenaLeash" Color="Color.Primary" />
-                </div>
-                <div class="sain-toggle-row">
-                    <MudText Typo="Typo.body2">
-                        @T("시뮬 판에서 ABPS 끄기 — 기본은 꺼 둠(= ABPS가 분대를 만들고, SAIN이 자리만 시뮬 구역 안으로 고름). 켜면 게임 기본 생성(분대가 잘 안 나옴)",
-                           "ABPS off in sim raids - off by default (= ABPS spawns the squads, SAIN points the spot at the sim zones). On = the game's own spawner (squads often stall)")
-                        @(Sim.AbpsFound ? "" : T(" — ABPS 서버 모드 없음", " — ABPS server mod not found"))
-                    </MudText>
-                    <MudSwitch T="bool" @bind-Value="Sim.Config.AbpsOffInSim" Color="Color.Primary" />
                 </div>
                 <div class="sain-toggle-row">
                     <MudText Typo="Typo.body2">@T("시간이 끝나면 다음 맵으로", "Move to the next map when time is up")</MudText>
