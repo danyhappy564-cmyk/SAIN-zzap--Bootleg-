@@ -1,5 +1,6 @@
 using System.Text;
 using SAIN.Preset.Shared.SimLab;
+using static SAINServerMod.Web.Services.WebText;
 
 namespace SAINServerMod.SimLab;
 
@@ -45,70 +46,80 @@ public static class SimLabAnalyzer
 
         if (m.Status == "interrupted")
         {
-            list.Add(new(HIGH, "중간에 끊김",
-                $"t={played:0.0}분에서 마지막 보고. 게임 강제 종료(Alt+F4)·충돌·직접 나가기 중 하나. "
-                    + "그 시각 전후의 LogOutput.log와 시뮬 기록 파일(BepInEx/config/SAIN-zzap/SimLab/)을 같이 보면 원인이 나옵니다."));
+            list.Add(new(HIGH, T("중간에 끊김", "Interrupted"),
+                T($"t={played:0.0}분에서 마지막 보고. 게임 강제 종료(Alt+F4)·충돌·직접 나가기 중 하나. 그 시각 전후의 LogOutput.log와 시뮬 기록 파일(BepInEx/config/SAIN-zzap/SimLab/)을 같이 보면 원인이 나옵니다.",
+                  $"Last report at t={played:0.0} min. The game was closed (Alt+F4), crashed or was left by hand. LogOutput.log around that time plus the sim file (BepInEx/config/SAIN-zzap/SimLab/) show why.")));
         }
         else if (m.Status == "ended")
         {
-            list.Add(new(INFO, "시뮬 타이머가 아닌 이유로 레이드 종료", $"종료 이유: {b?.EndReason ?? "?"} (t={played:0.0}분)"));
+            list.Add(new(INFO, T("시뮬 타이머가 아닌 이유로 레이드 종료", "Raid ended by something other than the sim timer"),
+                T($"종료 이유: {b?.EndReason ?? "?"} (t={played:0.0}분)", $"End reason: {b?.EndReason ?? "?"} (t={played:0.0} min)")));
         }
         if (b == null)
         {
-            list.Add(new(HIGH, "보고 없음", "클라이언트가 이 맵에서 보고를 한 번도 보내지 못했습니다."));
+            list.Add(new(HIGH, T("보고 없음", "No reports"), T("클라이언트가 이 맵에서 보고를 한 번도 보내지 못했습니다.", "The client never reported from this map.")));
             return list;
         }
 
         if (m.Raid == null || !m.Raid.Applied)
         {
-            list.Add(new(WARN, "시뮬 스폰 미적용",
-                "이 레이드는 서버가 시뮬 스폰을 넣지 않은 상태로 시작됐습니다(서버가 시뮬 프리셋 신호를 못 받았거나 서버 재시작 직후). " + (m.Raid?.Note ?? string.Empty)));
+            list.Add(new(WARN, T("시뮬 스폰 미적용", "Sim spawns not applied"),
+                T("이 레이드는 서버가 시뮬 스폰을 넣지 않은 상태로 시작됐습니다(서버가 시뮬 프리셋 신호를 못 받았거나 서버 재시작 직후). ",
+                  "This raid started without the sim spawns (the server had no sim-preset signal, or had just restarted). ") + (m.Raid?.Note ?? string.Empty)));
         }
         else if (!string.IsNullOrEmpty(m.Raid.Note))
         {
-            list.Add(new(WARN, "시나리오 설정 문제", m.Raid.Note));
+            list.Add(new(WARN, T("시나리오 설정 문제", "Scenario setup problem"), m.Raid.Note));
         }
 
         int errors = ErrorTotal(m);
         if (errors > 0)
         {
             var top = b.Errors.OrderByDescending(e => e.Count).Take(3).Select(e => $"{e.Key} ×{e.Count}");
-            list.Add(new(HIGH, $"오류 {b.Errors.Count}종, 총 {errors}회", string.Join(" / ", top)));
+            list.Add(new(HIGH, T($"오류 {b.Errors.Count}종, 총 {errors}회", $"{b.Errors.Count} kinds of errors, {errors} in total"), string.Join(" / ", top)));
         }
 
         if (b.SimWavesActivated > 0 && b.BotsSeen == 0)
         {
-            list.Add(new(HIGH, "봇이 생성되지 않음", $"예비 분대 {b.SimWavesActivated}개를 불렀지만 봇이 하나도 안 나왔습니다. 구역 이름({m.Raid?.ZonesA} / {m.Raid?.ZonesB})이나 스폰 모드 충돌 의심."));
+            list.Add(new(HIGH, T("봇이 생성되지 않음", "No bots spawned"),
+                T($"예비 분대 {b.SimWavesActivated}개를 불렀지만 봇이 하나도 안 나왔습니다. 구역 이름({m.Raid?.ZonesA} / {m.Raid?.ZonesB})이나 스폰 모드 충돌 의심.",
+                  $"{b.SimWavesActivated} reserve squads were called but no bot appeared. Suspect the zone names ({m.Raid?.ZonesA} / {m.Raid?.ZonesB}) or a spawn mod conflict.")));
         }
 
         var sides = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "pmcUSEC", "pmcBEAR", m.Raid?.SideA ?? "", m.Raid?.SideB ?? "" };
         var others = b.SpawnedRoles?.Where(kv => !sides.Contains(kv.Key)).ToList() ?? [];
         if (others.Count > 0)
         {
-            list.Add(new(WARN, "시뮬 외 봇이 섞임",
-                string.Join(", ", others.Select(kv => $"{kv.Key}×{kv.Value}")) + " — 다른 스폰 모드(ABPS 등)나 보스 스폰이 남아 있습니다. 결과 해석에 주의."));
+            string roles = string.Join(", ", others.Select(kv => $"{kv.Key}×{kv.Value}"));
+            list.Add(new(WARN, T("시뮬 외 봇이 섞임", "Non-sim bots mixed in"),
+                roles + T(" — 다른 스폰 모드(ABPS 등)나 보스 스폰이 남아 있습니다. 결과 해석에 주의.", " — another spawn mod (ABPS etc.) or boss spawns are still active. Read the results with care.")));
         }
 
         if (played >= 8f && b.BotDeaths < 3)
         {
-            list.Add(new(WARN, "교전이 거의 없음",
-                $"{played:0}분 동안 봇 사망 {b.BotDeaths}. 두 구역이 너무 멀거나 서로 못 찾음(수색 판단/경로 문제). 일지 [Decide]의 수색·이동 이유 확인."));
+            list.Add(new(WARN, T("교전이 거의 없음", "Hardly any fighting"),
+                T($"{played:0}분 동안 봇 사망 {b.BotDeaths}. 두 구역이 너무 멀거나 서로 못 찾음(수색 판단/경로 문제). 일지 [Decide]의 수색·이동 이유 확인.",
+                  $"{b.BotDeaths} bot deaths in {played:0} min. The zones are too far apart or the sides don't find each other (search decision / path problem). Check the search/move reasons in the journal's [Decide] lines.")));
         }
 
         if (b.FpsMin > 0f && b.FpsMin < 20f)
         {
-            list.Add(new(WARN, "프레임 저하", $"1분 평균 최저 {b.FpsMin:0} fps (마지막 {b.Fps:0}). 같은 시각 [Perf] 줄과 살아 있는 봇 수 비교."));
+            list.Add(new(WARN, T("프레임 저하", "Low frame rate"),
+                T($"10초 평균 최저 {b.FpsMin:0} fps (마지막 {b.Fps:0}). 같은 시각 [Perf] 줄과 살아 있는 봇 수 비교.", $"Lowest 10 s average {b.FpsMin:0} fps (last {b.Fps:0}). Compare with the [Perf] lines and alive bots at that time.")));
         }
         if (b.Stalls > 0)
         {
-            list.Add(new(WARN, "멈춤(1초 넘는 프레임)", $"{b.Stalls}회. 같은 시각 LogOutput.log에 예외나 GC가 있었는지 확인."));
+            list.Add(new(WARN, T("멈춤(1초 넘는 프레임)", "Stalls (frames over 1 s)"),
+                T($"{b.Stalls}회. 같은 시각 LogOutput.log에 예외나 GC가 있었는지 확인.", $"{b.Stalls} times. Check LogOutput.log at those times for exceptions or GC.")));
         }
         if (m.Samples.Count >= 2)
         {
             long growth = m.Samples[^1].Mono - m.Samples[0].Mono;
             if (growth > 1500)
             {
-                list.Add(new(WARN, "메모리 증가", $"관리 메모리 +{growth} MB ({m.Samples[0].Mono} → {m.Samples[^1].Mono} MB). 레이드 중 GC가 꺼져 있어 정상일 수도 있으나 맵마다 비교 필요."));
+                list.Add(new(WARN, T("메모리 증가", "Memory growth"),
+                    T($"관리 메모리 +{growth} MB ({m.Samples[0].Mono} → {m.Samples[^1].Mono} MB). 레이드 중 GC가 꺼져 있어 정상일 수도 있으나 맵마다 비교 필요.",
+                      $"Managed memory +{growth} MB ({m.Samples[0].Mono} → {m.Samples[^1].Mono} MB). GC is off during raids so this can be normal; compare between maps.")));
             }
         }
 
@@ -116,40 +127,40 @@ public static class SimLabAnalyzer
         int switching = b.ByPersonality?.Values.Sum(r => r.DiedSwitching) ?? 0;
         if (deaths >= 6 && switching * 10 >= deaths * 3)
         {
-            list.Add(new(WARN, "판단을 바꾼 직후 사망이 많음", $"사망 {deaths} 중 {switching}이 판단 전환 1.5초 안 (30% 이상). 일지 [Death] why=·decisionAge= 확인."));
+            list.Add(new(WARN, T("판단을 바꾼 직후 사망이 많음", "Many deaths right after a decision change"),
+                T($"사망 {deaths} 중 {switching}이 판단 전환 1.5초 안 (30% 이상). 일지 [Death] why=·decisionAge= 확인.", $"{switching} of {deaths} deaths within 1.5 s of a decision change (30%+). Check why= / decisionAge= in the journal's [Death] lines.")));
         }
 
         int freezeDeaths = Get(b, "death.Freeze");
         if (freezeDeaths > 0)
         {
-            list.Add(new(WARN, "얼음 매복 중 사망", $"death.Freeze={freezeDeaths} (0이어야 정상)."));
+            list.Add(new(WARN, T("얼음 매복 중 사망", "Died while freeze-ambushing"), T($"death.Freeze={freezeDeaths} (0이어야 정상).", $"death.Freeze={freezeDeaths} (should be 0).")));
         }
         int stuck = Sum(b, "stuck.");
         if (stuck > 0)
         {
-            list.Add(new(INFO, "막힘 기록", $"stuck.* 합계 {stuck}. 같은 자리 반복이면 맵 지형 문제."));
+            list.Add(new(INFO, T("막힘 기록", "Stuck records"), T($"stuck.* 합계 {stuck}. 같은 자리 반복이면 맵 지형 문제.", $"stuck.* total {stuck}. Repeats at one spot point to map geometry.")));
         }
         int doorStart = Sum(b, "door.start.");
         int doorAbort = Sum(b, "door.abort") + Sum(b, "door.reject.");
         if (doorStart >= 5 && doorAbort > doorStart)
         {
-            list.Add(new(WARN, "문 전술 중단이 시작보다 많음", $"시작 {doorStart} / 중단·거절 {doorAbort}."));
+            list.Add(new(WARN, T("문 전술 중단이 시작보다 많음", "More door-tactic aborts than starts"), T($"시작 {doorStart} / 중단·거절 {doorAbort}.", $"Starts {doorStart} / aborts+rejects {doorAbort}.")));
         }
         int thrown = Sum(b, "nade.thrown");
         int nadeFail = Get(b, "nade.noArc") + Get(b, "nade.notReady");
         if (nadeFail >= 10 && nadeFail > thrown * 3)
         {
-            list.Add(new(INFO, "수류탄 궤적 실패가 많음", $"던짐 {thrown} / 궤적 없음·준비 안 됨 {nadeFail}."));
+            list.Add(new(INFO, T("수류탄 궤적 실패가 많음", "Many grenade arc failures"), T($"던짐 {thrown} / 궤적 없음·준비 안 됨 {nadeFail}.", $"Thrown {thrown} / no arc + not ready {nadeFail}.")));
         }
-        int teamKills = b.TeamKills;
-        if (teamKills > 0)
+        if (b.TeamKills > 0)
         {
-            list.Add(new(INFO, "아군 사격 사망", $"{teamKills}회."));
+            list.Add(new(INFO, T("아군 사격 사망", "Team kills"), T($"{b.TeamKills}회.", $"{b.TeamKills}.")));
         }
 
         if (list.All(f => f.Severity is INFO or OK))
         {
-            list.Insert(0, new(OK, "큰 문제 없음", $"{played:0}분, 봇 사망 {b.BotDeaths}, 오류 0."));
+            list.Insert(0, new(OK, T("큰 문제 없음", "No major problems"), T($"{played:0}분, 봇 사망 {b.BotDeaths}, 오류 0.", $"{played:0} min, {b.BotDeaths} bot deaths, 0 errors.")));
         }
         return list;
     }
@@ -270,10 +281,10 @@ public static class SimLabAnalyzer
     {
         return status switch
         {
-            "running" => "진행 중",
-            "done" => "완료",
-            "interrupted" => "중단됨",
-            "ended" => "다른 이유로 종료",
+            "running" => T("진행 중", "Running"),
+            "done" => T("완료", "Done"),
+            "interrupted" => T("중단됨", "Interrupted"),
+            "ended" => T("다른 이유로 종료", "Ended otherwise"),
             _ => status,
         };
     }

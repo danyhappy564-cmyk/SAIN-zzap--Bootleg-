@@ -13,7 +13,7 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
-<PageTitle>SAIN Server Settings</PageTitle>
+<PageTitle>@T("SAIN 서버 설정", "SAIN Server Settings")</PageTitle>
 <HeadContent>
     <link rel="stylesheet" href="/SAIN/css/sain.css" />
 </HeadContent>
@@ -28,31 +28,31 @@
                         <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Color="Color.Warning" Size="Size.Large" />
                     </div>
                     <div>
-                        <MudText Typo="Typo.h5" Class="spt-title">Server Settings</MudText>
-                        <MudText Typo="Typo.caption" Class="spt-muted">Admin controls for SAIN presets and in-game editing.</MudText>
+                        <MudText Typo="Typo.h5" Class="spt-title">@T("서버 설정", "Server Settings")</MudText>
+                        <MudText Typo="Typo.caption" Class="spt-muted">@T("SAIN 프리셋과 게임 안 편집 권한 관리.", "Admin controls for SAIN presets and in-game editing.")</MudText>
                     </div>
                 </MudStack>
-                <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveAsync">Save</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveAsync">@T("저장", "Save")</MudButton>
             </MudStack>
         </MudPaper>
 
         <div class="sain-settings-grid">
             <MudPaper Elevation="0" Class="spt-panel pa-4">
-                <MudText Typo="Typo.subtitle1" Class="spt-title mb-1">Presets</MudText>
+                <MudText Typo="Typo.subtitle1" Class="spt-title mb-1">@T("프리셋", "Presets")</MudText>
                 <MudStack Spacing="3">
                     <div>
-                        <MudText Typo="Typo.overline" Class="spt-muted mb-1">Available default presets</MudText>
-                        <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">Turn individual defaults off to hide them from players in-game.</MudText>
+                        <MudText Typo="Typo.overline" Class="spt-muted mb-1">@T("쓸 수 있는 기본 프리셋", "Available default presets")</MudText>
+                        <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">@T("끄면 게임 안 목록에서 그 기본 프리셋이 숨겨집니다.", "Turn individual defaults off to hide them from players in-game.")</MudText>
                         @if (IsForced)
                         {
                             <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-2">
-                                A preset is forced below, so hiding individual defaults has no effect while a force is set.
+                                @T("아래에서 프리셋을 강제로 지정해서, 강제가 켜진 동안에는 기본 프리셋 숨기기가 효과가 없습니다.", "A preset is forced below, so hiding individual defaults has no effect while a force is set.")
                             </MudAlert>
                         }
                         else if (!HasCustomPresets)
                         {
                             <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-2">
-                                Players always need at least one preset, so the last available one can't be turned off. Add a custom preset to hide more.
+                                @T("프리셋은 최소 하나는 있어야 해서 마지막 하나는 끌 수 없습니다. 더 숨기려면 사용자 프리셋을 추가하세요.", "Players always need at least one preset, so the last available one can't be turned off. Add a custom preset to hide more.")
                             </MudAlert>
                         }
                         <div class="sain-toggle-list @(IsForced ? "sain-toggle-list-disabled" : null)">
@@ -68,36 +68,36 @@
                     </div>
                     <MudDivider />
                     <div>
-                        <MudSelect T="string" Value="ForcedValue" ValueChanged="OnForcedChanged" Label="Force a preset for all players"
+                        <MudSelect T="string" Value="ForcedValue" ValueChanged="OnForcedChanged" Label="@T("모든 플레이어에게 프리셋 강제", "Force a preset for all players")"
                                    Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="max-width:360px;">
-                            <MudSelectItem T="string" Value="@NoneOption">Not forced (players choose)</MudSelectItem>
+                            <MudSelectItem T="string" Value="@NoneOption">@T("강제 안 함 (플레이어가 고름)", "Not forced (players choose)")</MudSelectItem>
                             @foreach (var item in _presets)
                             {
-                                <MudSelectItem T="string" Value="@item.Name">@item.Name @(item.IsCustom ? "(custom)" : "(default)")</MudSelectItem>
+                                <MudSelectItem T="string" Value="@item.Name">@item.Name @(item.IsCustom ? T("(사용자)", "(custom)") : T("(기본)", "(default)"))</MudSelectItem>
                             }
                         </MudSelect>
                         <MudText Typo="Typo.caption" Class="spt-muted">
-                            When set, every player is locked onto this preset and can't change it in-game.
+                            @T("지정하면 모든 플레이어가 이 프리셋으로 고정되고 게임 안에서 바꿀 수 없습니다.", "When set, every player is locked onto this preset and can't change it in-game.")
                         </MudText>
                     </div>
                 </MudStack>
             </MudPaper>
 
             <MudPaper Elevation="0" Class="spt-panel pa-4">
-                <MudText Typo="Typo.subtitle1" Class="spt-title mb-1">In-game editing</MudText>
+                <MudText Typo="Typo.subtitle1" Class="spt-title mb-1">@T("게임 안 편집", "In-game editing")</MudText>
                 <MudStack Spacing="3">
                     <div>
-                        <MudSwitch T="bool" @bind-Value="ServerConfig.Config.AllowClientEditing" Color="Color.Primary" Label="Allow all players to edit presets" />
+                        <MudSwitch T="bool" @bind-Value="ServerConfig.Config.AllowClientEditing" Color="Color.Primary" Label="@T("모든 플레이어의 프리셋 편집 허용", "Allow all players to edit presets")" />
                         <MudText Typo="Typo.caption" Class="spt-muted">
-                            When off, only the players allowlisted below can save changes from the in-game editor.
+                            @T("끄면 아래 허용 목록의 플레이어만 게임 안 편집기(F6)에서 저장할 수 있습니다.", "When off, only the players allowlisted below can save changes from the in-game editor.")
                         </MudText>
                     </div>
                     <MudDivider />
                     <div>
-                        <MudText Typo="Typo.overline" Class="spt-muted mb-1">Allowlist</MudText>
+                        <MudText Typo="Typo.overline" Class="spt-muted mb-1">@T("허용 목록", "Allowlist")</MudText>
                         @if (_profiles.Count == 0)
                         {
-                            <div class="sain-empty-inline"><MudText Typo="Typo.body2" Class="spt-muted">No profiles found on this server.</MudText></div>
+                            <div class="sain-empty-inline"><MudText Typo="Typo.body2" Class="spt-muted">@T("이 서버에 프로필이 없습니다.", "No profiles found on this server.")</MudText></div>
                         }
                         else
                         {
@@ -116,7 +116,7 @@
                             </div>
                             @if (ServerConfig.Config.AllowClientEditing)
                             {
-                                <MudText Typo="Typo.caption" Class="spt-muted">Editing is open to everyone, so the allowlist is inactive.</MudText>
+                                <MudText Typo="Typo.caption" Class="spt-muted">@T("모두에게 편집이 열려 있어서 허용 목록은 쓰이지 않습니다.", "Editing is open to everyone, so the allowlist is inactive.")</MudText>
                             }
                         }
                     </div>
@@ -231,6 +231,6 @@
     {
         await ServerConfig.SaveAsync();
         await PresetSync.BroadcastPresetChanged(string.Empty, EPresetSyncChange.ConfigChanged);
-        Snackbar.Add("Server settings saved. Connected players will update live.", Severity.Success);
+        Snackbar.Add(T("서버 설정을 저장했습니다. 접속 중인 플레이어에게 바로 반영됩니다.", "Server settings saved. Connected players will update live."), Severity.Success);
     }
 }

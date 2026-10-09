@@ -20,6 +20,15 @@ public sealed class SainServerConfigService(ModHelper modHelper, JsonFileStoreUt
     public async Task OnLoadAsync(CancellationToken cancellationToken = default)
     {
         Config = await jsonFileStore.ReadAsync<SAINServerConfig>(_path) ?? new SAINServerConfig();
+        Web.Services.WebText.Korean = !string.Equals(Config.WebLanguage, "en", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>zzap: switch the web pages' language and save it.</summary>
+    public async Task SetWebKoreanAsync(bool korean)
+    {
+        Web.Services.WebText.Korean = korean;
+        Config.WebLanguage = korean ? "ko" : "en";
+        await SaveAsync();
     }
 
     public async Task SaveAsync()

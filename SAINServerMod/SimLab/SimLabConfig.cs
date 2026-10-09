@@ -29,6 +29,12 @@ public sealed class SimLabConfig
     /// <summary>Minimum seconds between two refill squads.</summary>
     public int RespawnSeconds = 45;
 
+    /// <summary>Seconds to wait in the main menu between two sim maps (RAM recovers in the menu - user 2026-10-09).</summary>
+    public int GapSeconds = 120;
+
+    /// <summary>At the start of that wait, the client also unloads unused assets and runs the GC.</summary>
+    public bool CleanMemoryBetweenMaps = true;
+
     /// <summary>Minutes for a map that is not in the rotation list (a raid you started yourself).</summary>
     public float DefaultMinutes = 20f;
 
@@ -54,6 +60,10 @@ public sealed class SimScenario
 
     /// <summary>What this map's test is for (shown on the page and in the analysis).</summary>
     public string Focus = string.Empty;
+
+    /// <summary>English name / focus for the web page in English (empty = the Korean text is shown).</summary>
+    public string NameEn = string.Empty;
+    public string FocusEn = string.Empty;
 
     /// <summary>Bot zones (comma separated) for side A / side B. Empty = anywhere on the map.</summary>
     public string ZonesA = string.Empty;

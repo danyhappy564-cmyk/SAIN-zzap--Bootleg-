@@ -6,7 +6,7 @@
 @inject SimLabService Sim
 @inject ISnackbar Snackbar
 
-<PageTitle>SAIN 시뮬레이션</PageTitle>
+<PageTitle>@T("SAIN 시뮬레이션", "SAIN Simulation")</PageTitle>
 <HeadContent>
     <link rel="stylesheet" href="/SAIN/css/sain.css" />
 </HeadContent>
@@ -21,117 +21,133 @@
                         <MudIcon Icon="@Icons.Material.Filled.Science" Color="Color.Warning" Size="Size.Large" />
                     </div>
                     <div>
-                        <MudText Typo="Typo.h5" Class="spt-title">시뮬레이션 (zzap)</MudText>
+                        <MudText Typo="Typo.h5" Class="spt-title">@T("시뮬레이션 (zzap)", "Simulation (zzap)")</MudText>
                         <MudText Typo="Typo.caption" Class="spt-muted">
-                            맵 순회 봇 시뮬레이션. 게임에서 "zzap TEST [시뮬 전용]" 프리셋을 쓸 때만 작동합니다. 다른 프리셋이면 아무것도 바뀌지 않습니다.
+                            @T("맵 순회 봇 시뮬레이션. 게임에서 \"zzap TEST [시뮬 전용]\" 프리셋을 쓸 때만 작동합니다. 다른 프리셋이면 아무것도 바뀌지 않습니다.", "Map-rotation bot simulation. Only active while the game uses the \"zzap TEST [시뮬 전용]\" preset; with any other preset nothing changes.")
                         </MudText>
                     </div>
                 </MudStack>
                 <MudStack Row Spacing="2" Wrap="Wrap.Wrap">
                     <MudButton Variant="Variant.Outlined" Color="@(Sim.Config.Paused ? Color.Success : Color.Default)"
                                StartIcon="@(Sim.Config.Paused ? Icons.Material.Filled.PlayArrow : Icons.Material.Filled.Pause)" OnClick="TogglePause">
-                        @(Sim.Config.Paused ? "순회 재개" : "순회 일시정지")
+                        @(Sim.Config.Paused ? T("순회 재개", "Resume rotation") : T("순회 일시정지", "Pause rotation"))
                     </MudButton>
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FiberNew" OnClick="NewRun">새 실행 시작</MudButton>
-                    <MudButton Href="/sain/sim/analysis" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Analytics">분석 보기</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Save" OnClick="Save">저장</MudButton>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FiberNew" OnClick="NewRun">@T("새 실행 시작", "Start new run")</MudButton>
+                    <MudButton Href="/sain/sim/analysis" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Analytics">@T("분석 보기", "Analysis")</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Save" OnClick="Save">@T("저장", "Save")</MudButton>
                 </MudStack>
             </MudStack>
         </MudPaper>
 
         <MudPaper Elevation="0" Class="spt-panel pa-4 mb-4">
-            <MudText Typo="Typo.subtitle1" Class="spt-title mb-2">지금 상태</MudText>
+            <MudText Typo="Typo.subtitle1" Class="spt-title mb-2">@T("지금 상태", "Status")</MudText>
             <MudStack Row Wrap="Wrap.Wrap" Spacing="2" Class="mb-2">
                 <MudChip T="string" Size="Size.Small" Color="@(Sim.Armed ? Color.Success : Color.Default)" Variant="Variant.Outlined">
-                    @(Sim.Armed ? $"작동 중 (프리셋 {Sim.ArmedPreset})" : "꺼짐 — 게임에서 시뮬 프리셋을 고르면 켜짐")
+                    @(Sim.Armed ? T($"작동 중 (프리셋 {Sim.ArmedPreset})", $"Active (preset {Sim.ArmedPreset})") : T("꺼짐 — 게임에서 시뮬 프리셋을 고르면 켜짐", "Off — select the sim preset in game to turn it on"))
                 </MudChip>
                 @if (Sim.LastHello != default)
                 {
-                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">게임 마지막 연락 @(Sim.LastHello.ToString("HH:mm:ss"))</MudChip>
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@T("게임 마지막 연락", "Last contact from game") @(Sim.LastHello.ToString("HH:mm:ss"))</MudChip>
                 }
                 @if (Sim.Config.Paused)
                 {
-                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">순회 일시정지됨</MudChip>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">@T("순회 일시정지됨", "Rotation paused")</MudChip>
                 }
-                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">실행 @(string.IsNullOrEmpty(Sim.State.RunId) ? "-" : Sim.State.RunId)</MudChip>
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@T("실행", "Run") @(string.IsNullOrEmpty(Sim.State.RunId) ? "-" : Sim.State.RunId)</MudChip>
             </MudStack>
             @{
                 var plan = Sim.Plan();
             }
             <MudText Typo="Typo.body2">
-                다음 맵: <b>@(plan.NextMapName ?? "-")</b> (@(plan.Step + 1)/@(plan.StepCount)) — @(plan.ScenarioName) · @(plan.Minutes.ToString("0"))분
+                @T("다음 맵", "Next map"): <b>@(plan.NextMap == null ? "-" : SimLabDefaults.DisplayName(plan.NextMap))</b> (@(plan.Step + 1)/@(plan.StepCount)) — @(plan.NextMap == null ? "" : SimLabDefaults.ScenarioName(Sim.ScenarioFor(plan.NextMap))) · @(plan.Minutes.ToString("0"))@T("분", " min") · @T("맵 사이 대기", "gap between maps") @(Sim.Config.GapSeconds)@T("초", " s")
             </MudText>
             @if (!string.IsNullOrEmpty(plan.Message))
             {
-                <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">@plan.Message</MudAlert>
+                <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">@T(plan.Message, "No map in the rotation is switched on (turn maps on below).")</MudAlert>
             }
             @if (Sim.LastBeat != null)
             {
                 var b = Sim.LastBeat;
                 <MudText Typo="Typo.body2" Class="mt-1">
-                    마지막 보고: @(SimLabDefaults.NameOf(b.Map ?? "")) t=@((b.RaidSeconds / 60f).ToString("0.0"))/@((b.PlannedSeconds / 60f).ToString("0"))분 ·
-                    생존 봇 @(b.AliveBots) · 봇 사망 @(b.BotDeaths) · @(b.Fps.ToString("0")) fps · 오류 @(b.Errors?.Sum(e => e.Count) ?? 0) (@(b.Kind))
+                    @T("마지막 보고", "Last report"): @(SimLabDefaults.DisplayName(b.Map ?? "")) t=@((b.RaidSeconds / 60f).ToString("0.0"))/@((b.PlannedSeconds / 60f).ToString("0"))@T("분", " min") ·
+                    @T("생존 봇", "alive bots") @(b.AliveBots) · @T("봇 사망", "bot deaths") @(b.BotDeaths) · @(b.Fps.ToString("0")) fps · @T("오류", "errors") @(b.Errors?.Sum(e => e.Count) ?? 0) (@(b.Kind))
                 </MudText>
             }
         </MudPaper>
 
         <div class="sain-settings-grid">
             <MudPaper Elevation="0" Class="spt-panel pa-4">
-                <MudText Typo="Typo.subtitle1" Class="spt-title mb-2">공통 설정</MudText>
+                <MudText Typo="Typo.subtitle1" Class="spt-title mb-2">@T("공통 설정", "General")</MudText>
                 <div class="sain-toggle-row">
-                    <MudText Typo="Typo.body2">관전 모드 (플레이어 무적, 봇이 플레이어 무시)</MudText>
+                    <MudText Typo="Typo.body2">@T("관전 모드 (플레이어 무적, 봇이 플레이어 무시)", "Spectator (player invincible, bots ignore the player)")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.Spectator" Color="Color.Primary" />
                 </div>
                 <div class="sain-toggle-row">
-                    <MudText Typo="Typo.body2">시작 때 A쪽 구역으로 순간이동 (멀면 봇 AI가 간소화됨)</MudText>
+                    <MudText Typo="Typo.body2">@T("시작 때 A쪽 구역으로 순간이동 (멀면 봇 AI가 간소화됨)", "Teleport next to side A at start (far bots get reduced AI)")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.TeleportToArena" Color="Color.Primary" />
                 </div>
                 <div class="sain-toggle-row">
-                    <MudText Typo="Typo.body2">다른 스폰 전부 제거 (ABPS·기본 PMC·스캐브·보스)</MudText>
+                    <MudText Typo="Typo.body2">@T("다른 스폰 전부 제거 (ABPS·기본 PMC·스캐브·보스)", "Remove all other spawns (ABPS, default PMCs, scavs, bosses)")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.RemoveOtherSpawns" Color="Color.Primary" />
                 </div>
                 <div class="sain-toggle-row">
-                    <MudText Typo="Typo.body2">시간이 끝나면 다음 맵으로</MudText>
+                    <MudText Typo="Typo.body2">@T("맵 사이 대기 시작 때 메모리 정리 (안 쓰는 리소스 해제 + GC)", "Clean memory at the start of the gap (unload unused assets + GC)")</MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.CleanMemoryBetweenMaps" Color="Color.Primary" />
+                </div>
+                <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">@T("시간이 끝나면 다음 맵으로", "Move to the next map when time is up")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.AutoRotate" Color="Color.Primary" />
                 </div>
                 <MudStack Row Wrap="Wrap.Wrap" Spacing="2" Class="mt-3">
-                    <MudNumericField T="int" @bind-Value="Sim.Config.MaxAliveBots" Label="동시에 살아 있는 최대 봇" Min="2" Max="40"
+                    <MudNumericField T="int" @bind-Value="Sim.Config.MaxAliveBots" Label="@T("동시에 살아 있는 최대 봇", "Max bots alive at once")" Min="2" Max="40"
                                      Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:200px;" />
-                    <MudNumericField T="int" @bind-Value="Sim.Config.SquadSizeMin" Label="분대 최소" Min="1" Max="6"
+                    <MudNumericField T="int" @bind-Value="Sim.Config.SquadSizeMin" Label="@T("분대 최소", "Squad min")" Min="1" Max="6"
                                      Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:120px;" />
-                    <MudNumericField T="int" @bind-Value="Sim.Config.SquadSizeMax" Label="분대 최대" Min="1" Max="6"
+                    <MudNumericField T="int" @bind-Value="Sim.Config.SquadSizeMax" Label="@T("분대 최대", "Squad max")" Min="1" Max="6"
                                      Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:120px;" />
-                    <MudNumericField T="int" @bind-Value="Sim.Config.RespawnSeconds" Label="보충 간격(초)" Min="5" Max="600"
+                    <MudNumericField T="int" @bind-Value="Sim.Config.RespawnSeconds" Label="@T("보충 간격(초)", "Refill interval (s)")" Min="5" Max="600"
                                      Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:150px;" />
-                    <MudNumericField T="float" @bind-Value="Sim.Config.DefaultMinutes" Label="목록에 없는 맵(분)" Min="1" Max="120"
+                    <MudNumericField T="int" @bind-Value="Sim.Config.GapSeconds" Label="@T("맵 사이 대기(초, 메인 메뉴)", "Gap between maps (s, main menu)")" Min="0" Max="1800"
+                                     Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:220px;" />
+                    <MudNumericField T="float" @bind-Value="Sim.Config.DefaultMinutes" Label="@T("목록에 없는 맵(분)", "Unlisted map (min)")" Min="1" Max="120"
                                      Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:170px;" />
                 </MudStack>
                 <MudText Typo="Typo.caption" Class="spt-muted d-block mt-2">
-                    봇은 서버가 넣어 둔 "예비 분대"를 게임이 살아 있는 봇 수를 보며 하나씩 부릅니다. 최대 수보다 적어지면 보충 간격마다 A/B 중 적은 쪽에 분대를 보냅니다.
-                    프로필은 부를 때만 만들어져서 미리 대량 생성되지 않습니다.
+                    @T("봇은 서버가 넣어 둔 \"예비 분대\"를 게임이 살아 있는 봇 수를 보며 하나씩 부릅니다. 최대 수보다 적어지면 보충 간격마다 A/B 중 적은 쪽에 분대를 보냅니다. 프로필은 부를 때만 만들어져서 미리 대량 생성되지 않습니다.", "The server puts \"reserve squads\" in the raid and the game calls them one by one by the number of living bots: below the max, every refill interval a squad goes to the side with fewer bots. Profiles are made only when a squad is called, so nothing piles up in advance.")
                 </MudText>
                 <MudTextField T="string" Value="@string.Join(", ", Sim.Config.ExcludedMapKeywords)" ValueChanged="SetExcluded"
-                              Label="제외할 맵 (이름에 포함된 단어, 쉼표로 구분)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+                              Label="@T("제외할 맵 (이름에 포함된 단어, 쉼표로 구분)", "Excluded maps (words in the map id, comma separated)")" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
             </MudPaper>
             <MudPaper Elevation="0" Class="spt-panel pa-4">
-                <MudText Typo="Typo.subtitle1" Class="spt-title mb-2">사용법</MudText>
+                <MudText Typo="Typo.subtitle1" Class="spt-title mb-2">@T("사용법", "How to use")</MudText>
                 <MudText Typo="Typo.body2">
-                    1. 게임 F6에서 프리셋을 "zzap TEST [시뮬 전용]"으로 고릅니다.<br />
-                    2. 메인 메뉴에서 기다리면 아래 순서의 다음 맵이 자동으로 시작됩니다(F6 → 시뮬레이션 랩에서 대기 시간 조절·자동 시작 끄기).<br />
-                    3. 맵마다 정한 분이 지나면 레이드가 "생존"으로 끝나고 결과 화면 없이 메뉴로 돌아와 다음 맵을 시작합니다.<br />
-                    4. 결과는 "분석 보기"에서 확인합니다. 게임을 강제로 꺼도 1분마다 보낸 기록과 PC에 남긴 파일로 어디까지 했는지 남습니다.<br />
-                    5. 실제 내 프로필로 레이드를 하므로(경험치·시간 진행), 시뮬 전용 프로필을 쓰는 것을 권장합니다.
+                    @if (Korean)
+                    {
+                        <span>1. 게임 F6에서 프리셋을 "zzap TEST [시뮬 전용]"으로 고릅니다.<br />
+                        2. 메인 메뉴에서 기다리면 아래 순서의 다음 맵이 자동으로 시작됩니다(F6 → 시뮬레이션 랩에서 대기 시간 조절·자동 시작 끄기). 일시정지를 풀거나 "다음으로 지정"을 누르면 메뉴에 있는 채로 10초 안에 반영됩니다.<br />
+                        3. 맵마다 정한 분이 지나면 레이드가 "생존"으로 끝나고 결과 화면 없이 메뉴로 돌아옵니다. 메뉴에서 "맵 사이 대기" 동안 메모리를 정리한 뒤 다음 맵을 시작합니다.<br />
+                        4. 결과는 "분석 보기"에서 확인합니다. 게임을 강제로 꺼도 1분마다 보낸 기록과 PC에 남긴 파일로 어디까지 했는지 남습니다.<br />
+                        5. 실제 내 프로필로 레이드를 하므로(경험치·시간 진행), 시뮬 전용 프로필을 쓰는 것을 권장합니다.</span>
+                    }
+                    else
+                    {
+                        <span>1. In game, select the "zzap TEST [시뮬 전용]" preset in F6.<br />
+                        2. Wait in the main menu: the next map of the list below starts by itself (F6 → Simulation Lab sets the delay or turns auto start off). Un-pausing or "Make next" here takes effect within 10 s while you stay in the menu.<br />
+                        3. After each map's minutes the raid ends as "Survived" and returns to the menu without the result screens. The "gap between maps" is spent in the menu (memory is cleaned) before the next map.<br />
+                        4. Results are on "Analysis". Even if the game is killed, the per-minute reports and the file on the PC show how far it got.<br />
+                        5. Raids run on your real profile (XP, time pass) — a separate sim profile is recommended.</span>
+                    }
                 </MudText>
                 <MudButton Variant="Variant.Text" Color="Color.Error" Class="mt-3" StartIcon="@Icons.Material.Filled.RestartAlt" OnClick="ResetDefaults">
-                    순서·시나리오 기본값 복원
+                    @T("순서·시나리오 기본값 복원", "Reset order and scenarios")
                 </MudButton>
             </MudPaper>
         </div>
 
         <MudPaper Elevation="0" Class="spt-panel pa-4 mt-4">
-            <MudText Typo="Typo.subtitle1" Class="spt-title mb-1">맵 순서와 시나리오</MudText>
+            <MudText Typo="Typo.subtitle1" Class="spt-title mb-1">@T("맵 순서와 시나리오", "Map order and scenarios")</MudText>
             <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
-                위에서부터 차례로 진행합니다. 화살표로 순서를 바꾸고, 켜진 맵만 돕니다. 시나리오를 펼치면 양쪽 스폰 구역을 바꿀 수 있습니다(구역 이름은 맵 데이터에서 읽은 목록).
+                @T("위에서부터 차례로 진행합니다. 화살표로 순서를 바꾸고, 켜진 맵만 돕니다. 시나리오를 펼치면 양쪽 스폰 구역을 바꿀 수 있습니다(구역 이름은 맵 데이터에서 읽은 목록).", "Played from the top. Reorder with the arrows; only maps switched on are played. Open a scenario to change where each side spawns (zone names are read from the map data).")
             </MudText>
             <MudExpansionPanels Elevation="0" Class="sain-panels" MultiExpansion="true">
                 @for (int i = 0; i < Sim.Config.Rotation.Count; i++)
@@ -146,47 +162,55 @@
                                 <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" Disabled="@(index == 0)" OnClick="@(() => Move(index, -1))" />
                                 <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" Disabled="@(index == Sim.Config.Rotation.Count - 1)" OnClick="@(() => Move(index, 1))" />
                                 <MudSwitch T="bool" Value="entry.Enabled" ValueChanged="@(v => entry.Enabled = v)" Color="Color.Primary" Disabled="excluded" />
-                                <MudText Typo="Typo.body1" Style="min-width:150px;"><b>@SimLabDefaults.NameOf(entry.Map)</b></MudText>
+                                <MudText Typo="Typo.body1" Style="min-width:150px;"><b>@SimLabDefaults.DisplayName(entry.Map)</b></MudText>
                                 <MudNumericField T="float" Value="entry.Minutes" ValueChanged="@(v => entry.Minutes = Math.Max(1f, v))" Min="1" Max="180"
-                                                 Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:110px;" Adornment="Adornment.End" AdornmentText="분" />
-                                <MudText Typo="Typo.body2" Class="spt-muted">@(scenario.Name)</MudText>
+                                                 Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:110px;" Adornment="Adornment.End" AdornmentText="@T("분", "min")" />
+                                <MudText Typo="Typo.body2" Class="spt-muted">@SimLabDefaults.ScenarioName(scenario)</MudText>
                                 @if (excluded)
                                 {
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">제외됨</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">@T("제외됨", "Excluded")</MudChip>
                                 }
                                 @if (IsNext(entry.Map))
                                 {
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">다음</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">@T("다음", "Next")</MudChip>
                                 }
                                 else if (entry.Enabled && !excluded)
                                 {
-                                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => MakeNext(entry.Map))">다음으로 지정</MudButton>
+                                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => MakeNext(entry.Map))">@T("다음으로 지정", "Make next")</MudButton>
                                 }
                             </MudStack>
                         </TitleContent>
                         <ChildContent>
                             <MudStack Spacing="2">
-                                <MudTextField T="string" @bind-Value="scenario.Name" Label="시나리오 이름" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                <MudTextField T="string" @bind-Value="scenario.Focus" Label="이 맵에서 보는 것" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" />
+                                @if (Korean)
+                                {
+                                    <MudTextField T="string" @bind-Value="scenario.Name" Label="시나리오 이름" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                    <MudTextField T="string" @bind-Value="scenario.Focus" Label="이 맵에서 보는 것" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" />
+                                }
+                                else
+                                {
+                                    <MudTextField T="string" @bind-Value="scenario.NameEn" Label="Scenario name" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                    <MudTextField T="string" @bind-Value="scenario.FocusEn" Label="What this map tests" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" />
+                                }
                                 <MudStack Row Wrap="Wrap.Wrap" Spacing="2">
-                                    <MudTextField T="string" @bind-Value="scenario.ZonesA" Label="A쪽 구역 (쉼표, 비우면 맵 전체)" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:280px;" />
-                                    <MudSelect T="string" @bind-Value="scenario.SideA" Label="A쪽 진영" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="max-width:160px;">
+                                    <MudTextField T="string" @bind-Value="scenario.ZonesA" Label="@T("A쪽 구역 (쉼표, 비우면 맵 전체)", "Side A zones (comma, empty = whole map)")" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:280px;" />
+                                    <MudSelect T="string" @bind-Value="scenario.SideA" Label="@T("A쪽 진영", "Side A role")" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="max-width:160px;">
                                         @foreach (string role in Roles)
                                         {
                                             <MudSelectItem T="string" Value="@role">@role</MudSelectItem>
                                         }
                                     </MudSelect>
-                                    <MudTextField T="string" @bind-Value="scenario.ZonesB" Label="B쪽 구역 (쉼표, 비우면 맵 전체)" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:280px;" />
-                                    <MudSelect T="string" @bind-Value="scenario.SideB" Label="B쪽 진영" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="max-width:160px;">
+                                    <MudTextField T="string" @bind-Value="scenario.ZonesB" Label="@T("B쪽 구역 (쉼표, 비우면 맵 전체)", "Side B zones (comma, empty = whole map)")" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:280px;" />
+                                    <MudSelect T="string" @bind-Value="scenario.SideB" Label="@T("B쪽 진영", "Side B role")" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="max-width:160px;">
                                         @foreach (string role in Roles)
                                         {
                                             <MudSelectItem T="string" Value="@role">@role</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudStack>
-                                <MudTextField T="string" @bind-Value="scenario.Watch" Label="분석에서 강조할 카운터 접두어 (예: door.,nade.)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                <MudTextField T="string" @bind-Value="scenario.Watch" Label="@T("분석에서 강조할 카운터 접두어 (예: door.,nade.)", "Counter prefixes to highlight in the analysis (e.g. door.,nade.)")" Variant="Variant.Outlined" Margin="Margin.Dense" />
                                 <div>
-                                    <MudText Typo="Typo.caption" Class="spt-muted">이 맵의 구역 (괄호 = 보스·봇 스폰 지점 수, 0이면 분대가 안 나올 수 있음). 누르면 A/B에 추가:</MudText>
+                                    <MudText Typo="Typo.caption" Class="spt-muted">@T("이 맵의 구역 (괄호 = 보스·봇 스폰 지점 수, 0이면 분대가 안 나올 수 있음). 누르면 A/B에 추가:", "Zones of this map (in brackets: boss/bot spawn points; 0 may spawn nothing). Click to add to A/B:")</MudText>
                                     <MudStack Row Wrap="Wrap.Wrap" Spacing="1" Class="mt-1">
                                         @foreach (var zone in ZonesOf(entry.Map))
                                         {
@@ -273,7 +297,7 @@
         if (index >= 0)
         {
             Sim.SetStep(index);
-            Snackbar.Add($"다음 맵: {SimLabDefaults.NameOf(map)}", Severity.Info);
+            Snackbar.Add(T($"다음 맵: {SimLabDefaults.DisplayName(map)}", $"Next map: {SimLabDefaults.DisplayName(map)}"), Severity.Info);
         }
     }
 
@@ -298,26 +322,26 @@
     private void TogglePause()
     {
         Sim.Pause(!Sim.Config.Paused);
-        Snackbar.Add(Sim.Config.Paused ? "순회를 멈췄습니다. 지금 레이드는 끝까지 진행되고, 메뉴에서 다음 맵을 자동으로 시작하지 않습니다." : "순회를 다시 시작합니다.", Severity.Info);
+        Snackbar.Add(Sim.Config.Paused ? T("순회를 멈췄습니다. 지금 레이드는 끝까지 진행되고, 메뉴에서 다음 맵을 자동으로 시작하지 않습니다.", "Rotation paused. The current raid plays to its end; the menu will not start the next map.") : T("순회를 다시 시작합니다. 메뉴에 있으면 10초 안에 카운트다운이 시작됩니다.", "Rotation resumed. In the menu the countdown starts within 10 s."), Severity.Info);
     }
 
     private void NewRun()
     {
         Sim.SaveConfig();
         string id = Sim.NewRun();
-        Snackbar.Add($"새 실행 {id} — 순서 처음부터 시작합니다.", Severity.Success);
+        Snackbar.Add(T($"새 실행 {id} — 순서 처음부터 시작합니다.", $"New run {id} — starting from the top of the list."), Severity.Success);
     }
 
     private void Save()
     {
         Sim.SaveConfig();
-        Snackbar.Add("시뮬 설정을 저장했습니다. 다음 레이드부터 적용됩니다.", Severity.Success);
+        Snackbar.Add(T("시뮬 설정을 저장했습니다. 다음 레이드부터 적용됩니다.", "Sim settings saved. They apply from the next raid."), Severity.Success);
     }
 
     private void ResetDefaults()
     {
         Sim.ResetDefaults();
         _zones.Clear();
-        Snackbar.Add("순서·시나리오를 기본값으로 되돌렸습니다.", Severity.Warning);
+        Snackbar.Add(T("순서·시나리오를 기본값으로 되돌렸습니다.", "Order and scenarios reset to defaults."), Severity.Warning);
     }
 }

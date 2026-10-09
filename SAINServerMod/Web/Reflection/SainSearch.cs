@@ -49,7 +49,7 @@ public static class SainSearch
                     var value = member.GetValue();
                     if (value != null)
                     {
-                        Walk(value, tokens, adv, dev, Append(prefix, member.Meta.Name), depth + 1, hits);
+                        Walk(value, tokens, adv, dev, Append(prefix, Services.WebText.Setting(member.Meta.Name)), depth + 1, hits);
                     }
                     break;
             }
@@ -62,7 +62,8 @@ public static class SainSearch
         {
             return true;
         }
-        var haystack = $"{meta.Name} {meta.Description} {meta.Category}".ToLowerInvariant();
+        // zzap: also the Korean text, so a search works in whichever language the page shows.
+        var haystack = $"{meta.Name} {meta.Description} {meta.Category} {Services.WebText.Setting(meta.Name)} {Services.WebText.Setting(meta.Description)}".ToLowerInvariant();
         return tokens.All(haystack.Contains);
     }
 

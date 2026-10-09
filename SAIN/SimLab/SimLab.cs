@@ -121,18 +121,22 @@ public static class SimLab
     }
 
     /// <summary>Tells the server whether the sim preset is loaded (arms/disarms the sim spawns) and gets the rotation plan.</summary>
+    private static string _lastPlanSummary;
+
     public static SimPlan Hello(string reason)
     {
         var plan = Post<SimPlan>("/sain/sim/hello", new SimHello { Armed = Active, Preset = PresetName, Build = Build, Reason = reason });
         if (plan != null)
         {
             Plan = plan;
-            if (Active)
+            string summary = $"{plan.Armed}|{plan.Paused}|{plan.NextMap}|{plan.Step}|{plan.RunId}|{plan.GapSeconds}";
+            if (Active && (reason != "poll" || summary != _lastPlanSummary))
             {
                 Logger.LogWarning(
-                    $"[SimLab] hello ({reason}): armed={plan.Armed} paused={plan.Paused} next={plan.NextMap} ({plan.Step + 1}/{plan.StepCount}) {plan.Minutes:0} min '{plan.ScenarioName}' run {plan.RunId} {plan.Message}"
+                    $"[SimLab] hello ({reason}): armed={plan.Armed} paused={plan.Paused} next={plan.NextMap} ({plan.Step + 1}/{plan.StepCount}) {plan.Minutes:0} min '{plan.ScenarioName}' run {plan.RunId} gap {plan.GapSeconds:0}s {plan.Message}"
                 );
             }
+            _lastPlanSummary = summary;
         }
         return plan;
     }

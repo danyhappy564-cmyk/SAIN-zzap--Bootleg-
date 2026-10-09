@@ -2,20 +2,20 @@
 
 <div class="sain-field">
     <div class="sain-field-label">
-        <MudText Typo="Typo.body2" Class="sain-field-name">@Value.Meta.Name</MudText>
+        <MudText Typo="Typo.body2" Class="sain-field-name">@Setting(Value.Meta.Name)</MudText>
         @if (!string.IsNullOrWhiteSpace(Value.Meta.Description))
         {
-            <MudTooltip Text="@Value.Meta.Description" Arrow="true" Placement="Placement.Top">
+            <MudTooltip Text="@Setting(Value.Meta.Description)" Arrow="true" Placement="Placement.Top">
                 <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" Class="sain-field-help" />
             </MudTooltip>
         }
         @if (Value.Meta.Advanced)
         {
-            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="sain-tag">Advanced</MudChip>
+            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="sain-tag">@T("고급", "Advanced")</MudChip>
         }
         @if (Value.Meta.Developer)
         {
-            <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined" Class="sain-tag">Dev</MudChip>
+            <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined" Class="sain-tag">@T("개발", "Dev")</MudChip>
         }
     </div>
 
@@ -24,7 +24,7 @@
         {
             case SainFieldKind.Bool:
                 <MudSwitch T="bool" Value="BoolValue" ValueChanged="SetBool" Color="Color.Primary"
-                           Label="@(BoolValue ? "On" : "Off")" />
+                           Label="@(BoolValue ? T("켬", "On") : T("끔", "Off"))" />
                 break;
 
             case SainFieldKind.Float:
@@ -57,7 +57,7 @@
                            Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Class="sain-select">
                     @foreach (var name in Enum.GetNames(Value.ValueType))
                     {
-                        <MudSelectItem T="string" Value="@name">@name</MudSelectItem>
+                        <MudSelectItem T="string" Value="@name">@Value(Enum.Parse(Value.ValueType, name))</MudSelectItem>
                     }
                 </MudSelect>
                 break;
@@ -69,7 +69,7 @@
                 break;
 
             default:
-                <MudText Typo="Typo.caption" Class="spt-muted">Unsupported (@Value.ValueType.Name)</MudText>
+                <MudText Typo="Typo.caption" Class="spt-muted">@T("지원 안 함", "Unsupported") (@Value.ValueType.Name)</MudText>
                 break;
         }
     </div>
@@ -77,7 +77,7 @@
     <div class="sain-field-reset">
         @if (CanReset)
         {
-            <MudTooltip Text="Reset to default" Arrow="true">
+            <MudTooltip Text="@T("기본값으로 되돌리기", "Reset to default")" Arrow="true">
                 <MudIconButton Icon="@Icons.Material.Outlined.RestartAlt" Size="Size.Small" OnClick="Reset" />
             </MudTooltip>
         }

@@ -7,7 +7,7 @@ namespace SAIN.Editor;
 /// word (None, Default, Far...) can read differently per list. Personalities, bot types and decisions are left
 /// out on purpose: they stay English to match the logs and README.
 /// </summary>
-internal static class KoreanValueText
+public static class KoreanValueText
 {
     public static readonly Dictionary<string, string> Map = new()
     {

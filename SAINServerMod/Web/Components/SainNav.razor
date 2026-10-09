@@ -1,19 +1,25 @@
 @namespace SAINServerMod.Web.Components
+@inject SainServerConfigService ServerConfig
+@inject NavigationManager Nav
 
 <MudPaper Elevation="0" Class="spt-panel sain-nav pa-2 mb-3">
-    <MudStack Row AlignItems="AlignItems.Center" Spacing="1">
+    <MudStack Row AlignItems="AlignItems.Center" Spacing="1" Wrap="Wrap.Wrap">
         <MudIcon Icon="@Icons.Material.Filled.Tune" Color="Color.Warning" Class="ml-1 mr-2" />
         <MudText Typo="Typo.subtitle2" Class="spt-title mr-4">SAIN</MudText>
         <MudButton Href="/sain/presets" Variant="Variant.Text" Class="@Cls("presets")"
-                   StartIcon="@Icons.Material.Outlined.Tune">Presets</MudButton>
+                   StartIcon="@Icons.Material.Outlined.Tune">@T("프리셋", "Presets")</MudButton>
         <MudButton Href="/sain/updates" Variant="Variant.Text" Class="@Cls("updates")"
-                   StartIcon="@Icons.Material.Outlined.SystemUpdateAlt">Updates</MudButton>
+                   StartIcon="@Icons.Material.Outlined.SystemUpdateAlt">@T("업데이트", "Updates")</MudButton>
         <MudButton Href="/sain/sim" Variant="Variant.Text" Class="@Cls("sim")"
-                   StartIcon="@Icons.Material.Outlined.Science">시뮬레이션</MudButton>
+                   StartIcon="@Icons.Material.Outlined.Science">@T("시뮬레이션", "Simulation")</MudButton>
         <MudButton Href="/sain/sim/analysis" Variant="Variant.Text" Class="@Cls("simAnalysis")"
-                   StartIcon="@Icons.Material.Outlined.Analytics">시뮬 분석</MudButton>
+                   StartIcon="@Icons.Material.Outlined.Analytics">@T("시뮬 분석", "Sim Analysis")</MudButton>
         <MudButton Href="/sain/server-settings" Variant="Variant.Text" Class="@Cls("settings")"
-                   StartIcon="@Icons.Material.Outlined.AdminPanelSettings">Server Settings</MudButton>
+                   StartIcon="@Icons.Material.Outlined.AdminPanelSettings">@T("서버 설정", "Server Settings")</MudButton>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Translate" OnClick="ToggleLanguage">
+            @(Korean ? "English" : "한국어")
+        </MudButton>
     </MudStack>
 </MudPaper>
 
@@ -23,5 +29,12 @@
     private string Cls(string page)
     {
         return "sain-nav-item" + (string.Equals(Current, page, StringComparison.Ordinal) ? " sain-nav-item-active" : string.Empty);
+    }
+
+    // Saved in ServerConfig.json; the page reloads so every component redraws in the new language.
+    private async Task ToggleLanguage()
+    {
+        await ServerConfig.SetWebKoreanAsync(!Korean);
+        Nav.NavigateTo(Nav.Uri, forceLoad: true);
     }
 }

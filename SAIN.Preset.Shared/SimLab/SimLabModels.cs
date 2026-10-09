@@ -31,6 +31,10 @@ public class SimPlan
     public float Minutes;
     public string ScenarioName;
     public string Message;
+    /// <summary>Seconds to wait in the main menu after a sim raid before the next one (RAM comes back there).</summary>
+    public float GapSeconds;
+    /// <summary>At the start of that wait, also unload unused assets + GC.</summary>
+    public bool CleanMemory;
 }
 
 /// <summary>Server -> client after the raid's location was generated: how this raid was set up.</summary>

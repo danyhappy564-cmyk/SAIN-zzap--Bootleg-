@@ -2,7 +2,7 @@
 
 @if (Target == null)
 {
-    <MudText Typo="Typo.caption" Class="spt-muted">Nothing to edit.</MudText>
+    <MudText Typo="Typo.caption" Class="spt-muted">@T("편집할 항목이 없습니다.", "Nothing to edit.")</MudText>
 }
 else
 {
@@ -18,7 +18,7 @@ else
 
         @if (ShowCategoryHeader(category.Name))
         {
-            <MudText Typo="Typo.overline" Class="sain-category spt-muted">@category.Name</MudText>
+            <MudText Typo="Typo.overline" Class="sain-category spt-muted">@Setting(category.Name)</MudText>
         }
 
         @if (leaves.Count > 0)
@@ -36,7 +36,7 @@ else
             <MudExpansionPanels MultiExpansion="true" Elevation="0" Class="sain-panels">
                 @foreach (var member in complex)
                 {
-                    <MudExpansionPanel Text="@member.Meta.Name" Class="sain-subpanel">
+                    <MudExpansionPanel Text="@Setting(member.Meta.Name)" Class="sain-subpanel">
                         @switch (member.Kind)
                         {
                             case SainFieldKind.Nested:

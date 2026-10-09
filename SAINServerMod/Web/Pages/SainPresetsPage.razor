@@ -6,7 +6,7 @@
 @inject PresetService PresetService
 @inject ISnackbar Snackbar
 
-<PageTitle>SAIN Presets</PageTitle>
+<PageTitle>@T("SAIN 프리셋", "SAIN Presets")</PageTitle>
 <HeadContent>
     <link rel="stylesheet" href="/SAIN/css/sain.css" />
 </HeadContent>
@@ -21,42 +21,42 @@
                         <MudIcon Icon="@Icons.Material.Filled.Tune" Color="Color.Warning" Size="Size.Large" />
                     </div>
                     <div>
-                        <MudText Typo="Typo.h5" Class="spt-title">SAIN Presets</MudText>
+                        <MudText Typo="Typo.h5" Class="spt-title">@T("SAIN 프리셋", "SAIN Presets")</MudText>
                         <MudText Typo="Typo.caption" Class="spt-muted">
                             @if (_bundle != null)
                             {
-                                @($"Editing {_bundle.Info.Name}")
+                                @T($"편집 중: {_bundle.Info.Name}", $"Editing {_bundle.Info.Name}")
                                 @if (_opened!.IsNewCustom)
                                 {
-                                    <span> (a default, saving creates an editable copy)</span>
+                                    <span>@T(" (기본 프리셋 — 저장하면 편집 가능한 복사본이 만들어짐)", " (a default, saving creates an editable copy)")</span>
                                 }
                             }
                             else
                             {
-                                <text>Pick a preset to edit. Default presets clone into an editable copy on first edit.</text>
+                                <text>@T("편집할 프리셋을 고르세요. 기본 프리셋은 처음 고칠 때 편집 가능한 복사본으로 만들어집니다.", "Pick a preset to edit. Default presets clone into an editable copy on first edit.")</text>
                             }
                         </MudText>
                     </div>
                 </MudStack>
                 <MudStack Row AlignItems="AlignItems.Center" Spacing="3">
                     <div class="sain-stat">
-                        <MudText Typo="Typo.caption">Presets</MudText>
+                        <MudText Typo="Typo.caption">@T("프리셋", "Presets")</MudText>
                         <MudText Typo="Typo.h5">@_items.Count</MudText>
                     </div>
                     <div class="sain-stat">
-                        <MudText Typo="Typo.caption">Custom</MudText>
+                        <MudText Typo="Typo.caption">@T("사용자", "Custom")</MudText>
                         <MudText Typo="Typo.h5">@_items.Count(i => i.IsCustom)</MudText>
                     </div>
                     @if (_bundle != null)
                     {
                         @if (_dirty)
                         {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">Unsaved changes</MudChip>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">@T("저장 안 한 변경", "Unsaved changes")</MudChip>
                         }
-                        <MudSwitch T="bool" @bind-Value="_showAdvanced" Color="Color.Primary" Label="Advanced" />
-                        <MudSwitch T="bool" @bind-Value="_showDeveloper" Color="Color.Secondary" Label="Developer" />
+                        <MudSwitch T="bool" @bind-Value="_showAdvanced" Color="Color.Primary" Label="@T("고급", "Advanced")" />
+                        <MudSwitch T="bool" @bind-Value="_showDeveloper" Color="Color.Secondary" Label="@T("개발자", "Developer")" />
                         <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Save"
-                                   OnClick="SaveAsync">Save</MudButton>
+                                   OnClick="SaveAsync">@T("저장", "Save")</MudButton>
                     }
                 </MudStack>
             </MudStack>
@@ -67,7 +67,7 @@
                 <MudPaper Elevation="0" Class="spt-panel pa-4">
                     <MudList T="string" SelectedValue="_selectedName" SelectedValueChanged="SelectAsync" Dense="true" Color="Color.Primary">
                         <MudListSubheader>
-                            <MudText Typo="Typo.overline" Class="spt-muted">Default</MudText>
+                            <MudText Typo="Typo.overline" Class="spt-muted">@T("기본", "Default")</MudText>
                         </MudListSubheader>
                         @foreach (var item in _items.Where(i => !i.IsCustom))
                         {
@@ -77,10 +77,10 @@
                                         <MudText Typo="Typo.body2">@item.Name</MudText>
                                         @if (item.Disabled)
                                         {
-                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Hidden</MudChip>
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">@T("숨김", "Hidden")</MudChip>
                                         }
                                     </div>
-                                    <MudTooltip Text="Duplicate">
+                                    <MudTooltip Text="@T("복제", "Duplicate")">
                                         <MudIconButton Icon="@Icons.Material.Outlined.ContentCopy" Size="Size.Small"
                                                        OnClick="@(() => DuplicateAsync(item.Name))" OnClick:stopPropagation="true" />
                                     </MudTooltip>
@@ -88,12 +88,12 @@
                             </MudListItem>
                         }
                         <MudListSubheader>
-                            <MudText Typo="Typo.overline" Class="spt-muted">Custom</MudText>
+                            <MudText Typo="Typo.overline" Class="spt-muted">@T("사용자", "Custom")</MudText>
                         </MudListSubheader>
                         @if (!_items.Any(i => i.IsCustom))
                         {
                             <MudListItem T="string" Disabled="true">
-                                <MudText Typo="Typo.caption" Class="spt-muted">None yet</MudText>
+                                <MudText Typo="Typo.caption" Class="spt-muted">@T("아직 없음", "None yet")</MudText>
                             </MudListItem>
                         }
                         @foreach (var item in _items.Where(i => i.IsCustom))
@@ -102,7 +102,7 @@
                                 <div class="sain-preset-item">
                                     <MudText Typo="Typo.body2">@item.Name</MudText>
                                     <span>
-                                        <MudTooltip Text="Duplicate">
+                                        <MudTooltip Text="@T("복제", "Duplicate")">
                                             <MudIconButton Icon="@Icons.Material.Outlined.ContentCopy" Size="Size.Small"
                                                            OnClick="@(() => DuplicateAsync(item.Name))" OnClick:stopPropagation="true" />
                                         </MudTooltip>
@@ -115,7 +115,7 @@
                                         }
                                         else
                                         {
-                                            <MudTooltip Text="Delete">
+                                            <MudTooltip Text="@T("삭제", "Delete")">
                                                 <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
                                                                OnClick="@(() => _pendingDelete = item.Name)" OnClick:stopPropagation="true" />
                                             </MudTooltip>
@@ -129,10 +129,10 @@
                     <MudDivider Class="my-4" />
 
                     <div class="sain-new-preset">
-                        <MudText Typo="Typo.overline" Class="spt-muted">New preset</MudText>
-                        <MudTextField T="string" @bind-Value="_newName" Placeholder="Name" Variant="Variant.Outlined"
+                        <MudText Typo="Typo.overline" Class="spt-muted">@T("새 프리셋", "New preset")</MudText>
+                        <MudTextField T="string" @bind-Value="_newName" Placeholder="@T("이름", "Name")" Variant="Variant.Outlined"
                                       Margin="Margin.Dense" />
-                        <MudSelect T="string" @bind-Value="_baseName" Label="Based on" Variant="Variant.Outlined"
+                        <MudSelect T="string" @bind-Value="_baseName" Label="@T("바탕 프리셋", "Based on")" Variant="Variant.Outlined"
                                    Margin="Margin.Dense" Dense="true">
                             @foreach (var def in _items.Where(i => !i.IsCustom))
                             {
@@ -140,7 +140,7 @@
                             }
                         </MudSelect>
                         <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Add"
-                                   FullWidth="true" OnClick="CreateAsync">Create</MudButton>
+                                   FullWidth="true" OnClick="CreateAsync">@T("만들기", "Create")</MudButton>
                     </div>
                 </MudPaper>
             </div>
@@ -159,7 +159,7 @@
                     {
                         <div class="sain-empty">
                             <MudIcon Icon="@Icons.Material.Outlined.TouchApp" Size="Size.Large" Class="spt-muted" />
-                            <MudText Typo="Typo.body1" Class="spt-muted mt-2">Select a preset from the left to start editing.</MudText>
+                            <MudText Typo="Typo.body1" Class="spt-muted mt-2">@T("왼쪽에서 프리셋을 고르면 편집을 시작합니다.", "Select a preset from the left to start editing.")</MudText>
                         </div>
                     }
                 </MudPaper>
@@ -219,7 +219,7 @@
         }
         if (_dirty)
         {
-            Snackbar.Add("Discarded unsaved changes.", Severity.Info);
+            Snackbar.Add(T("저장 안 한 변경을 버렸습니다.", "Discarded unsaved changes."), Severity.Info);
         }
         _selectedName = name;
         _opened = await Presets.OpenAsync(name);
@@ -241,7 +241,7 @@
         }
         if (string.IsNullOrWhiteSpace(_bundle.Info.Name))
         {
-            Snackbar.Add("Preset needs a name.", Severity.Warning);
+            Snackbar.Add(T("프리셋 이름이 필요합니다.", "Preset needs a name."), Severity.Warning);
             return;
         }
 
@@ -255,7 +255,7 @@
         var renamedFrom = _opened.IsNewCustom ? null : _opened.OriginalName;
         var savedName = _bundle.Info.Name;
         await Presets.SaveAsync(_bundle, renamedFrom);
-        Snackbar.Add($"Saved '{savedName}'. Connected game clients will reload it.", Severity.Success);
+        Snackbar.Add(T($"'{savedName}' 저장. 접속 중인 게임이 다시 불러옵니다.", $"Saved '{savedName}'. Connected game clients will reload it."), Severity.Success);
 
         Reload();
         await SelectAsync(savedName); // re-open as an existing custom so further edits don't re-clone
@@ -266,12 +266,12 @@
     {
         if (string.IsNullOrWhiteSpace(_newName) || string.IsNullOrWhiteSpace(_baseName))
         {
-            Snackbar.Add("Enter a name and a base preset.", Severity.Warning);
+            Snackbar.Add(T("이름과 바탕 프리셋을 넣어 주세요.", "Enter a name and a base preset."), Severity.Warning);
             return;
         }
         if (Presets.CustomExists(_newName))
         {
-            Snackbar.Add($"A custom preset named '{_newName}' already exists.", Severity.Warning);
+            Snackbar.Add(T($"'{_newName}' 이름의 사용자 프리셋이 이미 있습니다.", $"A custom preset named '{_newName}' already exists."), Severity.Warning);
             return;
         }
         var created = await Presets.DuplicateAsync(_baseName, _newName.Trim());
@@ -280,7 +280,7 @@
             _newName = string.Empty;
             Reload();
             await SelectAsync(created);
-            Snackbar.Add($"Created '{created}'.", Severity.Success);
+            Snackbar.Add(T($"'{created}' 만듦.", $"Created '{created}'."), Severity.Success);
         }
     }
 
@@ -297,7 +297,7 @@
         {
             Reload();
             await SelectAsync(created);
-            Snackbar.Add($"Duplicated to '{created}'.", Severity.Success);
+            Snackbar.Add(T($"'{created}'로 복제.", $"Duplicated to '{created}'."), Severity.Success);
         }
     }
 
@@ -314,7 +314,7 @@
                 _dirty = false;
             }
             Reload();
-            Snackbar.Add($"Deleted '{name}'.", Severity.Success);
+            Snackbar.Add(T($"'{name}' 삭제.", $"Deleted '{name}'."), Severity.Success);
         }
     }
 }

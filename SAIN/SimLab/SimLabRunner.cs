@@ -28,6 +28,7 @@ public sealed class SimLabRunner : MonoBehaviour
     private const float LOCAL_BEAT = 10f;
     private const float SERVER_BEAT = 60f;
     private const float START_TIMEOUT = 300f;
+    private const float MENU_POLL = 10f;
 
     public static SimLabRunner Instance { get; private set; }
 
@@ -40,6 +41,11 @@ public sealed class SimLabRunner : MonoBehaviour
     private float _startRequestedAt = -1f;
     private string _autoStartMap;
     private float _nextCountdownNote;
+    private float _nextPoll;
+    private bool _menuHelloDone;
+    private bool _pausedNoted;
+    private float _lastRaidEnd = -1f;
+    private bool _gapCleaned;
 
     // raid
     private int _worldId;
@@ -131,20 +137,45 @@ public sealed class SimLabRunner : MonoBehaviour
 
     private void MenuUpdate()
     {
-        if (_startRequestedAt > 0f && Time.realtimeSinceStartup - _startRequestedAt > START_TIMEOUT)
+        float now = Time.realtimeSinceStartup;
+        if (_startRequestedAt > 0f && now - _startRequestedAt > START_TIMEOUT)
         {
             _startRequestedAt = -1f;
             Notify($"[시뮬] {_autoStartMap} 자동 시작이 {START_TIMEOUT:0}초 안에 안 됐습니다. 직접 시작하거나 게임을 재시작해 주세요.", true);
             Logger.LogError($"[SimLab] auto start of {_autoStartMap} did not reach a raid within {START_TIMEOUT:0}s");
         }
-        if (SimLab.MenuReadyTime < 0f || SimLab.MenuReadyTime == _handledMenuTime)
+        if (SimLab.MenuReadyTime < 0f)
         {
-            TickCountdown();
+            return; // main menu not loaded yet
+        }
+        if (SimLab.MenuReadyTime != _handledMenuTime)
+        {
+            // A new main menu visit (game start or back from a raid).
+            _handledMenuTime = SimLab.MenuReadyTime;
+            _startRequestedAt = -1f;
+            _autoStartAt = -1f;
+            _pausedNoted = false;
+            _menuHelloDone = false;
+            _nextPoll = 0f;
+        }
+        if (_startRequestedAt > 0f)
+        {
+            return; // raid is loading
+        }
+        if (_autoStartAt >= 0f)
+        {
+            TickCountdown(now);
             return;
         }
-        _handledMenuTime = SimLab.MenuReadyTime;
-        _startRequestedAt = -1f;
-        var plan = SimLab.Hello("menu");
+        // Keep asking the server while waiting in the menu, so un-pausing / "next map" / a new run on the web page takes effect
+        // without leaving the menu (field 2026-10-09: paused at the first menu visit, un-paused on the page, nothing started).
+        if (now < _nextPoll)
+        {
+            return;
+        }
+        _nextPoll = now + MENU_POLL;
+        var plan = SimLab.Hello(_menuHelloDone ? "poll" : "menu");
+        _menuHelloDone = true;
         var settings = SimLab.Settings;
         if (plan == null || !plan.Armed || settings == null || !settings.AutoStart)
         {
@@ -152,29 +183,62 @@ public sealed class SimLabRunner : MonoBehaviour
         }
         if (plan.Paused)
         {
-            Notify("[시뮬] 순회 일시정지 중 — 자동 시작 안 함 (https://127.0.0.1:6969/sain/sim)", false);
+            if (!_pausedNoted)
+            {
+                _pausedNoted = true;
+                Notify("[시뮬] 순회 일시정지 중 — 웹 /sain/sim에서 재개하면 바로 이어서 시작합니다", false);
+            }
             return;
         }
         if (string.IsNullOrEmpty(plan.NextMap))
         {
-            Notify("[시뮬] " + (plan.Message ?? "다음 맵 없음"), true);
+            if (!_pausedNoted)
+            {
+                _pausedNoted = true;
+                Notify("[시뮬] " + (plan.Message ?? "다음 맵 없음"), true);
+            }
             return;
+        }
+        _pausedNoted = false;
+        // Gap between maps (user 2026-10-09: RAM has to come back in the main menu before the next map).
+        float gapLeft = _lastRaidEnd > 0f ? plan.GapSeconds - (now - _lastRaidEnd) : 0f;
+        float wait = Mathf.Max(Mathf.Max(5f, settings.AutoStartDelay), gapLeft);
+        if (_lastRaidEnd > 0f && plan.CleanMemory && !_gapCleaned)
+        {
+            _gapCleaned = true;
+            CleanMemory();
         }
         _autoStartMap = plan.NextMap;
-        _autoStartAt = Time.realtimeSinceStartup + Mathf.Max(5f, settings.AutoStartDelay);
+        _autoStartAt = now + wait;
         _nextCountdownNote = 0f;
+        Logger.LogWarning($"[SimLab] countdown {wait:0}s to {plan.NextMap} (gap left {Mathf.Max(0f, gapLeft):0}s)");
     }
 
-    private void TickCountdown()
+    /// <summary>Between maps: unload what the last raid left and collect (EFT also collects on the way back; this is on top).</summary>
+    private static void CleanMemory()
     {
-        if (_autoStartAt < 0f)
+        try
         {
-            return;
+            long before = UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong() / (1024 * 1024);
+            Resources.UnloadUnusedAssets();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            long after = UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong() / (1024 * 1024);
+            Logger.LogWarning($"[SimLab] memory clean between maps: mono used {before} -> {after} MB (GC mode {UnityEngine.Scripting.GarbageCollector.GCMode})");
         }
-        float left = _autoStartAt - Time.realtimeSinceStartup;
-        if (Time.realtimeSinceStartup >= _nextCountdownNote && left > 1f)
+        catch (Exception ex)
         {
-            _nextCountdownNote = Time.realtimeSinceStartup + 5f;
+            Logger.LogWarning($"[SimLab] memory clean failed: {ex.Message}");
+        }
+    }
+
+    private void TickCountdown(float now)
+    {
+        float left = _autoStartAt - now;
+        if (now >= _nextCountdownNote && left > 1f)
+        {
+            _nextCountdownNote = now + (left > 30f ? 15f : 5f);
             var plan = SimLab.Plan;
             Notify($"[시뮬] {left:0}초 후 {plan?.NextMapName ?? _autoStartMap} 시작 ({(plan?.Step ?? 0) + 1}/{plan?.StepCount}, {plan?.Minutes:0}분) — 멈추려면 웹 /sain/sim에서 일시정지", false);
         }
@@ -183,15 +247,12 @@ public sealed class SimLabRunner : MonoBehaviour
             return;
         }
         _autoStartAt = -1f;
-        // Paused from the page during the countdown?
+        // Paused or changed on the page during the countdown?
         var fresh = SimLab.Hello("countdown");
         if (fresh == null || !fresh.Armed || fresh.Paused || !SimLab.Active || !string.Equals(fresh.NextMap, _autoStartMap, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.LogWarning($"[SimLab] auto start cancelled (paused={fresh?.Paused} next={fresh?.NextMap})");
-            if (fresh != null && fresh.Armed && !fresh.Paused && SimLab.Active)
-            {
-                SimLab.MenuReadyTime = Time.realtimeSinceStartup; // next map changed on the page: count down again for the new one
-            }
+            Logger.LogWarning($"[SimLab] auto start cancelled (armed={fresh?.Armed} paused={fresh?.Paused} next={fresh?.NextMap}, was {_autoStartMap})");
+            _nextPoll = 0f; // the menu poll starts a new countdown if the rotation still wants a map
             return;
         }
         StartRaid(_autoStartMap);
@@ -233,13 +294,31 @@ public sealed class SimLabRunner : MonoBehaviour
             Logger.LogWarning($"[SimLab] could not flag the menu as in session: {ex.Message}");
         }
         _startRequestedAt = Time.realtimeSinceStartup;
-        Logger.LogWarning($"[SimLab] auto start: {map} ({location.Name}), run {SimLab.Plan?.RunId}");
-        Notify($"[시뮬] {SimLab.Plan?.NextMapName ?? map} 시작", false);
-        var task = app.OnReadyToStartMatchingAsync();
-        task.ContinueWith(
-            t => Logger.LogError($"[SimLab] raid start failed: {t.Exception}"),
-            System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted
+        Logger.LogWarning(
+            $"[SimLab] auto start: {map} ({location.Name}, id {location.Id}), side {raid.Side}, mode {raid.RaidMode}, pveOffline {raid.IsPveOffline}, run {SimLab.Plan?.RunId}"
         );
+        Notify($"[시뮬] {SimLab.Plan?.NextMapName ?? map} 시작", false);
+        try
+        {
+            var task = app.OnReadyToStartMatchingAsync();
+            task.ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                {
+                    Logger.LogError($"[SimLab] raid start failed: {t.Exception}");
+                }
+                else
+                {
+                    Logger.LogWarning($"[SimLab] raid start call finished ({t.Status})");
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _startRequestedAt = -1f;
+            Notify($"[시뮬] 자동 시작 실패: {ex.Message}", true);
+            Logger.LogError($"[SimLab] raid start threw: {ex}");
+        }
     }
 
     // ================================================================ raid
@@ -681,6 +760,8 @@ public sealed class SimLabRunner : MonoBehaviour
             return;
         }
         _inRaid = false;
+        _lastRaidEnd = Time.realtimeSinceStartup;
+        _gapCleaned = false;
         try
         {
             if (_setupDone)

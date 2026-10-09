@@ -3,7 +3,7 @@
 @using SAIN.Preset.Shared.Personalities.BasePersonality
 
 <MudStack Row Spacing="3" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-3">
-    <MudSelect T="EPersonality" Value="_selected" ValueChanged="OnSelected" Label="Personality"
+    <MudSelect T="EPersonality" Value="_selected" ValueChanged="OnSelected" Label="@T("성격", "Personality")"
                Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width:220px;">
         @foreach (var key in _keys)
         {
@@ -16,13 +16,13 @@
 {
     @if (!string.IsNullOrWhiteSpace(_settings.Description))
     {
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-3">@_settings.Description</MudAlert>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-3">@Setting(_settings.Description)</MudAlert>
     }
     <SainSectionEditor Target="_settings" OnChanged="OnChanged" />
 }
 else
 {
-    <MudText Typo="Typo.caption" Class="spt-muted">This preset has no personality data.</MudText>
+    <MudText Typo="Typo.caption" Class="spt-muted">@T("이 프리셋에는 성격 데이터가 없습니다.", "This preset has no personality data.")</MudText>
 }
 
 @code {

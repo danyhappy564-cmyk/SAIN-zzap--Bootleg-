@@ -26,7 +26,7 @@ else if (_elemKind is SainFieldKind.Nested)
         </MudExpansionPanels>
     }
     <MudButton StartIcon="@Icons.Material.Outlined.Add" Size="Size.Small" Variant="Variant.Text"
-               Color="Color.Primary" OnClick="AddNested" Class="mt-2">Add item</MudButton>
+               Color="Color.Primary" OnClick="AddNested" Class="mt-2">@T("항목 추가", "Add item")</MudButton>
 }
 else if (_isLeaf)
 {
@@ -43,7 +43,7 @@ else if (_isLeaf)
         @if (_elemType.IsEnum)
         {
             <MudSelect T="string" @bind-Value="_addText" Variant="Variant.Outlined" Margin="Margin.Dense"
-                       Dense="true" Class="sain-select" Placeholder="Add…">
+                       Dense="true" Class="sain-select" Placeholder="@T("추가…", "Add…")">
                 @foreach (var name in Enum.GetNames(_elemType))
                 {
                     <MudSelectItem T="string" Value="@name">@name</MudSelectItem>
@@ -53,10 +53,10 @@ else if (_isLeaf)
         else
         {
             <MudTextField T="string" @bind-Value="_addText" Variant="Variant.Outlined" Margin="Margin.Dense"
-                          Placeholder="Add…" Class="sain-text" />
+                          Placeholder="@T("추가…", "Add…")" Class="sain-text" />
         }
         <MudButton StartIcon="@Icons.Material.Outlined.Add" Size="Size.Small" Variant="Variant.Text"
-                   Color="Color.Primary" OnClick="AddLeaf">Add</MudButton>
+                   Color="Color.Primary" OnClick="AddLeaf">@T("추가", "Add")</MudButton>
     </div>
 }
 else
@@ -90,7 +90,7 @@ else
     {
         var item = _list?[index];
         var nameProp = item?.GetType().GetField("Name")?.GetValue(item) as string;
-        return string.IsNullOrWhiteSpace(nameProp) ? $"Item {index + 1}" : nameProp;
+        return string.IsNullOrWhiteSpace(nameProp) ? T($"항목 {index + 1}", $"Item {index + 1}") : nameProp;
     }
 
     private Task RemoveAt(int index)

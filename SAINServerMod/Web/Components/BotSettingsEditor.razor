@@ -10,12 +10,12 @@
             SelectionMode="SelectionMode.SingleSelection" Variant="Variant.Text" Color="Color.Primary" Class="sain-section-chips mb-2">
     @foreach (var name in _sectionNames)
     {
-        <MudChip T="string" Value="@name" Text="@name" />
+        <MudChip T="string" Value="@name" Text="@(name == AllSections ? T("전체", "All") : name == "Other" ? T("기타", "Other") : Setting(name))" />
     }
 </MudChipSet>
 
 <MudStack Row Spacing="3" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-3">
-    <MudSelect T="ESainWildSpawnType" Value="_botType" ValueChanged="OnBotChanged" Label="Bot type"
+    <MudSelect T="ESainWildSpawnType" Value="_botType" ValueChanged="OnBotChanged" Label="@T("봇 종류", "Bot type")"
                Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width:260px;">
         @foreach (var bot in _filteredBots)
         {
@@ -23,11 +23,11 @@
         }
     </MudSelect>
 
-    <MudSelect T="ESainBotDifficulty" Value="_difficulty" ValueChanged="OnDifficultyChanged" Label="Difficulty"
+    <MudSelect T="ESainBotDifficulty" Value="_difficulty" ValueChanged="OnDifficultyChanged" Label="@T("난이도", "Difficulty")"
                Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width:160px;">
         @foreach (var diff in _difficulties)
         {
-            <MudSelectItem T="ESainBotDifficulty" Value="diff">@diff</MudSelectItem>
+            <MudSelectItem T="ESainBotDifficulty" Value="diff">@Value(diff)</MudSelectItem>
         }
     </MudSelect>
 </MudStack>
@@ -39,18 +39,18 @@
 
         <MudDivider Class="my-3" />
 
-        <MudText Typo="Typo.subtitle2" Class="mb-1">Copy <b>@BotName</b> · <b>@_difficulty</b> settings to…</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-1">@if (Korean) { <span><b>@BotName</b> · <b>@Value(_difficulty)</b> 설정을 복사할 곳…</span> } else { <span>Copy <b>@BotName</b> · <b>@_difficulty</b> settings to…</span> }</MudText>
         <MudText Typo="Typo.caption" Class="spt-muted mb-2">
-            Overwrites the target slots with the values shown below. Personalities and gear stealth are not affected.
+            @T("아래에 보이는 값으로 대상 칸을 덮어씁니다. 성격과 장비 은밀성은 그대로입니다.", "Overwrites the target slots with the values shown below. Personalities and gear stealth are not affected.")
         </MudText>
         <MudStack Row Spacing="3" Wrap="Wrap.Wrap">
             <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
                        StartIcon="@Icons.Material.Outlined.ContentCopy" OnClick="CopyToAllDifficulties">
-                Every difficulty of @BotName
+                @T($"{BotName}의 모든 난이도", $"Every difficulty of {BotName}")
             </MudButton>
             <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
                        StartIcon="@Icons.Material.Outlined.CopyAll" OnClick="CopyToAllBots">
-                Every bot type (@_difficulty)
+                @T($"모든 봇 종류 ({Value(_difficulty)})", $"Every bot type ({_difficulty})")
             </MudButton>
         </MudStack>
     </MudPaper>
@@ -62,7 +62,7 @@
 }
 else
 {
-    <MudText Typo="Typo.caption" Class="spt-muted">No settings for this bot/difficulty combination.</MudText>
+    <MudText Typo="Typo.caption" Class="spt-muted">@T("이 봇·난이도 조합에는 설정이 없습니다.", "No settings for this bot/difficulty combination.")</MudText>
 }
 
 @code {
@@ -175,7 +175,7 @@ else
                 _group.Settings[key] = Clone(_settings);
             }
         }
-        Snackbar.Add($"Copied {BotName} · {_difficulty} to every difficulty of {BotName}.", Severity.Success);
+        Snackbar.Add(T($"{BotName} · {Value(_difficulty)} 설정을 {BotName}의 모든 난이도에 복사했습니다.", $"Copied {BotName} · {_difficulty} to every difficulty of {BotName}."), Severity.Success);
         await OnChanged.InvokeAsync();
     }
 
@@ -194,7 +194,7 @@ else
                 count++;
             }
         }
-        Snackbar.Add($"Copied {BotName} · {_difficulty} to {count} other bot type(s).", Severity.Success);
+        Snackbar.Add(T($"{BotName} · {Value(_difficulty)} 설정을 다른 봇 종류 {count}개에 복사했습니다.", $"Copied {BotName} · {_difficulty} to {count} other bot type(s)."), Severity.Success);
         await OnChanged.InvokeAsync();
     }
 }

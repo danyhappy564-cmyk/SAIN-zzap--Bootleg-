@@ -81,7 +81,18 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         var scenarios = new Dictionary<string, SimScenario>(config.Scenarios, StringComparer.OrdinalIgnoreCase);
         foreach (var kv in SimLabDefaults.Scenarios())
         {
-            scenarios.TryAdd(kv.Key, kv.Value);
+            if (!scenarios.TryAdd(kv.Key, kv.Value) && scenarios[kv.Key] is { } saved && string.IsNullOrEmpty(saved.NameEn))
+            {
+                // Config saved before the English texts existed: fill them in while the Korean text is still the default.
+                if (saved.Name == kv.Value.Name)
+                {
+                    saved.NameEn = kv.Value.NameEn;
+                }
+                if (saved.Focus == kv.Value.Focus)
+                {
+                    saved.FocusEn = kv.Value.FocusEn;
+                }
+            }
         }
         config.Scenarios = scenarios;
         config.Rotation ??= [];
@@ -109,6 +120,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         config.SquadSizeMin = Math.Clamp(config.SquadSizeMin, 1, 6);
         config.SquadSizeMax = Math.Clamp(config.SquadSizeMax, config.SquadSizeMin, 6);
         config.RespawnSeconds = Math.Clamp(config.RespawnSeconds, 5, 600);
+        config.GapSeconds = Math.Clamp(config.GapSeconds, 0, 1800);
     }
 
     // ---------------------------------------------------------------- config / state
@@ -268,6 +280,8 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             Paused = Config.Paused,
             AutoRotate = Config.AutoRotate,
             RunId = State.RunId,
+            GapSeconds = Config.GapSeconds,
+            CleanMemory = Config.CleanMemoryBetweenMaps,
             StepCount = rotation.Count,
         };
         if (rotation.Count == 0)

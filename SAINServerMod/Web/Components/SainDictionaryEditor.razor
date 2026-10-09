@@ -72,7 +72,8 @@ else
 
     private string Label(object key)
     {
-        return key.ToString() ?? string.Empty;
+        // zzap: enum keys in the page language (same Korean table as F6); other keys as they are.
+        return key is Enum ? Value(key) : key.ToString() ?? string.Empty;
     }
 
     private SainValue EntryValue(object key)

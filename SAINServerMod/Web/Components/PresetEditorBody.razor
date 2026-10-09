@@ -1,27 +1,27 @@
 @namespace SAINServerMod.Web.Components
 
 <MudTabs Elevation="0" PanelClass="pa-4" Color="Color.Transparent" SliderColor="Color.Primary" Border="false" MinimumTabWidth="0">
-    <MudTabPanel Text="Info" Icon="@Icons.Material.Outlined.Description">
+    <MudTabPanel Text="@T("정보", "Info")" Icon="@Icons.Material.Outlined.Description">
         <MudStack Spacing="3" Style="max-width:520px;">
             <MudTextField T="string" Value="Bundle.Info.Name" ValueChanged="@(v => SetInfo(v, s => Bundle.Info.Name = s, Bundle.Info.Name))"
-                          Label="Name" ReadOnly="@(!Bundle.Info.CanEditName)" Variant="Variant.Outlined"
+                          Label="@T("이름", "Name")" ReadOnly="@(!Bundle.Info.CanEditName)" Variant="Variant.Outlined"
                           Margin="Margin.Dense" Immediate="true" />
             <MudTextField T="string" Value="Bundle.Info.Description" ValueChanged="@(v => SetInfo(v, s => Bundle.Info.Description = s, Bundle.Info.Description))"
-                          Label="Description" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" Immediate="true" />
+                          Label="@T("설명", "Description")" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" Immediate="true" />
             <MudTextField T="string" Value="Bundle.Info.Creator" ValueChanged="@(v => SetInfo(v, s => Bundle.Info.Creator = s, Bundle.Info.Creator))"
-                          Label="Creator" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
+                          Label="@T("제작자", "Creator")" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
         </MudStack>
     </MudTabPanel>
-    <MudTabPanel Text="Global Settings" Icon="@Icons.Material.Outlined.Public">
+    <MudTabPanel Text="@T("전역 설정", "Global Settings")" Icon="@Icons.Material.Outlined.Public">
         <SainSectionEditor Target="Bundle.GlobalSettings" OnChanged="OnChanged" />
     </MudTabPanel>
-    <MudTabPanel Text="Bot Settings" Icon="@Icons.Material.Outlined.SmartToy">
+    <MudTabPanel Text="@T("봇 종류별 설정", "Bot Settings")" Icon="@Icons.Material.Outlined.SmartToy">
         <BotSettingsEditor Bundle="Bundle" OnChanged="OnChanged" />
     </MudTabPanel>
-    <MudTabPanel Text="Personalities" Icon="@Icons.Material.Outlined.Psychology">
+    <MudTabPanel Text="@T("성격", "Personalities")" Icon="@Icons.Material.Outlined.Psychology">
         <PersonalityEditor Bundle="Bundle" OnChanged="OnChanged" />
     </MudTabPanel>
-    <MudTabPanel Text="Gear Stealth" Icon="@Icons.Material.Outlined.Shield">
+    <MudTabPanel Text="@T("장비 은밀성", "Gear Stealth")" Icon="@Icons.Material.Outlined.Shield">
         <GearStealthEditor Bundle="Bundle" OnChanged="OnChanged" />
     </MudTabPanel>
 </MudTabs>

@@ -1,11 +1,11 @@
-// zzap fork: Korean text for F6 setting names, descriptions and categories (English → Korean).
+// zzap fork: Korean text for setting names, descriptions and categories (English → Korean), used by F6 and the SAIN web pages.
 // Keys are the exact English strings from the [Name]/[Description]/[Category] attributes; a missing
 // or outdated key simply shows the English text. When adding or rewording a setting, add/update its line here.
 using System.Collections.Generic;
 
 namespace SAIN.Editor;
 
-internal static class KoreanSettingText
+public static class KoreanSettingText
 {
     public static readonly Dictionary<string, string> Map = new()
     {
