@@ -143,7 +143,8 @@ public static class SimLabProbe
     public static void Sample(Player player, float dt)
     {
         var owner = player?.AIData?.BotOwner;
-        if (owner == null)
+        // Still spawning/activating: the brain isn't built yet (2026-10-09: NRE in ActiveLayerName on a fresh bot).
+        if (owner == null || owner.BotState != EBotState.Active || owner.Brain?.BaseBrain == null)
         {
             return;
         }

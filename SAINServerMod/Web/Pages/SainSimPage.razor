@@ -120,7 +120,14 @@
                     <MudText Typo="Typo.body2">@T("ORBIT 싸움 구역 고정 (그 맵의 존 에디터 구역 대신 양쪽 스폰 사이 한 곳으로 끌어당김)", "ORBIT arena zone (replace the map's zone-editor zones with one attractor between both sides)")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.OrbitArenaZone" Color="Color.Primary" />
                 </div>
-                <MudText Typo="Typo.subtitle2" Class="mt-3">@T("다른 스폰 모드", "Other spawn mods")</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mt-3">@T("다른 모드", "Other mods")</MudText>
+                <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">
+                        @T("시뮬 맵은 원본(SPT 기본) 버전으로 — MapVariants가 있으면 시작 직전에 '원본'을 고름 (예: 공장은 리워크, 클래식 공장 아님). 시뮬 뒤 직접 플레이할 때도 맵 고르기 화면에서 다시 고르기 전까지 원본이 유지됨",
+                           "Sim maps use the original (SPT's own) version - with MapVariants, 'original' is picked right before each start (e.g. reworked Factory, not classic). It stays picked for your own raids until you choose again on the map screen")
+                    </MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.OriginalMaps" Color="Color.Primary" />
+                </div>
                 <div class="sain-toggle-row">
                     <MudText Typo="Typo.body2">
                         @T("시뮬 판에서 ABPS 끄기 (ABPS는 PMC 분대를 가로채 정한 구역을 무시하고, 관전자·다른 PMC와 멀리 떨어진 자리가 없으면 말없이 안 낳음)",

@@ -34,6 +34,11 @@ public sealed class SimLabConfig
     /// over the sim's PMC squads: ignores their zones, needs spawn points far from every PMC incl. the spectator, and skips silently.</summary>
     public bool AbpsOffInSim = true;
 
+    /// <summary>Sim raids run on each map's original version - SPT's own map (user 2026-10-09: "reworked Factory is SPT's main map,
+    /// judge on it"). With MapVariants installed and no pick on the map screen, the server keeps serving the variant it last
+    /// installed (the backport/classic Factory); the game asks for "original" through MapVariants' own choice route before each start.</summary>
+    public bool OriginalMaps = true;
+
     /// <summary>Remaining sim time at the top right of the game screen (user 2026-10-09: on by default, switchable on the page).</summary>
     public bool ShowTimer = true;
 

@@ -395,6 +395,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             GapSeconds = Config.GapSeconds,
             CleanMemory = Config.CleanMemoryBetweenMaps,
             ShowTimer = Config.ShowTimer,
+            OriginalMaps = Config.OriginalMaps,
             StepCount = rotation.Count,
         };
         if (rotation.Count == 0)

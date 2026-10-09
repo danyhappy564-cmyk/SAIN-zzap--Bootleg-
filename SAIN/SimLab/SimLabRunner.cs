@@ -71,6 +71,7 @@ public sealed class SimLabRunner : MonoBehaviour
     private bool _nextIsA = true;
     private bool _reserveEmptyNoted;
     private float _waitingSince = -1f;
+    private bool _probeErrorLogged;
     private bool _waitingNoted;
 
     // stats
@@ -368,6 +369,12 @@ public sealed class SimLabRunner : MonoBehaviour
         // Do NOT set _menuOperation.IsInSession here: its setter clears the menu's health controller, and
         // OnReadyToStartMatchingAsync -> MainMenuShowOperation.StoreProfile() reads it first (field 2026-10-09: NRE in StoreProfile).
         // The menu's own Ready path never sets it either - only reconnect and BSG's InternalStartGame do.
+        if (SimLab.Plan?.OriginalMaps != false)
+        {
+            // Must land before the raid's location is generated (MapVariants swaps the served map data at that point).
+            string served = SimLab.ChooseOriginalVariant(location.Id);
+            Logger.LogWarning($"[SimLab] MapVariants: asked for the original {location.Id}, server answered '{served ?? "error"}'");
+        }
         _startRequestedAt = Time.realtimeSinceStartup;
         Logger.LogWarning(
             $"[SimLab] auto start: {map} ({location.Name}, id {location.Id}), side {raid.Side}, mode {raid.RaidMode}, pveOffline {raid.IsPveOffline}, run {SimLab.Plan?.RunId}"
@@ -477,6 +484,7 @@ public sealed class SimLabRunner : MonoBehaviour
         _reserveEmptyNoted = false;
         _waitingSince = -1f;
         _waitingNoted = false;
+        _probeErrorLogged = false;
         _seenBots.Clear();
         _roles.Clear();
         _notes.Clear();
@@ -671,7 +679,19 @@ public sealed class SimLabRunner : MonoBehaviour
             }
             alive++;
             string role = p.Profile.Info.Settings.Role.ToString();
-            SimLabProbe.Sample(p, TICK);
+            try
+            {
+                SimLabProbe.Sample(p, TICK);
+            }
+            catch (Exception ex)
+            {
+                // One bot's half-built state must not stop the tick: the tick also counts bots and calls the next squads.
+                if (!_probeErrorLogged)
+                {
+                    _probeErrorLogged = true;
+                    Logger.LogError($"[SimLab] probe failed on {p.ProfileId} (later ones not logged): {ex}");
+                }
+            }
             if (!_seenBots.ContainsKey(p.ProfileId))
             {
                 _seenBots[p.ProfileId] = role;

@@ -37,6 +37,8 @@ public class SimPlan
     public bool CleanMemory;
     /// <summary>On-screen sim timer (raid time left / countdown to the next map).</summary>
     public bool ShowTimer = true;
+    /// <summary>Pick the map's original (SPT's own) version through MapVariants before each sim raid.</summary>
+    public bool OriginalMaps = true;
 }
 
 /// <summary>Server -> client after the raid's location was generated: how this raid was set up.</summary>

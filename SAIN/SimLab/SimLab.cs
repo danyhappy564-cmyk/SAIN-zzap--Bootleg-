@@ -75,6 +75,31 @@ public static class SimLab
     }
 
     /// <summary>Blocking call (the local SPT server answers in milliseconds). Null on any failure.</summary>
+    /// <summary>
+    /// Asks MapVariants (LennoxP90) to serve the map's original version for the next raid - the same POST its map screen sends
+    /// when the player picks a version. Without a pick the server keeps the variant it last installed (2026-10-09: the classic
+    /// Factory backport on every sim start). Returns what the server recorded, "none" without MapVariants, null on failure.
+    /// </summary>
+    public static string ChooseOriginalVariant(string locationId)
+    {
+        try
+        {
+            string body = "{\"locationId\":" + JsonConvert.ToString(locationId) + ",\"variant\":\"original\"}";
+            string json = RequestHandler.PostJson("/mapvariants/variant", body);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return "none";
+            }
+            var answer = Newtonsoft.Json.Linq.JObject.Parse(json);
+            return answer["variant"]?.ToString() ?? "none";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning($"[SimLab] MapVariants choice for {locationId} not sent (not installed?): {ex.Message}");
+            return null;
+        }
+    }
+
     public static T Post<T>(string path, object payload)
         where T : class
     {
