@@ -230,6 +230,12 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             }
             config.DefaultsVersion = 3;
         }
+        if (config.DefaultsVersion < 4)
+        {
+            // Sim squads go back to ABPS (spawned in the sim zones by the game plugin) - the game's own spawner stalled.
+            config.AbpsOffInSim = false;
+            config.DefaultsVersion = 4;
+        }
         config.ExcludedMapKeywords ??= [];
         if (!config.ExcludedMapKeywords.Contains("icebreaker", StringComparer.OrdinalIgnoreCase))
         {
@@ -421,6 +427,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             CleanMemory = Config.CleanMemoryBetweenMaps,
             ShowTimer = Config.ShowTimer,
             OriginalMaps = Config.OriginalMaps,
+            DayOnly = Config.DayOnly,
             StepCount = rotation.Count,
         };
         if (rotation.Count == 0)
@@ -591,6 +598,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             PickSpectatorPoint(location, info);
         }
         FindArena(location, info);
+        info.Leash = Config.ArenaLeash && info.HasArena;
         return info;
     }
 

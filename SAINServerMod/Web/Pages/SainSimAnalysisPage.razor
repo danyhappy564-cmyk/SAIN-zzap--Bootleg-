@@ -35,7 +35,8 @@
                     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="Reload">@T("새로고침", "Refresh")</MudButton>
                     @if (_run != null)
                     {
-                        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Description" OnClick="MakeSummary">@T("Claude용 요약 만들기", "Make summary for Claude")</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Description" OnClick="@(() => MakeSummary(false))">@T("Claude용 요약 만들기", "Make summary for Claude")</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.LibraryBooks" OnClick="@(() => MakeSummary(true))">@T("요약 + 레이드 일지 합쳐 받기 (심층 분석용)", "Summary + raid journals merged (deep analysis)")</MudButton>
                         <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteRun">@T("이 실행 삭제", "Delete this run")</MudButton>
                     }
                     <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteSweep" OnClick="@(() => _showBulk = !_showBulk)">@T("기록 일괄 삭제", "Bulk delete")</MudButton>
@@ -81,7 +82,7 @@
                         <MudText Typo="Typo.subtitle1" Class="spt-title">@T("Claude용 요약", "Summary for Claude")</MudText>
                         <MudStack Row Spacing="2">
                             <MudButton Href="@SummaryHref" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Download"
-                                       UserAttributes="@(new Dictionary<string, object> { ["download"] = $"sim_{_run.RunId}.md" })">@T("md 파일 받기", "Download .md")</MudButton>
+                                       UserAttributes="@(new Dictionary<string, object> { ["download"] = _withJournals ? $"sim_{_run.RunId}_journals.md" : $"sim_{_run.RunId}.md" })">@(_withJournals ? T("md 파일 받기 (일지 포함)", "Download .md (with journals)") : T("md 파일 받기", "Download .md"))</MudButton>
                             <MudButton Variant="Variant.Text" OnClick="@(() => _summary = null)">@T("닫기", "Close")</MudButton>
                         </MudStack>
                     </MudStack>
@@ -127,7 +128,7 @@
                         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@StatusColor(m.Status)">@SimLabAnalyzer.StatusText(m.Status)</MudChip>
                     </MudStack>
                     <MudText Typo="Typo.caption" Class="spt-muted d-block">
-                        @m.Started.ToString("MM-dd HH:mm") @T("시작", "start") · @(SimLabAnalyzer.PlayedMinutes(m).ToString("0.0"))/@(m.PlannedMinutes.ToString("0"))@T("분", " min") · @T("목적", "Focus"): @FocusOf(m)
+                        @m.Started.ToString("MM-dd HH:mm") @T("시작", "start") · @(SimLabAnalyzer.PlayedMinutes(m).ToString("0.0"))/@(m.PlannedMinutes.ToString("0"))@T("분", " min") · @T("게임 시각", "game clock") @SimLabAnalyzer.DayNight(m.Last) · @T("목적", "Focus"): @FocusOf(m)
                     </MudText>
                     @if (m.Raid != null)
                     {
@@ -290,6 +291,23 @@
                                     }
                                 </MudExpansionPanel>
                             }
+                            <MudExpansionPanel Text="@T("기능 점검 (README 추가한 기능·버그 수정이 이 판에서 돌았는지)", "Feature check (did each README feature / bug fix run here)")" Class="sain-subpanel">
+                                <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
+                                    @T("✅ 발동함 · ⚠️ 한 번도 안 나옴(맵 특성상 안 나올 수도 있음) · ❌ 버그 수정의 나쁜 신호 · ➖ 따로 세는 카운터 없음. 자세한 장면은 일지 태그 줄.",
+                                       "✅ fired · ⚠️ never fired (may not apply on this map) · ❌ bad signal on a bug fix · ➖ no own counter. Scenes: the journal tag lines.")
+                                </MudText>
+                                <MudSimpleTable Dense="true">
+                                    <thead><tr><th>@T("기능", "Feature")</th><th>@T("발동", "Fired")</th><th>@T("거부·실패", "Refused")</th><th>@T("나쁜 신호", "Bad")</th><th>@T("일지", "Journal")</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var f in SimLabFeatures.All)
+                                        {
+                                            var (fired, refused, bad) = SimLabFeatures.Measure(f, b);
+                                            string state = f.Fired.Length == 0 ? "➖" : bad > 0 && f.Group == "fix" ? "❌" : fired > 0 ? "✅" : "⚠️";
+                                            <tr><td>@state @f.Name</td><td>@(f.Fired.Length == 0 ? "-" : fired.ToString())</td><td>@(f.Refused.Length == 0 ? "-" : refused.ToString())</td><td>@(f.Bad.Length == 0 ? "-" : bad.ToString())</td><td>@f.Journal</td></tr>
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
+                            </MudExpansionPanel>
                             @if (b.CombatSamples > 0)
                             {
                                 <MudExpansionPanel Text="@T($"벽 보기 {(float)b.WallStareSamples / Math.Max(1, b.CombatSamples):P0} (전투 중)", $"Wall stare {(float)b.WallStareSamples / Math.Max(1, b.CombatSamples):P0} (in combat)")" Class="sain-subpanel">
@@ -369,7 +387,9 @@
         Reload();
     }
 
-    private string SummaryHref => "data:text/markdown;charset=utf-8;base64," + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(_summary ?? string.Empty));
+    private bool _withJournals;
+    private string? _download;
+    private string SummaryHref => "data:text/markdown;charset=utf-8;base64," + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(_download ?? _summary ?? string.Empty));
 
     protected override void OnInitialized()
     {
@@ -407,17 +427,20 @@
         _run = _runs.FirstOrDefault(r => r.RunId == runId);
     }
 
-    private void MakeSummary()
+    private void MakeSummary(bool withJournals)
     {
         if (_run == null)
         {
             return;
         }
+        _withJournals = withJournals;
         _summary = SimLabAnalyzer.Markdown(_run);
+        // user 2026-10-09: "the Journal files allow deep analysis - a button next to the Claude md that merges them in"
+        _download = withJournals ? _summary + SimLabAnalyzer.JournalAppendix(_run) : _summary;
         try
         {
-            _summaryPath = Path.Combine(Sim.RunsDir, $"{JsonFileStoreUtilName(_run.RunId)}.summary.md");
-            File.WriteAllText(_summaryPath, _summary);
+            _summaryPath = Path.Combine(Sim.RunsDir, $"{JsonFileStoreUtilName(_run.RunId)}{(withJournals ? ".journals" : ".summary")}.md");
+            File.WriteAllText(_summaryPath, _download);
         }
         catch (Exception ex)
         {

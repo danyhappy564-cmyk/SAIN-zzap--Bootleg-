@@ -44,6 +44,11 @@ public static class SimLabProbe
     private static HashSet<string> _wantedB = new(StringComparer.OrdinalIgnoreCase);
     private static SimRaidInfo _info;
 
+    public static BotZone Zone(string name)
+    {
+        return name != null && _zones.TryGetValue(name.Trim(), out BotZone zone) ? zone : null;
+    }
+
     public static void Reset(SimRaidInfo info)
     {
         _info = info;

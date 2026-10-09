@@ -34,6 +34,8 @@ public static class SimLab
 
     /// <summary>Bots ignore this player (spectator mode). Checked by the BotsGroup.AddEnemy patch and SAIN's enemy list.</summary>
     public static bool SpectatorActive;
+    /// <summary>In-game hour the last sim raid was started at (-1 = unknown).</summary>
+    public static float RaidHour = -1f;
     public static string SpectatorProfileId;
 
     /// <summary>Set when the sim ended a raid itself: the next session result screens are skipped.</summary>

@@ -4,7 +4,11 @@ using static SAINServerMod.Web.Services.WebText;
 
 namespace SAINServerMod.SimLab;
 
-public sealed record SimFinding(string Severity, string Title, string Detail);
+public sealed record SimFinding(string Severity, string Title, string Detail)
+{
+    /// <summary>For Claude: how to fix / follow up (code places, what to change). Filled for high and warn findings.</summary>
+    public string? Fix { get; init; }
+}
 
 /// <summary>
 /// zzap fork: turns one sim map's reports into "what looks wrong" lines for the analysis page, and a whole run into one
@@ -39,6 +43,71 @@ public static class SimLabAnalyzer
     }
 
     public static List<SimFinding> Findings(SimMapRecord m)
+    {
+        return FindingsRaw(m).Select(f => f.Severity is HIGH or WARN ? f with { Fix = FixFor(f, m) } : f).ToList();
+    }
+
+    // user 2026-10-09: "when high/warn come up, the Claude summary should already say how it should be fixed, so I hand over the md
+    // and you fix right away". Written for Claude (code places, Korean). Matched on the finding's title in either language.
+    private static readonly (string Ko, string En, string Fix)[] _fixes =
+    {
+        ("중간에 끊김", "Interrupted", "사용자가 Alt+F4로 끊은 판이면 할 일 없음(사용자 메모 확인). 아니면 LogOutput 마지막 [Error]/예외 스택 → 그 코드 수정. SimLab 기록 복구(SimLabFile.RecoverUnfinished) 내용으로 끊긴 시각 확인."),
+        ("보고 없음", "No reports", "SimLabRunner.BeginRaid/Setup에 못 들어감: LogOutput [SimLab] 줄, SimLab.Active(프리셋 SimLab.Enabled), /sain/sim/raid 응답(Applied) 확인."),
+        ("시뮬 스폰 미적용", "Sim spawns not applied", "SimLabService.ApplyToRaid가 안 불렸거나 Armed/Running=false. 서버 로그 [SAIN SimLab] 줄, 시작 전 hello(start) 순서 확인."),
+        ("시나리오 설정 문제", "Scenario setup problem", "SimLabDefaults.Scenarios의 구역 이름을 그 맵(원본 버전) SpawnPointParams.BotZoneName과 대조해 고치고 DefaultsVersion을 올려 저장된 설정도 갱신."),
+        ("오류 ", "kinds of errors", "오류 목록 첫 스택의 위치를 수정. EFT.* 안쪽이면 그걸 부른 SAIN 코드에 null/상태 방어. 레이드 종료 중 오류라면 SimLogListener.Ending 처리(종료 뒤 집계 제외)가 빠진 경로 확인."),
+        ("봇이 생성되지 않음", "No bots spawned", "LogOutput [SimLab] squad / 'stuck waiting' 줄과 [SimLab] ABPS found 로그 확인. ABPS 경유면 SimLabAbpsSpawn(구역 점 15m 조건, sim.abpsZone.fallback), 게임 기본이면 BotBossSpawn 지연(20초 재시도) 문제."),
+        ("시뮬 외 봇이 섞임", "Non-sim bots mixed in", "RemoveOtherSpawns가 못 지운 경로(ABPS 자체 스캐브/보스, 웨이브 밖 스폰)를 찾아 SimLabService.Apply 또는 클라 StopOtherScenarios에 추가."),
+        ("교전이 거의 없음", "Hardly any fighting", "분대 호출 수·봇 수·구역 줄(leash) 횟수·ORBIT 목적지를 보고: 생성 부족이면 스폰 경로, 못 만나면 시나리오 구역/Arena 반지름 조정, 페이스(MaxAliveBots/RespawnSeconds) 상향."),
+        ("프레임 저하", "Low frame rate", "일지 [Perf] fps와 RAM 클리너 [mods] 줄로 원인 모드·봇 수 확인. 종료 직전 값이면 SimLabRunner의 _endRequested 뒤 FPS 제외 경로 확인."),
+        ("멈춤(1초 넘는 프레임)", "Stalls", "해당 시각 LogOutput의 예외·GC·로딩 확인."),
+        ("메모리 증가", "Memory growth", "맵끼리 비교. 시체(SimCorpseLimit/Delete)·디칼 해제 수치 확인, 계속 오르면 누수 후보(정적 리스트·이벤트 구독) 추적."),
+        ("판단을 바꾼 직후 사망이 많음", "Many deaths right after a decision change", "death.switchedAway.<판단>.<이유> 상위를 보고, 적이 보일 때 엄폐로 빠지는 판단(VisibleEnemyUtility Cover/utilityFallBack)이면 '등 돌리는 순간' 노출 → 가까운 엄폐만 허용·뒷걸음 사격(close.walkFacingEnemy)·전환 최소 유지 시간 검토. 일지 [Death] 줄로 거리·맞은 부위 확인."),
+        ("얼음 매복 중 사망", "Died while freeze-ambushing", "FreezeAction 종료 조건(enemySpotted/underFire 반응 지연) 점검."),
+        ("벽을 보고 있는 시간이 많음", "Much time facing a wall", "WallStareByDecision 상위 판단의 시선 목표 확인 → SAINSteeringClass.AvoidWallStare 조건(조준 중 제외 등)·거리 조정."),
+        ("스폰 위치가 정한 구역과 다름", "Spawns outside the wanted zones", "sim.abpsZone.used/fallback 비율 확인. fallback이 많으면 SimLabAbpsSpawn MIN_DISTANCE 완화나 구역 추가."),
+        ("보기 전에 소리로 알아챘는지", "Heard before seen?", "notHeard.close/mid가 많음 → PlayerSoundController(BotsHearBotFootsteps)·SAIN 청각 거리/가림 계산 확인."),
+        ("4m 안 적을 모름", "Enemy within 4 m unnoticed", "예시의 레이어가 ORBIT이고 t가 같으면 동시 생성 겹침 → SimLabAbpsSpawn 거리 조건. 전투 중이면 근거리(등 뒤 3m) 감지 보강 검토."),
+        ("ORBIT 고스트 모드가 봇을 재움", "ORBIT Ghost Mode put bots to sleep", "OrbitGhostOff 적용 확인: 서버 로그 'ORBIT config: ghost off', ORBIT 클라 /orbit/config 재요청 여부."),
+        ("ORBIT 목적지가 싸움 구역 밖", "ORBIT objectives outside the arena", "OrbitArenaZone 적용(서버 로그 'zones: arena zone') 확인, 구역 줄(ArenaLeash) 횟수 확인. 반지름이 크면 FindArena 반지름 공식 조정."),
+        ("ORBIT가 봇을 탈출시키려 함", "ORBIT sends bots to extract", "OrbitNoExtract가 덮지 못한 탈출 이유(ExtractReason) 찾아 SimLabOrbitBridge.EditConfig에 키 추가."),
+        ("봇이 ORBIT(맵 이동)에 오래 있음", "Bots spend long in ORBIT", "ORBIT 목적지(OrbitObjectiveSeconds)·구역 줄 확인. 싸움 구역 밖이면 OrbitArenaZone/Leash 조정."),
+        ("버그 수정 항목에 나쁜 신호", "Bad signal on a bug fix", "md '기능 점검' 표에서 ❌ 행의 나쁜 신호 카운터 → 그 버그 수정 코드 경로 재확인(일지 태그 줄 시각으로 장면 찾기)."),
+        ("문 전술이 중간에 끊긴", "Door tactic interrupted", "door.end.*.interrupted / door.abort 상위 이유 → DoorTacticClass 끊김 조건 점검."),
+    };
+
+    private static string? FixFor(SimFinding f, SimMapRecord m)
+    {
+        if (f.Title.StartsWith(T("이상 행동 자동 감지", "Automatic oddity detector"), StringComparison.Ordinal))
+        {
+            var kinds = m.Last?.OddityCounts?.OrderByDescending(kv => kv.Value).Take(3).Select(kv => OddityFix(kv.Key)) ?? [];
+            return string.Join(" / ", kinds);
+        }
+        foreach (var (ko, en, fix) in _fixes)
+        {
+            if (f.Title.StartsWith(ko, StringComparison.Ordinal) || f.Title.Contains(en, StringComparison.OrdinalIgnoreCase))
+            {
+                return fix;
+            }
+        }
+        return "원인 추적: 같은 맵의 일지(병합 md)에서 해당 시각 전후를 본다.";
+    }
+
+    private static string OddityFix(string kind)
+    {
+        return kind switch
+        {
+            "noShoot" => "noShoot: 예시 판단/이유에서 사격이 막힌 곳(SAINShootClass·Aim·CanShoot·FireLaneGuard 보류) 확인",
+            "backTurned" => "backTurned: 가까운 적보다 다른 시선 목표가 이긴 것 → SAINSteeringClass 시선 우선순위",
+            "hitNoReact" => "hitNoReact: 맞은 뒤 판단 전환(엄폐/반격)이 안 된 판단·이유 → EnemyDecisionClass 피격 반응",
+            "flipFlop" => "flipFlop: 예시 판단 쌍 사이 전환 조건에 최소 유지 시간/히스테리시스",
+            "bunched" => "bunched: 분대 간격(SquadCombat·이동 목표 겹침) 벌리기",
+            "stalledMove" => "stalledMove: 이동 판단인데 목표/경로 실패 → Mover·엄폐 찾기(utilityFallBack 등) 경로 실패 처리",
+            _ => kind,
+        };
+    }
+
+    private static List<SimFinding> FindingsRaw(SimMapRecord m)
     {
         var list = new List<SimFinding>();
         var b = m.Last;
@@ -131,7 +200,7 @@ public static class SimLabAnalyzer
         if (deaths >= 6 && switching * 10 >= deaths * 3)
         {
             list.Add(new(WARN, T("판단을 바꾼 직후 사망이 많음", "Many deaths right after a decision change"),
-                T($"사망 {deaths} 중 {switching}이 판단 전환 1.5초 안 (30% 이상). 일지 [Death] why=·decisionAge= 확인.", $"{switching} of {deaths} deaths within 1.5 s of a decision change (30%+). Check why= / decisionAge= in the journal's [Death] lines.")));
+                T($"사망 {deaths} 중 {switching}이 싸우던 중 엄폐·후퇴·수색 같은 비사격 판단으로 바꾼 지 1.5초 안 (30% 이상, 근접전 사격 판단 재선택은 제외). 카운터 death.switchedAway.*·일지 [Death] why=·decisionAge= 확인.", $"{switching} of {deaths} deaths within 1.5 s of switching away from fighting (cover/retreat/search; re-picking 'shoot' in a dogfight is excluded). See death.switchedAway.* and the journal's [Death] lines.")));
         }
 
         int freezeDeaths = Get(b, "death.Freeze");
@@ -205,6 +274,38 @@ public static class SimLabAnalyzer
             }
         }
 
+        // feature coverage (user 2026-10-09: "precisely whether ALL the features we added work")
+        if (played >= 5f)
+        {
+            var silent = new List<string>();
+            var bad = new List<string>();
+            foreach (var f in SimLabFeatures.All)
+            {
+                if (f.Fired.Length == 0)
+                {
+                    continue;
+                }
+                var (fired, _, badCount) = SimLabFeatures.Measure(f, b);
+                if (fired == 0)
+                {
+                    silent.Add(f.Name);
+                }
+                if (badCount > 0 && f.Group == "fix")
+                {
+                    bad.Add($"{f.Name} {badCount}");
+                }
+            }
+            if (bad.Count > 0)
+            {
+                list.Add(new(WARN, T("버그 수정 항목에 나쁜 신호", "Bad signal on a bug fix"), T($"{string.Join(", ", bad)} — md '기능 점검' 표의 나쁜 신호 칸.", $"{string.Join(", ", bad)} - see the 'feature check' table.")));
+            }
+            if (silent.Count > 0)
+            {
+                list.Add(new(INFO, T($"이 판에서 한 번도 안 나온 기능 {silent.Count}개", $"{silent.Count} features never fired here"),
+                    T($"{string.Join(", ", silent)}. 맵 특성상 안 나올 수 있음(예: 재배치는 실외 전용) — md '기능 점검' 표 참고.", $"{string.Join(", ", silent)}. Some can't fire on this map (e.g. Relocate is outdoor only) - see the 'feature check' table.")));
+            }
+        }
+
         // automatic oddity detector (user 2026-10-09: "can't you measure it yourself?")
         int odd = b.OddityCounts?.Values.Sum() ?? 0;
         if (odd > 0)
@@ -262,6 +363,17 @@ public static class SimLabAnalyzer
     }
 
     /// <summary>Share of bot time in a layer group: "orbit", "combat" (SAIN combat), "sain" (any SAIN layer), "other".</summary>
+    public static string DayNight(SimBeat? b)
+    {
+        if (b == null || b.RaidHour < 0f)
+        {
+            return T("알 수 없음", "unknown");
+        }
+        int h = (int)b.RaidHour;
+        int min = (int)((b.RaidHour - h) * 60f);
+        return $"{h:00}:{min:00} " + (b.Night ? T("(밤)", "(night)") : T("(낮)", "(day)"));
+    }
+
     public static string OddityName(string kind)
     {
         return kind switch
@@ -462,13 +574,14 @@ public static class SimLabAnalyzer
         sb.AppendLine($"- 프리셋 `{run.Preset}`, SAIN.dll 빌드 {run.Build}");
         sb.AppendLine($"- 맵 {run.Maps.Count}개: " + string.Join(", ", run.Maps.Select(m => $"{m.MapName}({StatusText(m.Status)})")));
         sb.AppendLine();
+        AppendTodo(sb, run);
         AppendCodeGlossary(sb, run);
         foreach (var m in run.Maps)
         {
             var b = m.Last;
             sb.AppendLine($"## {m.Index + 1}. {m.MapName} (`{m.Map}`) — {m.Scenario}");
             sb.AppendLine();
-            sb.AppendLine($"- 상태 **{StatusText(m.Status)}**, 진행 {PlayedMinutes(m):0.0}/{m.PlannedMinutes:0}분, 시작 {m.Started:HH:mm:ss}");
+            sb.AppendLine($"- 상태 **{StatusText(m.Status)}**, 진행 {PlayedMinutes(m):0.0}/{m.PlannedMinutes:0}분, 시작 {m.Started:HH:mm:ss}, 게임 시각 {DayNight(m.Last)}");
             sb.AppendLine($"- 목적: {m.Focus}");
             if (m.Raid != null)
             {
@@ -504,7 +617,7 @@ public static class SimLabAnalyzer
                 sb.AppendLine($"- 서버가 바꾼 ORBIT 설정: {(string.IsNullOrEmpty(m.Raid?.OrbitOverrides) ? "없음 (ORBIT 없음/끔/요청 전)" : m.Raid!.OrbitOverrides)}");
                 if (m.Raid?.HasArena == true)
                 {
-                    sb.AppendLine($"- 싸움 구역 원: 중심 ({m.Raid.ArenaX:0},{m.Raid.ArenaZ:0}) 반지름 {m.Raid.ArenaRadius:0}m");
+                    sb.AppendLine($"- 싸움 구역 원: 중심 ({m.Raid.ArenaX:0},{m.Raid.ArenaZ:0}) 반지름 {m.Raid.ArenaRadius:0}m, 구역 줄 {(m.Raid.Leash ? "켬" : "끔")}, 끌고 온 횟수 {b?.LeashTeleports ?? 0} (일지 `[SimLab] leash`)");
                 }
                 if (b != null)
                 {
@@ -519,6 +632,24 @@ public static class SimLabAnalyzer
                 foreach (var x in b.SpawnOff ?? [])
                 {
                     sb.AppendLine($"- 밖: {x.Role}({x.Side}) zone={x.Zone} wanted={x.Wanted} pos=({x.X:0},{x.Y:0},{x.Z:0}) 가까운 지정 지점까지 {x.Distance:0}m t={x.RaidTime:0}s");
+                }
+            }
+            if (b != null)
+            {
+                sb.AppendLine();
+                sb.AppendLine("### 기능 점검 (README '추가한 기능' + '버그 수정', 카운터 기준)");
+                sb.AppendLine("| 분류 | 기능 | 발동 | 거부·실패 | 나쁜 신호 | 일지 태그 | 메모 |");
+                sb.AppendLine("|---|---|---|---|---|---|---|");
+                foreach (var f in SimLabFeatures.All)
+                {
+                    var (fired, refused, badCount) = SimLabFeatures.Measure(f, b);
+                    string state = f.Fired.Length == 0 ? "➖" : fired > 0 ? "✅" : "⚠️";
+                    if (badCount > 0 && f.Group == "fix")
+                    {
+                        state = "❌";
+                    }
+                    string journal = f.Group == "ai" && f.Name == "레이드 일지" ? (string.IsNullOrEmpty(b.JournalFile) ? "⚠️ 없음" : "✅ 있음") : f.Journal;
+                    sb.AppendLine($"| {f.Group} | {state} {f.Name} | {(f.Fired.Length == 0 ? "-" : fired.ToString())} | {(f.Refused.Length == 0 ? "-" : refused.ToString())} | {(f.Bad.Length == 0 ? "-" : badCount.ToString())} | {journal} | {f.Note} |");
                 }
             }
             if (b != null && (b.OddityCounts?.Count ?? 0) > 0)
@@ -551,6 +682,10 @@ public static class SimLabAnalyzer
             foreach (var f in Findings(m))
             {
                 sb.AppendLine($"- [{f.Severity}] **{f.Title}** — {f.Detail}");
+                if (!string.IsNullOrEmpty(f.Fix))
+                {
+                    sb.AppendLine($"  - 수정 방향(Claude): {f.Fix}");
+                }
             }
             if (b != null)
             {
@@ -597,6 +732,66 @@ public static class SimLabAnalyzer
     }
 
     /// <summary>For the Claude summary only: which code counts each counter group seen in this run.</summary>
+    /// <summary>
+    /// The to-do list at the top of the Claude summary (user 2026-10-09): every high/warn finding of every map with how to fix it.
+    /// User's rule: [high] = fix right away, [warn] = ask the user before fixing.
+    /// </summary>
+    private static void AppendTodo(StringBuilder sb, SimRunRecord run)
+    {
+        var items = run.Maps.SelectMany(m => Findings(m).Where(f => f.Severity is HIGH or WARN).Select(f => (m, f))).ToList();
+        sb.AppendLine("## Claude 할 일 (자동 생성)");
+        sb.AppendLine();
+        if (items.Count == 0)
+        {
+            sb.AppendLine("- 심각·주의 없음.");
+            sb.AppendLine();
+            return;
+        }
+        sb.AppendLine("> 사용자 규칙: **[high]는 바로 수정**, **[warn]은 고치기 전에 사용자에게 먼저 묻는다**. 사용자 메모(Alt+F4 등)가 있으면 그걸 먼저 반영. 깊게 볼 때는 '요약 + 레이드 일지 합쳐 받기' md의 일지 원문.");
+        sb.AppendLine();
+        foreach (var (m, f) in items.OrderBy(x => x.f.Severity == HIGH ? 0 : 1))
+        {
+            sb.AppendLine($"- [{f.Severity}] {m.MapName}: **{f.Title}** → {f.Fix}");
+        }
+        sb.AppendLine();
+    }
+
+    /// <summary>Raw raid journals of the run's maps, appended to the summary for deep analysis (user 2026-10-09). Read from the
+    /// journal path each map reported (same PC as the server); missing files are listed, not fatal.</summary>
+    public static string JournalAppendix(SimRunRecord run)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine();
+        sb.AppendLine("# 레이드 일지 원문 (병합)");
+        sb.AppendLine();
+        foreach (var m in run.Maps)
+        {
+            string? path = m.Last?.JournalFile;
+            sb.AppendLine($"## 일지: {m.Index + 1}. {m.MapName} — `{path ?? "?"}`");
+            sb.AppendLine();
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                sb.AppendLine("- 파일 없음 (레이드 일지가 꺼져 있었거나 지워짐: F6 > General > 플레이어 스타일 기록 > 레이드 일지).");
+                sb.AppendLine();
+                continue;
+            }
+            try
+            {
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream);
+                sb.AppendLine("```text");
+                sb.AppendLine(reader.ReadToEnd().TrimEnd());
+                sb.AppendLine("```");
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"- 읽기 실패: {ex.Message}");
+            }
+            sb.AppendLine();
+        }
+        return sb.ToString();
+    }
+
     public static void AppendCodeGlossary(StringBuilder sb, SimRunRecord run)
     {
         var groups = new SortedDictionary<string, SimLabGlossary.Entry>(StringComparer.Ordinal);

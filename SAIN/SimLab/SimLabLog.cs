@@ -154,6 +154,11 @@ public sealed class SimLogListener : ILogListener
     /// <summary>Raid time for "first seen" (set by the runner every frame; read from any thread).</summary>
     public static volatile float RaidSeconds;
 
+    /// <summary>Set once the sim ends the raid: from then on errors are the game tearing the raid down (user 2026-10-09:
+    /// "the NullReference and the frame drop only happen when the raid ends - keep them out"), counted apart, not as raid errors.</summary>
+    public static volatile bool Ending;
+    public static int EndingErrors;
+
     public static void Attach()
     {
         if (_instance != null)
@@ -213,6 +218,11 @@ public sealed class SimLogListener : ILogListener
             }
             if (!error && !((level & LogLevel.Warning) != 0 && text.IndexOf("Exception", StringComparison.Ordinal) >= 0))
             {
+                return;
+            }
+            if (Ending)
+            {
+                System.Threading.Interlocked.Increment(ref EndingErrors);
                 return;
             }
             string first = text;

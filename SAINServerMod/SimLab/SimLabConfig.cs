@@ -30,14 +30,22 @@ public sealed class SimLabConfig
     /// <summary>This map's ORBIT hotspots replaced by one attractor over the arena (both sides' zones).</summary>
     public bool OrbitArenaZone = true;
 
-    /// <summary>ABPS leaves sim raids alone (user 2026-10-09: "reserve squads called, no bot came"). ABPS's game plugin otherwise takes
-    /// over the sim's PMC squads: ignores their zones, needs spawn points far from every PMC incl. the spectator, and skips silently.</summary>
-    public bool AbpsOffInSim = true;
+    /// <summary>ABPS leaves sim raids alone. Off by default since 2026-10-09 19:xx (user: "vanilla can't spawn the squads, borrow ABPS"):
+    /// ABPS spawns the sim squads and the SAIN game plugin points its spot pick at the sim zones (SimLabAbpsSpawn). On = the game's
+    /// own boss spawner (Customs: 6 bots from 4 squads in 20 min).</summary>
+    public bool AbpsOffInSim = false;
 
     /// <summary>Sim raids run on each map's original version - SPT's own map (user 2026-10-09: "reworked Factory is SPT's main map,
     /// judge on it"). With MapVariants installed and no pick on the map screen, the server keeps serving the variant it last
     /// installed (the backport/classic Factory); the game asks for "original" through MapVariants' own choice route before each start.</summary>
     public bool OriginalMaps = true;
+
+    /// <summary>Daytime raids only: of the two raid times on offer (CURR / PAST, 12 h apart) the one closer to midday.</summary>
+    public bool DayOnly = true;
+
+    /// <summary>Arena leash: a sim bot that walks out of the arena circle without fighting (ORBIT roaming) for 15 s is teleported back
+    /// into its side's zone (user 2026-10-09: "on Customs they keep leaving the place under test").</summary>
+    public bool ArenaLeash = true;
 
     /// <summary>Every other squad is an enemy, own faction included (user 2026-10-09: "every squad a different team"). SPT's pmc.json
     /// otherwise makes same-faction squads friendly 15% of the time.</summary>

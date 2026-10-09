@@ -39,6 +39,8 @@ public class SimPlan
     public bool ShowTimer = true;
     /// <summary>Pick the map's original (SPT's own) version through MapVariants before each sim raid.</summary>
     public bool OriginalMaps = true;
+    /// <summary>Start each sim raid at the daytime one of the two raid times (user 2026-10-09: "sometimes a night raid gets picked").</summary>
+    public bool DayOnly = true;
 }
 
 /// <summary>Server -> client after the raid's location was generated: how this raid was set up.</summary>
@@ -80,6 +82,8 @@ public class SimRaidInfo
     public float ArenaX;
     public float ArenaZ;
     public float ArenaRadius;
+    /// <summary>Bots walking out of the arena (not fighting) are put back into their side's zone.</summary>
+    public bool Leash;
     /// <summary>What the server changed in ORBIT's config / zones for this raid (empty = ORBIT not installed or nothing).</summary>
     public string OrbitOverrides;
     /// <summary>The server told ABPS to leave this raid alone (squads spawn in their own zones through the game's boss spawner).</summary>
@@ -175,6 +179,11 @@ public class SimBeat
     /// ("Kills/Active", "Loot/Active", "extract: loot threshold reached"...). Empty without ORBIT.</summary>
     /// <summary>Samples (2 s, per bot) of a hostile bot within 4 m that this bot doesn't know about (user screenshot 2026-10-09:
     /// two enemies shoulder to shoulder, then a scramble), and a few examples.</summary>
+    /// <summary>In-game clock at the raid start (hour, 0-24) and whether it is night (before 6 or from 21, or Factory night).</summary>
+    public int LeashTeleports;
+    public float RaidHour = -1f;
+    public bool Night;
+
     public int CloseUnawareSamples;
     public List<SimCloseSample> CloseUnaware = new();
     /// <summary>Automatic oddity detector (user 2026-10-09: "can't you measure it yourself?"): episodes per kind and examples.</summary>

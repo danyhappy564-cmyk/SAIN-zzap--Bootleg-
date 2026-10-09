@@ -133,9 +133,17 @@
                     <MudSwitch T="bool" @bind-Value="Sim.Config.OriginalMaps" Color="Color.Primary" />
                 </div>
                 <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">@T("낮 시간대로만 시작 (메뉴의 두 시간대 중 한낮에 가까운 쪽, 공장은 고정 시간)", "Daytime starts only (of the menu's two raid times, the one closer to midday; Factory has fixed times)")</MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.DayOnly" Color="Color.Primary" />
+                </div>
+                <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">@T("싸움 구역 줄 — 싸우지 않는 봇(ORBIT 이동 등)이 싸움 구역 원 밖에 15초 넘게 있으면 자기 편 구역으로 순간이동", "Arena leash - a bot not fighting (ORBIT roaming...) outside the arena circle for 15 s is teleported back into its side's zone")</MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.ArenaLeash" Color="Color.Primary" />
+                </div>
+                <div class="sain-toggle-row">
                     <MudText Typo="Typo.body2">
-                        @T("시뮬 판에서 ABPS 끄기 (ABPS는 PMC 분대를 가로채 정한 구역을 무시하고, 관전자·다른 PMC와 멀리 떨어진 자리가 없으면 말없이 안 낳음)",
-                           "ABPS off in sim raids (ABPS takes over PMC squads, ignores their zones and silently skips them when no spot is far enough from the spectator and other PMCs)")
+                        @T("시뮬 판에서 ABPS 끄기 — 기본은 꺼 둠(= ABPS가 분대를 만들고, SAIN이 자리만 시뮬 구역 안으로 고름). 켜면 게임 기본 생성(분대가 잘 안 나옴)",
+                           "ABPS off in sim raids - off by default (= ABPS spawns the squads, SAIN points the spot at the sim zones). On = the game's own spawner (squads often stall)")
                         @(Sim.AbpsFound ? "" : T(" — ABPS 서버 모드 없음", " — ABPS server mod not found"))
                     </MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.AbpsOffInSim" Color="Color.Primary" />

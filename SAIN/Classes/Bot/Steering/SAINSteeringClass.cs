@@ -269,6 +269,12 @@ public class SAINSteeringClass : BotComponentClassBase
     private float _nextWallCheck;
     private Vector3? _wallLook;
     private float _nextWallCount;
+    // Sticky choice (user 2026-10-09: "while peeking, the muzzle keeps twitching left-right toward where it looks"): re-picking
+    // every 0.25s flipped between +20 and -20 deg whenever the lean moved the eyes a little and the first ray got blocked.
+    // A picked direction is kept while it stays open (and at least 1.2s); a new pick prefers the side of the last one.
+    private Vector3? _wallKept;
+    private float _wallKeptUntil;
+    private float _wallKeptSide;
 
     private Vector3 AvoidWallStare(Vector3 dir)
     {
@@ -278,6 +284,7 @@ public class SAINSteeringClass : BotComponentClassBase
             || Bot.Aim.AimStatus != AimStatus.NoTarget || _headDown)
         {
             _wallLook = null;
+            _wallKept = null;
             return dir;
         }
         if (Time.time < _nextWallCheck)
@@ -290,7 +297,14 @@ public class SAINSteeringClass : BotComponentClassBase
         int mask = LayersMaskController.HighPolyWithTerrainMask;
         if (dir.sqrMagnitude < 0.01f || !Physics.Raycast(eye, dir.normalized, WALL_STARE_DISTANCE, mask))
         {
+            _wallKept = null;
             return dir;
+        }
+        // keep the last pick while it is still open - no re-pick, no flip
+        if (_wallKept != null && (Time.time < _wallKeptUntil || !Physics.Raycast(eye, _wallKept.Value, 3f, mask)))
+        {
+            _wallLook = _wallKept;
+            return _wallLook.Value;
         }
         string how = "none";
         // 1) the corner he'd appear from
@@ -312,8 +326,10 @@ public class SAINSteeringClass : BotComponentClassBase
             if (flat.sqrMagnitude > 0.01f)
             {
                 flat.Normalize();
-                foreach (float yaw in _wallYawSteps)
+                foreach (float step in _wallYawSteps)
                 {
+                    // same side as the last pick first (steps come in +/- pairs)
+                    float yaw = _wallKeptSide < 0f ? -step : step;
                     Vector3 test = Quaternion.AngleAxis(yaw, Vector3.up) * flat;
                     if (!Physics.Raycast(eye, test, 3f, mask))
                     {
@@ -323,6 +339,17 @@ public class SAINSteeringClass : BotComponentClassBase
                     }
                 }
             }
+        }
+        if (_wallLook != null)
+        {
+            float side = Vector3.SignedAngle(new Vector3(dir.x, 0f, dir.z), new Vector3(_wallLook.Value.x, 0f, _wallLook.Value.z), Vector3.up);
+            if (_wallKept != null && _wallKeptSide != 0f && Mathf.Sign(side) != Mathf.Sign(_wallKeptSide))
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("look.wallFix.flip"); // should stay rare now
+            }
+            _wallKept = _wallLook;
+            _wallKeptUntil = Time.time + 1.2f;
+            _wallKeptSide = side == 0f ? 1f : side;
         }
         if (Time.time > _nextWallCount && SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
         {

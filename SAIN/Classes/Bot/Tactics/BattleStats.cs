@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using EFT;
 using SAIN.Components;
+using SAIN.Preset.Shared.Enums;
 using UnityEngine;
 
 namespace SAIN.SAINComponent.Classes.Tactics;
@@ -66,7 +67,16 @@ public static class BattleStats
             return;
         }
         string reason = ReasonKey(victim.Decision.EnemyDecisions?.LastReason);
-        bool switching = decisionAge < 1.5f;
+        // Only a switch AWAY from fighting counts (2026-10-09 sim: 34 of 49 Factory deaths were "within 1.5 s of a decision
+        // change", but most were DogFight/StandAndShoot re-picking "shoot" every tick in a point-blank fight - not a mistake).
+        var decision = victim.Decision.CurrentCombatDecision;
+        bool fighting = decision is ECombatDecision.DogFight or ECombatDecision.StandAndShoot or ECombatDecision.RushEnemy
+            or ECombatDecision.ShootDistantEnemy or ECombatDecision.MeleeAttack;
+        bool switching = decisionAge < 1.5f && !fighting;
+        if (switching)
+        {
+            TacticDiagnostics.Count($"death.switchedAway.{decision}.{reason}");
+        }
         var p = Get(_personality, victim.Info.Personality.ToString());
         var r = Get(_reason, reason);
         var c = Get(_combat, victim.Decision.CurrentCombatDecision.ToString());

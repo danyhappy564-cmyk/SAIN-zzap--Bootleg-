@@ -363,7 +363,8 @@ public sealed class SimLabRunner : MonoBehaviour
         raid.RaidMode = ERaidMode.Local;
         raid.IsPveOffline = true;
         raid.isInTransition = false;
-        raid.SelectedDateTime = EDateTime.CURR;
+        raid.SelectedDateTime = PickRaidTime(app, SimLab.Plan?.DayOnly != false, out float hour);
+        SimLab.RaidHour = map.StartsWith("factory4", StringComparison.OrdinalIgnoreCase) ? (map.EndsWith("night", StringComparison.OrdinalIgnoreCase) ? 3.5f : 15.5f) : hour;
         raid.MetabolismDisabled = true;
         raid.BotSettings = new BotControllerSettings(false, EBotAmount.AsOnline); // same as BSG's own quick start (InternalStartGame)
         // Do NOT set _menuOperation.IsInSession here: its setter clears the menu's health controller, and
@@ -402,6 +403,34 @@ public sealed class SimLabRunner : MonoBehaviour
             Notify($"[시뮬] 자동 시작 실패: {ex.Message}", true);
             Logger.LogError($"[SimLab] raid start threw: {ex}");
         }
+    }
+
+    /// <summary>
+    /// CURR is the in-game clock now, PAST the same minus 12 h (the menu's two time toggles). With "day only" the one closer to
+    /// 13:00 is taken (user 2026-10-09: sometimes a night raid came up). Factory has fixed times (its night is its own map).
+    /// </summary>
+    private static EDateTime PickRaidTime(TarkovApplication app, bool dayOnly, out float hour)
+    {
+        hour = -1f;
+        try
+        {
+            DateTime now = app.Session.GetCurrentLocationTime;
+            float curr = (float)now.TimeOfDay.TotalHours;
+            float past = (curr + 12f) % 24f;
+            bool pickPast = dayOnly && Mathf.Abs(past - 13f) < Mathf.Abs(curr - 13f);
+            hour = pickPast ? past : curr;
+            return pickPast ? EDateTime.PAST : EDateTime.CURR;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning($"[SimLab] raid clock not readable, current time used: {ex.Message}");
+            return EDateTime.CURR;
+        }
+    }
+
+    public static bool IsNight(float hour)
+    {
+        return hour >= 0f && (hour < 6f || hour >= 21f);
     }
 
     // ================================================================ raid
@@ -445,7 +474,10 @@ public sealed class SimLabRunner : MonoBehaviour
         if (now >= _nextLocalBeat)
         {
             _nextLocalBeat = now + LOCAL_BEAT;
-            UpdateFps(now);
+            if (!_endRequested)
+            {
+                UpdateFps(now); // the frames while the game unloads the raid are not raid frames
+            }
             var beat = BuildBeat("beat");
             SimLabFile.Write(beat);
             if (now >= _nextServerBeat)
@@ -531,6 +563,8 @@ public sealed class SimLabRunner : MonoBehaviour
         var info = SimLab.Raid;
 
         SimLogListener.Attach();
+        SimLogListener.Ending = false;
+        SimLogListener.EndingErrors = 0;
         SimLabFile.Open(_runId, _map);
 
         if (info != null && info.Spectator && _player != null)
@@ -566,6 +600,8 @@ public sealed class SimLabRunner : MonoBehaviour
                 StopOtherScenarios();
             }
             SimLabProbe.Reset(info);
+            SimLabLeash.Reset();
+            SimLabAbpsSpawn.EnsurePatched();
             CollectReserves(info);
             Spawn(true, now);
             Spawn(false, now);
@@ -690,6 +726,18 @@ public sealed class SimLabRunner : MonoBehaviour
                 {
                     _probeErrorLogged = true;
                     Logger.LogError($"[SimLab] probe failed on {p.ProfileId} (later ones not logged): {ex}");
+                }
+            }
+            try
+            {
+                SimLabLeash.Check(p, role, info, now);
+            }
+            catch (Exception ex)
+            {
+                if (!_probeErrorLogged)
+                {
+                    _probeErrorLogged = true;
+                    Logger.LogError($"[SimLab] leash failed on {p.ProfileId}: {ex}");
                 }
             }
             if (!_seenBots.ContainsKey(p.ProfileId))
@@ -822,6 +870,9 @@ public sealed class SimLabRunner : MonoBehaviour
             RunId = _runId,
             Map = _map,
             Kind = kind,
+            RaidHour = SimLab.RaidHour,
+            LeashTeleports = SimLabLeash.Teleports,
+            Night = IsNight(SimLab.RaidHour),
             ClientTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             Build = SimLab.Build,
             Preset = SimLab.PresetName,
@@ -857,6 +908,7 @@ public sealed class SimLabRunner : MonoBehaviour
     private void EndRaid(string reason)
     {
         _endRequested = true;
+        SimLogListener.Ending = true;
         _endReason = reason;
         try
         {
@@ -902,6 +954,10 @@ public sealed class SimLabRunner : MonoBehaviour
                 UpdateFps(Time.realtimeSinceStartup);
             }
             _endReason = forcedReason ?? _endReason ?? "raidEnded";
+            if (SimLogListener.EndingErrors > 0)
+            {
+                _notes.Add($"레이드 종료 처리 중 게임 오류 {SimLogListener.EndingErrors}건 (게임이 레이드를 정리하는 과정, 집계에서 뺌)");
+            }
             var beat = BuildBeat("end");
             SimLabFile.Close(beat);
             SimLab.Post<object>("/sain/sim/beat", beat);
