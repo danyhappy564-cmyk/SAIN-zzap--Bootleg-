@@ -392,7 +392,8 @@
         "Default": 125,
         "Caliber127x33": 125,
         "Caliber9x18PMM": 125
-      }
+      },
+      "BotsHearBotFootsteps": false
     },
     "Location": {
       "LocationSettings": {

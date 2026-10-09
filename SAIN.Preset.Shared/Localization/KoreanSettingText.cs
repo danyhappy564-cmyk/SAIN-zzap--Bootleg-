@@ -1046,6 +1046,11 @@ public static class KoreanSettingText
         { "Close-range standoff: don't sprint away showing the back to an enemy that was just seen nearby.", "근거리 대치: 방금 근처에서 본 적에게 등 보이며 도망가지 않기." },
         { "Reposition (zzap)", "위치 변경 (zzap)" },
         { "Relocate after being spotted, bait peeks, fake reload, fuse selection.", "발각된 뒤 자리 옮기기, 미끼 피킹, 페이크 재장전, 수류탄 신관 선택." },
+        // zzap 2026-10-09: bot footsteps, wall look
+        { "Bots Hear Other Bots' Footsteps", "봇이 다른 봇의 발소리를 들음" },
+        { "zzap: bots hear the footsteps, sprinting, jumps and landing of other bots, not only of human players. Off = SAIN's original behavior: bot movement makes no sound for other bots, so a pushing bot is noticed only when seen or when it shoots (first sims 2026-10-09).", "zzap: 사람 플레이어뿐 아니라 다른 봇의 발소리·질주·점프·착지 소리도 들음. 끄면 원래 SAIN 동작: 봇 움직임은 다른 봇에게 소리가 안 나서, 밀고 오는 봇을 보이거나 쏠 때에야 알아챔(2026-10-09 첫 시뮬)." },
+        { "Don't Stare At Walls", "벽 보고 서 있지 않기" },
+        { "A bot fighting an enemy it can't see turns to the enemy's last known position - if a wall is right in front of its eyes (within 1.2m) that means staring at the wall (field screenshot 2026-10-09: a bot 'peeking' with its face on a flat wall). Then it looks at the corner the enemy would come round, or the nearest open direction toward the enemy, instead.", "안 보이는 적과 싸울 때 봇은 적의 마지막 위치 쪽을 보는데, 눈앞 1.2m 안에 벽이 있으면 벽만 보게 됨(2026-10-09 사진: 평평한 벽에 얼굴을 대고 '피킹'). 그럴 땐 적이 돌아 나올 코너나, 적 쪽으로 가장 가까운 트인 방향을 봄." },
         // SimLabSettings (zzap)
         { "Simulation Lab (zzap)", "시뮬레이션 랩 (zzap)" },
         { "Map rotation simulation for testing bot behavior. Only the simulation preset turns it on.", "봇 행동 테스트용 맵 순회 시뮬레이션. 시뮬 전용 프리셋에서만 켜짐." },

@@ -482,6 +482,12 @@ public class HearingSettings : SAINSettingsBase<HearingSettings>, ISAINSettings
     public float BaseSoundRange_GrenadePinDraw = 35f;
 
     [DataMember]
+    [Category("Hearing Distance")]
+    [Name("Bots Hear Other Bots' Footsteps")]
+    [Description("zzap: bots hear the footsteps, sprinting, jumps and landing of other bots, not only of human players. Off = SAIN's original behavior: bot movement makes no sound for other bots, so a pushing bot is noticed only when seen or when it shoots (first sims 2026-10-09).")]
+    public bool BotsHearBotFootsteps = true;
+
+    [DataMember]
     [MinMax(1f, 150f, 100f)]
     [Category("Hearing Distance")]
     [Name("Footstep Sound")]

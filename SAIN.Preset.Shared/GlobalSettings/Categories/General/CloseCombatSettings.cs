@@ -306,6 +306,11 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public bool LightDiscipline = true;
 
     [DataMember]
+    [Name("Don't Stare At Walls")]
+    [Description("A bot fighting an enemy it can't see turns to the enemy's last known position - if a wall is right in front of its eyes (within 1.2m) that means staring at the wall (field screenshot 2026-10-09: a bot 'peeking' with its face on a flat wall). Then it looks at the corner the enemy would come round, or the nearest open direction toward the enemy, instead.")]
+    public bool WallLookFix = true;
+
+    [DataMember]
     [Name("Corner Pre-Aim")]
     [Description("Moving toward a known enemy who is out of sight: within 6m of the corner/doorway he'd appear from, stop sprinting, aim at that corner before rounding it and hold the lean to that side - no more stepping out half the body first and only then turning to look.")]
     public bool CornerPreAim = true;

@@ -24,7 +24,9 @@ public sealed class PlayerSoundController(PlayerComponent player) : PlayerCompon
 
     public void HandleMovementState(EPlayerState previousState, EPlayerState nextState)
     {
-        if (Player.IsAI && Player.AIData != null)
+        // zzap: SAIN skipped every AI here, so bots never heard other bots move (footsteps / sprint / jump / landing never reached
+        // their hearing - only gunshots, doors and bushes did). Field 2026-10-09: "they don't react to a push until they see it".
+        if (Player.IsAI && Player.AIData != null && SAINPlugin.LoadedPreset?.GlobalSettings?.Hearing?.BotsHearBotFootsteps != true)
         {
             return;
         }

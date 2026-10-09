@@ -123,6 +123,21 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             }
             config.DefaultsVersion = 2;
         }
+        if (config.DefaultsVersion < 3)
+        {
+            // Customs side B without the far gas station zone - only if the saved value is still the old default.
+            if (config.Scenarios.TryGetValue("bigmap", out var customs) && customs != null && customs.ZonesB == "ZoneGasStation,ZoneCrossRoad")
+            {
+                var fresh = SimLabDefaults.Scenarios()["bigmap"];
+                customs.ZonesB = fresh.ZonesB;
+                if (customs.Focus.StartsWith("A는 기숙사(수비), B는 주유소", StringComparison.Ordinal))
+                {
+                    customs.Focus = fresh.Focus;
+                    customs.FocusEn = fresh.FocusEn;
+                }
+            }
+            config.DefaultsVersion = 3;
+        }
         config.ExcludedMapKeywords ??= [];
         if (!config.ExcludedMapKeywords.Contains("icebreaker", StringComparer.OrdinalIgnoreCase))
         {

@@ -237,6 +237,10 @@ public class SAINSteeringClass : BotComponentClassBase
         {
             dir = preAim;
         }
+        else
+        {
+            dir = AvoidWallStare(dir);
+        }
         if (ShallHideHeadRunning(dir, out float pitch))
         {
             Vector3 flat = new(dir.x, 0f, dir.z);
@@ -253,6 +257,79 @@ public class SAINSteeringClass : BotComponentClassBase
             }
         }
         PlayerComponent.CharacterController.SetTargetLookDirection(dir, BotOwner, Bot);
+    }
+
+    // zzap: don't stare at a wall (field screenshot 2026-10-09: a bot crouched with its face on a flat wall, "peeking" at an
+    // enemy behind it). Against an enemy it can't see, a bot turns to the enemy's last known position, straight through
+    // whatever is in between. When that look ray hits something within 1.2m of the eyes, look instead at the corner the
+    // enemy would come round (SAIN's blind corner on the path to him) if that is open, else at the open direction closest
+    // to the enemy (+-20..90 deg, level). Re-checked every 0.25s; never while the enemy is visible or the bot is aiming.
+    private const float WALL_STARE_DISTANCE = 1.2f;
+    private static readonly float[] _wallYawSteps = { 20f, -20f, 40f, -40f, 60f, -60f, 90f, -90f };
+    private float _nextWallCheck;
+    private Vector3? _wallLook;
+    private float _nextWallCount;
+
+    private Vector3 AvoidWallStare(Vector3 dir)
+    {
+        var settings = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat;
+        Enemy enemy = Bot.GoalEnemy;
+        if (settings == null || !settings.WallLookFix || enemy == null || enemy.IsVisible || (enemy.Seen && enemy.TimeSinceSeen < 0.5f)
+            || Bot.Aim.AimStatus != AimStatus.NoTarget || _headDown)
+        {
+            _wallLook = null;
+            return dir;
+        }
+        if (Time.time < _nextWallCheck)
+        {
+            return _wallLook ?? dir;
+        }
+        _nextWallCheck = Time.time + 0.25f;
+        _wallLook = null;
+        Vector3 eye = Bot.Transform.EyePosition;
+        int mask = LayersMaskController.HighPolyWithTerrainMask;
+        if (dir.sqrMagnitude < 0.01f || !Physics.Raycast(eye, dir.normalized, WALL_STARE_DISTANCE, mask))
+        {
+            return dir;
+        }
+        string how = "none";
+        // 1) the corner he'd appear from
+        Vector3? corner = enemy.VisiblePathPoint;
+        if (corner != null)
+        {
+            Vector3 toCorner = corner.Value + Vector3.up * 1.3f - eye;
+            float dist = toCorner.magnitude;
+            if (dist > 1.5f && !Physics.Raycast(eye, toCorner / dist, Mathf.Min(dist, 4f), mask))
+            {
+                _wallLook = (ClampPitch(eye, eye + toCorner, dir) - eye).normalized; // ClampPitch returns a point
+                how = "corner";
+            }
+        }
+        // 2) nearest open direction toward the enemy, level
+        if (_wallLook == null)
+        {
+            Vector3 flat = new Vector3(dir.x, 0f, dir.z);
+            if (flat.sqrMagnitude > 0.01f)
+            {
+                flat.Normalize();
+                foreach (float yaw in _wallYawSteps)
+                {
+                    Vector3 test = Quaternion.AngleAxis(yaw, Vector3.up) * flat;
+                    if (!Physics.Raycast(eye, test, 3f, mask))
+                    {
+                        _wallLook = test;
+                        how = "open";
+                        break;
+                    }
+                }
+            }
+        }
+        if (Time.time > _nextWallCount && SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
+        {
+            _nextWallCount = Time.time + 3f;
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"look.wallFix.{how}");
+        }
+        return _wallLook ?? dir;
     }
 
     // zzap: corner pre-aim (2026-09-29 field report: bots opened a door / rounded a corner with half the body out and only

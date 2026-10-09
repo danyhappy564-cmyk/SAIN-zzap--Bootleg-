@@ -104,6 +104,8 @@ def lowspec(src_normal):
     # Fewer raycasts per "step to where the angle opens" search (holding bots check every 1.5s).
     gen.setdefault("CloseCombat", {})["HoldStepToOpenAngleMax"] = 1.0
     gen.setdefault("FreezeAmbush", {})["PeekSpotMaxStep"] = 1.5
+    # Bot-vs-bot footstep hearing: every moving bot's steps go through every bot's hearing - off for low-spec.
+    d["GlobalSettings"].setdefault("Hearing", {})["BotsHearBotFootsteps"] = False
     return d
 
 

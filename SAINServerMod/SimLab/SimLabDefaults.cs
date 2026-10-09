@@ -154,11 +154,13 @@ public static class SimLabDefaults
             ["bigmap"] = new()
             {
                 NameEn = "Customs dorms assault",
-                FocusEn = "A holds the dorms, B comes in from the gas station / crossroads: entering a multi-floor building, room clearing, door stacking, stair fights",
+                FocusEn = "A holds the dorms, B comes in from the crossroads: entering a multi-floor building, room clearing, door stacking, stair fights",
                 Name = "세관 기숙사 공방",
-                Focus = "A는 기숙사(수비), B는 주유소·교차로에서 진입: 다층 건물 진입, 방 정리, 문 스택, 계단 교전",
+                Focus = "A는 기숙사(수비), B는 교차로에서 진입: 다층 건물 진입, 방 정리, 문 스택, 계단 교전",
                 ZonesA = "ZoneDormitory",
-                ZonesB = "ZoneGasStation,ZoneCrossRoad",
+                // ZoneGasStation dropped 2026-10-09 (first sim: "Customs bots spawned in odd places") - its spawn points are ~280m
+                // from the dorms (zone centers from SPT 4.1 data: dorms (172,166), crossroad (202,52), gas station (433,56)).
+                ZonesB = "ZoneCrossRoad",
                 Watch = "door.,squad.,nade.,repo.",
             },
             ["interchange"] = new()

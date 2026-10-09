@@ -99,6 +99,7 @@ public static class SimLabGlossary
         new("handoff.gapLayer.", "교전 끝~ORBIT 사이에 잠깐 잡은 다른 레이어 (바닐라 순찰 등)", "Other layer in the gap between combat and ORBIT", "LayerHandoff"),
         new("handoff.", "레이어 넘기기 기타", "Other handoff events", "LayerHandoff"),
         new("stuck.", "막힘 감지·탈출 단계 (stage1~4, freed=풀려남, layer=막힌 레이어)", "Stuck detection / escape stages", "SAINBotUnstuckClass"),
+        new("look.wallFix.", "벽을 보고 있던 봇이 시선을 고침 (corner=적이 나올 코너, open=트인 방향, none=고칠 곳 없음)", "Wall stare corrected (corner / open / none)", "SAINSteeringClass.AvoidWallStare"),
         new("hear.firstSeen.", "처음 적을 봤을 때 10초 안에 소리로 먼저 들었는지 (heard.move=발소리·문·덤불, heard.gun=총소리, notHeard=못 들음) · 거리 close<15m mid<40m far", "On first sight: was the enemy heard in the 10 s before (move / gun / not heard) and range", "EnemyEvents.CountFirstSeen"),
         new("sim.", "시뮬 전용 (시체 정리 등)", "Sim only (corpse cleanup)", "CorpseCleanup"),
         new("perf.", "성능 정리 (시체 피 자국 해제)", "Performance cleanup", "CorpseDecalRelease"),
