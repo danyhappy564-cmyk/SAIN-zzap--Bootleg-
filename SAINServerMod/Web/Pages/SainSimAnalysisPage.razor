@@ -36,11 +36,37 @@
                     @if (_run != null)
                     {
                         <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Description" OnClick="MakeSummary">@T("Claude용 요약 만들기", "Make summary for Claude")</MudButton>
-                        <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteRun">@T("삭제", "Delete")</MudButton>
+                        <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteRun">@T("이 실행 삭제", "Delete this run")</MudButton>
                     }
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteSweep" OnClick="@(() => _showBulk = !_showBulk)">@T("기록 일괄 삭제", "Bulk delete")</MudButton>
                 </MudStack>
             </MudStack>
         </MudPaper>
+
+        @if (_showBulk)
+        {
+            <MudPaper Elevation="0" Class="spt-panel pa-4 mb-4">
+                <MudText Typo="Typo.subtitle1" Class="spt-title mb-2">@T("기록 일괄 삭제", "Bulk delete")</MudText>
+                <MudCheckBox T="bool" @bind-Value="_delServer" Label="@T($"서버 시뮬 기록 전부 (실행 {_runs.Count}개 + 요약 md)", $"All server sim records ({_runs.Count} runs + summaries)")" />
+                <MudCheckBox T="bool" @bind-Value="_delPc" Label="@T("PC의 시뮬 기록 파일 (BepInEx/config/SAIN-zzap/SimLab/*.jsonl)", "Sim files on this PC (BepInEx/config/SAIN-zzap/SimLab/*.jsonl)")" />
+                <MudCheckBox T="bool" @bind-Value="_delJournal" Label="@T("레이드 일지 (BepInEx/config/SAIN-zzap/Journal/) — 일반 레이드 일지도 같이 지워짐", "Raid journals (BepInEx/config/SAIN-zzap/Journal/) - normal raid journals too")" />
+                <MudText Typo="Typo.caption" Class="spt-muted d-block">
+                    @(Sim.ClientDataDir() is { } dir ? T($"PC 폴더: {dir}", $"PC folder: {dir}") : T("PC 폴더를 찾지 못해 PC 파일은 지울 수 없습니다 (서버만 지움).", "PC folder not found - only server records can be deleted."))
+                    @T(" 시뮬이 진행 중이면 지금 실행 기록과 게임이 열고 있는 파일은 남깁니다.", " While a sim runs, its current run and files the game has open are kept.")
+                </MudText>
+                <MudStack Row Spacing="2" Class="mt-2">
+                    @if (!_confirmBulk)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="@(() => _confirmBulk = true)">@T("삭제", "Delete")</MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="BulkDelete">@T("정말 삭제 (되돌릴 수 없음)", "Really delete (cannot undo)")</MudButton>
+                        <MudButton Variant="Variant.Text" OnClick="@(() => _confirmBulk = false)">@T("취소", "Cancel")</MudButton>
+                    }
+                </MudStack>
+            </MudPaper>
+        }
 
         @if (_run == null)
         {
@@ -109,6 +135,17 @@
                             @T("스폰", "Spawns"): A @m.Raid.SideA [@m.Raid.ZonesA] vs B @m.Raid.SideB [@m.Raid.ZonesB] · @T("동시 최대", "max alive") @m.Raid.MaxAliveBots · @T("지운 웨이브", "removed waves") @(m.Raid.RemovedBossWaves)+@(m.Raid.RemovedWaves)
                         </MudText>
                     }
+                    @{ var style = SimLabAnalyzer.StyleSummary(m); }
+                    @if (style.Count > 0)
+                    {
+                        <MudPaper Elevation="0" Class="pa-3 mt-2" Style="border-left:3px solid var(--mud-palette-warning);">
+                            <MudText Typo="Typo.subtitle2" Class="mb-1">@T("이 맵에서는 이렇게 싸웠습니다", "How they fought on this map")</MudText>
+                            @foreach (string line in style)
+                            {
+                                <MudText Typo="Typo.body2">• @line</MudText>
+                            }
+                        </MudPaper>
+                    }
                     <div class="mt-2">
                         @foreach (var f in SimLabAnalyzer.Findings(m))
                         {
@@ -151,19 +188,99 @@
                                 <MudStack Row Wrap="Wrap.Wrap" Spacing="1">
                                     @foreach (var kv in SimLabAnalyzer.OrderedCounters(m))
                                     {
-                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(SimLabAnalyzer.IsWatched(m, kv.Key) ? Color.Warning : Color.Default)">
-                                            @(SimLabAnalyzer.IsWatched(m, kv.Key) ? "★ " : "")@kv.Key = @kv.Value
-                                        </MudChip>
+                                        <MudTooltip Text="@SimLabGlossary.Explain(SimLabGlossary.Counters, kv.Key)" Arrow="true">
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(SimLabAnalyzer.IsWatched(m, kv.Key) ? Color.Warning : Color.Default)">
+                                                @(SimLabAnalyzer.IsWatched(m, kv.Key) ? "★ " : "")@kv.Key = @kv.Value
+                                            </MudChip>
+                                        </MudTooltip>
                                     }
                                 </MudStack>
                             </MudExpansionPanel>
+                            <MudExpansionPanel Text="@T("카운터 설명 (이 맵에 나온 것만)", "What the counters mean (only those in this map)")" Class="sain-subpanel">
+                                <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
+                                    @T("카운터는 봇이 그 행동을 '판단하거나 실행한 횟수'입니다. reject·pick·do처럼 판단마다 세는 것은 수천 단위가 정상이고, start·thrown·arrived처럼 실제로 한 것만 세는 것이 실제 횟수입니다. 칩에 마우스를 올려도 설명이 나옵니다.",
+                                       "Counters count how often a bot decided or did something. Per-decision counters (reject, pick, do) are normally in the thousands; start / thrown / arrived count real actions. Hover a chip for its meaning.")
+                                </MudText>
+                                <MudSimpleTable Dense="true">
+                                    <thead><tr><th>@T("카운터", "Counter")</th><th>@T("합계", "Total")</th><th>@T("뜻", "Meaning")</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var g in (b.Counters ?? new()).GroupBy(kv => SimLabGlossary.Find(SimLabGlossary.Counters, kv.Key)?.Key ?? "?").OrderBy(g => g.Key))
+                                        {
+                                            <tr><td><code>@(g.Key)*</code></td><td>@g.Sum(kv => kv.Value)</td><td>@SimLabGlossary.Explain(SimLabGlossary.Counters, g.First().Key)</td></tr>
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
+                            </MudExpansionPanel>
                             <MudExpansionPanel Text="@T("성격별 · 판단 이유별 킬/사망", "Kills/deaths by personality and decision")" Class="sain-subpanel">
+                                <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
+                                    @T("킬/사망은 봇끼리 싸운 결과입니다. '전환 직후 사망' = 하던 판단을 바꾼 지 1.5초 안에 죽음 — 많으면 판단이 늦거나 흔들린다는 뜻.",
+                                       "Kills/deaths between bots. 'Died switching' = died within 1.5 s of changing decision - many of these mean late or wobbly decisions.")
+                                </MudText>
                                 <MudStack Row Wrap="Wrap.Wrap" Spacing="4">
-                                    @RowTable(T("성격", "Personality"), b.ByPersonality)
-                                    @RowTable(T("죽을 때 하던 판단", "Decision when dying"), b.ByReason)
-                                    @RowTable(T("전투 행동", "Combat action"), b.ByCombat)
+                                    @RowTable(T("성격", "Personality"), b.ByPersonality, SimLabGlossary.Personalities)
+                                    @RowTable(T("죽을 때 하던 판단", "Decision when dying"), b.ByReason, SimLabGlossary.Reasons)
+                                    @RowTable(T("전투 행동", "Combat action"), b.ByCombat, null)
                                 </MudStack>
                             </MudExpansionPanel>
+                            @if (b.SpawnInZone + b.SpawnOffZone > 0)
+                            {
+                                <MudExpansionPanel Text="@T($"스폰 위치 검사: 정한 구역 {b.SpawnInZone} / 밖 {b.SpawnOffZone}", $"Spawn check: in zone {b.SpawnInZone} / outside {b.SpawnOffZone}")" Class="sain-subpanel">
+                                    <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
+                                        @T("새 봇이 실제로 태어난 구역(게임이 정한 BotZone) — A/B = 진영. 밖으로 나온 봇은 위치와 '정한 구역의 가장 가까운 스폰 지점까지 거리'를 보여 줍니다.",
+                                           "Zone each new bot really spawned in (A/B = side). Bots outside show their position and the distance to the nearest wanted spawn point.")
+                                    </MudText>
+                                    <MudText Typo="Typo.body2">@string.Join(", ", b.SpawnZones.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} ×{kv.Value}"))</MudText>
+                                    @if (b.SpawnOff?.Count > 0)
+                                    {
+                                        <MudSimpleTable Dense="true" Class="mt-2">
+                                            <thead><tr><th>@T("진영", "Side")</th><th>@T("태어난 구역", "Zone")</th><th>@T("정한 구역", "Wanted")</th><th>@T("위치", "Position")</th><th>@T("거리", "Distance")</th><th>t</th></tr></thead>
+                                            <tbody>
+                                                @foreach (var x in b.SpawnOff)
+                                                {
+                                                    <tr><td>@x.Side (@x.Role)</td><td>@x.Zone</td><td>@x.Wanted</td><td>(@x.X.ToString("0"), @x.Y.ToString("0"), @x.Z.ToString("0"))</td><td>@(x.Distance >= 0 ? x.Distance.ToString("0") + "m" : "?")</td><td>@x.RaidTime.ToString("0")s</td></tr>
+                                                }
+                                            </tbody>
+                                        </MudSimpleTable>
+                                    }
+                                </MudExpansionPanel>
+                            }
+                            @if ((b.LayerSeconds?.Count ?? 0) > 0)
+                            {
+                                var layerTotal = b.LayerSeconds!.Values.Sum();
+                                <MudExpansionPanel Text="@T("레이어 시간 (ORBIT / SAIN / 기타)", "Layer time (ORBIT / SAIN / other)")" Class="sain-subpanel">
+                                    <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
+                                        @T("봇들이 어느 '두뇌 레이어'에 있었는지 시간 합계(2초마다 표본). SAIN 전투가 적고 ORBIT가 길면, ORBIT 이동 목표가 봇을 싸움터 밖으로 데려가는 것일 수 있습니다.",
+                                           "Total time bots spent in each brain layer (sampled every 2 s). Little SAIN combat and much ORBIT may mean ORBIT's goals pull bots away from the arena.")
+                                    </MudText>
+                                    <MudSimpleTable Dense="true">
+                                        <thead><tr><th>@T("레이어", "Layer")</th><th>@T("분류", "Group")</th><th>@T("시간(분)", "Minutes")</th><th>%</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var kv in b.LayerSeconds.OrderByDescending(kv => kv.Value))
+                                            {
+                                                <tr><td>@kv.Key</td><td>@SimLabAnalyzer.LayerGroupName(SimLabAnalyzer.LayerGroup(kv.Key))</td><td>@((kv.Value / 60f).ToString("0.0"))</td><td>@((kv.Value / layerTotal).ToString("P0"))</td></tr>
+                                            }
+                                        </tbody>
+                                    </MudSimpleTable>
+                                </MudExpansionPanel>
+                            }
+                            @if (b.CombatSamples > 0)
+                            {
+                                <MudExpansionPanel Text="@T($"벽 보기 {(float)b.WallStareSamples / Math.Max(1, b.CombatSamples):P0} (전투 중)", $"Wall stare {(float)b.WallStareSamples / Math.Max(1, b.CombatSamples):P0} (in combat)")" Class="sain-subpanel">
+                                    <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
+                                        @T($"SAIN 전투 중인 봇의 눈 바로 앞 1m에 벽이 있던 비율 (표본 {b.CombatSamples}개 중 {b.WallStareSamples}). 그중 목표 적 방향(30° 안)으로 벽 너머를 보고 있던 것 {b.WallStareTowardEnemy}. 피킹 자리를 못 찾고 적 방향만 보고 있으면 이 수가 큽니다.",
+                                           $"Share of SAIN-combat samples with a wall within 1 m in front of the eyes ({b.WallStareSamples} of {b.CombatSamples}); {b.WallStareTowardEnemy} of them toward the goal enemy (through the wall).")
+                                    </MudText>
+                                    <MudSimpleTable Dense="true">
+                                        <thead><tr><th>@T("전투 판단 / 이유", "Decision / reason")</th><th>@T("표본", "Samples")</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var kv in (b.WallStareByDecision ?? new()).OrderByDescending(kv => kv.Value).Take(12))
+                                            {
+                                                <tr><td>@kv.Key</td><td>@kv.Value</td></tr>
+                                            }
+                                        </tbody>
+                                    </MudSimpleTable>
+                                </MudExpansionPanel>
+                            }
                             @if (b.SpawnedRoles?.Count > 0)
                             {
                                 <MudExpansionPanel Text="@T("등장한 봇 역할", "Bot roles seen")" Class="sain-subpanel">
@@ -208,6 +325,22 @@
     private string? _summary;
     private string? _summaryPath;
     private System.Threading.Timer? _timer;
+    private bool _showBulk;
+    private bool _confirmBulk;
+    private bool _delServer = true;
+    private bool _delPc = true;
+    private bool _delJournal = true;
+
+    private void BulkDelete()
+    {
+        var (deleted, kept) = Sim.DeleteAll(_delServer, _delPc, _delJournal);
+        Snackbar.Add(T($"파일 {deleted}개 삭제, {kept}개는 사용 중이라 남김.", $"Deleted {deleted} files, kept {kept} in use."), Severity.Warning);
+        _confirmBulk = false;
+        _showBulk = false;
+        _runId = null;
+        _summary = null;
+        Reload();
+    }
 
     private string SummaryHref => "data:text/markdown;charset=utf-8;base64," + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(_summary ?? string.Empty));
 
@@ -324,7 +457,7 @@
         };
     }
 
-    private static RenderFragment RowTable(string title, Dictionary<string, SAIN.Preset.Shared.SimLab.SimRow>? rows) => __builder =>
+    private static RenderFragment RowTable(string title, Dictionary<string, SAIN.Preset.Shared.SimLab.SimRow>? rows, SimLabGlossary.Entry[]? glossary) => __builder =>
     {
         if (rows == null || rows.Count == 0)
         {
@@ -333,11 +466,11 @@
         <div>
             <MudText Typo="Typo.overline" Class="spt-muted">@title</MudText>
             <MudSimpleTable Dense="true">
-                <thead><tr><th>@T("이름", "Name")</th><th>@T("킬", "Kills")</th><th>@T("사망", "Deaths")</th><th>@T("전환 직후 사망", "Died switching")</th></tr></thead>
+                <thead><tr><th>@T("이름", "Name")</th><th>@T("킬", "Kills")</th><th>@T("사망", "Deaths")</th><th>@T("전환 직후 사망", "Died switching")</th>@if (glossary != null) { <th>@T("뜻", "Meaning")</th> }</tr></thead>
                 <tbody>
                     @foreach (var kv in rows.OrderByDescending(x => x.Value.Kills + x.Value.Deaths).Take(15))
                     {
-                        <tr><td>@kv.Key</td><td>@kv.Value.Kills</td><td>@kv.Value.Deaths</td><td>@kv.Value.DiedSwitching</td></tr>
+                        <tr><td>@kv.Key</td><td>@kv.Value.Kills</td><td>@kv.Value.Deaths</td><td>@kv.Value.DiedSwitching</td>@if (glossary != null) { <td>@SimLabGlossary.Explain(glossary, kv.Key)</td> }</tr>
                     }
                 </tbody>
             </MudSimpleTable>

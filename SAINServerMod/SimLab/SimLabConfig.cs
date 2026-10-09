@@ -19,6 +19,12 @@ public sealed class SimLabConfig
     /// <summary>Move the player next to side A's zone at raid start (bots far from the player run with reduced AI).</summary>
     public bool TeleportToArena = true;
 
+    /// <summary>Remaining sim time at the top right of the game screen (user 2026-10-09: on by default, switchable on the page).</summary>
+    public bool ShowTimer = true;
+
+    /// <summary>Bumped when new per-map defaults should be filled into an older saved config.</summary>
+    public int DefaultsVersion;
+
     /// <summary>Remove every other spawn of the raid (vanilla/ABPS PMC waves, scav waves, bosses) - only the arena squads.</summary>
     public bool RemoveOtherSpawns = true;
 
@@ -52,6 +58,12 @@ public sealed class SimMapEntry
     public string Map = string.Empty;
     public bool Enabled = true;
     public float Minutes = 20f;
+
+    // Per-map spawn pace (user 2026-10-09: "factory should refill faster to see more fights"). 0 = use the common value.
+    public int MaxAliveBots;
+    public int RespawnSeconds;
+    public int SquadSizeMin;
+    public int SquadSizeMax;
 }
 
 public sealed class SimScenario

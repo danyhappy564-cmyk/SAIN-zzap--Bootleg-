@@ -111,6 +111,18 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
                 }
             }
         }
+        if (config.DefaultsVersion < 2)
+        {
+            // Older config without per-map pace: give each map its default pace (only where nothing was set).
+            foreach (var entry in config.Rotation)
+            {
+                if (entry.MaxAliveBots == 0 && entry.RespawnSeconds == 0 && entry.SquadSizeMin == 0 && entry.SquadSizeMax == 0)
+                {
+                    SimLabDefaults.ApplyPace(entry);
+                }
+            }
+            config.DefaultsVersion = 2;
+        }
         config.ExcludedMapKeywords ??= [];
         if (!config.ExcludedMapKeywords.Contains("icebreaker", StringComparer.OrdinalIgnoreCase))
         {
@@ -300,6 +312,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             RunId = State.RunId,
             GapSeconds = Config.GapSeconds,
             CleanMemory = Config.CleanMemoryBetweenMaps,
+            ShowTimer = Config.ShowTimer,
             StepCount = rotation.Count,
         };
         if (rotation.Count == 0)
@@ -361,6 +374,11 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
     {
         var scenario = ScenarioFor(map);
         float minutes = MinutesFor(map);
+        var entry = Config.Rotation.FirstOrDefault(x => string.Equals(x.Map, map, StringComparison.OrdinalIgnoreCase));
+        int cap = entry?.MaxAliveBots > 0 ? entry.MaxAliveBots : Config.MaxAliveBots;
+        int respawn = entry?.RespawnSeconds > 0 ? entry.RespawnSeconds : Config.RespawnSeconds;
+        int squadMin = entry?.SquadSizeMin > 0 ? entry.SquadSizeMin : Config.SquadSizeMin;
+        int squadMax = Math.Max(squadMin, entry?.SquadSizeMax > 0 ? entry.SquadSizeMax : Config.SquadSizeMax);
         var info = new SimRaidInfo
         {
             Applied = true,
@@ -371,11 +389,12 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             Focus = scenario.Focus,
             Minutes = minutes,
             Spectator = Config.Spectator,
+            ShowTimer = Config.ShowTimer,
             RemoveOtherSpawns = Config.RemoveOtherSpawns,
-            MaxAliveBots = Config.MaxAliveBots,
-            SquadSizeMin = Config.SquadSizeMin,
-            SquadSizeMax = Config.SquadSizeMax,
-            RespawnSeconds = Config.RespawnSeconds,
+            MaxAliveBots = cap,
+            SquadSizeMin = squadMin,
+            SquadSizeMax = squadMax,
+            RespawnSeconds = respawn,
             ZonesA = scenario.ZonesA ?? string.Empty,
             ZonesB = scenario.ZonesB ?? string.Empty,
             SideA = string.IsNullOrEmpty(scenario.SideA) ? "pmcUSEC" : scenario.SideA,
@@ -410,8 +429,8 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             location.MinMaxBots = [];
         }
 
-        int escortMin = Math.Max(0, Config.SquadSizeMin - 1);
-        int escortMax = Math.Max(escortMin, Config.SquadSizeMax - 1);
+        int escortMin = Math.Max(0, squadMin - 1);
+        int escortMax = Math.Max(escortMin, squadMax - 1);
         string escorts = string.Join(",", Enumerable.Range(escortMin, escortMax - escortMin + 1));
         for (int i = 0; i < RESERVE_WAVES_PER_SIDE * 2; i++)
         {
@@ -446,9 +465,9 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         }
         info.ReserveWaves = RESERVE_WAVES_PER_SIDE * 2;
 
-        int cap = Math.Max(Config.MaxAliveBots, 2);
-        location.BotMax = cap + Config.SquadSizeMax;
-        location.BotMaxPvE = cap + Config.SquadSizeMax;
+        cap = Math.Max(cap, 2);
+        location.BotMax = cap + squadMax;
+        location.BotMaxPvE = cap + squadMax;
         location.MaxBotPerZone = Math.Max(location.MaxBotPerZone ?? 0, cap);
         // Raid timer: the sim ends the raid itself after `minutes`; leave room so the game's own timer never runs out first.
         location.EscapeTimeLimit = minutes + 15;
@@ -540,6 +559,97 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             }
             File.Delete(path);
             return true;
+        }
+    }
+
+    /// <summary>
+    /// The game's SAIN-zzap data folder on this PC (BepInEx/config/SAIN-zzap), found from the server's own folder
+    /// (&lt;game&gt;/SPT_Runtime is the server, &lt;game&gt;/BepInEx the client). Null when it isn't there.
+    /// </summary>
+    public string? ClientDataDir()
+    {
+        foreach (string start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
+        {
+            try
+            {
+                var dir = new DirectoryInfo(start);
+                for (int i = 0; i < 4 && dir != null; i++, dir = dir.Parent)
+                {
+                    string candidate = Path.Combine(dir.FullName, "BepInEx", "config", "SAIN-zzap");
+                    if (Directory.Exists(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Bulk delete (user 2026-10-09: "old data piles up"). Server run records + summaries; optionally the PC's sim files and raid
+    /// journals. The run being played right now and files the game still has open are kept. Returns (deleted, kept/failed).
+    /// </summary>
+    public (int Deleted, int Kept) DeleteAll(bool serverRuns, bool pcSimFiles, bool journals)
+    {
+        int deleted = 0;
+        int kept = 0;
+        lock (_lock)
+        {
+            if (serverRuns && Directory.Exists(RunsDir))
+            {
+                foreach (string file in Directory.GetFiles(RunsDir))
+                {
+                    if (Running && !string.IsNullOrEmpty(State.RunId) && Path.GetFileName(file).StartsWith(State.RunId, StringComparison.Ordinal))
+                    {
+                        kept++;
+                        continue;
+                    }
+                    TryDelete(file, ref deleted, ref kept);
+                }
+                if (!Running)
+                {
+                    State.RunId = string.Empty;
+                    State.Step = 0;
+                    SaveState();
+                }
+            }
+            string? client = ClientDataDir();
+            if (client != null)
+            {
+                if (pcSimFiles && Directory.Exists(Path.Combine(client, "SimLab")))
+                {
+                    foreach (string file in Directory.GetFiles(Path.Combine(client, "SimLab"), "*.jsonl"))
+                    {
+                        TryDelete(file, ref deleted, ref kept);
+                    }
+                }
+                if (journals && Directory.Exists(Path.Combine(client, "Journal")))
+                {
+                    foreach (string file in Directory.GetFiles(Path.Combine(client, "Journal")))
+                    {
+                        TryDelete(file, ref deleted, ref kept);
+                    }
+                }
+            }
+        }
+        logger.Info($"[SAIN SimLab] bulk delete: {deleted} files deleted, {kept} kept (in use / current run)");
+        return (deleted, kept);
+    }
+
+    private static void TryDelete(string file, ref int deleted, ref int kept)
+    {
+        try
+        {
+            File.Delete(file);
+            deleted++;
+        }
+        catch
+        {
+            kept++; // still open by the game (current journal) or read-only
         }
     }
 

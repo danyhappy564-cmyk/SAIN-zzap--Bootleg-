@@ -72,7 +72,37 @@ public class EnemyEvents
 
     public void EnemyFirstSeen()
     {
+        CountFirstSeen();
         OnFirstSeen?.Invoke(Enemy);
+    }
+
+    /// <summary>
+    /// zzap (user 2026-10-09: "bots often don't notice someone coming by sound, they react only once they see him"): measurement
+    /// only. At the moment a bot first sees an enemy, was that enemy heard in the 10 s before - and by what kind of sound - and how
+    /// far away is he. hear.firstSeen.&lt;heard.move|heard.gun|heard.other|notHeard&gt;.&lt;close|mid|far&gt; (close &lt;15 m, mid &lt;40 m).
+    /// </summary>
+    private void CountFirstSeen()
+    {
+        if (!SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
+        {
+            return;
+        }
+        var hearing = Enemy.Hearing;
+        string heard = "notHeard";
+        if (hearing != null && hearing.Heard && hearing.TimeSinceHeard < 10f)
+        {
+            heard = hearing.LastHeardSoundType switch
+            {
+                SAINSoundType.FootStep or SAINSoundType.Sprint or SAINSoundType.Jump or SAINSoundType.Land or SAINSoundType.Prone
+                    or SAINSoundType.Bush or SAINSoundType.GearSound or SAINSoundType.TurnSound or SAINSoundType.Door
+                    or SAINSoundType.DoorBreach => "heard.move",
+                SAINSoundType.Shot or SAINSoundType.SuppressedShot or SAINSoundType.BulletImpact => "heard.gun",
+                _ => "heard.other",
+            };
+        }
+        float distance = Enemy.RealDistance;
+        string range = distance < 15f ? "close" : distance < 40f ? "mid" : "far";
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"hear.firstSeen.{heard}.{range}");
     }
 
     public void EnemyHeard(SAINSoundType type, bool gunFire, EnemyPlace place)

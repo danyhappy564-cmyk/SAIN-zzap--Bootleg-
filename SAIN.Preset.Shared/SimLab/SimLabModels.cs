@@ -35,6 +35,8 @@ public class SimPlan
     public float GapSeconds;
     /// <summary>At the start of that wait, also unload unused assets + GC.</summary>
     public bool CleanMemory;
+    /// <summary>On-screen sim timer (raid time left / countdown to the next map).</summary>
+    public bool ShowTimer = true;
 }
 
 /// <summary>Server -> client after the raid's location was generated: how this raid was set up.</summary>
@@ -48,6 +50,8 @@ public class SimRaidInfo
     public string Focus;
     public float Minutes;
     public bool Spectator;
+    /// <summary>Show the remaining sim time at the top right of the screen.</summary>
+    public bool ShowTimer = true;
     /// <summary>Server removed the raid's other spawns: the client also stops the vanilla wave / non-wave scenarios.</summary>
     public bool RemoveOtherSpawns;
     public bool HasSpectatorPos;
@@ -68,6 +72,21 @@ public class SimRaidInfo
     public int RemovedBossWaves;
     public int RemovedWaves;
     public string Note;
+}
+
+/// <summary>A sim bot that spawned outside the zones its side was given.</summary>
+public class SimSpawnSample
+{
+    public string Role;
+    public string Side;
+    public string Zone;
+    public string Wanted;
+    public float X;
+    public float Y;
+    public float Z;
+    /// <summary>Metres to the nearest spawn point of the wanted zones (-1 = unknown).</summary>
+    public float Distance;
+    public float RaidTime;
 }
 
 public class SimRow
@@ -121,4 +140,20 @@ public class SimBeat
     public Dictionary<string, SimRow> ByCombat = new();
     public List<SimError> Errors = new();
     public List<string> Notes = new();
+
+    /// <summary>Seconds bots spent in each brain layer (sampled every 2 s per bot): ORBIT vs SAIN vs vanilla.</summary>
+    public Dictionary<string, float> LayerSeconds = new();
+
+    /// <summary>Samples of bots in SAIN's combat layer, and how many of them stood with a wall within 1 m in front of the eyes.</summary>
+    public int CombatSamples;
+    public int WallStareSamples;
+    /// <summary>Of the wall-staring samples: the goal enemy was in that direction (looking at the enemy through the wall).</summary>
+    public int WallStareTowardEnemy;
+    public Dictionary<string, int> WallStareByDecision = new();
+
+    /// <summary>Where sim bots really spawned: zone counts per side ("A:ZoneDormitory"), in/out of the wanted zones, examples.</summary>
+    public Dictionary<string, int> SpawnZones = new();
+    public int SpawnInZone;
+    public int SpawnOffZone;
+    public List<SimSpawnSample> SpawnOff = new();
 }

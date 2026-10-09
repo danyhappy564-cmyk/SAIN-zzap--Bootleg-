@@ -94,6 +94,10 @@
                     <MudSwitch T="bool" @bind-Value="Sim.Config.CleanMemoryBetweenMaps" Color="Color.Primary" />
                 </div>
                 <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">@T("게임 화면 오른쪽 위에 남은 시뮬 시간 표시", "Show the remaining sim time at the top right of the game")</MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.ShowTimer" Color="Color.Primary" />
+                </div>
+                <div class="sain-toggle-row">
                     <MudText Typo="Typo.body2">@T("시간이 끝나면 다음 맵으로", "Move to the next map when time is up")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.AutoRotate" Color="Color.Primary" />
                 </div>
@@ -165,6 +169,7 @@
                                 <MudNumericField T="float" Value="entry.Minutes" ValueChanged="@(v => entry.Minutes = Math.Max(1f, v))" Min="1" Max="180"
                                                  Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:110px;" Adornment="Adornment.End" AdornmentText="@T("분", "min")" />
                                 <MudText Typo="Typo.body2" Class="spt-muted">@SimLabDefaults.ScenarioName(scenario)</MudText>
+                                <MudText Typo="Typo.caption" Class="spt-muted">@PaceText(entry)</MudText>
                                 @if (excluded)
                                 {
                                     <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">@T("제외됨", "Excluded")</MudChip>
@@ -207,6 +212,14 @@
                                         }
                                     </MudSelect>
                                 </MudStack>
+                                <MudText Typo="Typo.caption" Class="spt-muted">@T("이 맵의 스폰 속도 (0 = 공통 설정 사용). 작은 실내 맵은 빠르게·작은 분대로, 넓은 맵은 천천히.", "Spawn pace on this map (0 = common value). Small indoor maps refill fast with small squads, open maps slower.")</MudText>
+                                <MudStack Row Wrap="Wrap.Wrap" Spacing="2">
+                                    <MudNumericField T="int" @bind-Value="entry.MaxAliveBots" Label="@T("동시 최대 봇", "Max alive")" Min="0" Max="40" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:140px;" />
+                                    <MudNumericField T="int" @bind-Value="entry.RespawnSeconds" Label="@T("보충 간격(초)", "Refill (s)")" Min="0" Max="600" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:140px;" />
+                                    <MudNumericField T="int" @bind-Value="entry.SquadSizeMin" Label="@T("분대 최소", "Squad min")" Min="0" Max="6" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:120px;" />
+                                    <MudNumericField T="int" @bind-Value="entry.SquadSizeMax" Label="@T("분대 최대", "Squad max")" Min="0" Max="6" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:120px;" />
+                                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => SimLabDefaults.ApplyPace(entry))">@T("이 맵 기본 속도", "Map default pace")</MudButton>
+                                </MudStack>
                                 <MudTextField T="string" @bind-Value="scenario.Watch" Label="@T("분석에서 강조할 카운터 접두어 (예: door.,nade.)", "Counter prefixes to highlight in the analysis (e.g. door.,nade.)")" Variant="Variant.Outlined" Margin="Margin.Dense" />
                                 <div>
                                     <MudText Typo="Typo.caption" Class="spt-muted">@T("이 맵의 구역 (괄호 = 보스·봇 스폰 지점 수, 0이면 분대가 안 나올 수 있음). 누르면 A/B에 추가:", "Zones of this map (in brackets: boss/bot spawn points; 0 may spawn nothing). Click to add to A/B:")</MudText>
@@ -244,6 +257,15 @@
     public void Dispose()
     {
         _timer?.Dispose();
+    }
+
+    private string PaceText(SimMapEntry e)
+    {
+        int cap = e.MaxAliveBots > 0 ? e.MaxAliveBots : Sim.Config.MaxAliveBots;
+        int respawn = e.RespawnSeconds > 0 ? e.RespawnSeconds : Sim.Config.RespawnSeconds;
+        int min = e.SquadSizeMin > 0 ? e.SquadSizeMin : Sim.Config.SquadSizeMin;
+        int max = e.SquadSizeMax > 0 ? e.SquadSizeMax : Sim.Config.SquadSizeMax;
+        return T($"최대 {cap}명 · {respawn}초마다 · 분대 {min}~{max}", $"max {cap} · every {respawn}s · squad {min}-{max}");
     }
 
     private SimScenario ScenarioOf(string map)

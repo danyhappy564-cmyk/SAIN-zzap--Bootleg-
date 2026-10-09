@@ -141,11 +141,12 @@ public static class SimLabAnalyzer
         {
             list.Add(new(INFO, T("막힘 기록", "Stuck records"), T($"stuck.* 합계 {stuck}. 같은 자리 반복이면 맵 지형 문제.", $"stuck.* total {stuck}. Repeats at one spot point to map geometry.")));
         }
+        // door.reject.* are per-check "not now" answers (thousands is normal) - only real aborts count against starts.
         int doorStart = Sum(b, "door.start.");
-        int doorAbort = Sum(b, "door.abort") + Sum(b, "door.reject.");
+        int doorAbort = Sum(b, "door.abort") + b.Counters?.Where(kv => kv.Key.StartsWith("door.end.", StringComparison.Ordinal) && kv.Key.EndsWith(".interrupted", StringComparison.Ordinal)).Sum(kv => kv.Value) ?? 0;
         if (doorStart >= 5 && doorAbort > doorStart)
         {
-            list.Add(new(WARN, T("문 전술 중단이 시작보다 많음", "More door-tactic aborts than starts"), T($"시작 {doorStart} / 중단·거절 {doorAbort}.", $"Starts {doorStart} / aborts+rejects {doorAbort}.")));
+            list.Add(new(WARN, T("문 전술이 중간에 끊긴 횟수가 시작보다 많음", "More door tactics interrupted than started"), T($"시작 {doorStart} / 중단 {doorAbort}.", $"Starts {doorStart} / interrupted {doorAbort}.")));
         }
         int thrown = Sum(b, "nade.thrown");
         int nadeFail = Get(b, "nade.noArc") + Get(b, "nade.notReady");
@@ -153,6 +154,54 @@ public static class SimLabAnalyzer
         {
             list.Add(new(INFO, T("수류탄 궤적 실패가 많음", "Many grenade arc failures"), T($"던짐 {thrown} / 궤적 없음·준비 안 됨 {nadeFail}.", $"Thrown {thrown} / no arc + not ready {nadeFail}.")));
         }
+        // spawn check
+        int spawned = b.SpawnInZone + b.SpawnOffZone;
+        if (spawned >= 4 && b.SpawnOffZone * 5 > spawned)
+        {
+            var off = b.SpawnOff?.Take(3).Select(x => $"{x.Side}:{x.Zone} ({x.X:0},{x.Z:0}, {(x.Distance >= 0 ? $"{x.Distance:0}m" : "?")})") ?? [];
+            list.Add(new(WARN, T("스폰 위치가 정한 구역과 다름", "Spawns outside the wanted zones"),
+                T($"{spawned}명 중 {b.SpawnOffZone}명이 정한 구역 밖에서 태어남. 예: {string.Join(", ", off)}. 구역에 보스 스폰 지점이 적거나, 다른 모드(ABPS 등)가 PMC 스폰 위치를 바꾸는지 확인.",
+                  $"{b.SpawnOffZone} of {spawned} spawned outside the wanted zones. e.g. {string.Join(", ", off)}. Few boss spawn points in the zone, or another mod (ABPS...) moving PMC spawns?")));
+        }
+
+        // wall stare (screenshot 2026-10-09: bot "peeking" with its face on a flat wall)
+        if (b.CombatSamples >= 50)
+        {
+            float share = (float)b.WallStareSamples / b.CombatSamples;
+            if (share >= 0.15f)
+            {
+                var top = b.WallStareByDecision?.OrderByDescending(kv => kv.Value).Take(3).Select(kv => $"{kv.Key} {kv.Value}") ?? [];
+                list.Add(new(WARN, T("벽을 보고 있는 시간이 많음", "Much time facing a wall"),
+                    T($"전투 중 {share:P0}의 시간을 1m 안 벽만 보고 있음 (그중 적 방향으로 벽 너머를 보는 것 {b.WallStareTowardEnemy}). 많은 판단: {string.Join(", ", top)}.",
+                      $"{share:P0} of combat time looking at a wall within 1 m ({b.WallStareTowardEnemy} of it toward the enemy through the wall). Top decisions: {string.Join(", ", top)}.")));
+            }
+        }
+
+        // hearing before sight (user: "they react only when they see him")
+        int heardMove = Sum(b, "hear.firstSeen.heard.move");
+        int notHeardClose = Sum(b, "hear.firstSeen.notHeard.close") + Sum(b, "hear.firstSeen.notHeard.mid");
+        int firstSeen = Sum(b, "hear.firstSeen.");
+        if (firstSeen >= 10)
+        {
+            list.Add(new(notHeardClose * 2 > firstSeen ? WARN : INFO, T("보기 전에 소리로 알아챘는지", "Heard before seen?"),
+                T($"적을 처음 볼 때 {firstSeen}회 중 발소리 등으로 먼저 들은 것 {heardMove}, 40m 안인데 못 들은 것 {notHeardClose}. 못 들은 게 많으면 가까운 적 소리를 놓치는 것.",
+                  $"Of {firstSeen} first sightings, {heardMove} were heard moving first, {notHeardClose} within 40 m were not heard at all.")));
+        }
+
+        // ORBIT vs SAIN time
+        float layerTotal = b.LayerSeconds?.Values.Sum() ?? 0f;
+        if (layerTotal > 60f)
+        {
+            float orbit = LayerShare(b, "orbit");
+            float sainCombat = LayerShare(b, "combat");
+            if (orbit > 0.6f && b.BotDeaths < 5)
+            {
+                list.Add(new(WARN, T("봇이 ORBIT(맵 이동)에 오래 있음", "Bots spend long in ORBIT"),
+                    T($"봇 시간의 {orbit:P0}가 ORBIT, SAIN 전투는 {sainCombat:P0}. 원하는 싸움이 안 나면 ORBIT 목적지/구역 설정이 스폰 구역 밖으로 끌고 가는지 확인.",
+                      $"{orbit:P0} of bot time in ORBIT, {sainCombat:P0} in SAIN combat. If the wanted fight doesn't happen, check whether ORBIT pulls bots out of the arena.")));
+            }
+        }
+
         if (b.TeamKills > 0)
         {
             list.Add(new(INFO, T("아군 사격 사망", "Team kills"), T($"{b.TeamKills}회.", $"{b.TeamKills}.")));
@@ -163,6 +212,160 @@ public static class SimLabAnalyzer
             list.Insert(0, new(OK, T("큰 문제 없음", "No major problems"), T($"{played:0}분, 봇 사망 {b.BotDeaths}, 오류 0.", $"{played:0} min, {b.BotDeaths} bot deaths, 0 errors.")));
         }
         return list;
+    }
+
+    /// <summary>Share of bot time in a layer group: "orbit", "combat" (SAIN combat), "sain" (any SAIN layer), "other".</summary>
+    public static float LayerShare(SimBeat b, string group)
+    {
+        float total = b.LayerSeconds?.Values.Sum() ?? 0f;
+        if (total <= 0f)
+        {
+            return 0f;
+        }
+        return b.LayerSeconds!.Where(kv => LayerGroup(kv.Key) == group || (group == "sain" && LayerGroup(kv.Key) == "combat")).Sum(kv => kv.Value) / total;
+    }
+
+    public static string LayerGroup(string layer)
+    {
+        if (layer.IndexOf("orbit", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return "orbit";
+        }
+        if (layer == "SAIN : Combat Layer")
+        {
+            return "combat";
+        }
+        return layer.StartsWith("SAIN", StringComparison.Ordinal) ? "sain" : "other";
+    }
+
+    public static string LayerGroupName(string group)
+    {
+        return group switch
+        {
+            "orbit" => T("ORBIT (맵 이동·목표 행동)", "ORBIT (map movement / objectives)"),
+            "combat" => T("SAIN 전투", "SAIN combat"),
+            "sain" => T("SAIN 기타 (수류탄 피하기·탈출 등)", "SAIN other (grenade avoid, extract...)"),
+            _ => T("바닐라·기타 모드 (순찰 등)", "Vanilla / other mods (patrol...)"),
+        };
+    }
+
+    private static float Share(SimBeat b, string prefix, string key)
+    {
+        int total = Sum(b, prefix);
+        return total > 0 ? (float)Get(b, prefix + key) / total : 0f;
+    }
+
+    private static string TopShares(SimBeat b, string prefix, int take, Func<string, string> name)
+    {
+        int total = Sum(b, prefix);
+        if (total == 0)
+        {
+            return string.Empty;
+        }
+        var top = b.Counters!
+            .Where(kv => kv.Key.StartsWith(prefix, StringComparison.Ordinal) && kv.Key.IndexOf('.', prefix.Length) < 0)
+            .OrderByDescending(kv => kv.Value)
+            .Take(take)
+            .Select(kv => $"{name(kv.Key.Substring(prefix.Length))} {(float)kv.Value / total:P0}");
+        return string.Join(", ", top);
+    }
+
+    private static string ActionName(string action)
+    {
+        return action switch
+        {
+            "StandAndShoot" => T("서서 쏘기", "stand and shoot"),
+            "RushEnemy" => T("돌격", "rush"),
+            "SeekCover" => T("엄폐 찾기", "seek cover"),
+            "Freeze" => T("얼음 매복", "freeze ambush"),
+            "Search" => T("수색", "search"),
+            "DoorTactic" => T("문 전술", "door tactic"),
+            "ThrowGrenade" => T("수류탄", "grenade"),
+            "SquadTactic" => T("분대 전술", "squad tactic"),
+            "DogFight" => T("근접 난전", "dogfight"),
+            "Retreat" => T("후퇴", "retreat"),
+            "ShiftCover" => T("엄폐 옮기기", "shift cover"),
+            _ => action,
+        };
+    }
+
+    /// <summary>
+    /// Plain-language "how did they fight on this map" (user 2026-10-09). Built only from the counters, so each sentence can be
+    /// checked against the numbers below it on the page.
+    /// </summary>
+    public static List<string> StyleSummary(SimMapRecord m)
+    {
+        var lines = new List<string>();
+        var b = m.Last;
+        if (b == null || b.Counters == null)
+        {
+            return lines;
+        }
+        float minutes = Math.Max(1f, PlayedMinutes(m));
+        lines.Add(T($"{minutes:0}분 동안 봇 {b.BotsSeen}명이 나와 {b.BotDeaths}명이 죽음 (10분당 {b.BotDeaths * 10f / minutes:0.0}명). " + (b.BotDeaths * 10f / minutes >= 15f ? "교전이 아주 잦은 판." : b.BotDeaths * 10f / minutes >= 5f ? "교전이 꾸준한 판." : "교전이 적은 판."),
+                      $"{minutes:0} min: {b.BotsSeen} bots, {b.BotDeaths} deaths ({b.BotDeaths * 10f / minutes:0.0} per 10 min)."));
+        string visible = TopShares(b, "utilityV.do.", 3, ActionName);
+        if (visible.Length > 0)
+        {
+            lines.Add(T($"적이 보일 때는 주로 {visible}.", $"With the enemy in sight: {visible}."));
+        }
+        string hidden = TopShares(b, "utility.do.", 3, ActionName);
+        if (hidden.Length > 0)
+        {
+            lines.Add(T($"적이 안 보일 때는 {hidden} 순으로 골랐음.", $"With the enemy out of sight: {hidden}."));
+        }
+        string deaths = TopShares(b, "death.", 3, ActionName);
+        if (deaths.Length > 0)
+        {
+            lines.Add(T($"죽을 때 하던 행동: {deaths}.", $"Doing when dying: {deaths}."));
+        }
+        var used = new List<string>();
+        void Use(string ko, string en, int n)
+        {
+            if (n > 0)
+            {
+                used.Add(T($"{ko} {n}", $"{en} {n}"));
+            }
+        }
+        Use("문 전술", "door tactics", Sum(b, "door.start."));
+        Use("분대 전술", "squad tactics", Sum(b, "squad.start."));
+        Use("수류탄", "grenades", Sum(b, "nade.thrown."));
+        Use("코너 추격", "corner chases", Sum(b, "chase.start."));
+        Use("다이아몬드 스텝", "diamond steps", Get(b, "diamond.start"));
+        Use("위치 바꾸기", "repositions", Sum(b, "repo.start."));
+        Use("얼음 매복", "freeze ambushes", Sum(b, "freeze.start."));
+        if (used.Count > 0)
+        {
+            lines.Add(T("쓴 전술: ", "Tactics used: ") + string.Join(", ", used) + ".");
+        }
+        int botFirst = Get(b, "repo.contact.BotFirst");
+        int enemyFirst = Get(b, "repo.contact.EnemyFirst");
+        if (botFirst + enemyFirst > 0)
+        {
+            lines.Add(T($"첫 접촉은 내가 먼저 본 경우 {(float)botFirst / (botFirst + enemyFirst):P0}, 적이 먼저 쏜 경우 {(float)enemyFirst / (botFirst + enemyFirst):P0}.",
+                        $"First contact: saw first {(float)botFirst / (botFirst + enemyFirst):P0}, shot first by the enemy {(float)enemyFirst / (botFirst + enemyFirst):P0}."));
+        }
+        int firstSeen = Sum(b, "hear.firstSeen.");
+        if (firstSeen > 0)
+        {
+            int heard = Sum(b, "hear.firstSeen.heard.");
+            lines.Add(T($"적을 처음 볼 때 소리로 먼저 알고 있던 비율 {(float)heard / firstSeen:P0} ({firstSeen}회 중).", $"Heard the enemy before first sight {(float)heard / firstSeen:P0} of {firstSeen} times."));
+        }
+        if ((b.LayerSeconds?.Values.Sum() ?? 0f) > 60f)
+        {
+            lines.Add(T($"봇 시간: SAIN 전투 {LayerShare(b, "combat"):P0}, ORBIT {LayerShare(b, "orbit"):P0}, 바닐라·기타 {LayerShare(b, "other"):P0}.",
+                        $"Bot time: SAIN combat {LayerShare(b, "combat"):P0}, ORBIT {LayerShare(b, "orbit"):P0}, vanilla/other {LayerShare(b, "other"):P0}."));
+        }
+        var best = b.ByPersonality?.Where(kv => kv.Value.Kills + kv.Value.Deaths >= 3).OrderByDescending(kv => kv.Value.Deaths > 0 ? (float)kv.Value.Kills / kv.Value.Deaths : kv.Value.Kills).FirstOrDefault();
+        if (best != null && best.Value.Key != null)
+        {
+            lines.Add(T($"가장 잘 싸운 성격: {best.Value.Key} ({best.Value.Value.Kills}킬/{best.Value.Value.Deaths}사망).", $"Best personality: {best.Value.Key} ({best.Value.Value.Kills}/{best.Value.Value.Deaths})."));
+        }
+        if (b.CombatSamples >= 50)
+        {
+            lines.Add(T($"전투 중 벽을 1m 앞에 두고 보고 있던 시간 {(float)b.WallStareSamples / b.CombatSamples:P0}.", $"Facing a wall within 1 m: {(float)b.WallStareSamples / b.CombatSamples:P0} of combat time."));
+        }
+        return lines;
     }
 
     /// <summary>Counters of one map, the scenario's watch prefixes first.</summary>
@@ -192,6 +395,7 @@ public static class SimLabAnalyzer
         sb.AppendLine($"- 프리셋 `{run.Preset}`, SAIN.dll 빌드 {run.Build}");
         sb.AppendLine($"- 맵 {run.Maps.Count}개: " + string.Join(", ", run.Maps.Select(m => $"{m.MapName}({StatusText(m.Status)})")));
         sb.AppendLine();
+        AppendCodeGlossary(sb, run);
         foreach (var m in run.Maps)
         {
             var b = m.Last;
@@ -212,6 +416,35 @@ public static class SimLabAnalyzer
                 {
                     sb.AppendLine("- 등장 역할: " + string.Join(", ", b.SpawnedRoles.Select(kv => $"{kv.Key}×{kv.Value}")));
                 }
+            }
+            sb.AppendLine();
+            sb.AppendLine("### 싸움 방식 요약");
+            foreach (string line in StyleSummary(m))
+            {
+                sb.AppendLine("- " + line);
+            }
+            if (b != null && (b.LayerSeconds?.Count ?? 0) > 0)
+            {
+                float total = b.LayerSeconds!.Values.Sum();
+                sb.AppendLine();
+                sb.AppendLine("### 레이어 시간 (봇 전체 합, 2초 표본)");
+                sb.AppendLine(string.Join("; ", b.LayerSeconds.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} {kv.Value / 60f:0.0}분 ({kv.Value / total:P0}) [{LayerGroup(kv.Key)}]")));
+            }
+            if (b != null && b.SpawnInZone + b.SpawnOffZone > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"### 스폰 위치 검사: 정한 구역 {b.SpawnInZone} / 밖 {b.SpawnOffZone}");
+                sb.AppendLine("- 구역별: " + string.Join(", ", b.SpawnZones.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}×{kv.Value}")));
+                foreach (var x in b.SpawnOff ?? [])
+                {
+                    sb.AppendLine($"- 밖: {x.Role}({x.Side}) zone={x.Zone} wanted={x.Wanted} pos=({x.X:0},{x.Y:0},{x.Z:0}) 가까운 지정 지점까지 {x.Distance:0}m t={x.RaidTime:0}s");
+                }
+            }
+            if (b != null && b.CombatSamples > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"### 벽 보기 (SAIN 전투 레이어 표본 {b.CombatSamples} 중 1m 안 벽 {b.WallStareSamples}, 그중 적 방향 {b.WallStareTowardEnemy})");
+                sb.AppendLine(string.Join(", ", (b.WallStareByDecision ?? new()).OrderByDescending(kv => kv.Value).Take(10).Select(kv => $"{kv.Key}={kv.Value}")));
             }
             sb.AppendLine();
             sb.AppendLine("### 감지된 문제");
@@ -261,6 +494,36 @@ public static class SimLabAnalyzer
             sb.AppendLine();
         }
         return sb.ToString();
+    }
+
+    /// <summary>For the Claude summary only: which code counts each counter group seen in this run.</summary>
+    public static void AppendCodeGlossary(StringBuilder sb, SimRunRecord run)
+    {
+        var groups = new SortedDictionary<string, SimLabGlossary.Entry>(StringComparer.Ordinal);
+        foreach (var m in run.Maps)
+        {
+            foreach (string key in m.Last?.Counters?.Keys ?? Enumerable.Empty<string>())
+            {
+                var e = SimLabGlossary.Find(SimLabGlossary.Counters, key);
+                if (e != null)
+                {
+                    groups[e.Key] = e;
+                }
+            }
+        }
+        if (groups.Count == 0)
+        {
+            return;
+        }
+        sb.AppendLine("## 분석용 용어 (카운터 접두어 → 뜻 · 세는 코드)");
+        sb.AppendLine();
+        foreach (var e in groups.Values)
+        {
+            sb.AppendLine($"- `{e.Key}` {e.Ko} — `{e.Code}`");
+        }
+        sb.AppendLine("- 레이어: `SAIN : Combat Layer`=SAIN 전투, `OrbitBrainLayer`=ORBIT, 그 밖 `SAIN : *`=SAIN 보조, 나머지=바닐라·다른 모드. 벽 보기 = SAIN 전투 레이어에서 눈 앞 1m 레이캐스트(HighPolyWithTerrainMask) 적중.");
+        sb.AppendLine("- 스폰 검사 = 새 봇을 처음 본 틱(2초 안)의 `BotsGroup.BotZone` 이름 vs 시나리오 구역, 거리 = 지정 구역 스폰 지점 중 가장 가까운 것.");
+        sb.AppendLine();
     }
 
     private static void AppendRows(StringBuilder sb, string title, Dictionary<string, SimRow>? rows, int minEvents = 0)

@@ -215,7 +215,14 @@ public sealed class SimLabRunner : MonoBehaviour
         if (_lastRaidEnd > 0f && plan.CleanMemory && !_gapCleaned)
         {
             _gapCleaned = true;
-            CleanMemory();
+            if (RamCleanerInstalled())
+            {
+                Logger.LogWarning("[SimLab] RAM cleaner mod installed - it already cleans after the raid, sim's own memory clean skipped");
+            }
+            else
+            {
+                CleanMemory();
+            }
         }
         _autoStartMap = plan.NextMap;
         _autoStartAt = now + wait;
@@ -240,6 +247,60 @@ public sealed class SimLabRunner : MonoBehaviour
         {
             Logger.LogWarning($"[SimLab] memory clean failed: {ex.Message}");
         }
+    }
+
+    private static bool RamCleanerInstalled()
+    {
+        try
+        {
+            return BepInEx.Bootstrap.Chainloader.PluginInfos.Values.Any(p =>
+                p?.Metadata != null
+                && (p.Metadata.GUID.IndexOf("RamCleaner", StringComparison.OrdinalIgnoreCase) >= 0
+                    || p.Metadata.Name.IndexOf("RamCleaner", StringComparison.OrdinalIgnoreCase) >= 0
+                    || p.Metadata.Name.IndexOf("RAM 클리너", StringComparison.OrdinalIgnoreCase) >= 0));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    // ================================================================ on-screen timer
+
+    private GUIStyle _timerStyle;
+
+    /// <summary>
+    /// Remaining sim time at the top right (user 2026-10-09: "show it like a stopwatch", on by default, switch on the web page),
+    /// and the countdown to the next map while waiting in the main menu.
+    /// </summary>
+    public void OnGUI()
+    {
+        if (!SimLab.Active)
+        {
+            return;
+        }
+        string text = null;
+        if (_inRaid && _setupDone && SimLab.Raid != null && SimLab.Raid.ShowTimer)
+        {
+            float left = Mathf.Max(0f, _plannedSeconds - (Time.realtimeSinceStartup - _raidStart));
+            var plan = SimLab.Plan;
+            text = $"시뮬 {SimLab.Raid.MapName}  남은 시간 {(int)(left / 60f):00}:{(int)(left % 60f):00}"
+                + (plan != null && plan.StepCount > 0 ? $"  ({plan.Step + 1}/{plan.StepCount})" : string.Empty)
+                + $"\n봇 {_alive}명 · 분대 {_activated}";
+        }
+        else if (!_inRaid && _autoStartAt > 0f && SimLab.Plan?.ShowTimer != false)
+        {
+            float left = Mathf.Max(0f, _autoStartAt - Time.realtimeSinceStartup);
+            text = $"시뮬 다음 맵 {SimLab.Plan?.NextMapName ?? _autoStartMap}  {(int)(left / 60f):00}:{(int)(left % 60f):00} 뒤 시작";
+        }
+        if (text == null)
+        {
+            return;
+        }
+        _timerStyle ??= new GUIStyle(GUI.skin.box) { fontSize = 18, alignment = TextAnchor.MiddleRight, wordWrap = false };
+        var size = _timerStyle.CalcSize(new GUIContent(text));
+        var rect = new Rect(Screen.width - size.x - 20f, 10f, size.x + 10f, size.y + 6f);
+        GUI.Box(rect, text, _timerStyle);
     }
 
     private void TickCountdown(float now)
@@ -492,6 +553,7 @@ public sealed class SimLabRunner : MonoBehaviour
             {
                 StopOtherScenarios();
             }
+            SimLabProbe.Reset(info);
             CollectReserves(info);
             Spawn(true, now);
             Spawn(false, now);
@@ -605,9 +667,11 @@ public sealed class SimLabRunner : MonoBehaviour
             }
             alive++;
             string role = p.Profile.Info.Settings.Role.ToString();
+            SimLabProbe.Sample(p, TICK);
             if (!_seenBots.ContainsKey(p.ProfileId))
             {
                 _seenBots[p.ProfileId] = role;
+                SimLabProbe.OnNewBot(p, role, now - _raidStart);
                 _roles.TryGetValue(role, out int count);
                 _roles[role] = count + 1;
                 var group = p.AIData?.BotOwner?.BotsGroup;
@@ -729,6 +793,7 @@ public sealed class SimLabRunner : MonoBehaviour
         {
             BattleStats.FillSim(beat);
             TacticDiagnostics.CopyCounts(beat.Counters);
+            SimLabProbe.Fill(beat);
             SimLogListener.CopyTo(beat.Errors);
         }
         catch (Exception ex)
@@ -798,6 +863,7 @@ public sealed class SimLabRunner : MonoBehaviour
         finally
         {
             SimLogListener.Detach();
+            SimLabProbe.Clear();
             SimLab.SpectatorActive = false;
             SimLab.Raid = null;
             _reserveA.Clear();

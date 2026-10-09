@@ -72,20 +72,59 @@ public static class SimLabDefaults
     {
         return
         [
-            new SimMapEntry { Map = "factory4_day", Minutes = 20f },
-            new SimMapEntry { Map = "bigmap", Minutes = 20f },
-            new SimMapEntry { Map = "interchange", Minutes = 20f },
-            new SimMapEntry { Map = "rezervbase", Minutes = 20f },
-            new SimMapEntry { Map = "shoreline", Minutes = 20f },
-            new SimMapEntry { Map = "woods", Minutes = 20f },
-            new SimMapEntry { Map = "lighthouse", Minutes = 20f },
-            new SimMapEntry { Map = "tarkovstreets", Minutes = 20f },
-            new SimMapEntry { Map = "sandbox", Minutes = 20f },
-            new SimMapEntry { Map = "factory4_night", Minutes = 20f, Enabled = false },
-            new SimMapEntry { Map = "sandbox_high", Minutes = 20f, Enabled = false },
-            new SimMapEntry { Map = "laboratory", Minutes = 20f, Enabled = false },
-            new SimMapEntry { Map = "labyrinth", Minutes = 20f, Enabled = false },
+            Paced("factory4_day"),
+            Paced("bigmap"),
+            Paced("interchange"),
+            Paced("rezervbase"),
+            Paced("shoreline"),
+            Paced("woods"),
+            Paced("lighthouse"),
+            Paced("tarkovstreets"),
+            Paced("sandbox"),
+            Paced("factory4_night", false),
+            Paced("sandbox_high", false),
+            Paced("laboratory", false),
+            Paced("labyrinth", false),
         ];
+    }
+
+    /// <summary>
+    /// Spawn pace per map (alive cap, refill seconds, squad size). Small indoor maps refill fast with small squads so many
+    /// fights happen in 20 minutes; open maps refill slower (the sides need time to meet); Streets keeps fewer bots for frames.
+    /// </summary>
+    public static readonly Dictionary<string, (int Cap, int Respawn, int SquadMin, int SquadMax)> Pace = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["factory4_day"] = (10, 20, 2, 3),
+        ["factory4_night"] = (10, 25, 2, 3),
+        ["labyrinth"] = (8, 20, 2, 3),
+        ["laboratory"] = (10, 30, 2, 3),
+        ["bigmap"] = (12, 45, 3, 4),
+        ["interchange"] = (12, 40, 3, 4),
+        ["rezervbase"] = (12, 40, 3, 4),
+        ["shoreline"] = (12, 50, 3, 4),
+        ["sandbox"] = (12, 45, 3, 4),
+        ["sandbox_high"] = (12, 40, 3, 4),
+        ["woods"] = (12, 60, 3, 4),
+        ["lighthouse"] = (12, 55, 3, 4),
+        ["tarkovstreets"] = (10, 50, 3, 4),
+    };
+
+    private static SimMapEntry Paced(string map, bool enabled = true)
+    {
+        var entry = new SimMapEntry { Map = map, Minutes = 20f, Enabled = enabled };
+        ApplyPace(entry);
+        return entry;
+    }
+
+    public static void ApplyPace(SimMapEntry entry)
+    {
+        if (Pace.TryGetValue(entry.Map, out var pace))
+        {
+            entry.MaxAliveBots = pace.Cap;
+            entry.RespawnSeconds = pace.Respawn;
+            entry.SquadSizeMin = pace.SquadMin;
+            entry.SquadSizeMax = pace.SquadMax;
+        }
     }
 
     public static Dictionary<string, SimScenario> Scenarios()
