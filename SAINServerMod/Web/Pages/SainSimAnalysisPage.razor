@@ -302,7 +302,7 @@
                                         @foreach (var f in SimLabFeatures.All)
                                         {
                                             var (fired, refused, bad) = SimLabFeatures.Measure(f, b);
-                                            string state = f.Fired.Length == 0 ? "➖" : bad > 0 && f.Group == "fix" ? "❌" : fired > 0 ? "✅" : "⚠️";
+                                            string state = f.Fired.Length == 0 ? "➖" : bad > 0 && f.Group == "fix" ? "❌" : fired > 0 ? "✅" : f.ZeroOk ? "➖" : "⚠️";
                                             <tr><td>@state @f.Name</td><td>@(f.Fired.Length == 0 ? "-" : fired.ToString())</td><td>@(f.Refused.Length == 0 ? "-" : refused.ToString())</td><td>@(f.Bad.Length == 0 ? "-" : bad.ToString())</td><td>@f.Journal</td></tr>
                                         }
                                     </tbody>

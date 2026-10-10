@@ -208,10 +208,13 @@ public static class SimLabAnalyzer
         {
             list.Add(new(WARN, T("얼음 매복 중 사망", "Died while freeze-ambushing"), T($"death.Freeze={freezeDeaths} (0이어야 정상).", $"death.Freeze={freezeDeaths} (should be 0).")));
         }
-        int stuck = Sum(b, "stuck.");
-        if (stuck > 0)
+        // zzap (2026-10-10 review): stuck.* summed stage + layer + freed counters (one episode counted 3-5 times) - every
+        // episode in the 3-map run was freed. An episode = stage1; it is a problem only when it was not freed.
+        int stuckEpisodes = Get(b, "stuck.stage1");
+        int stuckFreed = Sum(b, "stuck.freed.");
+        if (stuckEpisodes > stuckFreed)
         {
-            list.Add(new(INFO, T("막힘 기록", "Stuck records"), T($"stuck.* 합계 {stuck}. 같은 자리 반복이면 맵 지형 문제.", $"stuck.* total {stuck}. Repeats at one spot point to map geometry.")));
+            list.Add(new(INFO, T("못 풀린 막힘", "Stuck not freed"), T($"막힘 {stuckEpisodes}번 중 {stuckEpisodes - stuckFreed}번이 안 풀림(그 사이 죽은 봇 포함). 일지 [Stuck] 줄의 위치가 같으면 맵 지형 문제.", $"{stuckEpisodes - stuckFreed} of {stuckEpisodes} stuck episodes not freed (bots that died meanwhile included). Same spot in [Stuck] lines = map geometry.")));
         }
         // door.reject.* are per-check "not now" answers (thousands is normal) - only real aborts count against starts.
         int doorStart = Sum(b, "door.start.");
@@ -222,9 +225,12 @@ public static class SimLabAnalyzer
         }
         int thrown = Sum(b, "nade.thrown");
         int nadeFail = Get(b, "nade.noArc") + Get(b, "nade.notReady");
-        if (nadeFail >= 10 && nadeFail > thrown * 3)
+        // zzap (2026-10-10 review): noArc is a retry count (the bot asks again every 1.5 s while the arc is blocked - mostly
+        // 25-45 m under a roof), so "many" next to the throws was always true (3 maps: 53-86 vs 5-20 thrown, every judged
+        // throw thrown). Only worth a line when nothing got thrown at all.
+        if (nadeFail >= 10 && thrown == 0)
         {
-            list.Add(new(INFO, T("수류탄 궤적 실패가 많음", "Many grenade arc failures"), T($"던짐 {thrown} / 궤적 없음·준비 안 됨 {nadeFail}.", $"Thrown {thrown} / no arc + not ready {nadeFail}.")));
+            list.Add(new(INFO, T("수류탄을 한 번도 못 던짐", "No grenade thrown"), T($"궤적 없음·준비 안 됨 {nadeFail} (1.5초마다 다시 세는 시도 횟수). 일지 [Nade] no clear arc 줄의 거리·실내 여부 확인.", $"No arc + not ready {nadeFail} (retries every 1.5 s). See [Nade] 'no clear arc' lines for distance / indoors.")));
         }
         // spawn check
         int spawned = b.SpawnInZone + b.SpawnOffZone;
@@ -286,7 +292,9 @@ public static class SimLabAnalyzer
                     continue;
                 }
                 var (fired, _, badCount) = SimLabFeatures.Measure(f, b);
-                if (fired == 0)
+                // zzap (user 2026-10-10: "a few blue !"): features whose 0 is expected in a sim (off in the TEST preset,
+                // replaced by the utility, a fix that had nothing to repair) are not listed as "never fired".
+                if (fired == 0 && !f.ZeroOk)
                 {
                     silent.Add(f.Name);
                 }
@@ -643,7 +651,7 @@ public static class SimLabAnalyzer
                 foreach (var f in SimLabFeatures.All)
                 {
                     var (fired, refused, badCount) = SimLabFeatures.Measure(f, b);
-                    string state = f.Fired.Length == 0 ? "➖" : fired > 0 ? "✅" : "⚠️";
+                    string state = f.Fired.Length == 0 ? "➖" : fired > 0 ? "✅" : f.ZeroOk ? "➖" : "⚠️";
                     if (badCount > 0 && f.Group == "fix")
                     {
                         state = "❌";

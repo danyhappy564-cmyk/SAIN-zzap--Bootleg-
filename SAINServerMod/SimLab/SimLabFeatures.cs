@@ -11,7 +11,7 @@ namespace SAINServerMod.SimLab;
 /// </summary>
 public static class SimLabFeatures
 {
-    public sealed record Feature(string Group, string Name, string[] Fired, string[] Refused, string[] Bad, string Journal, string Note = "");
+    public sealed record Feature(string Group, string Name, string[] Fired, string[] Refused, string[] Bad, string Journal, string Note = "", bool ZeroOk = false);
 
     private static string[] A(params string[] keys) => keys;
 
@@ -41,9 +41,9 @@ public static class SimLabFeatures
         new("ai", "두려움", A(), A(), A(), "[Utility]", "별도 카운터 없음 — 유틸리티 점수 안에 포함"),
         new("ai", "결과로 배우기", A(), A(), A(), "[Learn]", "사람 플레이어 상대 기록이라 봇끼리 시뮬에선 측정 안 됨"),
         new("ai", "레이드 일지", A(), A(), A(), "-", "일지 파일이 생겼는지로 확인"),
-        new("ai", "사람 같은 실수", A("utility.mistake."), A(), A(), "[Utility] (mistake)", "TEST 프리셋은 꺼 둠 → 0이 정상"),
-        new("close", "근접 교전 우선", A("close.fightInsteadOfCover"), A(), A(), "[Decide]"),
-        new("close", "개활지 질주 대신 교전", A("close.exposedCommit."), A(), A(), "[Decide]"),
+        new("ai", "사람 같은 실수", A("utility.mistake."), A(), A(), "[Utility] (mistake)", "TEST 프리셋은 꺼 둠 → 0이 정상", ZeroOk: true),
+        new("close", "근접 교전 우선", A("close.fightInsteadOfCover"), A(), A(), "[Decide]", "보이는 적 유틸리티가 켜져 있으면(기본) 유틸리티 점수가 같은 판단을 대신함 → 0이 정상", ZeroOk: true),
+        new("close", "개활지 질주 대신 교전", A("close.exposedCommit."), A(), A(), "[Decide]", "보이는 적 유틸리티가 켜져 있으면(기본) 유틸리티 점수가 같은 판단을 대신함 → 0이 정상", ZeroOk: true),
         new("close", "코너 추격", A("chase.style."), A("chase.rollFailed"), A(), "[Chase]"),
         new("close", "후퇴 고개 숙이기 + 지그재그", A("retreat.headDown", "retreat.weave"), A("retreat.weaveBlocked"), A(), "[HeadDown]"),
         new("close", "빛 관리", A("light.dark."), A(), A(), "[Decide]", "어두운 맵/야간에서 주로"),
@@ -53,7 +53,7 @@ public static class SimLabFeatures
         new("close", "자기 수류탄 계산", A("ownGrenade.tracked", "diamond.avoidOwnNade", "chase.waitOwnNade"), A(), A(), "[Nade]"),
         new("close", "권총 전환", A("weapon.pistolSwap"), A("weapon.pistolSwap.refused", "weapon.pistolSwap.noPistolOrAmmo"), A(), "[Weapon]"),
         new("close", "빠른 장전", A("weapon.quickReload"), A(), A(), "[Weapon]"),
-        new("close", "장거리 무기 전환", A("weapon.longRange"), A(), A(), "[Weapon]", "2번 슬롯 DMR/저격 + 80m 넘는 적"),
+        new("close", "장거리 무기 전환", A("weapon.longRange"), A(), A(), "[Weapon]", "2번 슬롯 DMR/저격 + 80m 넘는 적 — 시뮬 싸움 구역은 대부분 그보다 좁음", ZeroOk: true),
         new("close", "등 안 돌리기", A("close.walkFacingEnemy", "close.shortDashToCover"), A(), A(), "[Decide]"),
         new("close", "제압사격 절제", A("suppress.burstPause"), A(), A(), "[Suppress]"),
         new("repo", "재배치(Relocate)", A("repo.start.Relocate"), A("repo.noPoint.Relocate"), A(), "[Reposition]", "실외 전용 — 공장처럼 지붕 아래는 제외"),
@@ -64,14 +64,14 @@ public static class SimLabFeatures
         new("squad", "약한 적 일제 돌격", A("squad.storm.start"), A("squad.storm.notWeak"), A(), "[Storm]"),
         new("squad", "전투 후 정리", A("postCombat.start"), A(), A(), "[PostCombat]"),
         new("squad", "아군 사선 회피", A("squad.fireLane."), A(), A("death.teamKill."), "[FireLane]", "나쁜 신호 = 아군 사격 사망"),
-        new("squad", "정지 매복(Freeze)", A("freeze.start."), A("freeze.broken."), A("death.Freeze"), "[Freeze]"),
-        new("squad", "폭발음 반응", A("repo.moveOnBlast."), A(), A(), "[Reposition]"),
-        new("squad", "플레이어 스타일 대응", A("adapt."), A(), A(), "[Adapt]", "시뮬은 사람 상대가 아니라 0이 정상"),
+        new("squad", "정지 매복(Freeze)", A("freeze.start.", "freeze.end."), A("freeze.broken."), A("death.Freeze"), "[Freeze]", "start = 옛 판단 체인, end = 유틸리티 Freeze 포함 전부"),
+        new("squad", "폭발음 반응", A("blast.newEnemy"), A("blast.notHostile"), A(), "[BlastHeard] (LogOutput)", "25m 안에서 던진 사람을 모르던 봇이 있을 때만"),
+        new("squad", "플레이어 스타일 대응", A("adapt."), A(), A(), "[Adapt]", "시뮬은 사람 상대가 아니라 0이 정상", ZeroOk: true),
         new("zzap", "벽 보고 서 있지 않기", A("look.wallFix.corner", "look.wallFix.open"), A("look.wallFix.none"), A("look.wallFix.flip"), "-", "flip = 고른 방향이 반대로 뒤집힘(총구 까딱임), 0에 가까워야"),
         new("zzap", "봇끼리 발소리 듣기", A("hear.firstSeen.heard.move"), A(), A(), "-", "notHeard.close가 적어야"),
         new("zzap", "ORBIT 인계", A("handoff.toOrbit", "handoff.orbitToCombat"), A(), A("handoff.orbitFlipFlop"), "[Handoff]"),
         // README "버그 수정"
-        new("fix", "문 낑김 / 아무도 못 여는 문", A("door.interactionRepaired."), A(), A(), "[DoorTactic]", "복구가 돌았다는 뜻 — 0이면 문제가 안 생긴 것"),
+        new("fix", "문 낑김 / 아무도 못 여는 문", A("door.interactionRepaired."), A(), A(), "[DoorTactic]", "복구가 돌았다는 뜻 — 0이면 문제가 안 생긴 것", ZeroOk: true),
         new("fix", "무기 계속 바꾸기(핑퐁)", A("weapon.toggle.keptLoadedGun"), A(), A("weapon.pingPong"), "[Weapon]"),
         new("fix", "빠른 재장전 탄창 소실", A("weapon.quickReload.keptLastSpare"), A(), A(), "[Weapon]"),
         new("fix", "벽에 계속 박기(끼임 해제)", A("stuck.freed."), A(), A(), "[Stuck]", "stuck.stage만 있고 freed가 적으면 못 풀린 것"),
