@@ -32,6 +32,13 @@ public sealed class PersonalityDictionary : Dictionary<EPersonality, Personality
             return result;
         }
 
+        // zzap SimLab: a sim preset's personality mix for this raid's PMCs (only in a sim raid that sets one)
+        if (SAIN.SimLab.SimLab.TryPickPersonality(infoClass.Profile.IsPMC, ContainsKey, out result))
+        {
+            settings = this[result];
+            return result;
+        }
+
         result = setNicknamePersonality(infoClass.Profile.NickName);
         if (result != EPersonality.Normal)
         {

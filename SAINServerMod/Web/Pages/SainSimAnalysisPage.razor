@@ -132,6 +132,9 @@
                     </MudText>
                     @if (m.Raid != null)
                     {
+                        <MudText Typo="Typo.caption" Class="d-block">
+                            @T("시뮬 프리셋", "Sim preset"): @(string.IsNullOrEmpty(m.Raid.SimPreset) ? T("없음(직접 설정)", "none (manual)") : m.Raid.SimPreset) · @T("성격", "Personalities"): @SimLabAnalyzer.PersonalityLabel(m.Raid.Personalities) · @T("모드 아이템", "Mod items"): @SimLabAnalyzer.ModItemsLabel(m.Raid)
+                        </MudText>
                         <MudText Typo="Typo.caption" Class="spt-muted d-block">
                             @T("스폰", "Spawns"): A @m.Raid.SideA [@m.Raid.ZonesA] vs B @m.Raid.SideB [@m.Raid.ZonesB] · @T("동시 최대", "max alive") @m.Raid.MaxAliveBots · @T("지운 웨이브", "removed waves") @(m.Raid.RemovedBossWaves)+@(m.Raid.RemovedWaves)
                         </MudText>

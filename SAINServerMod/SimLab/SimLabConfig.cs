@@ -55,6 +55,20 @@ public sealed class SimLabConfig
     /// otherwise makes same-faction squads friendly 15% of the time.</summary>
     public bool AllSquadsEnemies = true;
 
+    /// <summary>No modded weapons / attachments / gear / clothing on sim bots (user 2026-10-10: "during the sim no mod items -
+    /// control APBS"). Done by emptying APBS's per-raid mod item list for sim raids only (SimLabApbsItemsBridge); APBS untouched.</summary>
+    public bool NoModItemsInSim = true;
+
+    /// <summary>Personality mix for sim PMCs: "Chad:2,Normal:1" weights, "even" = the main personalities alike, empty = SAIN's
+    /// normal assignment.</summary>
+    public string Personalities = string.Empty;
+
+    /// <summary>Name of the sim preset last applied (shown on the page and in the analysis; cleared when the settings are edited).</summary>
+    public string ActivePreset = string.Empty;
+
+    /// <summary>Saved sim presets: map lineup + spawn pace + personality mix + what the run is for (user 2026-10-10).</summary>
+    public List<SimPreset> Presets = [];
+
     /// <summary>Remaining sim time at the top right of the game screen (user 2026-10-09: on by default, switchable on the page).</summary>
     public bool ShowTimer = true;
 
@@ -87,6 +101,25 @@ public sealed class SimLabConfig
 
     /// <summary>Per location id (lower case): where the two sides spawn and what the map's test looks at.</summary>
     public Dictionary<string, SimScenario> Scenarios = new(StringComparer.OrdinalIgnoreCase);
+}
+
+/// <summary>
+/// zzap (user 2026-10-10: "a sim preset before the start - not a SAIN preset: this one = this map lineup, this spawn mix, these
+/// personalities, for checking that"). Applying one copies its values into the live settings; built-ins are refilled on start.
+/// </summary>
+public sealed class SimPreset
+{
+    public string Name = string.Empty;
+    /// <summary>What a run with this preset is for (shown under the picker and in the analysis).</summary>
+    public string Purpose = string.Empty;
+    public bool BuiltIn;
+    public List<SimMapEntry> Rotation = [];
+    public int MaxAliveBots = 12;
+    public int SquadSizeMin = 3;
+    public int SquadSizeMax = 4;
+    public int RespawnSeconds = 45;
+    public string Personalities = string.Empty;
+    public bool NoModItems = true;
 }
 
 public sealed class SimMapEntry

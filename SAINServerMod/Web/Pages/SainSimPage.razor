@@ -74,6 +74,54 @@
             }
         </MudPaper>
 
+        <MudPaper Elevation="0" Class="spt-panel pa-4 mb-4">
+            <MudText Typo="Typo.subtitle1" Class="spt-title mb-1">@T("시뮬 프리셋", "Sim presets")</MudText>
+            <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
+                @T("SAIN 프리셋과 별개로, 시뮬 한 번을 '어떤 맵 순서 · 어떤 스폰 · 어떤 성격 분포로 · 무엇을 확인할지' 묶어 둔 것. 적용하면 아래 설정에 그대로 들어가고 다음 시작부터 첫 맵부터 돕니다.",
+                   "Separate from SAIN presets: one sim run bundled as 'which maps, which spawns, which personality mix, to check what'. Applying fills the settings below; the next start begins at its first map.")
+            </MudText>
+            @{
+                string active = Sim.ActivePresetLabel();
+                var picked = Sim.FindPreset(_presetPick);
+            }
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(string.IsNullOrEmpty(active) ? Color.Default : Color.Info)" Class="mb-2">
+                @(string.IsNullOrEmpty(active) ? T("적용된 프리셋 없음 (직접 설정)", "No preset applied (manual settings)") : T($"지금: {active}", $"Now: {active}"))
+            </MudChip>
+            <MudStack Row Wrap="Wrap.Wrap" Spacing="2" AlignItems="AlignItems.Center">
+                <MudSelect T="string" @bind-Value="_presetPick" Label="@T("프리셋", "Preset")" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:320px;">
+                    @foreach (var p in Sim.Config.Presets)
+                    {
+                        <MudSelectItem T="string" Value="@p.Name">@(p.BuiltIn ? p.Name : p.Name + T(" (내가 저장)", " (mine)"))</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlaylistAddCheck" Disabled="@(picked == null || Sim.Running)" OnClick="ApplyPreset">
+                    @T("적용", "Apply")
+                </MudButton>
+                @if (picked is { BuiltIn: false })
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="DeletePreset">@T("삭제", "Delete")</MudButton>
+                }
+                @if (Sim.Running)
+                {
+                    <MudText Typo="Typo.caption" Class="spt-muted">@T("순회 중에는 적용할 수 없음 — 시뮬 정지 후 적용", "Can't apply while running - stop the sim first")</MudText>
+                }
+            </MudStack>
+            @if (picked != null)
+            {
+                <MudText Typo="Typo.body2" Class="mt-2"><b>@T("확인 용도", "For")</b>: @picked.Purpose</MudText>
+                <MudText Typo="Typo.caption" Class="spt-muted d-block">
+                    @T("맵", "Maps"): @string.Join(", ", picked.Rotation.Where(x => x.Enabled).Select(x => $"{SimLabDefaults.DisplayName(x.Map)} {x.Minutes:0}{T("분", "m")}"))
+                    · @T("성격", "Personalities"): @PersonalityText(picked.Personalities)
+                    · @T("모드 아이템", "Mod items"): @(picked.NoModItems ? T("금지", "off") : T("허용", "allowed"))
+                </MudText>
+            }
+            <MudStack Row Wrap="Wrap.Wrap" Spacing="2" AlignItems="AlignItems.Center" Class="mt-3">
+                <MudTextField T="string" @bind-Value="_saveName" Label="@T("새 프리셋 이름", "New preset name")" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:260px;" />
+                <MudTextField T="string" @bind-Value="_savePurpose" Label="@T("무엇을 확인하는 용도인지", "What it is for")" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:360px;" />
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.SaveAs" OnClick="SavePreset">@T("지금 설정을 프리셋으로 저장", "Save current settings as preset")</MudButton>
+            </MudStack>
+        </MudPaper>
+
         <div class="sain-settings-grid">
             <MudPaper Elevation="0" Class="spt-panel pa-4">
                 <MudText Typo="Typo.subtitle1" Class="spt-title mb-2">@T("공통 설정", "General")</MudText>
@@ -135,6 +183,14 @@
                 <MudText Typo="Typo.subtitle2" Class="mt-3">@T("다른 모드", "Other mods")</MudText>
                 <div class="sain-toggle-row">
                     <MudText Typo="Typo.body2">
+                        @T("시뮬 중 모드 무기·부착물·장비·옷 금지 — APBS의 '이번 판 모드 아이템' 목록을 시뮬 판에서만 비움(APBS 설정·파일은 안 바뀜). 모드 아이템뿐인 칸은 APBS가 원래대로 채워 빈손 방지",
+                           "No modded weapons / attachments / gear / clothing in sim raids - empties APBS's per-raid mod item list for sim raids only (APBS's settings/files untouched). Slots with only mod items keep them so no bot goes empty-handed")
+                        @(Sim.ApbsItemsFound ? "" : T(" — APBS(레이드별 모드 아이템 기능) 없음", " — APBS (per-raid mod items) not found"))
+                    </MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.NoModItemsInSim" Color="Color.Primary" />
+                </div>
+                <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">
                         @T("시뮬 맵은 원본(SPT 기본) 버전으로 — MapVariants가 있으면 시작 직전에 '원본'을 고름 (예: 공장은 리워크, 클래식 공장 아님). 시뮬 뒤 직접 플레이할 때도 맵 고르기 화면에서 다시 고르기 전까지 원본이 유지됨",
                            "Sim maps use the original (SPT's own) version - with MapVariants, 'original' is picked right before each start (e.g. reworked Factory, not classic). It stays picked for your own raids until you choose again on the map screen")
                     </MudText>
@@ -156,6 +212,17 @@
                     <MudText Typo="Typo.body2">@T("시간이 끝나면 다음 맵으로", "Move to the next map when time is up")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.AutoRotate" Color="Color.Primary" />
                 </div>
+                <MudText Typo="Typo.subtitle2" Class="mt-3">@T("성격 분포 (시뮬 PMC만)", "Personality mix (sim PMCs only)")</MudText>
+                <MudStack Row Wrap="Wrap.Wrap" Spacing="2" AlignItems="AlignItems.Center">
+                    <MudTextField T="string" @bind-Value="Sim.Config.Personalities" Label="@T("예: Chad:2,Rat:1 / even / 비우면 SAIN 기본", "e.g. Chad:2,Rat:1 / even / empty = SAIN default")"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:320px;" />
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => Sim.Config.Personalities = string.Empty)">@T("SAIN 기본", "SAIN default")</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => Sim.Config.Personalities = "even")">@T("고르게", "Even")</MudButton>
+                </MudStack>
+                <MudText Typo="Typo.caption" Class="spt-muted d-block">
+                    @T($"지금: {PersonalityText(Sim.Config.Personalities)}. 이름: {string.Join(", ", SimLabDefaults.MainPersonalities)}. SAIN 프리셋의 성격 강제(Force Personality)가 켜져 있으면 그게 먼저.",
+                       $"Now: {PersonalityText(Sim.Config.Personalities)}. Names: {string.Join(", ", SimLabDefaults.MainPersonalities)}. A SAIN preset's Force Personality wins.")
+                </MudText>
                 <MudStack Row Wrap="Wrap.Wrap" Spacing="2" Class="mt-3">
                     <MudNumericField T="int" @bind-Value="Sim.Config.MaxAliveBots" Label="@T("동시에 살아 있는 최대 봇", "Max bots alive at once")" Min="2" Max="40"
                                      Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:200px;" />
@@ -307,6 +374,7 @@
     {
         // Live status (last report, armed) every 5 s.
         _timer = new System.Threading.Timer(_ => InvokeAsync(StateHasChanged), null, 5000, 5000);
+        _presetPick = Sim.Config.ActivePreset ?? string.Empty;
     }
 
     public void Dispose()
@@ -409,6 +477,50 @@
         Sim.SaveConfig();
         string id = Sim.NewRun();
         Snackbar.Add(T($"새 실행 {id} — 순서 처음부터 시작합니다.", $"New run {id} — starting from the top of the list."), Severity.Success);
+    }
+
+    private string _presetPick = string.Empty;
+    private string _saveName = string.Empty;
+    private string _savePurpose = string.Empty;
+
+    private string PersonalityText(string? spec)
+    {
+        if (string.IsNullOrWhiteSpace(spec))
+        {
+            return T("SAIN 기본 (SAIN 프리셋의 레벨·장비 규칙)", "SAIN default (the SAIN preset's level / gear rules)");
+        }
+        return string.Equals(spec.Trim(), "even", StringComparison.OrdinalIgnoreCase) ? T("8가지 고르게", "8 kinds evenly") : spec;
+    }
+
+    private void ApplyPreset()
+    {
+        if (Sim.ApplyPreset(_presetPick))
+        {
+            Snackbar.Add(T($"'{_presetPick}' 적용 — 다음 시작부터 첫 맵부터 돕니다.", $"'{_presetPick}' applied - the next start begins at its first map."), Severity.Success);
+        }
+    }
+
+    private void DeletePreset()
+    {
+        if (Sim.DeletePreset(_presetPick))
+        {
+            Snackbar.Add(T($"'{_presetPick}' 삭제", $"'{_presetPick}' deleted"), Severity.Warning);
+            _presetPick = string.Empty;
+        }
+    }
+
+    private void SavePreset()
+    {
+        string? error = Sim.SaveAsPreset(_saveName, _savePurpose);
+        if (error != null)
+        {
+            Snackbar.Add(error, Severity.Error);
+            return;
+        }
+        Snackbar.Add(T($"'{_saveName.Trim()}' 저장", $"'{_saveName.Trim()}' saved"), Severity.Success);
+        _presetPick = _saveName.Trim();
+        _saveName = string.Empty;
+        _savePurpose = string.Empty;
     }
 
     private void Save()

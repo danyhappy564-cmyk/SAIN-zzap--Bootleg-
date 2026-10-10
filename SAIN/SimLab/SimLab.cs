@@ -43,6 +43,64 @@ public static class SimLab
     /// <summary>Set when the sim ended a raid itself: the next session result screens are skipped.</summary>
     public static bool SkipNextResults;
 
+    private static readonly string[] EVEN = { "GigaChad", "Chad", "Wreckless", "Normal", "SnappingTurtle", "Rat", "Timmy", "Coward" };
+    private static string _mixKey;
+    private static readonly System.Collections.Generic.List<(SAIN.Preset.Shared.Models.Preset.Personalities.EPersonality P, float W)> _mix = new();
+    private static float _mixTotal;
+
+    /// <summary>
+    /// zzap (user 2026-10-10: sim presets with a personality mix): in a sim raid whose preset sets a mix, a PMC's personality is
+    /// drawn from it (weights "Chad:2,Normal:1", or "even") instead of SAIN's level / gear rules. Called first thing by
+    /// PersonalityDictionary.GetPersonality after a preset's Force Personality. False = SAIN's normal assignment.
+    /// </summary>
+    public static bool TryPickPersonality(bool isPmc, Func<SAIN.Preset.Shared.Models.Preset.Personalities.EPersonality, bool> available,
+        out SAIN.Preset.Shared.Models.Preset.Personalities.EPersonality personality)
+    {
+        personality = SAIN.Preset.Shared.Models.Preset.Personalities.EPersonality.Normal;
+        string spec = Raid?.Personalities;
+        if (!isPmc || !Active || Raid == null || !Raid.Applied || string.IsNullOrWhiteSpace(spec))
+        {
+            return false;
+        }
+        if (_mixKey != spec)
+        {
+            _mixKey = spec;
+            _mix.Clear();
+            _mixTotal = 0f;
+            var parts = string.Equals(spec.Trim(), "even", StringComparison.OrdinalIgnoreCase)
+                ? Array.ConvertAll(EVEN, x => x + ":1")
+                : spec.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string part in parts)
+            {
+                string[] kv = part.Split(':');
+                float w = 1f;
+                if (Enum.TryParse(kv[0].Trim(), true, out SAIN.Preset.Shared.Models.Preset.Personalities.EPersonality p)
+                    && (kv.Length < 2 || float.TryParse(kv[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out w))
+                    && w > 0f && available(p))
+                {
+                    _mix.Add((p, w));
+                    _mixTotal += w;
+                }
+            }
+        }
+        if (_mix.Count == 0 || _mixTotal <= 0f)
+        {
+            return false;
+        }
+        float roll = UnityEngine.Random.value * _mixTotal;
+        foreach (var (p, w) in _mix)
+        {
+            roll -= w;
+            if (roll <= 0f)
+            {
+                personality = p;
+                return true;
+            }
+        }
+        personality = _mix[_mix.Count - 1].P;
+        return true;
+    }
+
     /// <summary>Raised by the TarkovApplication.OnApplicationLoaded patch every time the main menu is ready.</summary>
     public static float MenuReadyTime = -1f;
 

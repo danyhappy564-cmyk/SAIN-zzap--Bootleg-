@@ -26,6 +26,25 @@ public static class SimLabAnalyzer
     /// can't react to - shown inside "other" so they aren't read as the bots' own fights.</summary>
     public static int SpectatorKills(SimBeat b) => Sum(b, "death.bySpectator.");
 
+    public static string PersonalityLabel(string? spec)
+    {
+        if (string.IsNullOrWhiteSpace(spec))
+        {
+            return "SAIN 기본";
+        }
+        return string.Equals(spec.Trim(), "even", StringComparison.OrdinalIgnoreCase) ? "8가지 고르게" : spec;
+    }
+
+    /// <summary>"금지(APBS 목록 비움)" only when the bridge really emptied APBS's list for this raid.</summary>
+    public static string ModItemsLabel(SimRaidInfo raid)
+    {
+        if (!raid.NoModItems)
+        {
+            return "허용";
+        }
+        return raid.ModItemsBlocked ? "금지 (APBS 목록 비움)" : "금지 설정이지만 적용 안 됨 (APBS 없음/못 찾음)";
+    }
+
     private static string SpectatorPart(SimBeat b)
     {
         int n = SpectatorKills(b);
@@ -603,6 +622,7 @@ public static class SimLabAnalyzer
             sb.AppendLine($"- 목적: {m.Focus}");
             if (m.Raid != null)
             {
+                sb.AppendLine($"- 시뮬 프리셋: {(string.IsNullOrEmpty(m.Raid.SimPreset) ? "없음(직접 설정)" : m.Raid.SimPreset)} · 성격: {PersonalityLabel(m.Raid.Personalities)} · 모드 아이템: {ModItemsLabel(m.Raid)}");
                 sb.AppendLine($"- 스폰: A {m.Raid.SideA}@[{m.Raid.ZonesA}] vs B {m.Raid.SideB}@[{m.Raid.ZonesB}], 동시 최대 {m.Raid.MaxAliveBots}, 분대 {m.Raid.SquadSizeMin}~{m.Raid.SquadSizeMax}, 지운 웨이브 {m.Raid.RemovedBossWaves}+{m.Raid.RemovedWaves}, ABPS {(m.Raid.AbpsOff ? "끔(서버)" : "안 건드림")}, 분대끼리 {(m.Raid.AllSquadsEnemies ? "전부 적" : "SPT 기본(같은 진영 85% 적)")}");
             }
             if (b != null)

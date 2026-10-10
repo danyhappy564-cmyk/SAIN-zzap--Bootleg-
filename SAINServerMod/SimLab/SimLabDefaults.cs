@@ -109,6 +109,62 @@ public static class SimLabDefaults
         ["tarkovstreets"] = (10, 50, 3, 4),
     };
 
+    /// <summary>Main personalities "even" spreads the sim PMCs over (Custom1-4 / None left out).</summary>
+    public static readonly string[] MainPersonalities = { "GigaChad", "Chad", "Wreckless", "Normal", "SnappingTurtle", "Rat", "Timmy", "Coward" };
+
+    /// <summary>
+    /// Built-in sim presets (user 2026-10-10: "which preset = which map lineup / spawn mix / personalities, to check what").
+    /// Each lists every default map - its own picks first and on, the rest off - so a saved rotation never gains maps back.
+    /// </summary>
+    public static List<SimPreset> Presets()
+    {
+        return
+        [
+            Preset("기본 순회 (전 맵 점검)",
+                "README 기능 전체가 맵마다 실제로 나오는지(기능 점검 표), 오류·성능·메모리. 성격은 SAIN 프리셋 그대로.",
+                "", ("factory4_day", 20), ("bigmap", 20), ("interchange", 20), ("rezervbase", 20), ("shoreline", 20), ("woods", 20),
+                ("lighthouse", 20), ("tarkovstreets", 20), ("sandbox", 20)),
+            Preset("빠른 점검 (공장 10분)",
+                "빌드 직후: 오류가 새로 생겼는지, 분대가 제때 나오는지, 기본 전투가 도는지만 빠르게.",
+                "", ("factory4_day", 10)),
+            Preset("근접·실내 전술",
+                "문 전술·방 진입·다이아몬드 스텝·근접 장전·코너 추격·판단 전환 직후 사망. 실내 시나리오 맵만.",
+                "", ("factory4_day", 15), ("bigmap", 15), ("shoreline", 15), ("rezervbase", 15)),
+            Preset("성격 비교 (고르게)",
+                "성격 8가지를 같은 비율로 섞어 성격별 킬/사망·얼음/후퇴/돌격 비율 비교. 근접(공장)과 다층 건물(세관) 두 맵.",
+                "even", ("factory4_day", 20), ("bigmap", 20)),
+            Preset("방어형 성격 (Rat·Coward·SnappingTurtle)",
+                "매복·후퇴·버티기 성격이 멍때리지 않고 자연스러운지(얼음 비율, 후퇴 정지, 치료). 문 옆 매복(Rat)까지 보려면 SAIN TEST 프리셋의 문 전술 '테스트 모드: 모든 PMC가 기가채드 전술 사용'을 끌 것.",
+                "Rat:3,Coward:2,SnappingTurtle:3,Normal:1", ("factory4_day", 15), ("bigmap", 15), ("rezervbase", 15)),
+            Preset("공격형 성격 (GigaChad·Chad·Wreckless)",
+                "돌격·코너 추격·일제 돌격·점프샷이 무리하지 않는지(돌격 중 사망, 판단 전환 사망).",
+                "GigaChad:3,Chad:3,Wreckless:2,Normal:1", ("factory4_day", 15), ("bigmap", 15), ("interchange", 15)),
+            Preset("실외·장거리",
+                "재배치(실외 전용)·장거리 무기 전환·먼 적 상대 판단(얼음 거리 감점)·발소리 감지. 넓은 실외 맵.",
+                "", ("woods", 20), ("lighthouse", 20), ("sandbox", 20), ("shoreline", 20)),
+        ];
+    }
+
+    private static SimPreset Preset(string name, string purpose, string personalities, params (string Map, float Minutes)[] picks)
+    {
+        var rotation = new List<SimMapEntry>();
+        foreach (var (map, minutes) in picks)
+        {
+            var entry = Paced(map);
+            entry.Minutes = minutes;
+            rotation.Add(entry);
+        }
+        foreach (var entry in Rotation())
+        {
+            if (!rotation.Any(x => string.Equals(x.Map, entry.Map, StringComparison.OrdinalIgnoreCase)))
+            {
+                entry.Enabled = false;
+                rotation.Add(entry);
+            }
+        }
+        return new SimPreset { Name = name, Purpose = purpose, BuiltIn = true, Rotation = rotation, Personalities = personalities };
+    }
+
     private static SimMapEntry Paced(string map, bool enabled = true)
     {
         var entry = new SimMapEntry { Map = map, Minutes = 20f, Enabled = enabled };

@@ -72,6 +72,19 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         {
             logger.Error($"[SAIN SimLab] raid patch failed - sim spawns will not apply: {ex}");
         }
+        if (SimLabApbsItemsBridge.Method() != null)
+        {
+            try
+            {
+                new SimLabApbsItemsPatch().Enable();
+                ApbsItemsFound = true;
+                logger.Info("[SAIN SimLab] APBS found - sim raids can run without modded weapons / gear (its per-raid mod item list is emptied)");
+            }
+            catch (Exception ex)
+            {
+                logger.Warning($"[SAIN SimLab] APBS mod item bridge failed (sim bots may carry mod items): {ex.Message}");
+            }
+        }
         if (SimLabOrbitBridge.Method("ConfigForGame") != null)
         {
             try
@@ -90,6 +103,15 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
     }
 
     public bool OrbitFound { get; private set; }
+
+    /// <summary>Server log line from the sim bridges (static Harmony patches have no logger of their own).</summary>
+    public void Log(string line)
+    {
+        logger.Info(line);
+    }
+
+    /// <summary>APBS (Acid's Progressive Bot System) with its per-raid mod item list is installed (SimLabApbsItemsBridge).</summary>
+    public bool ApbsItemsFound { get; private set; }
 
     public bool AbpsFound => SimLabAbpsBridge.Found;
 
@@ -236,6 +258,17 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             config.AbpsOffInSim = false;
             config.DefaultsVersion = 4;
         }
+        if (config.DefaultsVersion < 5)
+        {
+            config.NoModItemsInSim = true;
+            config.DefaultsVersion = 5;
+        }
+        // Built-in sim presets: always the current definitions (user-saved ones are kept as they are).
+        config.Presets ??= [];
+        config.Presets.RemoveAll(x => x == null || x.BuiltIn);
+        config.Presets.InsertRange(0, SimLabDefaults.Presets());
+        config.Personalities ??= string.Empty;
+        config.ActivePreset ??= string.Empty;
         config.ExcludedMapKeywords ??= [];
         if (!config.ExcludedMapKeywords.Contains("icebreaker", StringComparer.OrdinalIgnoreCase))
         {
@@ -464,6 +497,146 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         }
     }
 
+    // ---------------------------------------------------------------- sim presets (user 2026-10-10)
+
+    public SimPreset? FindPreset(string name)
+    {
+        return Config.Presets.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.Ordinal));
+    }
+
+    /// <summary>Copies a preset's lineup / pace / personality mix / mod item switch into the live settings and saves.</summary>
+    public bool ApplyPreset(string name)
+    {
+        var preset = FindPreset(name);
+        if (preset == null)
+        {
+            return false;
+        }
+        lock (_lock)
+        {
+            Config.Rotation = preset.Rotation.Select(CopyEntry).ToList();
+            Config.MaxAliveBots = preset.MaxAliveBots;
+            Config.SquadSizeMin = preset.SquadSizeMin;
+            Config.SquadSizeMax = preset.SquadSizeMax;
+            Config.RespawnSeconds = preset.RespawnSeconds;
+            Config.Personalities = preset.Personalities ?? string.Empty;
+            Config.NoModItemsInSim = preset.NoModItems;
+            Config.ActivePreset = preset.Name;
+            // a new lineup starts from its first map
+            State.Step = 0;
+            SaveConfig();
+            SaveState();
+        }
+        logger.Info($"[SAIN SimLab] sim preset '{preset.Name}' applied");
+        return true;
+    }
+
+    /// <summary>Saves the live settings as a (user) preset - replaces a user preset of the same name; built-in names are refused.</summary>
+    public string? SaveAsPreset(string name, string purpose)
+    {
+        name = (name ?? string.Empty).Trim();
+        if (name.Length == 0)
+        {
+            return "이름이 비어 있습니다.";
+        }
+        lock (_lock)
+        {
+            var old = FindPreset(name);
+            if (old is { BuiltIn: true })
+            {
+                return "기본 프리셋과 같은 이름은 쓸 수 없습니다.";
+            }
+            Config.Presets.RemoveAll(x => !x.BuiltIn && string.Equals(x.Name, name, StringComparison.Ordinal));
+            Config.Presets.Add(new SimPreset
+            {
+                Name = name,
+                Purpose = purpose ?? string.Empty,
+                Rotation = Config.Rotation.Select(CopyEntry).ToList(),
+                MaxAliveBots = Config.MaxAliveBots,
+                SquadSizeMin = Config.SquadSizeMin,
+                SquadSizeMax = Config.SquadSizeMax,
+                RespawnSeconds = Config.RespawnSeconds,
+                Personalities = Config.Personalities ?? string.Empty,
+                NoModItems = Config.NoModItemsInSim,
+            });
+            Config.ActivePreset = name;
+            SaveConfig();
+        }
+        return null;
+    }
+
+    public bool DeletePreset(string name)
+    {
+        lock (_lock)
+        {
+            int removed = Config.Presets.RemoveAll(x => !x.BuiltIn && string.Equals(x.Name, name, StringComparison.Ordinal));
+            if (removed > 0 && Config.ActivePreset == name)
+            {
+                Config.ActivePreset = string.Empty;
+            }
+            SaveConfig();
+            return removed > 0;
+        }
+    }
+
+    /// <summary>The active preset's name, with "(수정됨)" when the live settings no longer match it; empty when none.</summary>
+    public string ActivePresetLabel()
+    {
+        var preset = string.IsNullOrEmpty(Config.ActivePreset) ? null : FindPreset(Config.ActivePreset);
+        if (preset == null)
+        {
+            return string.Empty;
+        }
+        return PresetMatches(preset) ? preset.Name : preset.Name + " (수정됨)";
+    }
+
+    private bool PresetMatches(SimPreset p)
+    {
+        if (p.MaxAliveBots != Config.MaxAliveBots || p.SquadSizeMin != Config.SquadSizeMin || p.SquadSizeMax != Config.SquadSizeMax
+            || p.RespawnSeconds != Config.RespawnSeconds || p.NoModItems != Config.NoModItemsInSim
+            || !string.Equals(p.Personalities ?? string.Empty, Config.Personalities ?? string.Empty, StringComparison.OrdinalIgnoreCase)
+            || p.Rotation.Count != Config.Rotation.Count)
+        {
+            return false;
+        }
+        for (int i = 0; i < p.Rotation.Count; i++)
+        {
+            var a = p.Rotation[i];
+            var b = Config.Rotation[i];
+            if (!string.Equals(a.Map, b.Map, StringComparison.OrdinalIgnoreCase) || a.Enabled != b.Enabled || Math.Abs(a.Minutes - b.Minutes) > 0.01f
+                || a.MaxAliveBots != b.MaxAliveBots || a.RespawnSeconds != b.RespawnSeconds || a.SquadSizeMin != b.SquadSizeMin || a.SquadSizeMax != b.SquadSizeMax)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static SimMapEntry CopyEntry(SimMapEntry e)
+    {
+        return new SimMapEntry
+        {
+            Map = e.Map, Enabled = e.Enabled, Minutes = e.Minutes, MaxAliveBots = e.MaxAliveBots, RespawnSeconds = e.RespawnSeconds,
+            SquadSizeMin = e.SquadSizeMin, SquadSizeMax = e.SquadSizeMax,
+        };
+    }
+
+    /// <summary>
+    /// Called right after APBS rolled its per-raid mod item list (/client/match/local/start, after SPT generated the raid and our
+    /// raid setup ran): true = this is the sim raid and mod items are off, so the bridge empties the list.
+    /// </summary>
+    public bool BlockModItemsFor(string? location)
+    {
+        var raid = LastRaid;
+        if (!Armed || !Config.NoModItemsInSim || raid == null || !raid.Applied || string.IsNullOrEmpty(location)
+            || !string.Equals(location, raid.Map, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        raid.ModItemsBlocked = true;
+        return true;
+    }
+
     // ---------------------------------------------------------------- raid setup (called from the patch)
 
     public void ApplyToRaid(string name, LocationBase location)
@@ -531,6 +704,9 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             SideA = string.IsNullOrEmpty(scenario.SideA) ? "pmcUSEC" : scenario.SideA,
             SideB = string.IsNullOrEmpty(scenario.SideB) ? "pmcBEAR" : scenario.SideB,
             ReserveTimeBase = RESERVE_TIME_BASE,
+            SimPreset = ActivePresetLabel(),
+            Personalities = Config.Personalities ?? string.Empty,
+            NoModItems = Config.NoModItemsInSim,
         };
 
         var zones = new HashSet<string>(

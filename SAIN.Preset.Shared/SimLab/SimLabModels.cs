@@ -93,6 +93,17 @@ public class SimRaidInfo
     public bool AbpsOff;
     /// <summary>The server made every other squad an enemy (own faction included) for this raid.</summary>
     public bool AllSquadsEnemies;
+
+    /// <summary>Sim preset this raid was set up from (user 2026-10-10: "sim presets - map lineup, spawns, personalities, what it
+    /// checks"). Empty = the settings were edited by hand.</summary>
+    public string SimPreset;
+    /// <summary>Personality mix for this raid's sim PMCs: "Chad:2,Normal:1,..." weights, "even" = all main personalities alike,
+    /// empty = SAIN's normal assignment (the loaded SAIN preset).</summary>
+    public string Personalities;
+    /// <summary>Bots carry no modded weapons / attachments / gear / clothing this raid (APBS's per-raid mod item list emptied).</summary>
+    public bool NoModItems;
+    /// <summary>The APBS bridge really emptied the list (false = APBS not installed / changed shape / the switch is off).</summary>
+    public bool ModItemsBlocked;
 }
 
 /// <summary>A sim bot that spawned outside the zones its side was given.</summary>
