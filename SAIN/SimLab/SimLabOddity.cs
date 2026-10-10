@@ -121,7 +121,10 @@ public static class SimLabOddity
         // holding in cover is a SeekCover decision too - only a decision that should be moving counts
         // reloading / healing in place is a SeekCover decision with a self action (2026-10-10 review) - not a stalled move
         bool selfAction = bot.Decision.CurrentSelfDecision != SAIN.Preset.Shared.Enums.ESelfActionType.None;
-        Check(s, "stalledMove", IsMovingDecision(decision) && !selfAction && reason.IndexOf("Hold", StringComparison.OrdinalIgnoreCase) < 0 && speed < 0.25f, 6f, now);
+        // a SeekCover that already reached its cover sits there on purpose (10/10 Labs: 24 of 35 were FallBack bots in their
+        // cover 80-160m from the enemy; the FallBack stall guard, which skips bots in cover, rightly fired 0 times)
+        bool inCover = decision == "SeekCover" && bot.Cover?.CoverInUse != null;
+        Check(s, "stalledMove", IsMovingDecision(decision) && !selfAction && !inCover && reason.IndexOf("Hold", StringComparison.OrdinalIgnoreCase) < 0 && speed < 0.25f, 6f, now);
 
         foreach (string kind in KINDS)
         {

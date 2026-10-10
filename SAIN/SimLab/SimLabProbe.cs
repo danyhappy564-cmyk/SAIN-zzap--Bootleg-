@@ -225,6 +225,14 @@ public static class SimLabProbe
             {
                 continue;
             }
+            // A wall or floor between them isn't a missed enemy (10/10 Factory: many of the 37 samples were one floor apart,
+            // y 5 vs 1). Only a clear chest-to-chest line counts.
+            Vector3 from = player.Position + Vector3.up * 1.3f;
+            Vector3 to = other.Position + Vector3.up * 1.3f;
+            if (Physics.Linecast(from, to, LayersMaskController.HighPolyWithTerrainMask))
+            {
+                continue;
+            }
             _closeUnaware++;
             if (_closeSamples.Count < MAX_CLOSE_SAMPLES)
             {

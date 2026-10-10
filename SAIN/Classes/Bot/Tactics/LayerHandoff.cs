@@ -88,7 +88,13 @@ public static class LayerHandoff
         {
             float gap = now - st.CombatEndedAt;
             TacticDiagnostics.Count(gap < 15f ? "handoff.combatResumedBeforeOrbit" : "handoff.combatResumedLate");
-            if (st.Between.Count > 0)
+            // A sub-0.5s blip through another mod's layer (Manimal-Icebreaker's crew "IceCrewHold" took the fight for 0.0s
+            // 232 times in one raid) is only counted - a log line each time buried the journal.
+            if (gap < 0.5f)
+            {
+                if (TacticDiagnostics.CountOn && st.Between.Count > 0) TacticDiagnostics.Count($"handoff.blip.{st.Between[0].layer.Replace(' ', '_')}");
+            }
+            else if (st.Between.Count > 0)
             {
                 if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Handoff] [{botName}] combat ended ({st.EndDecision}) and resumed {gap:0.0}s later, ORBIT never got it{Gap(st)}");
             }

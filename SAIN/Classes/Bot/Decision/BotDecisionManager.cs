@@ -480,6 +480,11 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
             return false;
         }
 
+        if (ShouldBreakOffRun())
+        {
+            return false;
+        }
+
         float timeChangeDec = Bot.Decision.TimeSinceChangeDecision;
         if (timeChangeDec < 0.5f)
         {
@@ -501,6 +506,45 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
                 _ => !coverMovingTo.CoverData.IsBad,
             };
     }
+
+    /// <summary>
+    /// zzap (10/10 Factory+Labs sim: "keepRunToCover" = 3 kills / 31 deaths, 19 of them within 1.5s of the decision, enemy
+    /// visible 9-30m and shooting): this rule kept a bot sprinting to a cover still far away whatever happened on the way,
+    /// skipping the visible-enemy scoring that already weighs "turning my back to a close shooter" (e90d19b). A shooter in
+    /// sight within 30m, cover not yet close, gun loaded: let the normal decision look again (it may still pick cover).
+    /// Retreat / RunAway (out of ammo) and self actions (reload, heal) keep running as before (6th sim flip-flop fix).
+    /// </summary>
+    private bool ShouldBreakOffRun()
+    {
+        ECombatDecision current = Bot.Decision.CurrentCombatDecision;
+        if (current != ECombatDecision.SeekCover || Bot.Decision.CurrentSelfDecision != ESelfActionType.None)
+        {
+            return false;
+        }
+        Enemy enemy = Bot.GoalEnemy;
+        if (enemy == null || !enemy.IsVisible || !enemy.CanShoot || enemy.RealDistance > 30f)
+        {
+            return false;
+        }
+        var wm = BotOwner.WeaponManager;
+        if (wm?._currentWeaponInfo == null || wm.Reload?.Reloading == true || !wm.HaveBullets)
+        {
+            return false;
+        }
+        CoverPoint coverMovingTo = Bot.Cover.CoverPoint_MovingTo;
+        if (coverMovingTo != null && coverMovingTo.PathDistanceStatus is CoverStatus.CloseToCover or CoverStatus.InCover)
+        {
+            return false;
+        }
+        if (Time.time - _brokeOffCountedAt > 3f)
+        {
+            _brokeOffCountedAt = Time.time; // the check repeats every tick while it holds - count each scene once
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("decision.runToCoverBrokeOff");
+        }
+        return true;
+    }
+
+    private float _brokeOffCountedAt = -10f;
 
     private float _nextGetDecisionTime;
 }

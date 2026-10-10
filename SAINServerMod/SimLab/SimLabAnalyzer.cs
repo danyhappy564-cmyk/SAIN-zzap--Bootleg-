@@ -358,8 +358,8 @@ public static class SimLabAnalyzer
         {
             var ex = b.CloseUnaware?.Take(3).Select(x => $"{x.Role}↔{x.OtherRole} {x.Distance:0.0}m t={x.RaidTime / 60f:0.0}분 [{x.Layer}]") ?? [];
             list.Add(new(b.CloseUnawareSamples >= 10 ? WARN : INFO, T("4m 안 적을 모름", "Enemy within 4 m unnoticed"),
-                T($"적 봇이 4m 안에 있는데 모르는 표본 {b.CloseUnawareSamples}개 (2초마다·봇마다). 예: {string.Join(", ", ex)}. 같은 자리 동시 생성이나 등 뒤 감지 문제.",
-                  $"{b.CloseUnawareSamples} samples of a hostile bot within 4 m that the bot didn't know about. e.g. {string.Join(", ", ex)}. Spawned on the same spot, or no sense of someone right behind.")));
+                T($"사이에 벽·바닥 없이 적 봇이 4m 안에 있는데 모르는 표본 {b.CloseUnawareSamples}개 (2초마다·봇마다). 예: {string.Join(", ", ex)}. 같은 자리 동시 생성이나 등 뒤 감지 문제.",
+                  $"{b.CloseUnawareSamples} samples of a hostile bot within 4 m with nothing in between that the bot didn't know about. e.g. {string.Join(", ", ex)}. Spawned on the same spot, or no sense of someone right behind.")));
         }
 
         // ORBIT telemetry (ORBIT 2.1.1: Ghost Mode sleeps bots > 250 m from the player, objectives/extracts walk squads away)
