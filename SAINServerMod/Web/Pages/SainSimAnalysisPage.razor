@@ -158,7 +158,7 @@
                     @if (b != null)
                     {
                         <MudText Typo="Typo.body2" Class="mt-2">
-                            @T("본 봇", "Bots seen") @(b.BotsSeen) · @T("봇 사망", "bot deaths") @(b.BotDeaths) (@T("봇에게", "by bots") @(b.BotKillsByBots), @T("기타", "other") @(b.OtherKills), @T("아군", "team") @(b.TeamKills)) · @T("분대 호출", "squads called") @(b.SimWavesActivated) ·
+                            @T("본 봇", "Bots seen") @(b.BotsSeen) · @T("봇 사망", "bot deaths") @(b.BotDeaths) (@T("봇에게", "by bots") @(b.BotKillsByBots), @T("기타", "other") @(b.OtherKills)@(SimLabAnalyzer.SpectatorKills(b) > 0 ? T($" — 관전자 {SimLabAnalyzer.SpectatorKills(b)}", $" - spectator {SimLabAnalyzer.SpectatorKills(b)}") : ""), @T("아군", "team") @(b.TeamKills)) · @T("분대 호출", "squads called") @(b.SimWavesActivated) ·
                             @T("마지막", "last") @(b.Fps.ToString("0")) fps / @T("최저", "min") @(b.FpsMin.ToString("0")) · @T("멈춤", "stalls") @(b.Stalls) · @T("관리 메모리", "managed memory") @(b.MonoUsedMB) MB
                         </MudText>
                         @if (!string.IsNullOrEmpty(b.JournalFile))

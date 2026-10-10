@@ -22,6 +22,16 @@ public static class SimLabAnalyzer
     public const string INFO = "info";
     public const string OK = "ok";
 
+    /// <summary>zzap (2026-10-10 review: Shoreline "other 8" were all the spectator's shots): kills by the spectator, which bots
+    /// can't react to - shown inside "other" so they aren't read as the bots' own fights.</summary>
+    public static int SpectatorKills(SimBeat b) => Sum(b, "death.bySpectator.");
+
+    private static string SpectatorPart(SimBeat b)
+    {
+        int n = SpectatorKills(b);
+        return n > 0 ? $" — 그중 관전자 {n}" : string.Empty;
+    }
+
     public static float PlayedMinutes(SimMapRecord m)
     {
         return (m.Last?.RaidSeconds ?? 0f) / 60f;
@@ -597,7 +607,7 @@ public static class SimLabAnalyzer
             }
             if (b != null)
             {
-                sb.AppendLine($"- 봇: 본 봇 {b.BotsSeen}, 사망 {b.BotDeaths} (봇에게 {b.BotKillsByBots}, 기타 {b.OtherKills}, 아군 {b.TeamKills}), 분대 호출 {b.SimWavesActivated}, 마지막 생존 {b.AliveBots}");
+                sb.AppendLine($"- 봇: 본 봇 {b.BotsSeen}, 사망 {b.BotDeaths} (봇에게 {b.BotKillsByBots}, 기타 {b.OtherKills}{SpectatorPart(b)}, 아군 {b.TeamKills}), 분대 호출 {b.SimWavesActivated}, 마지막 생존 {b.AliveBots}");
                 sb.AppendLine($"- 성능: 마지막 {b.Fps:0} fps, 최저 {b.FpsMin:0} fps, 멈춤 {b.Stalls}, 관리 메모리 {b.MonoUsedMB} MB");
                 sb.AppendLine($"- 일지: `{b.JournalFile}`");
                 if (b.SpawnedRoles?.Count > 0)
