@@ -219,18 +219,21 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
 
         if (Bot.Grenade.GrenadeReactionClass.ShallAvoidGrenade())
         {
+            Why("avoidGrenade");
             SetDecisions(ECombatDecision.AvoidGrenade, ESquadDecision.None, ESelfActionType.None, enemy);
             return;
         }
 
         if (enemy == null)
         {
+            Why("noEnemy");
             SetDecisions(ECombatDecision.None, ShallPostCombat() ? ESquadDecision.PostCombat : ESquadDecision.None, ESelfActionType.None, enemy);
             return;
         }
         BaseClass.EnemyDecisions.DebugShallSearch = null;
         if (BaseClass.SelfActionDecisions.GetDecision(out ESelfActionType selfDecision, enemy))
         {
+            Why($"self:{selfDecision}");
             SetDecisions(ECombatDecision.SeekCover, ESquadDecision.None, selfDecision, enemy);
             return;
         }
@@ -267,11 +270,13 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
         }
         if (Bot.Decision.DogFightDecision.DogFightActive)
         {
+            Why("dogFight");
             SetDecisions(ECombatDecision.DogFight, ESquadDecision.None, ESelfActionType.None, enemy);
             return;
         }
         if (BotOwner.WeaponManager.IsMelee)
         {
+            Why("melee");
             SetDecisions(ECombatDecision.MeleeAttack, ESquadDecision.None, ESelfActionType.None, enemy);
             return;
         }
@@ -281,11 +286,13 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
             // Retreat <-> SeekCover every tick (6th sim: 1538 decision changes, each one restarting the move; 11 deaths).
             ECombatDecision current = Bot.Decision.CurrentCombatDecision;
             ECombatDecision keep = current is ECombatDecision.Retreat or ECombatDecision.RunAway ? current : ECombatDecision.SeekCover;
+            Why("keepRunToCover");
             SetDecisions(keep, ESquadDecision.None, Bot.Decision.CurrentSelfDecision, enemy);
             return;
         }
         if (BaseClass.SquadDecisions.GetDecision(out ESquadDecision squadDecision, enemy))
         {
+            Why($"squad:{squadDecision}");
             SetDecisions(ECombatDecision.None, squadDecision, ESelfActionType.None, enemy);
             return;
         }
@@ -441,6 +448,17 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
         if (!value)
         {
             SetDecisions(ECombatDecision.None, ESquadDecision.None, ESelfActionType.None, null);
+        }
+    }
+
+    // zzap (2026-10-10 review): the journal's why= was always the enemy-decision chain's last reason, so a bot reloading or
+    // healing in place (combat=SeekCover, self=Reload) or on a squad search (combat=None) showed the reason of the decision
+    // before ("SeekCover ... why=utilityVShoot") and the oddity check counted reloading in place as "stalled move".
+    private void Why(string reason)
+    {
+        if (BaseClass.EnemyDecisions != null)
+        {
+            BaseClass.EnemyDecisions.LastReason = reason;
         }
     }
 

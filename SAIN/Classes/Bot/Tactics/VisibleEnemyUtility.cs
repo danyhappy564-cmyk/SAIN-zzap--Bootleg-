@@ -61,8 +61,23 @@ public static class VisibleEnemyUtility
     public static List<(EStance stance, float score)> Rank(BotComponent bot, Enemy enemy, float holdGroundInterval)
     {
         var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
-        if (settings == null || !settings.UtilityVisibleEnemy || enemy == null || !enemy.IsVisible || !enemy.CanShoot || enemy.IsZombie)
+        if (settings == null || !settings.UtilityVisibleEnemy || enemy == null || !enemy.IsVisible || enemy.IsZombie)
         {
+            return null;
+        }
+        if (!enemy.CanShoot)
+        {
+            // zzap (sims 2026-10-10): "can shoot" = a clear line from the muzzle to some body part, and it blinks off for a
+            // moment while he moves behind a rail / post. Each blink handed the decision to the old chain for a tick
+            // ("search" / "move to cover" toward an enemy in sight 6-25 m away), then back to shooting under a second later
+            // (Factory: 90 old-chain picks with an enemy in sight within 25 m, many back to shooting within a second). Keep the
+            // last scoring of this enemy while it is still fresh (its 2-3 s memory, or 1.5 s).
+            if (_memory.TryGetValue(bot.ProfileId, out Memory blink) && blink.EnemyId == enemy.EnemyProfileId
+                && (Time.time < blink.Until || Time.time - blink.ScoredAt < 1.5f) && blink.Ranked != null)
+            {
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("utilityV.keepNoShot");
+                return blink.Ranked;
+            }
             return null;
         }
         if (bot.BotOwner.WeaponManager?.HaveBullets == false || enemy.RealDistance > bot.Info.WeaponInfo.EffectiveWeaponDistance * 1.25f)

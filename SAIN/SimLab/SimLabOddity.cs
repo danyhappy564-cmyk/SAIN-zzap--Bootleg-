@@ -119,7 +119,9 @@ public static class SimLabOddity
         Check(s, "flipFlop", Changes(s.Decisions) >= 4, 0f, now);
         Check(s, "bunched", MateWithin(owner, player, 0.8f), 6f, now);
         // holding in cover is a SeekCover decision too - only a decision that should be moving counts
-        Check(s, "stalledMove", IsMovingDecision(decision) && reason.IndexOf("Hold", StringComparison.OrdinalIgnoreCase) < 0 && speed < 0.25f, 6f, now);
+        // reloading / healing in place is a SeekCover decision with a self action (2026-10-10 review) - not a stalled move
+        bool selfAction = bot.Decision.CurrentSelfDecision != SAIN.Preset.Shared.Enums.ESelfActionType.None;
+        Check(s, "stalledMove", IsMovingDecision(decision) && !selfAction && reason.IndexOf("Hold", StringComparison.OrdinalIgnoreCase) < 0 && speed < 0.25f, 6f, now);
 
         foreach (string kind in KINDS)
         {
