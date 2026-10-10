@@ -59,6 +59,10 @@ public sealed class SimLabConfig
     /// control APBS"). Done by emptying APBS's per-raid mod item list for sim raids only (SimLabApbsItemsBridge); APBS untouched.</summary>
     public bool NoModItemsInSim = true;
 
+    /// <summary>Blackout (Labs power-cut event mod) never goes dark in a sim raid, so Labs data isn't a mix of lit and dark fights
+    /// (user 2026-10-10). Done by setting Blackout's rolled state for this raid to "normal" (SimLabBlackoutBridge).</summary>
+    public bool BlackoutOffInSim = true;
+
     /// <summary>Personality mix for sim PMCs: "Chad:2,Normal:1" weights, "even" = the main personalities alike, empty = SAIN's
     /// normal assignment.</summary>
     public string Personalities = string.Empty;

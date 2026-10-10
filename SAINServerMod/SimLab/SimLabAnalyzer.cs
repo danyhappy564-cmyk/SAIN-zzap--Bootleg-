@@ -622,7 +622,7 @@ public static class SimLabAnalyzer
             sb.AppendLine($"- 목적: {m.Focus}");
             if (m.Raid != null)
             {
-                sb.AppendLine($"- 시뮬 프리셋: {(string.IsNullOrEmpty(m.Raid.SimPreset) ? "없음(직접 설정)" : m.Raid.SimPreset)} · 성격: {PersonalityLabel(m.Raid.Personalities)} · 모드 아이템: {ModItemsLabel(m.Raid)}");
+                sb.AppendLine($"- 시뮬 프리셋: {(string.IsNullOrEmpty(m.Raid.SimPreset) ? "없음(직접 설정)" : m.Raid.SimPreset)} · 성격: {PersonalityLabel(m.Raid.Personalities)} · 모드 아이템: {ModItemsLabel(m.Raid)}{(m.Raid.BlackoutOff ? (m.Raid.BlackoutWasDark ? " · Blackout 정전 굴림 → 끔" : " · Blackout 정전 아님") : "")}");
                 sb.AppendLine($"- 스폰: A {m.Raid.SideA}@[{m.Raid.ZonesA}] vs B {m.Raid.SideB}@[{m.Raid.ZonesB}], 동시 최대 {m.Raid.MaxAliveBots}, 분대 {m.Raid.SquadSizeMin}~{m.Raid.SquadSizeMax}, 지운 웨이브 {m.Raid.RemovedBossWaves}+{m.Raid.RemovedWaves}, ABPS {(m.Raid.AbpsOff ? "끔(서버)" : "안 건드림")}, 분대끼리 {(m.Raid.AllSquadsEnemies ? "전부 적" : "SPT 기본(같은 진영 85% 적)")}");
             }
             if (b != null)

@@ -115,6 +115,8 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
 
     public bool AbpsFound => SimLabAbpsBridge.Found;
 
+    public bool BlackoutFound => SimLabBlackoutBridge.Found;
+
     /// <summary>Called after SPT applied pmc.json hostility to the raid's location (SimLabHostilityPatch).</summary>
     public void ApplySimHostility(SPTarkov.Server.Core.Models.Eft.Common.LocationBase location)
     {
@@ -656,6 +658,15 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             try
             {
                 LastRaid = Apply(map, location);
+                if (Config.BlackoutOffInSim && SimLabBlackoutBridge.TurnOff() is bool wasDark)
+                {
+                    LastRaid.BlackoutOff = true;
+                    LastRaid.BlackoutWasDark = wasDark;
+                    if (wasDark || map.StartsWith("laboratory", StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.Info($"[SAIN SimLab] {map}: Blackout event off for this sim raid{(wasDark ? " (it had rolled dark)" : "")}");
+                    }
+                }
                 if (Config.AbpsOffInSim && SimLabAbpsBridge.TurnOffForRaid(map))
                 {
                     LastRaid.AbpsOff = true;

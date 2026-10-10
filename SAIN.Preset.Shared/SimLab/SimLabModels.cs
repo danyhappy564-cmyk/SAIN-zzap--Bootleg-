@@ -102,6 +102,9 @@ public class SimRaidInfo
     public string Personalities;
     /// <summary>Bots carry no modded weapons / attachments / gear / clothing this raid (APBS's per-raid mod item list emptied).</summary>
     public bool NoModItems;
+    /// <summary>Blackout (Labs power-cut mod) was told this sim raid is not dark (true = it had rolled dark and was switched off).</summary>
+    public bool BlackoutOff;
+    public bool BlackoutWasDark;
     /// <summary>The APBS bridge really emptied the list (false = APBS not installed / changed shape / the switch is off).</summary>
     public bool ModItemsBlocked;
 }

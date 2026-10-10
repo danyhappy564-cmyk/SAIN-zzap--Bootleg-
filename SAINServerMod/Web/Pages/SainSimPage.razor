@@ -191,6 +191,14 @@
                 </div>
                 <div class="sain-toggle-row">
                     <MudText Typo="Typo.body2">
+                        @T("시뮬 판에서 Blackout 정전 끄기 — 연구소가 확률로 깜깜해지는 이벤트를 시뮬 판에서만 끔(밝은 판·어두운 판 데이터가 섞이지 않게). Blackout 설정은 그대로",
+                           "No Blackout in sim raids - the Labs power-cut event is switched off for sim raids only (so lit and dark fights don't mix). Blackout's config untouched")
+                        @(Sim.BlackoutFound ? "" : T(" — Blackout 없음", " — Blackout not found"))
+                    </MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.BlackoutOffInSim" Color="Color.Primary" />
+                </div>
+                <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">
                         @T("시뮬 맵은 원본(SPT 기본) 버전으로 — MapVariants가 있으면 시작 직전에 '원본'을 고름 (예: 공장은 리워크, 클래식 공장 아님). 시뮬 뒤 직접 플레이할 때도 맵 고르기 화면에서 다시 고르기 전까지 원본이 유지됨",
                            "Sim maps use the original (SPT's own) version - with MapVariants, 'original' is picked right before each start (e.g. reworked Factory, not classic). It stays picked for your own raids until you choose again on the map screen")
                     </MudText>
