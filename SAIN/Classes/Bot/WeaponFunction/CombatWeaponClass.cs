@@ -38,7 +38,7 @@ public class CombatWeaponClass : BotComponentClassBase
         get
         {
             var s = Settings;
-            return s != null && (!s.PmcOnly || Bot.Info.Profile.IsPMC);
+            return s != null && (!s.PmcOnly || !Bot.Info.Profile.SkippedByPmcOnly);
         }
     }
 

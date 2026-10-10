@@ -298,7 +298,7 @@ public class SAINBotSuppressClass : BotComponentClassBase
         get
         {
             var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
-            if (settings == null || !settings.SuppressionDiscipline || (settings.PmcOnly && !Bot.Info.Profile.IsPMC))
+            if (settings == null || !settings.SuppressionDiscipline || (settings.PmcOnly && Bot.Info.Profile.SkippedByPmcOnly))
             {
                 return null;
             }

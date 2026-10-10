@@ -34,7 +34,7 @@ public class QuickReloadPatch : ModulePatch
         {
             return true;
         }
-        if (settings.PmcOnly && !bot.Info.Profile.IsPMC)
+        if (settings.PmcOnly && bot.Info.Profile.SkippedByPmcOnly)
         {
             return true;
         }

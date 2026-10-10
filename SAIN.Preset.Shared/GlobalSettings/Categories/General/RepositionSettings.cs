@@ -66,8 +66,8 @@ public class RepositionSettings : SAINSettingsBase<RepositionSettings>, ISAINSet
     public bool TestMode = false;
 
     [DataMember]
-    [Name("PMC Only")]
-    [Description("Apply only to PMCs. Scavs keep vanilla behaviour.")]
+    [Name("Skip Scavs")]
+    [Description("Scavs keep vanilla behaviour. PMCs, bosses, followers, Goons, rogues, raiders and faction bots get it.")]
     public bool PmcOnly = true;
 
     [DataMember]

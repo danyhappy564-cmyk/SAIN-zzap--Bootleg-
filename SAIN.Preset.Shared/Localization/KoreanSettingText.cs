@@ -858,7 +858,8 @@ public static class KoreanSettingText
         { "Long-Range Swap Back Distance", "장거리 복귀 거리" },
         { "Meters. Switch back to the main gun when the enemy is closer than this.", "m. 적이 이보다 가까우면 주무기로 돌아옴." },
         { "PMC Only", "PMC만" },
-        { "Apply everything above only to PMCs. Scavs keep vanilla behaviour.", "위 설정 전부를 PMC에게만 적용. 스캐브는 바닐라 동작 유지." },
+        { "Skip Scavs", "스캐브 제외" },
+        { "Scavs keep vanilla behaviour for everything above. PMCs, bosses, followers, Goons, rogues, raiders and faction bots get it.", "위 설정 전부에서 스캐브만 바닐라 동작 유지. PMC·보스·추종자·군즈·로그·레이더·팩션 봇(블랙 디비전)은 적용." },
         // CoverSettings
         { "MaxCoverPathLength", "최대 엄폐 경로 길이" },
         { "ShiftCoverChangeDecisionTime", "엄폐 옮기기 판단 변경 시간" },
@@ -1137,7 +1138,7 @@ public static class KoreanSettingText
         { "Percent, rolled with the other cover tricks at most every 20 seconds.", "%, 다른 엄폐 속임수와 함께 최대 20초에 한 번 굴림." },
         { "TEST MODE: Always Reposition", "테스트 모드: 항상 위치 변경" },
         { "For testing only. Every chance above counts as 100%, bait peeks are allowed for every personality and the cover tricks are rolled every 8s instead of 20s. Conditions (indoors/outdoors, in cover, distances) still apply. Turn it off for normal play.", "테스트 전용. 위 확률이 전부 100%, 모든 성격이 미끼 피킹 가능, 엄폐 속임수는 20초 대신 8초마다 굴림. 조건(실내/실외, 엄폐 중, 거리)은 그대로 적용. 평소 플레이할 땐 끄세요." },
-        { "Apply only to PMCs. Scavs keep vanilla behaviour.", "PMC에게만 적용. 스캐브는 바닐라 동작 유지." },
+        { "Scavs keep vanilla behaviour. PMCs, bosses, followers, Goons, rogues, raiders and faction bots get it.", "스캐브만 바닐라 동작 유지. PMC·보스·추종자·군즈·로그·레이더·팩션 봇(블랙 디비전)은 적용." },
         { "Writes [Reposition] lines to LogOutput.log and repo.* / nade.fuse.* SUMMARY counters.", "LogOutput.log에 [Reposition] 줄과 repo.* / nade.fuse.* SUMMARY 카운터를 기록." },
         // SquadCombatSettings
         { "Squad Combat Enabled", "분대 교전 사용" },

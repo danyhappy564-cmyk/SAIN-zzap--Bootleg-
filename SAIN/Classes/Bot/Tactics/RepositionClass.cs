@@ -114,7 +114,7 @@ public class RepositionClass : BotComponentClassBase
         get
         {
             var settings = GlobalSettingsClass.Instance?.General?.Reposition;
-            return settings != null && settings.Enabled && (!settings.PmcOnly || Bot.Info.Profile.IsPMC);
+            return settings != null && settings.Enabled && (!settings.PmcOnly || !Bot.Info.Profile.SkippedByPmcOnly);
         }
     }
 

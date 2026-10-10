@@ -447,7 +447,7 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float SniperSwapBackDistance = 45f;
 
     [DataMember]
-    [Name("PMC Only")]
-    [Description("Apply everything above only to PMCs. Scavs keep vanilla behaviour.")]
+    [Name("Skip Scavs")]
+    [Description("Scavs keep vanilla behaviour for everything above. PMCs, bosses, followers, Goons, rogues, raiders and faction bots get it.")]
     public bool PmcOnly = true;
 }

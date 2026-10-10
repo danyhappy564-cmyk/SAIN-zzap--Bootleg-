@@ -85,9 +85,9 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         }
         if (!settings.DiamondStepTestMode)
         {
-            if (settings.PmcOnly && !Bot.Info.Profile.IsPMC)
+            if (settings.PmcOnly && Bot.Info.Profile.SkippedByPmcOnly)
             {
-                return Stop("notPmc");
+                return Stop("scav");
             }
             EPersonality personality = Bot.Info.Personality;
             if (personality != EPersonality.GigaChad && personality != EPersonality.Chad && personality != EPersonality.Wreckless && personality != EPersonality.Normal)

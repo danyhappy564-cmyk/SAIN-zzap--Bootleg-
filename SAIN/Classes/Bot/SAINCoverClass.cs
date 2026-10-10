@@ -190,7 +190,7 @@ public class SAINCoverClass : BotComponentClassBase
         var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
         bool active = settings != null
             && settings.NoBackTurning
-            && (!settings.PmcOnly || Bot.Info.Profile.IsPMC)
+            && (!settings.PmcOnly || !Bot.Info.Profile.SkippedByPmcOnly)
             && enemy.Seen
             && (enemy.IsVisible || enemy.TimeSinceSeen < settings.SeenWithin)
             && enemy.KnownPlaces.LastKnownPosition is Vector3 known

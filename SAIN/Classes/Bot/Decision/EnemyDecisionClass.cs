@@ -1107,7 +1107,7 @@ public class EnemyDecisionClass : BotBase
         {
             return false;
         }
-        if (settings.PmcOnly && !Bot.Info.Profile.IsPMC)
+        if (settings.PmcOnly && Bot.Info.Profile.SkippedByPmcOnly)
         {
             return false;
         }

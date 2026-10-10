@@ -41,6 +41,15 @@ public class BotProfile : BotBase
     public readonly bool IsScav;
     public readonly bool IsPMC;
     public readonly bool IsPlayerScav;
+
+    /// <summary>
+    /// zzap: who the "PMC Only" switches (F6 Close Combat / Reposition) leave on vanilla behaviour - scavs, as their
+    /// description says. They used to test !IsPMC, which also left rogues, Goons, bosses, followers, raiders and faction
+    /// bots (Black Division) without diamond step, close fight, pistol swap, quick reload, no back turning, suppression
+    /// discipline and the reposition tricks (user 2026-10-10: "rogues, Goons and BD act vanilla on the zzap preset" -
+    /// the TEST preset's diamond test mode skipped the check, so the sim never showed it).
+    /// </summary>
+    public bool SkippedByPmcOnly => IsScav;
     public readonly BotDifficulty BotDifficulty;
     public readonly WildSpawnType WildSpawnType;
     public readonly EPlayerSide Side;
