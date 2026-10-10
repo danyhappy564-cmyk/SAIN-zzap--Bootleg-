@@ -13,7 +13,7 @@ public class FreezeAmbushSettings : SAINSettingsBase<FreezeAmbushSettings>, ISAI
 {
     [DataMember]
     [Name("Max Enemy Distance")]
-    [Description("Meters. Only freeze if the heard enemy is closer than this. SAIN original: 70.")]
+    [Description("Meters. Only freeze if the heard enemy is closer than this. SAIN original: 70. zzap: the hidden-enemy utility's Hold also fades out from this distance to twice it (long guns keep most of it).")]
     [MinMax(10f, 100f, 1f)]
     public float MaxDistance = 45f;
 

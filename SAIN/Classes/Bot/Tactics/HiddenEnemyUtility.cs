@@ -191,9 +191,18 @@ public static class HiddenEnemyUtility
         {
             hold -= fatigue;
         }
+        // Too far to ambush (sims 2026-10-10: Hold = Freeze was 22-34% of combat time, mostly short 2-5 s holds while the
+        // enemy was 50-130 m off - Shoreline 86% of freeze time beyond 50 m). A freeze ambush waits for him at a close angle
+        // (the old chain only freezes within Freeze Ambush > Max Enemy Distance, 45 m); the utility had no distance at all.
+        // Fades in from that distance to twice it; a long gun (DMR / sniper) keeps most of its overwatch.
+        float freezeMax = GlobalSettingsClass.Instance?.General?.FreezeAmbush?.MaxDistance ?? 45f;
+        float knownDist = enemy.KnownPlaces.BotDistanceFromLastKnown;
+        float farHold = 0.35f * Mathf.Clamp01((knownDist - freezeMax) / freezeMax) * (1f - 0.6f * load.Long);
+        hold -= farHold;
         if (fearWhy.Length > 0) sb.Append(fearWhy).Append("; ");
         if (fatigue > 0f && !coming) sb.Append($"held {heldFor:0}s already, nothing came; ");
         if (openHold) sb.Append("standing in the open - no place to hold from; ");
+        if (farHold > 0.05f) sb.Append($"he's {knownDist:0}m off - too far to ambush; ");
         if (weak >= 0.3f) sb.Append($"he's weak ({weakWhy}); ");
         if (busy) sb.Append($"he's {enemy.Status.VulnerableAction}; ");
         if (holdsAngle) sb.Append("he's holding an angle on us; ");

@@ -1008,7 +1008,7 @@ public static class KoreanSettingText
         { "SillyMode", "장난 모드" },
         // FreezeAmbushSettings
         { "Max Enemy Distance", "최대 적 거리" },
-        { "Meters. Only freeze if the heard enemy is closer than this. SAIN original: 70.", "m. 들은 적이 이보다 가까울 때만 얼음(매복). SAIN 원본: 70." },
+        { "Meters. Only freeze if the heard enemy is closer than this. SAIN original: 70. zzap: the hidden-enemy utility's Hold also fades out from this distance to twice it (long guns keep most of it).", "m. 들은 적이 이보다 가까울 때만 얼음(매복). SAIN 원본: 70. zzap: 안 보이는 적 판단(유틸리티)의 버티기도 이 거리부터 2배 거리까지 점점 줄어듦(DMR·저격총은 대부분 유지)." },
         { "Freeze Outdoors", "실외에서도 얼음" },
         { "SAIN original only freezes indoors. On: also hold still outside (the bot freezes where it stands, so it can end up in the open).", "SAIN 원본은 실내에서만 얼음. 켜면 실외에서도 가만히 있음(선 자리에서 멈추니 개활지에 남을 수 있음)." },
         { "Min Freeze Time", "최소 얼음 시간" },
