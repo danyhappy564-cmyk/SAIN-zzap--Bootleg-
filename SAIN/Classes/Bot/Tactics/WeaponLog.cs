@@ -109,13 +109,30 @@ public static class WeaponLog
             {
                 continue;
             }
-            if (info.BulletCount > 0 || info.CheckHaveAmmoForReload())
+            // BotWeaponInfo.BulletCount reads the gun IN HAND (BotReload.BulletCount uses the shoot controller), not this
+            // slot's gun - count this slot's own magazine + chamber (Remix 4.2 feedback: the M4 in slot 2 was never chosen).
+            if (LoadedRounds(info.weapon) > 0 || info.CheckHaveAmmoForReload())
             {
                 target = slot;
                 return true;
             }
         }
         return false;
+    }
+
+    /// <summary>Rounds in this gun's magazine + chamber (whether or not it is in hand).</summary>
+    public static int LoadedRounds(Weapon weapon)
+    {
+        if (weapon == null)
+        {
+            return 0;
+        }
+        int chamber = weapon.ChamberAmmoCount;
+        if (weapon.ReloadMode == Weapon.EReloadMode.OnlyBarrel)
+        {
+            return chamber;
+        }
+        return (weapon.GetCurrentMagazine()?.Count ?? 0) + chamber;
     }
 
     /// <summary>Magazines the bot carries that fit this weapon, not counting the one in it.</summary>

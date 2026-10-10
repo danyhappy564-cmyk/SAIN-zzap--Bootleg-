@@ -126,6 +126,8 @@ public class CombatWeaponClass : BotComponentClassBase
 
     public override void ManualUpdate()
     {
+        // zzap (Remix 4.2 feedback): keep BSG's per-slot weapon table in step with looted guns (WeaponInfoSync)
+        WeaponInfoSync.Tick(BotOwner);
         if (!Applies)
         {
             return;

@@ -2,6 +2,11 @@
 
 최신이 위. 시간은 KST.
 
+- 2026-10-10 10:45 — **Remix 4.2 피드백: 주운 총으로 장전·무기 교체를 못 하던 문제.** 제보: "PMC가 호환 안 되는 탄이거나 주무기 탄이 다 떨어졌는데 보조무기로 안 바꾸고 멀뚱멀뚱", "죽이고 보니 여분 탄창은 있는데 장전을 안 함", "1번에 스캐브한테 주운 PP, 2번에 풀무장 M4인데 칼 들고 걸어옴".
+  - 원인(EFT 코드 확인): 봇의 `BotWeaponManager.info`(슬롯마다 총 + 그 총의 장전 담당 `BotReload`)는 그 슬롯을 **처음 손에 들 때 한 번만** 만들어지고 다시 안 바뀜. `BotReload`는 탄창·탄을 만들 때 넣은 총(`_weapon`) 기준으로 찾음. ORBIT 루팅으로 총을 바꾸면 ORBIT은 무기 목록(`UpdateWeaponsList`)만 갱신 → 슬롯 표는 예전 총 그대로 → 새 총 탄창을 못 찾아 장전 안 함. 한 번도 안 든 슬롯(2번 M4)은 표에 없어 "탄 있는 다른 총" 찾기(`WeaponLog.PickGunWithAmmo`)에서 안 보임 → 칼로. 또 그 찾기가 슬롯 총의 탄 수 대신 **손에 든 총**의 탄 수를 읽고 있었음.
+  - 수정(`WeaponInfoSync`): 봇마다 1초에 한 번 + `UpdateWeaponsList` 직후, 실제 슬롯과 표를 맞춤 — 총이 바뀐 슬롯은 새 총 기준으로 다시 만들고, 총이 있는데 표에 없는 슬롯은 추가, 비워진 슬롯은 제거, 지금 쓰는 항목은 손에 든 총의 것으로. 탄 있는 총 찾기는 그 슬롯 총의 탄창+약실을 셈. ORBIT 코드는 그대로.
+  - 카운터 `weapon.infoSync.replaced/added/removed/current`, 일지 `[Weapon] ... weapon table still had X - now Y (looted gun)`.
+  - 과거 기록: 9/29 무기 핑퐁·탄 없을 때 다른 총(`AmmoAwareWeaponTogglePatch`, `OutOfAmmoFallback`)과 같은 흐름의 보완 — 그때는 주운 총·안 든 슬롯 경우가 빠져 있었음. 되돌린 것 없음.
 - 2026-10-10 10:39 — **시뮬 프리셋 + 성격 분포 + 시뮬 중 모드 아이템 금지 (사용자: "시뮬 중에는 모드 무기·장비 못 쓰게, APBS 통제" / "시뮬 시작 전에 시뮬레이션 프리셋 — 이 맵 라인업·스폰 분포·성격 등으로 뭘 확인하는 용").**
   - **모드 아이템 금지**(`SimLabApbsItemsBridge`, 서버): APBS가 레이드 시작(`/client/match/local/start`, SPT가 레이드를 만든 뒤 = SAIN 시뮬 설정 뒤)에 뽑는 "이번 판 모드 아이템" 목록(`RaidModItemSubsetService._current`)을 시뮬 판일 때만 빈 목록으로 바꿈 → 장비·부착물·옷 고를 때 모드 아이템이 전부 빠짐. 모드 아이템뿐인 칸은 APBS 자체 안전장치로 원래 후보 유지(빈손 방지). APBS 코드·설정 그대로, 일반 레이드 영향 없음, APBS 없으면 무동작. 웹 스위치 기본 켬. 서버 로그 `[SAIN SimLab] ...: no modded weapons ...`, 분석에 "모드 아이템: 금지 (APBS 목록 비움)".
   - **성격 분포**(게임): 시뮬 판 PMC만 `Chad:2,Rat:1` 비율 또는 `even`(GigaChad·Chad·Wreckless·Normal·SnappingTurtle·Rat·Timmy·Coward 고르게)로 성격을 뽑음(`PersonalityDictionary.GetPersonality`, SAIN 프리셋의 성격 강제 다음). 비우면 SAIN 기본.
