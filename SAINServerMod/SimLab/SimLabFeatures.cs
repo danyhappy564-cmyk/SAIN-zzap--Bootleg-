@@ -26,7 +26,7 @@ public static class SimLabFeatures
         new("tactic", "방 진입(Clear)", A("door.pick.Clear", "door.breach."), A("door.planFailed"), A(), "[DoorTactic]"),
         new("tactic", "방 가두기(Trap)", A("door.pick.Trap"), A(), A(), "[DoorTactic]"),
         new("tactic", "지키기 = 문 지키기", A("door.start.hold."), A("door.holdReject."), A(), "[DoorTactic]", "holdReject는 매 판단마다 세서 큰 게 정상"),
-        new("tactic", "문 옆 매복(Rat)", A("door.start.Rat."), A(), A(), "[DoorTactic]", "Rat 성격이 있어야 나옴"),
+        new("tactic", "문 옆 매복(Rat)", A("door.start.Rat."), A(), A(), "[DoorTactic]", "Rat 성격이 있어야 나옴 — TEST 프리셋은 문 전술에서 PMC 전원을 GigaChad로 취급(TestModeAllPmcGigaChad)해 시뮬에선 0이 정상", ZeroOk: true),
         new("tactic", "분대 역할(오버워치/후방)", A("door.role."), A(), A(), "[DoorTactic]"),
         new("tactic", "제3자 감지(문 전술 중단)", A("door.abort.otherEnemyActive", "door.end.Clear.otherEnemyActive", "door.end.Trap.otherEnemyActive", "door.end.Peek.otherEnemyActive"), A(), A(), "[DoorTactic]"),
         new("tactic", "다이아몬드 스텝", A("diamond.start", "diamond.tap"), A("diamond.blocked"), A(), "[Diamond]"),
