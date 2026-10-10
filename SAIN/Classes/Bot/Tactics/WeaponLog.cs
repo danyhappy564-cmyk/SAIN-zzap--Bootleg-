@@ -90,9 +90,12 @@ public static class WeaponLog
         }
         Weapon weapon = info.weapon;
         int max = weapon.GetCurrentMagazine()?.MaxCount ?? 0;
-        sb.Append(weapon.ShortName.Localized()).Append(' ').Append(info.BulletCount).Append('/').Append(max)
+        // This slot's own rounds (info.BulletCount reads the gun in hand - 10/10 sim journal showed the main gun's count on
+        // every slot). EFT's reload check says "nothing to reload" for a full gun too, so it's only reported when not full.
+        int loaded = LoadedRounds(weapon);
+        sb.Append(weapon.ShortName.Localized()).Append(' ').Append(loaded).Append('/').Append(max)
             .Append(" +").Append(SpareMagazines(owner.GetPlayer, weapon)).Append(" mags")
-            .Append(info.CheckHaveAmmoForReload() ? "" : " (no reload ammo)");
+            .Append(loaded >= max || info.CheckHaveAmmoForReload() ? "" : " (no reload ammo)");
     }
 
     /// <summary>A gun other than the one in hand that has rounds loaded or ammo to reload - main first, then 2nd, pistol.</summary>

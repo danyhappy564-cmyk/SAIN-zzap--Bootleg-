@@ -50,7 +50,7 @@
                     <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@T("게임 마지막 연락", "Last contact from game") @(Sim.LastHello.ToString("HH:mm:ss"))</MudChip>
                 }
                 <MudChip T="string" Size="Size.Small" Color="@(Sim.Running ? Color.Success : Color.Warning)" Variant="Variant.Outlined">
-                    @(Sim.Running ? T($"순회 진행 중 ({Sim.MapsDone}맵 끝남)", $"Rotation running ({Sim.MapsDone} maps done)") : Sim.CycleCompleted ? T($"수고했습니다. 시뮬레이션 완료됨 ({Sim.MapsDone}맵 한 바퀴) — 다시 누르면 새 실행", $"Well done - simulation complete ({Sim.MapsDone} maps) - start again for a new run") : T("대기 — '시뮬 시작'을 눌러야 시작", "Waiting — press 'Start sim'"))
+                    @(Sim.Running ? T($"순회 진행 중 ({Sim.MapsDone}맵 끝남)", $"Rotation running ({Sim.MapsDone} maps done)") : Sim.CycleCompleted ? T($"수고했습니다. 시뮬레이션 완료됨 ({Sim.MapsDone}맵 한 바퀴) — 다시 누르면 새 실행", $"Well done - simulation complete ({Sim.MapsDone} maps) - start again for a new run") : Sim.FreshRunOnStart ? T("대기 — '시뮬 시작'을 누르면 새 실행으로 처음 맵부터 시작 (게임·서버를 다시 켠 뒤라 이전 실행은 이어 쓰지 않음)", "Waiting — 'Start sim' begins a new run from the first map (the game or server was restarted, the old run is not continued)") : T("대기 — '시뮬 시작'을 눌러야 시작", "Waiting — press 'Start sim'"))
                 </MudChip>
                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@T("실행", "Run") @(string.IsNullOrEmpty(Sim.State.RunId) ? "-" : Sim.State.RunId)</MudChip>
             </MudStack>

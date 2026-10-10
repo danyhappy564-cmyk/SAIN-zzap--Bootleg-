@@ -2,6 +2,12 @@
 
 최신이 위. 시간은 KST.
 
+- 2026-10-10 21:15 — **시뮬(공장 30 + 연구소 30) 결과 반영 + 사용자 제보 3건.**
+  - **군즈·블러드하운드가 좁은 실내에서 제자리 점프하며 뒤로 빠짐**(zzap 프리셋, 쇄빙선): 문 전술의 **점프 피킹**(문 앞으로 버니합으로 나갔다가 버니합으로 돌아옴)이 보스·추종자에게도 걸렸음 — Knight·Big Pipe는 보스 성격표(`PERS_BOSSES`)에서 기가채드. TEST 프리셋은 런바이 확률 100%라 시뮬에선 안 보였음. → **점프 피킹은 PMC만**, 보스·추종자는 런바이나 스텝 피킹(`door.jumpNotPmc`).
+  - **시뮬 중간에 끄거나(Alt+F4) 재접속하면 다음 '시뮬 시작'은 새 실행**: 게임 시작·서버 시작 뒤 첫 시작 버튼이 이전 실행에 이어 쓰지 않고 새 실행(첫 맵부터)을 만듦. 같은 게임 안에서 멈춤→재시작은 그대로 이어감. 웹에 "새 실행으로 시작" 안내 표시.
+  - **[high] 오류 3종 (전부 이번에 처음 나온 것)**: ① 시체 `KeyNotFoundException 'Body'`(공장 53·연구소 4) = 시뮬 전용 시체 삭제가 EFT 시체 물리 정착 코루틴보다 먼저 몸을 지움 → 지우기 전에 시체 코루틴 정지. ② `BotWeaponManager.UpdateHandsController` NRE(공장 14) = 무기를 바꾸던 중 죽어 무기 관리자가 정리된 뒤 "무기 들었음" 콜백이 옴 → 정리된 봇이면 조용히 끝냄(`deadBug.weaponTakenAfterDispose`). ③ `Player.UpdateSourcePriority` NRE(연구소 13, 25분 이후) = 봇이 많아 EFT 오디오 소스 풀이 비어 발소리 소스가 없는 봇의 엎드림 소리 → 그 소리만 건너뜀(`deadBug.proneSoundNoSource`).
+  - 분석 오집계: 연구소 "스폰 구역 밖 38/68"은 전부 지정 지점에서 0~2m — 분대의 구역 이름표(EFT가 고름)만 달랐음 → 지정 지점 3m 안이면 구역 안으로 셈. 일지 `guns:` 줄이 2번 총·권총에도 손에 든 총의 탄 수를 찍던 것과, 탄이 꽉 찬 총에 "(no reload ammo)"가 붙던 것 수정.
+  - 확인만(안 고침): 로그 무장 빈 상태 — 사용자 APBS 설정은 PMC만 관리(로그는 바닐라 생성), 시뮬의 APBS 목록 비우기는 시뮬 판에만 동작 → APBS 무관. 원인 확인엔 그 판 LogOutput 필요.
 - 2026-10-10 11:04 — **릴리즈 전 점검 프리셋 = 공장 30분 + 연구소 30분, 시뮬 판 Blackout 정전 끔 (사용자: "실내 데이터는 연구소가 짱, 공장 30 + 연구소 30 / ManimalLabs·MapVariants·Blackout 쓰는 중이니 유의").**
   - 시뮬 프리셋 "릴리즈 전 점검 (공장 30분 + 연구소 30분)" — 1시간짜리(공장·세관·해안선) 대체. 연구소 구역 1층(`BotZoneFloor1`, 보스 지점 20) vs 2층(`BotZoneFloor2`, 9).
   - **Blackout**(연구소 25% 정전 이벤트): 서버가 다음 판 정전 여부를 미리 굴려 `BlackoutSpawnController.CurrentRaidBlackout`에 두고 게임이 `/blackout/state`로 읽음 → 시뮬 판 설정 때 false로(`SimLabBlackoutBridge`, 정적 `BlackoutStateRouter._controller`로 찾음). 밝은 판·어두운 판 데이터가 섞이지 않게. 웹 스위치 기본 켬, Blackout 설정 그대로, 분석에 "Blackout 정전 굴림 → 끔" 표시.

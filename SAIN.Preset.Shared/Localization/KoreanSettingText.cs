@@ -920,7 +920,7 @@ public static class KoreanSettingText
         { "Door Tactics Enabled", "문 전술 사용" },
         { "Master switch. When the enemy was last known inside a room behind a nearby door, GigaChad/Chad/SnappingTurtle/Rat bots use door tactics.", "전체 스위치. 적이 근처 문 뒤 방 안에 마지막으로 파악됐으면 기가채드/채드/스내핑 터틀/랫 봇이 문 전술을 씀." },
         { "Jump Peek", "점프 피킹" },
-        { "GigaChad/Chad: from the corridor, bunny hop out in front of the doorway, snap a look into the room and bunny hop straight back. A shut door is opened first from beside the frame.", "기가채드/채드: 복도에서 문간 앞으로 버니합으로 튀어나와 방 안을 휙 보고 바로 버니합으로 돌아옴. 닫힌 문은 먼저 문틀 옆에서 엶." },
+        { "GigaChad/Chad: from the corridor, bunny hop out in front of the doorway, snap a look into the room and bunny hop straight back. A shut door is opened first from beside the frame. PMCs only - bosses and followers use the run-by or a step peek.", "기가채드/채드: 복도에서 문간 앞으로 버니합으로 튀어나와 방 안을 휙 보고 바로 버니합으로 돌아옴. 닫힌 문은 먼저 문틀 옆에서 엶. PMC만 — 보스·추종자는 런바이나 스텝 피킹." },
         { "Fake Grenade", "페이크 수류탄" },
         { "GigaChad/Chad at the door frame: draw a grenade (the sound is the bait) and put it away the moment it is in hand. Only when the room enemy was heard/located within 60s and is within 14m of the door, and only from real cover (no known enemy has line of sight, indoors or boxed in, not under fire); running footsteps cancel it at any point. If the enemy rushes out before the gun is back up, the bot retreats to cover.", "기가채드/채드가 문틀에서: 수류탄을 꺼내고(소리가 미끼) 손에 들자마자 집어넣음. 방 안 적을 60초 안에 듣거나 파악했고 문에서 14m 안일 때만, 그리고 진짜 엄폐에서만(아는 적 누구도 시야가 안 닿음, 실내 또는 막힌 곳, 사격받는 중 아님). 뛰는 발소리가 들리면 언제든 취소. 총을 다시 들기 전에 적이 뛰쳐나오면 엄폐로 후퇴." },
         { "Fake Heal / Stim", "페이크 치료 / 자극제" },

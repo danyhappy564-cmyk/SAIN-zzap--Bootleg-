@@ -110,12 +110,20 @@ public static class SimLabProbe
             _spawnIn++; // empty = whole map wanted
             return;
         }
+        Vector3 pos = player.Position;
+        // Standing on one of the wanted zones' spawn points counts as in the zone (Labs 10/10: 38 of 68 "outside" were
+        // all 0-2m from a Floor1/Floor2 point - the squad's BotZone label is EFT's pick, not where the bot stood up).
+        float distance = DistanceToZones(pos, wanted);
+        if (distance >= 0f && distance <= ON_POINT)
+        {
+            _spawnIn++;
+            return;
+        }
         _spawnOffCount++;
         if (_spawnOff.Count >= MAX_OFF_SAMPLES)
         {
             return;
         }
-        Vector3 pos = player.Position;
         _spawnOff.Add(new SimSpawnSample
         {
             Role = role,
@@ -125,10 +133,12 @@ public static class SimLabProbe
             X = pos.x,
             Y = pos.y,
             Z = pos.z,
-            Distance = DistanceToZones(pos, wanted),
+            Distance = distance,
             RaidTime = raidTime,
         });
     }
+
+    private const float ON_POINT = 3f;
 
     private static float DistanceToZones(Vector3 pos, HashSet<string> wanted)
     {

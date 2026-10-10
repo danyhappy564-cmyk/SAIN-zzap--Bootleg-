@@ -481,3 +481,60 @@ public class SafeMuzzleSmokePatch : ModulePatch
         return null;
     }
 }
+
+/// <summary>
+/// zzap fork (sim 2026-10-10 Labs: 13x "NullReferenceException in Player.UpdateSourcePriority" from PlaySoundBank, first at
+/// t=1723s): the prone sound (an animation event) uses the player's step sound source, which EFT takes from its audio source
+/// pool when the player is created - with many bots in a long raid the pool can run dry and the player gets none (null).
+/// Skip that one sound for such a player instead of throwing on every prone step.
+/// </summary>
+public class SafeProneSoundPatch : ModulePatch
+{
+    private static readonly AccessTools.FieldRef<Player, BetterSource> _stepSource = AccessTools.FieldRefAccess<Player, BetterSource>("NestedStepSoundSource");
+
+    protected override MethodBase GetTargetMethod()
+    {
+        return AccessTools.Method(typeof(Player), nameof(Player.PlaySoundBank));
+    }
+
+    [PatchPrefix]
+    public static bool Prefix(Player __instance, string soundBank)
+    {
+        if (soundBank == "Prone" && __instance != null && _stepSource(__instance) == null)
+        {
+            TacticDiagnostics.Count("deadBug.proneSoundNoSource");
+            return false;
+        }
+        return true;
+    }
+}
+
+/// <summary>
+/// zzap fork (sim 2026-10-10 Factory: 14x "NullReferenceException in BotWeaponManager.UpdateHandsController" from
+/// BotWeaponSelector.OnWeaponTaken, first at t=1135s): a weapon draw that finishes after the bot's weapon manager was
+/// disposed (killed mid-swap - Dispose sets Melee to null) still runs EFT's "weapon taken" callback, which uses it.
+/// Nothing is left to update on a disposed bot: end the swap quietly.
+/// </summary>
+public class SafeWeaponTakenPatch : ModulePatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return AccessTools.Method(typeof(BotWeaponSelector), nameof(BotWeaponSelector.OnWeaponTaken));
+    }
+
+    [PatchPrefix]
+    public static bool Prefix(BotWeaponSelector __instance)
+    {
+        var wm = __instance?._owner?.WeaponManager;
+        if (wm == null || wm._disposed || wm.Melee == null)
+        {
+            if (__instance != null)
+            {
+                __instance.IsChanging = false;
+            }
+            TacticDiagnostics.Count("deadBug.weaponTakenAfterDispose");
+            return false;
+        }
+        return true;
+    }
+}

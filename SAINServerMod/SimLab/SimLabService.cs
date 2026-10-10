@@ -380,6 +380,14 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
     /// </summary>
     public bool Running { get; private set; }
 
+    /// <summary>
+    /// The next start button press begins a new run (user 2026-10-10: "every time I quit the sim mid-way with Alt+F4 or
+    /// reconnect, start a new run" - continuing the old run after a restart added the maps to the previous analysis and,
+    /// once, no bots spawned). Set when the server starts and when the game (re)starts; a pause and resume inside one
+    /// game session keeps the run.
+    /// </summary>
+    public bool FreshRunOnStart { get; private set; } = true;
+
     public bool CycleCompleted => State.Completed;
     public int MapsDone => State.MapsDone;
 
@@ -392,9 +400,15 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
                 logger.Info($"[SAIN SimLab] rotation {(running ? "started" : "stopped")} from the web page");
             }
             Running = running;
-            if (running && (string.IsNullOrEmpty(State.RunId) || State.Completed))
+            if (running && (string.IsNullOrEmpty(State.RunId) || State.Completed || FreshRunOnStart))
             {
-                NewRun(); // a finished cycle is not continued - the next start is a new run from the first map
+                MarkStaleRunning("new run started"); // an old map left 'running' by a closed game
+                NewRun(); // a finished cycle or a restarted game is not continued - a new run from the first map
+                logger.Info($"[SAIN SimLab] new run {State.RunId}");
+            }
+            if (running)
+            {
+                FreshRunOnStart = false;
             }
             if (running)
             {
@@ -422,6 +436,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         {
             State.RunId = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             State.Step = 0;
+            FreshRunOnStart = false;
             SaveState();
             var run = new SimRunRecord { RunId = State.RunId, Started = DateTime.Now, Updated = DateTime.Now, Preset = ArmedPreset };
             WriteJson(RunPath(run.RunId), run);
@@ -440,6 +455,10 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             if (Armed != wasArmed)
             {
                 logger.Info($"[SAIN SimLab] {(Armed ? "armed" : "disarmed")} by client ({hello?.Reason}, preset '{ArmedPreset}')");
+            }
+            if (hello?.Reason == "start")
+            {
+                FreshRunOnStart = true;
             }
             if (hello?.Reason == "start" && Running)
             {

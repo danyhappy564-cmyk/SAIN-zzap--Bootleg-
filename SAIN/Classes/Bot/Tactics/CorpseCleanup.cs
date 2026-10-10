@@ -140,6 +140,10 @@ public static class CorpseCleanup
         }
         try
         {
+            // 10/10 Factory+Labs sim: 57x "KeyNotFoundException 'Body'" in PlayerBody.IsVisible from CorpseRagdoll's
+            // WorkingCycle - the ragdoll's settle coroutine runs on the Corpse and polls the body every frame, but
+            // DestroyLoot disposes the body (BodySkins cleared). Stop the corpse's coroutines first.
+            corpse.StopAllCoroutines();
             world.DestroyLoot(corpse);
             Deleted++;
             TacticDiagnostics.Count("sim.corpseDeleted");

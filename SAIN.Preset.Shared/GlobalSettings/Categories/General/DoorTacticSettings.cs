@@ -17,7 +17,7 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
 
     [DataMember]
     [Name("Jump Peek")]
-    [Description("GigaChad/Chad: from the corridor, bunny hop out in front of the doorway, snap a look into the room and bunny hop straight back. A shut door is opened first from beside the frame.")]
+    [Description("GigaChad/Chad: from the corridor, bunny hop out in front of the doorway, snap a look into the room and bunny hop straight back. A shut door is opened first from beside the frame. PMCs only - bosses and followers use the run-by or a step peek.")]
     public bool JumpPeek = true;
 
     [DataMember]

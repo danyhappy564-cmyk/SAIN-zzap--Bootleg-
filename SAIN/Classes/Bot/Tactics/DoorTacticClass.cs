@@ -1819,12 +1819,20 @@ public class DoorTacticClass : BotComponentClassBase
             {
                 TacticDiagnostics.Count("door.jumpFrameInTheWay");
             }
-            bool jumpOk = leafClear && laneClear && JumpSafe(s.PeekPoint);
+            // PMCs only (user 2026-10-10, Icebreaker on the zzap preset: "Bloodhounds and Goons keep jumping in place and
+            // backing off in tight indoor spots"): the bunny-hop peek copies PMC players; Knight / Big Pipe are GigaChad by
+            // PERS_BOSSES, so bosses and followers got it too. They use the run-by or a plain step peek instead.
+            bool pmc = Bot.Info.Profile.IsPMC;
+            if (!pmc)
+            {
+                TacticDiagnostics.Count("door.jumpNotPmc");
+            }
+            bool jumpOk = pmc && leafClear && laneClear && JumpSafe(s.PeekPoint);
             bool runByOk = FindRunByPoint(s);
             bool rollRunBy = Random.value * 100f < Settings.RunByChance;
             // 1 = jump peek, 2 = run-by, 3 = plain step out (neither is safe here).
             s.PeekStyle = runByOk && (!jumpOk || rollRunBy) ? 2 : jumpOk ? 1 : 3;
-            if (!jumpOk)
+            if (!jumpOk && pmc)
             {
                 TacticDiagnostics.Count("door.jumpUnsafe");
             }
