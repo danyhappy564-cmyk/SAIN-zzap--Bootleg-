@@ -73,7 +73,7 @@ public static class SimLabAnalyzer
 
     public static List<SimFinding> Findings(SimMapRecord m)
     {
-        return FindingsRaw(m).Select(f => f.Severity is HIGH or WARN ? f with { Fix = FixFor(f, m) } : f).ToList();
+        return FindingsRaw(m).Select(f => f.Severity is HIGH or WARN ? f with { Fix = f.Fix ?? FixFor(f, m) } : f).ToList();
     }
 
     // user 2026-10-09: "when high/warn come up, the Claude summary should already say how it should be fixed, so I hand over the md
@@ -131,7 +131,8 @@ public static class SimLabAnalyzer
             "hitNoReact" => "hitNoReact: 맞은 뒤 판단 전환(엄폐/반격)이 안 된 판단·이유 → EnemyDecisionClass 피격 반응",
             "flipFlop" => "flipFlop: 예시 판단 쌍 사이 전환 조건에 최소 유지 시간/히스테리시스",
             "bunched" => "bunched: 분대 간격(SquadCombat·이동 목표 겹침) 벌리기",
-            "stalledMove" => "stalledMove: 이동 판단인데 목표/경로 실패 → Mover·엄폐 찾기(utilityFallBack 등) 경로 실패 처리",
+            "stalledMove" => "stalledMove: 이동 판단인데 목표/경로 실패 → Mover·엄폐 찾기(utilityFallBack 등) 경로 실패 처리. 발소리 관리(quiet.*)가 켜진 봇이면 FootstepDiscipline 시간 상한 확인",
+            "ignoredSniper" => "ignoredSniper: 멀리서 맞는데 쏜 적을 목표로 안 잡음 → HearingSensor 총소리 거리 단계의 '나를 쏜 사람' 예외, ThreatPicker 원거리 저격수 처리",
             _ => kind,
         };
     }
@@ -187,7 +188,8 @@ public static class SimLabAnalyzer
                         $"{b.SimWavesActivated} reserve squads were called but no bot appeared. With ABPS on, it takes over PMC squads, ignores the zones ({m.Raid?.ZonesA} / {m.Raid?.ZonesB}) and silently skips them when no spot is far enough from the spectator and other PMCs - turn on 'ABPS off' in the sim settings.")));
         }
 
-        var sides = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "pmcUSEC", "pmcBEAR", m.Raid?.SideA ?? "", m.Raid?.SideB ?? "" };
+        // remake5: factions, the raid's boss + followers and kept modded factions are part of the sim now
+        var sides = SimLabRemake5.ExpectedRoles(m);
         var others = b.SpawnedRoles?.Where(kv => !sides.Contains(kv.Key)).ToList() ?? [];
         if (others.Count > 0)
         {
@@ -392,6 +394,8 @@ public static class SimLabAnalyzer
             list.Add(new(INFO, T("아군 사격 사망", "Team kills"), T($"{b.TeamKills}회.", $"{b.TeamKills}.")));
         }
 
+        SimLabRemake5.AddFindings(m, list);
+
         if (list.All(f => f.Severity is INFO or OK))
         {
             list.Insert(0, new(OK, T("큰 문제 없음", "No major problems"), T($"{played:0}분, 봇 사망 {b.BotDeaths}, 오류 0.", $"{played:0} min, {b.BotDeaths} bot deaths, 0 errors.")));
@@ -421,6 +425,7 @@ public static class SimLabAnalyzer
             "flipFlop" => T("판단이 계속 뒤집힘", "decision flip-flop"),
             "bunched" => T("아군과 몸이 겹침", "bunched with a mate"),
             "stalledMove" => T("움직여야 하는데 제자리", "should move, standing"),
+            "ignoredSniper" => T("멀리서 쏘는 적 무시", "far shooter ignored"),
             _ => kind,
         };
     }
@@ -690,6 +695,7 @@ public static class SimLabAnalyzer
                     sb.AppendLine($"| {f.Group} | {state} {f.Name} | {(f.Fired.Length == 0 ? "-" : fired.ToString())} | {(f.Refused.Length == 0 ? "-" : refused.ToString())} | {(f.Bad.Length == 0 ? "-" : badCount.ToString())} | {journal} | {f.Note} |");
                 }
             }
+            SimLabRemake5.Append(sb, m);
             if (b != null && (b.OddityCounts?.Count ?? 0) > 0)
             {
                 sb.AppendLine();

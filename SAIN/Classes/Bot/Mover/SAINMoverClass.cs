@@ -574,6 +574,20 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
         }
     }
 
+    /// <summary>
+    /// remake5 measurement (user 2026-10-11: "did the jump-shot accuracy get fixed?"): what the last jump was for, so the first hit
+    /// on the enemy within 2.5 s after it can be booked per kind: jump.{kind}.made / jump.{kind}.hit.{air|landed}.{fast|slow}
+    /// (EnemyEvents.enemyHit). Callers that know why they jumped call MarkJump right after a successful TryJump.
+    /// </summary>
+    public string LastJumpKind = "other";
+    public float LastJumpHitBooked = -1f;
+
+    public void MarkJump(string kind)
+    {
+        LastJumpKind = kind;
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"jump.{kind}.made");
+    }
+
     public bool TryJump()
     {
         if (_nextJumpTime < Time.time && Player.MovementContext?.CanJump == true)
@@ -581,6 +595,7 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
             _nextJumpTime = Time.time + 0.5f;
             Player.MovementContext?.TryJump();
             TimeLastJumped = Time.time;
+            LastJumpKind = "other";
             // zzap (user 2026-10-10: "jump shots aim terribly"): EFT's spread in the air is huge - no shooting until landed
             // (corner chase, jump peeks, bait peek, retreat hop). A style, so rolled once per bot per enemy (rule 2026-10-02
             // "style = chance, never one fixed rule for all"): a few keep firing in the air.

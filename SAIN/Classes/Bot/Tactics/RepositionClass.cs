@@ -716,6 +716,7 @@ public class RepositionClass : BotComponentClassBase
                 if (s.BaitJump && !s.BaitJumped)
                 {
                     s.BaitJumped = JumpSafe(s.Target) && Bot.Mover.TryJump();
+                    if (s.BaitJumped) Bot.Mover.MarkJump("bait");
                     if (s.BaitJumped)
                     {
                         TacticDiagnostics.Count("repo.bait.jump");

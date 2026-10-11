@@ -107,6 +107,31 @@ public class SimRaidInfo
     public bool BlackoutWasDark;
     /// <summary>The APBS bridge really emptied the list (false = APBS not installed / changed shape / the switch is off).</summary>
     public bool ModItemsBlocked;
+
+    // ---- zzap cross-check (user 2026-10-11: "I only run the sim on the sim preset and ship - what I tested must hold for zzap";
+    // the TEST preset's test switches and its PMC-only squads hid the "PMC only" bug that left rogues/Goons/BD vanilla).
+
+    /// <summary>Behaviour sections (close combat, doors, reposition, player style, freeze, squad) run on the zzap preset's values
+    /// this raid; only logging switches keep the sim preset's values (SimLabZzapCheck on the client).</summary>
+    public bool ZzapBehaviour;
+    /// <summary>Faction squads mixed in besides the two PMC sides ("exUsec,pmcBot"). Their waves sit at FactionTimeBase and up.</summary>
+    public string FactionRoles = string.Empty;
+    /// <summary>Chance (0-1) that a refill calls a faction squad instead of a PMC squad.</summary>
+    public float FactionShare;
+    public float FactionTimeBase;
+    public int FactionWaves;
+    /// <summary>Boss rolled for this raid (empty = none), its followers' roles and the wave time the client activates.</summary>
+    public string Boss = string.Empty;
+    public string BossEscorts = string.Empty;
+    public float BossTime;
+    /// <summary>Where the boss template came from ("database:bigmap" / "builtin") and anything that went wrong.</summary>
+    public string BossSource = string.Empty;
+    /// <summary>Waves of modded factions (Black Division etc.) kept when the map's other spawns were cleared.</summary>
+    public string KeptModdedWaves = string.Empty;
+    /// <summary>Every role this raid is meant to have (PMC sides, factions, boss + followers, kept modded) - anything else is "non-sim".</summary>
+    public string ExpectedRoles = string.Empty;
+    /// <summary>TEST preset keys that differ from zzap and are not reset by the cross-check (empty = none). Server-side check.</summary>
+    public string PresetDiffUncovered = string.Empty;
 }
 
 /// <summary>A sim bot that spawned outside the zones its side was given.</summary>
@@ -173,6 +198,10 @@ public class SimBeat
     public Dictionary<string, SimRow> ByPersonality = new();
     public Dictionary<string, SimRow> ByReason = new();
     public Dictionary<string, SimRow> ByCombat = new();
+    /// <summary>Kills/deaths per faction group (PMC, Rogue, Raider, Boss, Follower, BlackDivision, Scav, Other) - remake5 cross-check.</summary>
+    public Dictionary<string, SimRow> ByFaction = new();
+    /// <summary>What the zzap cross-check changed on the client this raid ("CloseCombat.DiamondStepTestMode True->False", ...).</summary>
+    public List<string> ZzapOverrides = new();
     public List<SimError> Errors = new();
     public List<string> Notes = new();
 

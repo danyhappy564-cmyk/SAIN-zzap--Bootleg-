@@ -134,6 +134,12 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
                 raid.AllSquadsEnemies = true;
                 logger.Info($"[SAIN SimLab] {raid.Map}: every other squad is an enemy ({roles}: USEC/BEAR enemy chance 100)");
             }
+            if (!string.IsNullOrEmpty(raid.FactionRoles) || !string.IsNullOrEmpty(raid.Boss))
+            {
+                string families = SimLabFactions.ApplyHostility(location, raid);
+                raid.AllSquadsEnemies = true;
+                logger.Info($"[SAIN SimLab] {raid.Map}: sim roles hostile to each other (boss + own followers friends): {families}");
+            }
         }
         catch (Exception ex)
         {
@@ -695,6 +701,11 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
                     $"[SAIN SimLab] {map}: '{LastRaid.ScenarioName}' A={LastRaid.SideA}@[{LastRaid.ZonesA}] B={LastRaid.SideB}@[{LastRaid.ZonesB}] "
                         + $"cap {LastRaid.MaxAliveBots}, {LastRaid.Minutes:0} min, removed {LastRaid.RemovedBossWaves} boss/PMC + {LastRaid.RemovedWaves} scav waves"
                 );
+                logger.Info(
+                    $"[SAIN SimLab] {map}: zzap cross-check {(LastRaid.ZzapBehaviour ? "on" : "off")}, factions [{LastRaid.FactionRoles}] x{LastRaid.FactionWaves} share {LastRaid.FactionShare:0.00}, "
+                        + $"boss {(string.IsNullOrEmpty(LastRaid.Boss) ? "none" : $"{LastRaid.Boss} +[{LastRaid.BossEscorts}] from {LastRaid.BossSource}")}, kept modded [{LastRaid.KeptModdedWaves}]"
+                        + (string.IsNullOrEmpty(LastRaid.PresetDiffUncovered) ? "" : $", sim preset differs from zzap outside the reset sections: {LastRaid.PresetDiffUncovered}")
+                );
             }
             catch (Exception ex)
             {
@@ -752,11 +763,22 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
 
         location.BossLocationSpawn ??= [];
         location.Waves ??= [];
+        var keptModded = new List<BossLocationSpawn>();
+        if (Config.RemoveOtherSpawns && Config.KeepModdedFactionWaves)
+        {
+            // remake5: modded factions (Black Division...) stay in the sim - forced on, into the sim zones when theirs isn't here.
+            foreach (var w in location.BossLocationSpawn.Where(SimLabFactions.IsModdedWave))
+            {
+                bool zoneHere = SimLabFactions.Split(w.BossZone).Any(z => zones.Contains(z));
+                keptModded.Add(w with { BossChance = 100, BossZone = zoneHere ? w.BossZone : info.ZonesA });
+            }
+        }
         if (Config.RemoveOtherSpawns)
         {
-            info.RemovedBossWaves = location.BossLocationSpawn.Count;
+            info.RemovedBossWaves = location.BossLocationSpawn.Count - keptModded.Count;
             info.RemovedWaves = location.Waves.Count;
             location.BossLocationSpawn.Clear();
+            location.BossLocationSpawn.AddRange(keptModded);
             location.Waves.Clear();
             // Vanilla non-wave scav refill (and ABPS's version of it reads the same fields): off.
             location.NewSpawn = false;
@@ -801,6 +823,35 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             );
         }
         info.ReserveWaves = RESERVE_WAVES_PER_SIDE * 2;
+
+        // remake5 cross-check (user 2026-10-11): zzap behaviour values, faction squads, one random boss.
+        info.ZzapBehaviour = Config.ZzapCrossCheck;
+        try
+        {
+            SimLabFactions.AddFactionWaves(location, info, Config, escorts);
+        }
+        catch (Exception ex)
+        {
+            info.Note = (info.Note + " 팩션 분대 추가 실패: " + ex.Message).Trim();
+        }
+        try
+        {
+            SimLabFactions.AddBoss(locationTable, location, info, Config);
+        }
+        catch (Exception ex)
+        {
+            info.BossSource = "failed: " + ex.Message;
+            info.Boss = string.Empty;
+        }
+        info.KeptModdedWaves = string.Join(",", keptModded.Select(w => $"{w.BossName}@{w.BossZone}"));
+        info.ExpectedRoles = string.Join(",",
+            new[] { info.SideA, info.SideB, info.FactionRoles, info.Boss, info.BossEscorts, string.Join(",", keptModded.Select(w => w.BossName)), string.Join(",", keptModded.Select(w => w.BossEscortType)) }
+                .SelectMany(SimLabFactions.Split).Distinct(StringComparer.OrdinalIgnoreCase));
+        if (Config.ZzapCrossCheck)
+        {
+            info.PresetDiffUncovered = SimLabFactions.UncoveredPresetDiff(
+                Path.Combine(modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly()), "Presets"));
+        }
 
         cap = Math.Max(cap, 2);
         location.BotMax = cap + squadMax;

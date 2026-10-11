@@ -28,6 +28,9 @@ public static class BattleStats
     private static readonly Dictionary<string, Row> _personality = new();
     private static readonly Dictionary<string, Row> _reason = new();
     private static readonly Dictionary<string, Row> _combat = new();
+    // remake5 (user 2026-10-11): per faction group (PMC / Rogue / Raider / Goons / Boss / Follower / BlackDivision...), so a sim or a
+    // normal raid's journal shows at once when one faction plays differently ("rogues, Goons and BD act vanilla").
+    private static readonly Dictionary<string, Row> _faction = new();
     private static int _botKills;
     private static int _otherKills;
     private static int _teamKills;
@@ -77,6 +80,24 @@ public static class BattleStats
         {
             TacticDiagnostics.Count($"death.switchedAway.{decision}.{reason}");
         }
+        string victimFaction = SAIN.SimLab.SimFaction.Of(victim.Info.Profile.WildSpawnType);
+        var f = Get(_faction, victimFaction);
+        f.Deaths++;
+        if (switching)
+        {
+            f.DiedSwitching++;
+        }
+        if (TacticDiagnostics.CountOn)
+        {
+            string diamond = TacticDiagnostics.GetDiamond(victim.ProfileId);
+            int cut = diamond.IndexOfAny(new[] { ' ', '(', ':' });
+            string head = cut > 0 ? diamond.Substring(0, cut) : diamond;
+            // "off(notPmc)" style reasons matter here (that was the 10/10 bug) - keep the reason in brackets.
+            int open = diamond.IndexOf('(');
+            int close = open >= 0 ? diamond.IndexOf(')', open) : -1;
+            string why = open >= 0 && close > open ? "." + diamond.Substring(open + 1, close - open - 1) : string.Empty;
+            TacticDiagnostics.Count($"faction.{victimFaction}.death.diamond.{head}{why}");
+        }
         var p = Get(_personality, victim.Info.Personality.ToString());
         var r = Get(_reason, reason);
         var c = Get(_combat, victim.Decision.CurrentCombatDecision.ToString());
@@ -99,10 +120,16 @@ public static class BattleStats
             Get(_personality, k.Info.Personality.ToString()).Kills++;
             Get(_reason, ReasonKey(k.Decision.EnemyDecisions?.LastReason)).Kills++;
             Get(_combat, k.Decision.CurrentCombatDecision.ToString()).Kills++;
+            Get(_faction, SAIN.SimLab.SimFaction.Of(k.Info.Profile.WildSpawnType)).Kills++;
         }
         else
         {
             _otherKills++;
+            if (killer != null && killer.IsAI && killer.Profile?.Info?.Settings != null)
+            {
+                // vanilla bot (not on SAIN) - still booked for its faction, marked
+                Get(_faction, SAIN.SimLab.SimFaction.Of(killer.Profile.Info.Settings.Role) + "(vanilla)").Kills++;
+            }
         }
     }
 
@@ -138,6 +165,7 @@ public static class BattleStats
             $"[Battle] ({why}) {deaths} bot deaths: {_botKills} by bots, {_otherKills} by player/other, {_teamKills} teamkills | "
                 + "K/D, 'sw' = died <1.5s after switching decision");
         if (RaidJournal.IsOpen) RaidJournal.Line("[Battle] by personality: " + Table(_personality, 0));
+        if (RaidJournal.IsOpen) RaidJournal.Line("[Battle] by faction: " + Table(_faction, 0));
         if (RaidJournal.IsOpen) RaidJournal.Line("[Battle] by combat action: " + Table(_combat, 0));
         if (RaidJournal.IsOpen) RaidJournal.Line("[Battle] by decision reason: " + Table(_reason, 2));
     }
@@ -188,6 +216,7 @@ public static class BattleStats
         CopyRows(_personality, beat.ByPersonality);
         CopyRows(_reason, beat.ByReason);
         CopyRows(_combat, beat.ByCombat);
+        CopyRows(_faction, beat.ByFaction);
     }
 
     private static void CopyRows(Dictionary<string, Row> from, Dictionary<string, SAIN.Preset.Shared.SimLab.SimRow> to)
@@ -204,6 +233,7 @@ public static class BattleStats
         _personality.Clear();
         _reason.Clear();
         _combat.Clear();
+        _faction.Clear();
         _botKills = 0;
         _otherKills = 0;
         _teamKills = 0;

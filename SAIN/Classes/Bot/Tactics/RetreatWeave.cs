@@ -92,6 +92,7 @@ public static class RetreatWeave
         }
         st.StraightUntil = time + 0.8f;
         TacticDiagnostics.Count("retreat.landingJump");
+        bot.Mover.MarkJump("retreat");
         return true;
     }
 
@@ -144,6 +145,7 @@ public static class RetreatWeave
                 st.StraightUntil = time + 0.8f; // fly along the run line, not the bent one
                 st.AppliedUntil = 0f;
                 TacticDiagnostics.Count("retreat.weaveJump");
+                bot.Mover.MarkJump("retreat");
                 return;
             }
         }

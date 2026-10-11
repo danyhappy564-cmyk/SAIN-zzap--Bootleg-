@@ -73,6 +73,31 @@ public sealed class SimLabConfig
     /// <summary>Saved sim presets: map lineup + spawn pace + personality mix + what the run is for (user 2026-10-10).</summary>
     public List<SimPreset> Presets = [];
 
+    // ---- remake5 cross-check (user 2026-10-11). The TEST preset's test switches (diamond test mode, all-PMC GigaChad doors,
+    // run-by 100%, reposition test mode, no mistakes, no adaptation) and PMC-only squads hid bugs that only zzap users saw.
+
+    /// <summary>Sim raids play with the zzap preset's behaviour values (only the logging switches stay from the sim preset).</summary>
+    public bool ZzapCrossCheck = true;
+
+    /// <summary>Mix faction squads into the refills (rogues, raiders; spawned by the game's boss spawner, ABPS leaves them alone).</summary>
+    public bool FactionMix = true;
+
+    /// <summary>Roles of the faction squads (WildSpawnType names).</summary>
+    public List<string> FactionRoles = ["exUsec", "pmcBot"];
+
+    /// <summary>Chance a refill is a faction squad instead of a PMC squad (0-1).</summary>
+    public float FactionShare = 0.3f;
+
+    /// <summary>One random boss (with followers) per sim raid (user 2026-10-11: "random boss each time, not followers - to learn the
+    /// bosses' patterns"). Template from the server's own location data (what ABPS put in) or a built-in fallback.</summary>
+    public bool RandomBoss = true;
+
+    /// <summary>Seconds after the first squads before the boss wave is called.</summary>
+    public int BossDelaySeconds = 60;
+
+    /// <summary>Keep waves of modded factions (Black Division and other custom bot types) when the map's spawns are cleared.</summary>
+    public bool KeepModdedFactionWaves = true;
+
     /// <summary>Remaining sim time at the top right of the game screen (user 2026-10-09: on by default, switchable on the page).</summary>
     public bool ShowTimer = true;
 

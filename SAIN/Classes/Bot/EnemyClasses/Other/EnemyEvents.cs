@@ -120,7 +120,28 @@ public class EnemyEvents
         if (damageSource.ProfileId == Enemy.Bot.ProfileId)
         {
             OnEnemyShot?.Invoke(Enemy);
+            BookJumpHit();
         }
+    }
+
+    /// <summary>First hit on this enemy within 2.5 s of the bot's last jump: jump.{kind}.hit.{air|landed}.{fast|slow} (remake5).</summary>
+    private void BookJumpHit()
+    {
+        var mover = Enemy.Bot?.Mover;
+        if (mover == null || !SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
+        {
+            return;
+        }
+        float since = UnityEngine.Time.time - mover.TimeLastJumped;
+        if (mover.TimeLastJumped <= 0f || since > 2.5f || mover.LastJumpHitBooked == mover.TimeLastJumped || mover.LastJumpKind == "other")
+        {
+            return;
+        }
+        mover.LastJumpHitBooked = mover.TimeLastJumped;
+        bool grounded = Enemy.Bot.Player?.MovementContext?.IsGrounded != false;
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(
+            $"jump.{mover.LastJumpKind}.hit.{(grounded ? "landed" : "air")}.{(since < 1.2f ? "fast" : "slow")}"
+        );
     }
 
     public class EnemyToggleEvent : ToggleEventForObject<Enemy>

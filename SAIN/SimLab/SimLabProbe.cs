@@ -173,6 +173,7 @@ public static class SimLabProbe
         string layer = owner.Brain?.ActiveLayerName() ?? "none";
         _layerSeconds.TryGetValue(layer, out float seconds);
         _layerSeconds[layer] = seconds + dt;
+        SampleFaction(player, layer);
         SampleOrbit(player, dt);
         SampleCloseUnaware(player, owner, layer);
 
@@ -202,6 +203,29 @@ public static class SimLabProbe
             {
                 _stareTowardEnemy++;
             }
+        }
+    }
+
+    /// <summary>
+    /// remake5 cross-check (user 2026-10-11): per faction, which brain runs the bot (SAIN / ORBIT / vanilla) and, in SAIN's combat
+    /// layer, which combat decision - so a faction falling back to vanilla, or a boss's pattern, shows in the analysis.
+    /// Counters (2 s samples): faction.{group}.layer.{sain|orbit|vanilla}, faction.{group}.decision.{decision}.
+    /// </summary>
+    private static void SampleFaction(Player player, string layer)
+    {
+        if (!SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn || player.Profile?.Info?.Settings == null)
+        {
+            return;
+        }
+        string group = SimFaction.Of(player.Profile.Info.Settings.Role);
+        bool sain = SAINEnableClass.GetSAIN(player.ProfileId, out BotComponent bot) && bot != null;
+        string kind = layer.IndexOf("orbit", StringComparison.OrdinalIgnoreCase) >= 0 ? "orbit"
+            : layer.StartsWith("SAIN", StringComparison.OrdinalIgnoreCase) ? "sain"
+            : sain ? "vanillaLayer" : "vanilla";
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"faction.{group}.layer.{kind}");
+        if (sain && layer == SAIN.SAINComponent.Classes.Tactics.LayerHandoff.SainCombat)
+        {
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"faction.{group}.decision.{bot.Decision.CurrentCombatDecision}");
         }
     }
 

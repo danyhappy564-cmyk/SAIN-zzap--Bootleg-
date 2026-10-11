@@ -66,6 +66,15 @@ public sealed class SimLabRunner : MonoBehaviour
     // spawns
     private readonly List<BossLocationSpawn> _reserveA = new();
     private readonly List<BossLocationSpawn> _reserveB = new();
+    // remake5 cross-check: faction squads per side and the raid's boss wave (see SimLabFactions on the server)
+    private readonly List<BossLocationSpawn> _factionA = new();
+    private readonly List<BossLocationSpawn> _factionB = new();
+    private BossLocationSpawn _bossWave;
+    private float _firstSquadsAt = -1f;
+    private float _bossCalledAt = -1f;
+    private bool _bossSeen;
+    private bool _bossMissNoted;
+    private int _factionCalled;
     private int _activated;
     private float _lastSpawn = -999f;
     private bool _nextIsA = true;
@@ -79,6 +88,7 @@ public sealed class SimLabRunner : MonoBehaviour
     private readonly Dictionary<string, string> _seenBots = new();
     private readonly Dictionary<string, int> _roles = new();
     private readonly List<string> _notes = new();
+    private readonly List<string> _zzapChanges = new();
     private int _alive;
     private int _stalls;
     private int _fpsFrames;
@@ -107,6 +117,10 @@ public sealed class SimLabRunner : MonoBehaviour
         }
         if (!active && !_inRaid)
         {
+            if (SimLabZzapCheck.Applied)
+            {
+                SimLabZzapCheck.Restore();
+            }
             return;
         }
         try
@@ -536,6 +550,15 @@ public sealed class SimLabRunner : MonoBehaviour
         _endRequested = false;
         _reserveA.Clear();
         _reserveB.Clear();
+        _factionA.Clear();
+        _factionB.Clear();
+        _bossWave = null;
+        _firstSquadsAt = -1f;
+        _bossCalledAt = -1f;
+        _bossSeen = false;
+        _bossMissNoted = false;
+        _factionCalled = 0;
+        _zzapChanges.Clear();
         _activated = 0;
         _lastSpawn = -999f;
         _nextIsA = true;
@@ -565,6 +588,20 @@ public sealed class SimLabRunner : MonoBehaviour
                     ? "서버에서 시뮬 설정을 받지 못함 — 시뮬 스폰 없이 진행"
                     : $"이 레이드에는 시뮬 스폰이 적용되지 않음 (서버 마지막 적용 맵: {info.Map ?? "-"} {info.Note})"
             );
+        }
+        // remake5 cross-check: this raid plays on zzap's behaviour values (before any bot spawns - the journal's [Tactics] SETTINGS
+        // lines, written at the first bot, then show what was really used).
+        if (SimLab.Raid?.ZzapBehaviour == true)
+        {
+            _zzapChanges.AddRange(SimLabZzapCheck.Apply());
+            if (TacticDiagnostics.LogOn)
+            {
+                RaidJournal.Line("[SimLab] zzap cross-check: " + string.Join(", ", _zzapChanges));
+            }
+        }
+        else
+        {
+            SimLabZzapCheck.Restore();
         }
         _runId = SimLab.Raid?.RunId ?? SimLab.Plan?.RunId;
         float minutes = SimLab.Raid?.Minutes ?? SimLab.Plan?.Minutes ?? 20f;
@@ -706,9 +743,27 @@ public sealed class SimLabRunner : MonoBehaviour
             _notes.Add("예비 분대를 찾지 못함 (LocalGame/BossSpawnScenario 없음)");
             return;
         }
+        float factionBase = info.FactionTimeBase > 0f ? info.FactionTimeBase : float.MaxValue;
+        float bossTime = info.BossTime > 0f ? info.BossTime : float.MaxValue;
+        float pmcLimit = Mathf.Min(factionBase, bossTime);
         foreach (var wave in game.BossSpawnScenario.BossSpawnWaves)
         {
             if (wave == null || wave.Time < info.ReserveTimeBase || wave.Activated)
+            {
+                continue;
+            }
+            if (wave.Time >= bossTime - 0.5f)
+            {
+                _bossWave ??= wave;
+                continue;
+            }
+            if (wave.Time >= factionBase - 0.5f)
+            {
+                int f = Mathf.RoundToInt(wave.Time - factionBase);
+                (f % 2 == 0 ? _factionA : _factionB).Add(wave);
+                continue;
+            }
+            if (wave.Time >= pmcLimit)
             {
                 continue;
             }
@@ -717,6 +772,15 @@ public sealed class SimLabRunner : MonoBehaviour
         }
         _reserveA.Sort((a, b) => a.Time.CompareTo(b.Time));
         _reserveB.Sort((a, b) => a.Time.CompareTo(b.Time));
+        _factionA.Sort((a, b) => a.Time.CompareTo(b.Time));
+        _factionB.Sort((a, b) => a.Time.CompareTo(b.Time));
+        string boss = _bossWave != null ? $"{_bossWave.BossName} (+{info.BossEscorts}, from {info.BossSource})" : string.IsNullOrEmpty(info.Boss) ? "none" : $"MISSING {info.Boss}";
+        Logger.LogWarning($"[SimLab] faction squads: A {_factionA.Count}, B {_factionB.Count} [{info.FactionRoles}] share {info.FactionShare:0.00}; boss wave: {boss}; kept modded waves [{info.KeptModdedWaves}]");
+        if (!string.IsNullOrEmpty(info.Boss) && _bossWave == null)
+        {
+            _notes.Add($"보스 웨이브({info.Boss})를 게임 보스 목록에서 못 찾음 — 다른 모드가 보스 웨이브를 바꿨을 수 있음");
+            TacticDiagnostics.Count("sim.boss.waveMissing");
+        }
         if (_reserveA.Count + _reserveB.Count == 0)
         {
             _notes.Add($"예비 분대 0개 (서버는 {info.ReserveWaves}개를 넣었다고 함) — 다른 모드가 보스 웨이브를 바꿨을 수 있음");
@@ -771,6 +835,18 @@ public sealed class SimLabRunner : MonoBehaviour
             {
                 _seenBots[p.ProfileId] = role;
                 SimLabProbe.OnNewBot(p, role, now - _raidStart);
+                TacticDiagnostics.Count($"faction.{SimFaction.Of(p.Profile.Info.Settings.Role)}.spawned");
+                if (info != null && !_bossSeen && !string.IsNullOrEmpty(info.Boss) && string.Equals(role, info.Boss, StringComparison.OrdinalIgnoreCase))
+                {
+                    _bossSeen = true;
+                    float after = _bossCalledAt > 0f ? now - _bossCalledAt : -1f;
+                    TacticDiagnostics.Count("sim.boss.seen");
+                    Logger.LogWarning($"[SimLab] boss {role} spawned {(after >= 0f ? $"{after:0}s after the call" : "(not called by the sim)")}");
+                    if (TacticDiagnostics.LogOn)
+                    {
+                        RaidJournal.Line($"[SimLab] boss {role} spawned at t={(now - _raidStart):0}s");
+                    }
+                }
                 _roles.TryGetValue(role, out int count);
                 _roles[role] = count + 1;
                 var group = p.AIData?.BotOwner?.BotsGroup;
@@ -804,6 +880,7 @@ public sealed class SimLabRunner : MonoBehaviour
         }
         int total = spawner?.AllBotsWithDelayed ?? alive;
         NoteStuckSpawns(total, alive, now);
+        TickBoss(info, now);
         int squad = Math.Max(1, info.SquadSizeMax);
         if (total + squad > info.MaxAliveBots || now - _lastSpawn < Math.Max(5f, info.RespawnSeconds))
         {
@@ -826,6 +903,7 @@ public sealed class SimLabRunner : MonoBehaviour
             return;
         }
         _firstSquadsPending = false;
+        _firstSquadsAt = now;
         Logger.LogWarning($"[SimLab] first squads after {waited:0}s (bot profiles loaded {profiles}, ABPS ready {abps})");
         if (!(profiles && abps))
         {
@@ -859,8 +937,84 @@ public sealed class SimLabRunner : MonoBehaviour
         Logger.LogWarning($"[SimLab] {total - alive} bots stuck waiting to spawn for 45 s (squads called {_activated}, alive {alive}, abpsOff {SimLab.Raid?.AbpsOff})");
     }
 
+    // remake5: the raid's boss (with followers) is called once, BossDelaySeconds (60) after the first squads; the game's boss spawner
+    // makes it (ABPS only takes PMC waves). Not seen 90 s after the call = logged + noted (2026-10-09 Customs: the vanilla spawner
+    // can park waves in a 20 s retry loop).
+    private void TickBoss(SimRaidInfo info, float now)
+    {
+        if (_bossWave == null || _firstSquadsAt < 0f)
+        {
+            return;
+        }
+        if (_bossCalledAt < 0f)
+        {
+            if (now - _firstSquadsAt < 60f)
+            {
+                return;
+            }
+            _bossCalledAt = now;
+            if (Singleton<AbstractGame>.Instance is LocalGame game && game.BossSpawnScenario != null)
+            {
+                try
+                {
+                    game.BossSpawnScenario.ActivateWave(_bossWave);
+                    TacticDiagnostics.Count("sim.boss.called");
+                    Logger.LogWarning($"[SimLab] boss called: {_bossWave.BossName} in [{_bossWave.BossZone}] escorts '{info.BossEscorts}' (alive bots {_alive})");
+                    if (TacticDiagnostics.LogOn)
+                    {
+                        RaidJournal.Line($"[SimLab] boss called: {_bossWave.BossName} +[{info.BossEscorts}] in [{_bossWave.BossZone}] at t={(now - _raidStart):0}s");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    TacticDiagnostics.Count("sim.boss.callFailed");
+                    _notes.Add($"보스 호출 실패: {ex.Message}");
+                    Logger.LogError($"[SimLab] boss ActivateWave failed: {ex}");
+                }
+            }
+            return;
+        }
+        if (!_bossSeen && !_bossMissNoted && now - _bossCalledAt > 90f)
+        {
+            _bossMissNoted = true;
+            TacticDiagnostics.Count("sim.boss.notSeen");
+            _notes.Add($"보스 {info.Boss}를 불렀지만 90초 안에 안 나옴 (구역 [{_bossWave.BossZone}], 템플릿 {info.BossSource}) — 게임 보스 생성기가 막혔거나 구역이 맞지 않음");
+            Logger.LogWarning($"[SimLab] boss {info.Boss} not seen 90 s after the call (zone [{_bossWave.BossZone}], template {info.BossSource})");
+        }
+    }
+
     private void Spawn(bool sideA, float now)
     {
+        var info = SimLab.Raid;
+        var factions = sideA ? _factionA : _factionB;
+        if (info != null && factions.Count > 0 && _firstSquadsAt > 0f && UnityEngine.Random.value < info.FactionShare)
+        {
+            var fw = factions[0];
+            factions.RemoveAt(0);
+            if (Singleton<AbstractGame>.Instance is LocalGame fgame && fgame.BossSpawnScenario != null)
+            {
+                try
+                {
+                    fgame.BossSpawnScenario.ActivateWave(fw);
+                    _activated++;
+                    _factionCalled++;
+                    _lastSpawn = now;
+                    _nextIsA = !sideA;
+                    TacticDiagnostics.Count($"sim.faction.called.{fw.BossName}");
+                    Logger.LogWarning($"[SimLab] faction squad {_factionCalled}: {fw.BossName} x{fw.BossEscortAmount}+1 in [{fw.BossZone}] (alive bots {_alive})");
+                    if (TacticDiagnostics.LogOn)
+                    {
+                        RaidJournal.Line($"[SimLab] faction squad: {fw.BossName} x{fw.BossEscortAmount}+1 in [{fw.BossZone}] (alive bots {_alive})");
+                    }
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    TacticDiagnostics.Count("sim.faction.callFailed");
+                    _notes.Add($"팩션 분대 호출 실패: {ex.Message}");
+                }
+            }
+        }
         var list = sideA ? _reserveA : _reserveB;
         if (list.Count == 0)
         {
@@ -945,6 +1099,7 @@ public sealed class SimLabRunner : MonoBehaviour
             Stalls = _stalls,
             SpawnedRoles = new Dictionary<string, int>(_roles),
             Notes = new List<string>(_notes),
+            ZzapOverrides = new List<string>(_zzapChanges),
         };
         try
         {
@@ -1028,8 +1183,12 @@ public sealed class SimLabRunner : MonoBehaviour
             SimLabProbe.Clear();
             SimLab.SpectatorActive = false;
             SimLab.Raid = null;
+            SimLabZzapCheck.Restore();
             _reserveA.Clear();
             _reserveB.Clear();
+            _factionA.Clear();
+            _factionB.Clear();
+            _bossWave = null;
             _player = null;
         }
     }

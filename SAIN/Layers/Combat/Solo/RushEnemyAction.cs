@@ -88,7 +88,7 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
             if (cornerCount > 2 && (corners[cornerCount - 2] - Bot.Position).sqrMagnitude < 1f)
             {
                 TryJumpTimer = Time.time + 3f;
-                Bot.Mover.TryJump();
+                if (Bot.Mover.TryJump()) Bot.Mover.MarkJump("rush");
             }
         }
     }
@@ -103,7 +103,7 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
         {
             if (_shallBunnyHop)
             {
-                Bot.Mover.TryJump();
+                if (Bot.Mover.TryJump()) Bot.Mover.MarkJump("rush");
             }
             else if (TryJumpTimer < Time.time && Bot.Player.IsSprintEnabled)
             {
@@ -112,7 +112,7 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
                 {
                     _shallBunnyHop = true;
                 }
-                Bot.Mover.TryJump();
+                if (Bot.Mover.TryJump()) Bot.Mover.MarkJump("rush");
             }
         }
     }
