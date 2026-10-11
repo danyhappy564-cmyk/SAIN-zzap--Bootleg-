@@ -35,7 +35,7 @@ public static class SimLabFeatures
         new("tactic", "분대 역할(오버워치/후방)", A("door.role."), A(), A(), "[DoorTactic]"),
         new("tactic", "제3자 감지(문 전술 중단)", A("door.abort.otherEnemyActive", "door.end.Clear.otherEnemyActive", "door.end.Trap.otherEnemyActive", "door.end.Peek.otherEnemyActive"), A(), A(), "[DoorTactic]"),
         new("tactic", "다이아몬드 스텝", A("diamond.start", "diamond.tap"), A("diamond.blocked"), A(), "[Diamond]"),
-        new("tactic", "근거리 가림 유지", A("decision.closeOcclusionKeep"), A(), A(), "[Decide]"),
+        new("tactic", "근거리 가림 유지", A("decision.closeOcclusionKeep", "decision.midOcclusionKeep"), A(), A(), "[Decide]"),
         new("tactic", "코너 흔들기 피킹", A("diamond.jiggle"), A(), A(), "[Diamond]"),
         new("tactic", "기울이기(사격 중)", A("lean.hold.", "lean.rock"), A(), A(), "[Diamond]"),
         new("ai", "안 보이는 적 판단(유틸리티)", A("utility.do."), A("utility.noneRunnable"), A(), "[Utility]"),

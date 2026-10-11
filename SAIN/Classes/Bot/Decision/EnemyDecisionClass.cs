@@ -137,7 +137,7 @@ public class EnemyDecisionClass : BotBase
         // DogFight in 0.4s, sprint run-by bot shot). Keep the fight going on the spot he just was.
         if (KeepCloseFight(enemy, out result))
         {
-            LastReason = "closeOcclusionKeep";
+            LastReason = _keptMidRange ? "midOcclusionKeep" : "closeOcclusionKeep";
             return true;
         }
 
@@ -321,11 +321,19 @@ public class EnemyDecisionClass : BotBase
         return points != null && points.Count > 0;
     }
 
+    // 10/12 sim: 6 "should move but stands" scenes in Search / Push, 7-17 s each. One was confirmed: the bot already stood
+    // on his last known spot, Push still ran and its mover answered "arrived" every tick. The others had a path but no
+    // move was issued (Bot14 kept switching Push / Search / FallBack on the spot, so a per-decision watch never fired).
+    // One watch for all three: no 0.5 m of movement for 6 s -> his last known spot counts as reached, no Push/Search for 12 s
+    // and no FallBack for 15 s, so Hold / Flank / the old chain decide instead.
+    private float _moveBanUntil;
+
     private void WatchFallBackStall(float time)
     {
-        bool fallingBack = Bot.Decision.CurrentCombatDecision == ECombatDecision.SeekCover && LastReason == "utilityFallBack"
-            && Bot.Cover.CoverInUse == null;
-        if (!fallingBack)
+        ECombatDecision current = Bot.Decision.CurrentCombatDecision;
+        bool fallingBack = current == ECombatDecision.SeekCover && LastReason == "utilityFallBack" && Bot.Cover.CoverInUse == null;
+        bool moving = fallingBack || current == ECombatDecision.Search || current == ECombatDecision.RushEnemy;
+        if (!moving)
         {
             _fallBackWatchSince = -1f;
             return;
@@ -337,15 +345,32 @@ public class EnemyDecisionClass : BotBase
             _fallBackWatchPos = pos;
             return;
         }
-        if (time - _fallBackWatchSince >= 5f)
+        float limit = fallingBack ? 5f : 6f;
+        if (time - _fallBackWatchSince < limit)
         {
-            _fallBackBanUntil = time + 15f;
-            _fallBackWatchSince = -1f;
+            return;
+        }
+        _fallBackWatchSince = -1f;
+        _fallBackBanUntil = time + 15f;
+        if (fallingBack)
+        {
             TacticDiagnostics.Count("utility.fallBackStalled");
             if (TacticDiagnostics.LogOn)
             {
                 RaidJournal.Line($"[Utility] [{Bot.name}] [{Bot.Info.Personality}] fall back went nowhere for 5s (no cover reached) - no falling back for 15s");
             }
+            return;
+        }
+        _moveBanUntil = time + 12f;
+        var place = Bot.GoalEnemy?.KnownPlaces?.LastKnownPlace;
+        if (place != null)
+        {
+            place.HasArrivedPersonal = true;
+        }
+        TacticDiagnostics.Count($"utility.moveStalled.{current}");
+        if (TacticDiagnostics.LogOn)
+        {
+            RaidJournal.Line($"[Utility] [{Bot.name}] [{Bot.Info.Personality}] {current} went nowhere for 6s - his last known spot counts as reached, no push/search for 12s");
         }
     }
 
@@ -394,6 +419,12 @@ public class EnemyDecisionClass : BotBase
             switch (stance)
             {
                 case HiddenEnemyUtility.EStance.Push:
+                    // Already standing on his last known spot (info old): a push has nowhere to go (10/12 sim, Bot6).
+                    if (Time.time < _moveBanUntil || (enemy.Path.PathLength < 2.5f && enemy.TimeSinceLastKnownUpdated > 3f))
+                    {
+                        r = "pushNowhere";
+                        break;
+                    }
                     if (shallRushEnemy(enemy, out r))
                     {
                         result = ECombatDecision.RushEnemy;
@@ -443,6 +474,15 @@ public class EnemyDecisionClass : BotBase
                             TacticDiagnostics.Count("utility.hold.skippedUnderFire");
                             break;
                         }
+                        // 10/12 sim (only death during a freeze): Bot24 froze in the open against a hidden enemy 19m away and
+                        // was shot in the head 3.6s later by another enemy it had seen 13s before at 55m - no shot first,
+                        // so the under-fire check above never fired. Out of cover, a second enemy that may see us = no hold.
+                        if (Bot.Cover.CoverInUse == null && OtherEnemyMaySeeMe(enemy))
+                        {
+                            holdSkipped = true;
+                            TacticDiagnostics.Count("utility.hold.skippedOtherEnemy");
+                            break;
+                        }
                         // zzap: he's in a room behind a door close by -> hold THAT door from beside the frame instead of
                         // freezing wherever the bot happens to stand (13th sim: Hold top 489 times, never at a door).
                         result = Bot.DoorTactic.ShallHoldDoor(enemy, out r) ? ECombatDecision.DoorTactic : ECombatDecision.Freeze;
@@ -461,6 +501,11 @@ public class EnemyDecisionClass : BotBase
                     break;
 
                 case HiddenEnemyUtility.EStance.Search:
+                    if (Time.time < _moveBanUntil)
+                    {
+                        r = "searchStalled";
+                        break;
+                    }
                     if (shallSearch(enemy, out r))
                     {
                         // zzap: searching toward a room behind a door -> clear it first instead of walking in.
@@ -546,6 +591,31 @@ public class EnemyDecisionClass : BotBase
         return false;
     }
 
+    private bool OtherEnemyMaySeeMe(Enemy goal)
+    {
+        var known = Bot.EnemyController.KnownEnemies;
+        for (int i = 0; i < known.Count; i++)
+        {
+            Enemy e = known[i];
+            if (e == null || ReferenceEquals(e, goal))
+            {
+                continue;
+            }
+            if (e.IsVisible || e.InLineOfSight)
+            {
+                return true;
+            }
+            // Seen lately and close enough: only if his last known spot has a clear line to our head (one ray per enemy).
+            Vector3? last = e.LastKnownPosition;
+            if (e.Seen && e.TimeSinceSeen < 15f && e.RealDistance < 80f && last != null
+                && !Physics.Linecast(last.Value + Vector3.up * 1.5f, Bot.Transform.EyePosition, LayersMaskController.HighPolyWithTerrainMask))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private const float UTILITY_KEEP_TIME = 2f;
     private Enemy _utilityPickEnemy;
     private float _utilityPickTime = -100f;
@@ -553,6 +623,12 @@ public class EnemyDecisionClass : BotBase
 
     private const float CLOSE_OCCLUSION_KEEP_TIME = 0.8f;
     private const float CLOSE_OCCLUSION_DIST = 8f;
+    // 10/12 sim: 29 flip-flops, most of them StandAndShoot <-> hidden-enemy decision at 15-45m, the enemy dropping out of
+    // sight for 0.2-1.5s (Bot88: six swaps in 6s, each one stopping the diamond step and starting a new corner chase).
+    // Mid range: only a shoot decision is kept, a bit longer.
+    private const float MID_OCCLUSION_KEEP_TIME = 1.5f;
+    private const float MID_OCCLUSION_DIST = 45f;
+    private bool _keptMidRange;
     // A jiggle hide tap is 0.18-0.32s; he may also step aside meanwhile. Same value as DiamondStepper's sight tolerance.
     private const float JIGGLE_KEEP_TIME = SAIN.SAINComponent.Classes.Mover.DiamondStepper.JIGGLE_SIGHT_TOLERANCE;
     private Enemy _visibleFightEnemy;
@@ -577,8 +653,10 @@ public class EnemyDecisionClass : BotBase
         // and stopped the action (57 of 70 jiggles ended that way, median 0.5s = one peek). While jiggling, the bot's own
         // duck is not a reason to re-decide: keep the fight up to JIGGLE_KEEP_TIME, at any jiggle distance.
         bool jiggling = SAIN.SAINComponent.Classes.Mover.DiamondStepper.JiggleActive(Bot.ProfileId);
-        float keepTime = jiggling ? JIGGLE_KEEP_TIME : CLOSE_OCCLUSION_KEEP_TIME;
-        if (enemy.IsVisible || !enemy.Seen || enemy.TimeSinceSeen > keepTime || (!jiggling && enemy.RealDistance > CLOSE_OCCLUSION_DIST))
+        bool close = enemy.RealDistance <= CLOSE_OCCLUSION_DIST;
+        _keptMidRange = !jiggling && !close;
+        float keepTime = jiggling ? JIGGLE_KEEP_TIME : close ? CLOSE_OCCLUSION_KEEP_TIME : MID_OCCLUSION_KEEP_TIME;
+        if (enemy.IsVisible || !enemy.Seen || enemy.TimeSinceSeen > keepTime || (!jiggling && enemy.RealDistance > MID_OCCLUSION_DIST))
         {
             return false;
         }
@@ -588,6 +666,10 @@ public class EnemyDecisionClass : BotBase
         }
         ECombatDecision current = Bot.Decision.CurrentCombatDecision;
         if (current != ECombatDecision.StandAndShoot && current != ECombatDecision.RushEnemy && !(jiggling && current == ECombatDecision.DogFight))
+        {
+            return false;
+        }
+        if (_keptMidRange && current != ECombatDecision.StandAndShoot)
         {
             return false;
         }
@@ -601,7 +683,7 @@ public class EnemyDecisionClass : BotBase
             }
         }
         result = current;
-        TacticDiagnostics.Count(jiggling ? "diamond.jiggleKept" : "decision.closeOcclusionKeep");
+        TacticDiagnostics.Count(jiggling ? "diamond.jiggleKept" : _keptMidRange ? "decision.midOcclusionKeep" : "decision.closeOcclusionKeep");
         return true;
     }
 

@@ -114,9 +114,13 @@ public static class SimLabOddity
         bool mateInLine = bot.FriendlyFire?.FriendlyFireStatus == SAIN.Preset.Shared.Enums.FriendlyFireStatus.FriendlyBlock;
         bool runningToCover = decision == "SeekCover" && speed > 2.5f;
         Check(s, "noShoot", enemy != null && visible && enemy.CanShoot && enemyDist < 40f && bullets > 0 && gunIdle && !mateInLine && !runningToCover, 4f, now);
-        Check(s, "backTurned", enemy != null && enemy.EnemyKnown && enemyDist < 12f && angle > 120f && speed < 0.7f, 4f, now);
+        // 10/12 sim: the only backTurned was a Freeze bot aiming at the corner an enemy 8m away (but 42m of path, other side
+        // of a wall) had to come round - correct. Only count an enemy that can see us or reach us about directly.
+        bool reachable = enemy != null && (enemy.InLineOfSight || enemy.Path.PathLength < enemyDist * 1.5f + 3f);
+        Check(s, "backTurned", enemy != null && enemy.EnemyKnown && enemyDist < 12f && angle > 120f && speed < 0.7f && reachable, 4f, now);
         Check(s, "hitNoReact", enemy != null && enemy.Status.TimeLastShotMe > 0f && now - enemy.Status.TimeLastShotMe < 6f && speed < 0.25f && gunIdle, 4f, now);
-        Check(s, "flipFlop", Changes(s.Decisions) >= 4, 0f, now);
+        // a chain of different decisions (cover -> hold -> shoot -> reload) is not a flip-flop; it needs one A -> B -> A back
+        Check(s, "flipFlop", Changes(s.Decisions) >= 4 && HasReversal(s.Decisions), 0f, now);
         Check(s, "bunched", MateWithin(owner, player, 0.8f), 6f, now);
         // holding in cover is a SeekCover decision too - only a decision that should be moving counts
         // reloading / healing in place is a SeekCover decision with a self action (2026-10-10 review) - not a stalled move
@@ -207,6 +211,22 @@ public static class SimLabOddity
             last = d;
         }
         return changes;
+    }
+
+    private static bool HasReversal(Queue<string> decisions)
+    {
+        string twoBack = null;
+        string last = null;
+        foreach (string d in decisions)
+        {
+            if (twoBack != null && d == twoBack && d != last)
+            {
+                return true;
+            }
+            twoBack = last;
+            last = d;
+        }
+        return false;
     }
 
     private static bool IsMovingDecision(string decision)

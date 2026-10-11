@@ -204,6 +204,13 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             {
                 PickTap(settings, forward, right);
             }
+            // 10/12 sim (bunched): two mates diamond-stepping and reloading on top of each other - don't tap into a mate.
+            // Checked once per tap, not every frame.
+            if (MateWithin(1.2f, out Vector3 matePos) && Vector3.Dot(_tapDir, matePos - Bot.Position) > 0f)
+            {
+                _tapDir = -_tapDir;
+                TacticDiagnostics.Count("diamond.avoidMate");
+            }
             TacticDiagnostics.Count("diamond.tap");
         }
         if (_tapPause)
@@ -330,6 +337,32 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
     }
 
     /// <summary>Alternate: step into cover (hidden, short) and back out (visible, a little longer - that's when it shoots).</summary>
+    private bool MateWithin(float meters, out Vector3 matePos)
+    {
+        matePos = default;
+        var group = Bot.BotOwner?.BotsGroup;
+        if (group == null)
+        {
+            return false;
+        }
+        Vector3 pos = Bot.Position;
+        for (int i = 0; i < group.MembersCount; i++)
+        {
+            var mate = group.Member(i);
+            if (mate == null || mate == Bot.BotOwner || mate.IsDead || mate.GetPlayer == null)
+            {
+                continue;
+            }
+            Vector3 p = mate.GetPlayer.Position;
+            if ((p - pos).sqrMagnitude < meters * meters)
+            {
+                matePos = p;
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void PickJiggleTap()
     {
         Vector3 offset = Bot.Position - _diamondCenter;
