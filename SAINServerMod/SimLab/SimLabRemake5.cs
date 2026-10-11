@@ -257,10 +257,10 @@ public static class SimLabRemake5
         {
             var who = With(b, "loadout.nades.10plus.").Select(kv => $"{kv.Key.Substring("loadout.nades.10plus.".Length)} {kv.Value}");
             list.Add(new(SimLabAnalyzer.WARN, T("봇 수류탄이 비정상적으로 많음", "Bots carry an abnormal number of grenades"),
-                T($"생성 때 수류탄 10개 이상인 봇 {manyNades}/{spawnedAll}명 ({string.Join(", ", who)}). 10/11 판에서 PMC·로그가 50개 안팎을 들고 나옴 — 10/10까지는 0~5개.",
-                  $"{manyNades} of {spawnedAll} bots spawned with 10+ grenades ({string.Join(", ", who)})."))
+                T($"보안 컨테이너 밖에 수류탄 10개 이상인 봇 {manyNades}/{spawnedAll}명 ({string.Join(", ", who)}). 보안 컨테이너 안 수류탄은 따로 셈(loadout.secureNades.*) — 로그·레이더·파르티잔은 SPT 기본 데이터로 F-1 약 50개를 보안 컨테이너에 들고 나옴(정상, 시체에선 안 보임).",
+                  $"{manyNades} of {spawnedAll} bots spawned with 10+ grenades outside the secured container ({string.Join(", ", who)}). Secured-container grenades are counted apart (loadout.secureNades.*) - SPT's rogue/raider/Partisan templates carry ~50 F-1 there."))
             {
-                Fix = "SAIN이 만드는 게 아님(봇 생성은 서버). 10/10 이후 바뀐 서버 모드·APBS 설정(수류탄 generation weights)·봇 생성 모드 확인. 일지 [Loadout] 줄의 수류탄 종류로 출처 추정.",
+                Fix = "SAIN이 만드는 게 아님(봇 생성은 서버). 보안 컨테이너 밖이므로 시체에서 보여야 함 — 서버 모드·APBS 설정(수류탄 generation weights)·봇 생성 모드 확인. 일지 [Loadout] 줄의 수류탄 종류로 출처 추정.",
             });
         }
 

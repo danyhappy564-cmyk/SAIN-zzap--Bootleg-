@@ -29,6 +29,8 @@ public sealed class LoadoutProfile
     public bool FullAuto;
     public int FireRate;
     public int Grenades;
+    /// <summary>Of <see cref="Grenades"/>, the ones in the secured container (not lootable from the corpse).</summary>
+    public int SecureGrenades;
     public int Meds;
     public string Summary = "?";
 
@@ -153,6 +155,7 @@ public sealed class LoadoutProfile
         }
 
         Grenades = 0;
+        SecureGrenades = 0;
         Meds = 0;
         Dictionary<string, int> nadeNames = !_nadesChecked ? new Dictionary<string, int>() : null;
         try
@@ -160,11 +163,19 @@ public sealed class LoadoutProfile
             var inventory = bot.Player?.Inventory;
             if (inventory != null)
             {
+                // zzap 2026-10-12: SPT's own rogue/raider/Partisan templates put ~50 F-1 in the secured container (exusec.json
+                // SecuredContainer pool) - that was the "50 grenades" of the 10/11-10/12 sims, not a server mod. Counted apart.
+                Item secure = inventory.Equipment?.GetSlot(EquipmentSlot.SecuredContainer)?.ContainedItem;
                 foreach (Item item in inventory.GetPlayerItems(EPlayerItems.Equipment))
                 {
                     if (item is ThrowWeap)
                     {
                         Grenades++;
+                        if (secure != null && IsInside(item, secure))
+                        {
+                            SecureGrenades++;
+                            continue;
+                        }
                         if (nadeNames != null)
                         {
                             string n = item.ShortName.Localized();
@@ -182,23 +193,29 @@ public sealed class LoadoutProfile
         catch
         {
         }
-        // zzap 2026-10-11: the 10/11 sims had PMCs and rogues spawning with ~50 grenades (10/10: 0-5) - something in bot
-        // generation changed. Checked once per bot: counter loadout.nades.{0|1-3|4-9|10plus}.{faction}, and a [Loadout] line
-        // with what the grenades are when there are 10 or more.
+        // zzap 2026-10-11: grenade count per bot, checked once: counter loadout.nades.{0|1-3|4-9|10plus}.{faction} for the
+        // grenades outside the secured container (what the corpse shows), loadout.secureNades.{faction} per bot with some in it, and a
+        // [Loadout] line with what the grenades are when 10 or more are outside it.
         if (nadeNames != null)
         {
             _nadesChecked = true;
             var role = bot.Info?.Profile?.WildSpawnType ?? EFT.WildSpawnType.assault;
-            string band = Grenades >= 10 ? "10plus" : Grenades >= 4 ? "4-9" : Grenades >= 1 ? "1-3" : "0";
-            TacticDiagnostics.Count($"loadout.nades.{band}.{SAIN.SimLab.SimFaction.Of(role)}");
-            if (Grenades >= 10)
+            string faction = SAIN.SimLab.SimFaction.Of(role);
+            int carried = Grenades - SecureGrenades;
+            string band = carried >= 10 ? "10plus" : carried >= 4 ? "4-9" : carried >= 1 ? "1-3" : "0";
+            TacticDiagnostics.Count($"loadout.nades.{band}.{faction}");
+            if (SecureGrenades > 0)
+            {
+                TacticDiagnostics.Count($"loadout.secureNades.{faction}");
+            }
+            if (carried >= 10)
             {
                 var parts = new List<string>();
                 foreach (var kv in nadeNames)
                 {
                     parts.Add($"{kv.Key} x{kv.Value}");
                 }
-                string line = $"[Loadout] [{bot.name}] [role {role}] spawned with {Grenades} grenades: {string.Join(", ", parts)}";
+                string line = $"[Loadout] [{bot.name}] [role {role}] spawned with {carried} grenades (+{SecureGrenades} in secured container): {string.Join(", ", parts)}";
                 if (_loggedMany < 5)
                 {
                     _loggedMany++;
@@ -212,6 +229,18 @@ public sealed class LoadoutProfile
         }
         Summary = $"{cls}{(Bolt ? " bolt" : "")}{(FullAuto ? $" auto {FireRate}rpm" : "")}{(optic ? " scope" : redDot ? " dot" : "")} ideal {IdealRange:0}m, "
             + $"cqb {Cqb:0.0} long {Long:0.0}, nades {Grenades} meds {Meds}";
+    }
+
+    private static bool IsInside(Item item, Item container)
+    {
+        for (Item parent = item.Parent?.Container?.ParentItem; parent != null; parent = parent.Parent?.Container?.ParentItem)
+        {
+            if (ReferenceEquals(parent, container))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static void Clear()
