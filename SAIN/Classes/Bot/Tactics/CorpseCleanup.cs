@@ -1,4 +1,6 @@
+using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using EFT;
 using EFT.Interactive;
 using HarmonyLib;
@@ -165,6 +167,7 @@ public static class CorpseCleanup
             {
                 world.GetAlivePlayerByProfileID(registered.ProfileId)?.ResetInteractionRaycast(corpse);
             }
+            DropOrbitCorpseWaypoint(corpse);
             Object.Destroy(player.gameObject);
             Deleted++;
             TacticDiagnostics.Count("sim.corpseDeleted");
@@ -175,6 +178,60 @@ public static class CorpseCleanup
             TacticDiagnostics.Count("sim.corpseDeleteFailed");
             Logger.LogWarning($"[SAIN zzap] sim corpse delete failed for {player.name}, hiding instead: {ex.Message}");
             return false;
+        }
+    }
+
+    // 2026-10-12: ORBIT registers every corpse as a loot waypoint (CorpseRegistrationPatch, Target = the Corpse) and only
+    // drops loose-loot waypoints when loot is killed - corpse waypoints stay for the raid. Its loot start checks
+    // Target == null (Unity null after Destroy), so a deleted corpse can't be looted, but squads could still be sent to
+    // the empty spot and stand there. Drop it through ORBIT's public WaypointSystem (Cells / Waypoint.Target /
+    // RemoveWaypoint) by reflection - ORBIT itself is not changed.
+    private static PropertyInfo _orbitManager;
+    private static bool _orbitLooked;
+
+    private static void DropOrbitCorpseWaypoint(Corpse corpse)
+    {
+        try
+        {
+            if (!_orbitLooked)
+            {
+                _orbitLooked = true;
+                System.Type type = AccessTools.TypeByName("Orbit.Core.OrbitManager");
+                if (type != null)
+                {
+                    _orbitManager = AccessTools.Property(typeof(Comfort.Common.Singleton<>).MakeGenericType(type), "Instance");
+                }
+            }
+            object manager = _orbitManager?.GetValue(null);
+            object waypoints = manager == null ? null : Traverse.Create(manager).Field("WaypointSystem").GetValue();
+            if (waypoints == null || Traverse.Create(waypoints).Property("Cells").GetValue() is not System.Array cells)
+            {
+                return;
+            }
+            foreach (object cell in cells)
+            {
+                if (Traverse.Create(cell).Field("Waypoints").GetValue() is not IList list)
+                {
+                    continue;
+                }
+                for (int i = 0; i < list.Count; i++)
+                {
+                    object waypoint = list[i];
+                    if (!ReferenceEquals(Traverse.Create(waypoint).Field("Target").GetValue(), corpse))
+                    {
+                        continue;
+                    }
+                    int id = Traverse.Create(waypoint).Property("Id").GetValue<int>();
+                    Traverse.Create(waypoints).Method("RemoveWaypoint", id).GetValue();
+                    TacticDiagnostics.Count("sim.corpseOrbitWaypointDropped");
+                    return;
+                }
+            }
+        }
+        catch (System.Exception ex)
+        {
+            TacticDiagnostics.Count("sim.corpseOrbitWaypointFailed");
+            Logger.LogWarning($"[SAIN zzap] dropping ORBIT's waypoint for a deleted corpse failed: {ex.Message}");
         }
     }
 
