@@ -110,7 +110,7 @@ public static class SimFaction
         {
             return "BlackDivision";
         }
-        if (role is WildSpawnType.pmcUSEC or WildSpawnType.pmcBEAR || role.ToString().StartsWith("pmc", StringComparison.Ordinal) && role != WildSpawnType.pmcBot)
+        if (role is WildSpawnType.pmcUSEC or WildSpawnType.pmcBEAR)
         {
             return "PMC";
         }

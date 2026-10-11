@@ -80,15 +80,23 @@ public static class BattleStats
         {
             TacticDiagnostics.Count($"death.switchedAway.{decision}.{reason}");
         }
-        VulnerableRush.OnDeath(victim.ProfileId, killer?.ProfileId);
-        if (TacticDiagnostics.CountOn && killer != null)
+        // remake5 bookkeeping - runs inside the death handling, so it must never throw (the "dead bot keeps walking" fix lives there)
+        try
         {
-            // remake5: did the side that heard the other first win? (footstep discipline / bots hearing bots)
-            TacticDiagnostics.Count("firstContact.victim." + Contact(victim.EnemyController.GetEnemy(killer.ProfileId, false)));
-            if (killer.IsAI && SAINEnableClass.GetSAIN(killer.ProfileId, out BotComponent kb) && kb != null)
+            VulnerableRush.OnDeath(victim.ProfileId, killer?.ProfileId);
+            if (TacticDiagnostics.CountOn && killer != null)
             {
-                TacticDiagnostics.Count("firstContact.killer." + Contact(kb.EnemyController.GetEnemy(victim.ProfileId, false)));
+                // did the side that heard the other first win? (footstep discipline / bots hearing bots)
+                TacticDiagnostics.Count("firstContact.victim." + Contact(victim.EnemyController?.GetEnemy(killer.ProfileId, false)));
+                if (killer.IsAI && SAINEnableClass.GetSAIN(killer.ProfileId, out BotComponent kb) && kb != null)
+                {
+                    TacticDiagnostics.Count("firstContact.killer." + Contact(kb.EnemyController?.GetEnemy(victim.ProfileId, false)));
+                }
             }
+        }
+        catch (System.Exception ex)
+        {
+            Logger.LogWarning($"[Battle] remake5 death bookkeeping failed: {ex.Message}");
         }
         string victimFaction = SAIN.SimLab.SimFaction.Of(victim.Info.Profile.WildSpawnType);
         var f = Get(_faction, victimFaction);

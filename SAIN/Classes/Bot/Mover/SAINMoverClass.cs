@@ -585,7 +585,10 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
     public void MarkJump(string kind)
     {
         LastJumpKind = kind;
-        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"jump.{kind}.made");
+        if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
+        {
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"jump.{kind}.made");
+        }
     }
 
     public bool TryJump()

@@ -128,7 +128,8 @@ public static class VulnerableRush
             }
         }
         bool yes = inRange || (!underFire && !otherInSight && path <= MAX_RUSH_DISTANCE && need <= left);
-        why = inRange ? "close" : underFire ? "underFire" : otherInSight ? "otherEnemyInSight" : path > MAX_RUSH_DISTANCE ? "tooFar" : need > left ? $"tooSlow({need:0.0}s>{left:0.0}s)" : "inTime";
+        // constant strings: this runs every decision tick while an enemy is busy (EFT keeps the GC off in raids)
+        why = inRange ? "close" : underFire ? "underFire" : otherInSight ? "otherEnemyInSight" : path > MAX_RUSH_DISTANCE ? "tooFar" : need > left ? "tooSlow" : "inTime";
         return yes;
     }
 
@@ -161,8 +162,7 @@ public static class VulnerableRush
             return;
         }
         _heardBooked[key] = Time.time;
-        int cut = why.IndexOf('(');
-        TacticDiagnostics.Count($"vuln.reach.{action}.no.{(cut > 0 ? why.Substring(0, cut) : why)}");
+        TacticDiagnostics.Count($"vuln.reach.{action}.no.{why}");
     }
 
     /// <summary>RushEnemyAction tick: when the rushing bot first gets close / sees him, was he still busy?</summary>
