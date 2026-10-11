@@ -155,7 +155,11 @@ public class GrenadeController(BotManagerComponent controller) : BotManagerBase(
         Player player = GameWorld.GetAlivePlayerByProfileID(grenade.ProfileId);
         if (player == null)
         {
-            Logger.LogError($"Player Null from ID {grenade.ProfileId}");
+            // zzap: not an error - the thrower is no longer alive (10/12 sim: a grenade of Partisan's 2 min after he was last
+            // seen - his tripwire / mine going off after his death, or a grenade dropped as he died). Nobody to credit, so the
+            // danger tracking is skipped; a counter and one info line instead of an [Error] (the sim counted it as a bug).
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("nade.throwerNotAlive");
+            Logger.LogInfo($"Grenade from a player who isn't alive any more (ID {grenade.ProfileId}) - skipped");
             return;
         }
         if (!player.HealthController.IsAlive)

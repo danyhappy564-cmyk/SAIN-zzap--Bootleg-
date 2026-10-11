@@ -168,7 +168,8 @@ public class CombatWeaponClass : BotComponentClassBase
         {
             bool close = enemy != null && enemy.RealDistance < s.SniperSwapBackDistance;
             bool gone = enemy == null || !enemy.Seen || enemy.TimeSinceSeen > 20f;
-            bool empty = wm.SecondWeaponInfo == null || wm.SecondWeaponInfo.BulletCount <= 0 && !wm.SecondWeaponInfo.CheckHaveAmmoForReload();
+            // WeaponLog.HasAmmoFor: EFT's CheckHaveAmmoForReload answers for the gun in hand and may change weapon itself
+            bool empty = wm.SecondWeaponInfo == null || !WeaponLog.HasAmmoFor(Bot.Player, wm.SecondWeaponInfo.weapon);
             if (close || gone || empty)
             {
                 string why = close ? $"enemy {enemy.RealDistance:0}m" : gone ? "enemy gone" : "no ammo";
@@ -197,7 +198,8 @@ public class CombatWeaponClass : BotComponentClassBase
             return;
         }
         var second = wm.SecondWeaponInfo;
-        if (second == null || (second.BulletCount <= 0 && !second.CheckHaveAmmoForReload()))
+        // the 2nd gun isn't in hand here - BulletCount / CheckHaveAmmoForReload would answer for the main gun
+        if (second == null || !WeaponLog.HasAmmoFor(Bot.Player, second.weapon))
         {
             return;
         }

@@ -95,7 +95,7 @@ public static class WeaponLog
         int loaded = LoadedRounds(weapon);
         sb.Append(weapon.ShortName.Localized()).Append(' ').Append(loaded).Append('/').Append(max)
             .Append(" +").Append(SpareMagazines(owner.GetPlayer, weapon)).Append(" mags")
-            .Append(loaded >= max || info.CheckHaveAmmoForReload() ? "" : " (no reload ammo)");
+            .Append(loaded >= max || HasAmmoFor(owner.GetPlayer, weapon) ? "" : " (no reload ammo)");
     }
 
     /// <summary>A gun other than the one in hand that has rounds loaded or ammo to reload - main first, then 2nd, pistol.</summary>
@@ -114,7 +114,7 @@ public static class WeaponLog
             }
             // BotWeaponInfo.BulletCount reads the gun IN HAND (BotReload.BulletCount uses the shoot controller), not this
             // slot's gun - count this slot's own magazine + chamber (Remix 4.2 feedback: the M4 in slot 2 was never chosen).
-            if (LoadedRounds(info.weapon) > 0 || info.CheckHaveAmmoForReload())
+            if (HasAmmoFor(wm.Selector._owner?.GetPlayer, info.weapon))
             {
                 target = slot;
                 return true;
@@ -137,6 +137,80 @@ public static class WeaponLog
         }
         return (weapon.GetCurrentMagazine()?.Count ?? 0) + chamber;
     }
+
+    /// <summary>
+    /// Can this gun fire now or be reloaded - for ANY slot, with no side effects. BotWeaponInfo.CheckHaveAmmoForReload() can't
+    /// be used for that: BotReload.CanReload looks at the gun IN HAND (ShootController.Item) whichever slot's info it is
+    /// called on, and when it finds nothing it CHANGES WEAPON itself (TrySwitchToLauncherOrChangeWeapon /
+    /// TryChangeWeaponCauseNoAmmo / TryChangeToMain). Asking it about the main gun while holding the pistol answered for
+    /// the pistol and could swap guns (10/12 sim: Bot38 Mk 16 0/30 +0 mags &lt;-&gt; pistol every ~2 s, weapon.pingPong 70).
+    /// Yes when: rounds in the gun / a carried magazine that fits it with rounds in it / loose rounds of its caliber
+    /// (internal-magazine and barrel guns load those directly, and EFT refills an empty fitting magazine from them).
+    /// </summary>
+    public static bool HasAmmoFor(Player player, Weapon weapon)
+    {
+        if (weapon == null)
+        {
+            return false;
+        }
+        if (LoadedRounds(weapon) > 0)
+        {
+            return true;
+        }
+        var inventory = player?.InventoryController;
+        if (inventory == null)
+        {
+            return false;
+        }
+        // Same places EFT's BotReload looks: magazines in the fast-access containers (rig / pockets), loose rounds in
+        // pockets / rig / backpack / secure container - so "yes" here means EFT can really reload it.
+        var magSlot = weapon.GetMagazineSlot();
+        var chambers = weapon.Chambers;
+        var chamber = chambers != null && chambers.Length > 0 ? chambers[0] : null;
+        bool emptySpareMag = false;
+        try
+        {
+            if (magSlot != null)
+            {
+                _mags.Clear();
+                inventory.GetReachableItemsOfTypeNonAlloc(_mags);
+                foreach (Magazine mag in _mags)
+                {
+                    if (magSlot.CanAccept(mag))
+                    {
+                        if (mag.Count > 0)
+                        {
+                            return true;
+                        }
+                        emptySpareMag = true;
+                    }
+                }
+            }
+            if (chamber == null || (weapon.ReloadMode == Weapon.EReloadMode.ExternalMagazine && !emptySpareMag))
+            {
+                return false;
+            }
+            _ammo.Clear();
+            inventory.GetAcceptableItemsNonAlloc(_ammoSlots, _ammo);
+            foreach (Ammo ammo in _ammo)
+            {
+                if (ammo.StackObjectsCount > 0 && chamber.CanAccept(ammo))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        finally
+        {
+            _mags.Clear();
+            _ammo.Clear();
+        }
+    }
+
+    private static readonly List<Magazine> _mags = new();
+    private static readonly List<Ammo> _ammo = new();
+    private static readonly EquipmentSlot[] _ammoSlots = { EquipmentSlot.Pockets, EquipmentSlot.TacticalVest, EquipmentSlot.Backpack, EquipmentSlot.SecuredContainer };
 
     /// <summary>Magazines the bot carries that fit this weapon, not counting the one in it.</summary>
     public static int SpareMagazines(Player player, Weapon weapon)

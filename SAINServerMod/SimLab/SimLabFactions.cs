@@ -339,6 +339,13 @@ public static class SimLabFactions
         {
             return;
         }
+        // A whole bot type the zzap file doesn't list (10/12 run: Black Division 848420-848426): the TEST preset was exported
+        // after BD support was added, so it carries those types written out at their code defaults - which is what zzap users
+        // get too. Not a behaviour difference; a type zzap.json DOES list is still compared field by field.
+        if (b == null && path.StartsWith("/BotSettings/", StringComparison.Ordinal) && path.IndexOf('/', "/BotSettings/".Length) < 0)
+        {
+            return;
+        }
         if (a is JsonObject oa && b is JsonObject ob)
         {
             foreach (var key in oa.Select(kv => kv.Key).Union(ob.Select(kv => kv.Key)))

@@ -229,6 +229,28 @@ public static class SimLabRemake5
             }
         }
 
+        // user 2026-10-12: "living bots can be searched" - SafeDeathPatch.UnprocessedDeathRescue logs it once per player
+        int aliveCorpse = Get(b, "deadBug.aliveWithCorpse");
+        if (aliveCorpse > 0)
+        {
+            list.Add(new(SimLabAnalyzer.HIGH, T("살아있는 봇에 시체(검색 가능)가 붙음", "A living bot already has a corpse (searchable while alive)"),
+                T($"EFT가 살아있다고 보는 플레이어 {aliveCorpse}명에게 이미 시체가 만들어져 있음 — 살아서 돌아다니는데 검색이 되는 상태.",
+                  $"{aliveCorpse} players EFT counts as alive already have a corpse."))
+            {
+                Fix = "일지/LogOutput [DeadBug] ... is ALIVE but already has a corpse 줄: hp·bot state·isDead·layer 확인. hp 0인데 IsAlive면 체력 쪽(SafeDiedEventPatch), hp가 남았으면 시체를 만든 쪽(DeathRescuePatch 강제 CreateCorpse·UnprocessedDeathRescue 강제 OnDead) 의심.",
+            });
+        }
+        int pingPong = Get(b, "weapon.pingPong");
+        if (pingPong >= 10)
+        {
+            list.Add(new(SimLabAnalyzer.WARN, T("무기 핑퐁이 아직 많음", "Weapon ping-pong still frequent"),
+                T($"weapon.pingPong {pingPong} (빈 주무기 복귀 차단 weapon.keptOffEmptyMain {Get(b, "weapon.keptOffEmptyMain")}).",
+                  $"weapon.pingPong {pingPong} (empty main kept off {Get(b, "weapon.keptOffEmptyMain")})."))
+            {
+                Fix = "일지 [Weapon] PING-PONG 줄의 caller(누가 바꿨나)와 총별 탄 표시 확인. 손에 안 든 총의 탄은 WeaponLog.HasAmmoFor로만 판단 — BotWeaponInfo.BulletCount·CheckHaveAmmoForReload는 손에 든 총 기준이고 후자는 스스로 무기를 바꿈(10/12 확인).",
+            });
+        }
+
         int manyNades = With(b, "loadout.nades.10plus.").Sum(kv => kv.Value);
         int spawnedAll = With(b, "loadout.nades.").Sum(kv => kv.Value);
         if (manyNades > 0)

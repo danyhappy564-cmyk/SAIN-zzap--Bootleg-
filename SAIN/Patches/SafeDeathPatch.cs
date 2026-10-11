@@ -191,10 +191,17 @@ internal static class UnprocessedDeathRescue
         _scan.Clear();
     }
 
+    private static readonly HashSet<int> _aliveCorpseBooked = new();
+
     internal static void Check(Player player)
     {
-        if (player == null || player.HealthController == null || player.HealthController.IsAlive)
+        if (player == null || player.HealthController == null)
         {
+            return;
+        }
+        if (player.HealthController.IsAlive)
+        {
+            CheckAliveWithCorpse(player);
             return;
         }
         // A switched-off body (ORBIT 2.x Ghost Mode puts far bots to sleep that way) can't build a ragdoll until it is
@@ -247,8 +254,35 @@ internal static class UnprocessedDeathRescue
         }
     }
 
+    /// <summary>
+    /// zzap (user 2026-10-12, sim 001904: "living bots can be searched like corpses"). Nothing in that run's logs showed it, so
+    /// this only records it: a player EFT still counts as alive (in the alive list, health alive) that already has a corpse
+    /// (the thing the search/loot prompt belongs to). Once per player: deadBug.aliveWithCorpse + a [DeadBug] line with what
+    /// the body is doing - no fix is attempted until a real case shows which side (health or corpse) is wrong.
+    /// </summary>
+    private static void CheckAliveWithCorpse(Player player)
+    {
+        if (DeathRescuePatch.CorpseRef(player) == null)
+        {
+            return;
+        }
+        int id = player.GetInstanceID();
+        if (!_aliveCorpseBooked.Add(id))
+        {
+            return;
+        }
+        TacticDiagnostics.Count("deadBug.aliveWithCorpse");
+        BotOwner bot = player.AIData?.BotOwner;
+        string line = $"[DeadBug] {player.name} ({player.Profile?.Nickname}, {player.Profile?.Info?.Settings?.Role}) is ALIVE but already has a corpse (lootable while alive)"
+            + $" | hp {player.HealthController.GetBodyPartHealth(EBodyPart.Common).Current:0} | bot {(bot == null ? "-" : $"state={bot.BotState} isDead={bot.IsDead} layer={bot.Brain?.ActiveLayerName()}")}"
+            + $" | active={player.gameObject.activeInHierarchy} pos={player.Position}";
+        if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(line);
+        Logger.LogWarning($"[SAIN zzap] {line}");
+    }
+
     public static void Clear()
     {
+        _aliveCorpseBooked.Clear();
         _deadSince.Clear();
         _rescued.Clear();
         _scan.Clear();
@@ -497,15 +531,58 @@ public class SafeProneSoundPatch : ModulePatch
         return AccessTools.Method(typeof(Player), nameof(Player.PlaySoundBank));
     }
 
+    // 10/12 sim Factory: still 8x the same NRE with deadBug.proneSoundNoSource = 0 - the source was there; the other thing
+    // UpdateSourcePriority uses is the priority calculator, made on the LAST line of InitAudioController (null if that init
+    // stopped early for this player). Skip on that too, and if it still throws, swallow it for the prone sound only and say
+    // once what was missing (deadBug.proneSoundThrew + a [SAIN zzap] warning line).
+    private static readonly AccessTools.FieldRef<Player, object> _priority = AccessTools.FieldRefAccess<Player, object>("_priorityCalculator");
+    private static int _described;
+
     [PatchPrefix]
     public static bool Prefix(Player __instance, string soundBank)
     {
-        if (soundBank == "Prone" && __instance != null && _stepSource(__instance) == null)
+        if (soundBank != "Prone" || __instance == null)
+        {
+            return true;
+        }
+        if (_stepSource(__instance) == null)
         {
             TacticDiagnostics.Count("deadBug.proneSoundNoSource");
             return false;
         }
+        if (_priority(__instance) == null)
+        {
+            TacticDiagnostics.Count("deadBug.proneSoundNoPriority");
+            return false;
+        }
         return true;
+    }
+
+    [PatchFinalizer]
+    public static Exception Finalizer(Exception __exception, Player __instance, string soundBank)
+    {
+        if (__exception == null)
+        {
+            return null;
+        }
+        if (soundBank != "Prone" || __exception is not NullReferenceException)
+        {
+            return __exception;
+        }
+        TacticDiagnostics.Count("deadBug.proneSoundThrew");
+        try
+        {
+            if (_described < 3)
+            {
+                _described++;
+                Logger.LogWarning($"[SAIN zzap] prone sound threw NRE - skipped. {__instance?.Profile?.Nickname} ({__instance?.Profile?.Info?.Settings?.Role}) "
+                    + $"alive={__instance?.HealthController?.IsAlive} ai={__instance?.IsAI}; at: {__exception.StackTrace?.Split('\n')[0]?.Trim()}");
+            }
+        }
+        catch
+        {
+        }
+        return null;
     }
 }
 

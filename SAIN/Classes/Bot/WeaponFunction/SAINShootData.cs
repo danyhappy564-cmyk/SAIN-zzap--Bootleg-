@@ -216,9 +216,12 @@ public class SAINShootData : BotComponentClassBase
         var selector = weaponManager.Selector;
         var main = weaponManager.MainWeaponInfo;
         var pistol = weaponManager.PistolWeaponInfo;
-        bool mainLoaded = main != null && main.BulletCount > 0;
-        bool pistolReloadable = pistol != null && pistol.CheckHaveAmmoForReload();
-        bool mainReloadable = main != null && main.CheckHaveAmmoForReload();
+        // Each gun's own ammo (WeaponLog): BulletCount / CheckHaveAmmoForReload answer for the gun in hand (the pistol) and
+        // the latter can change weapon by itself when it finds nothing - main.BulletCount here always read the empty pistol.
+        var player = weaponManager.Selector._owner?.GetPlayer;
+        bool mainLoaded = main != null && SAIN.SAINComponent.Classes.Tactics.WeaponLog.LoadedRounds(main.weapon) > 0;
+        bool pistolReloadable = pistol != null && SAIN.SAINComponent.Classes.Tactics.WeaponLog.HasAmmoFor(player, pistol.weapon);
+        bool mainReloadable = main != null && SAIN.SAINComponent.Classes.Tactics.WeaponLog.HasAmmoFor(player, main.weapon);
         if (mainLoaded || (!pistolReloadable && mainReloadable))
         {
             _nextChangeWeaponTime = Time.time + 1f;

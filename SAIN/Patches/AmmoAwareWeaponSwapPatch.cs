@@ -81,8 +81,12 @@ public class NoReturnToEmptyMainPatch : ModulePatch
         {
             return true;
         }
-        if (main.BulletCount <= 0 && !main.CheckHaveAmmoForReload())
+        // BotWeaponInfo.BulletCount / CheckHaveAmmoForReload read the gun IN HAND (here the pistol), not the main gun - so an
+        // empty main gun looked usable and was drawn back every ~2 s, then swapped out again by the reload check (10/12 sim:
+        // Bot38 "Mk 16 0/30 +0 mags" <-> pistol, weapon.pingPong 70). Ask about the main gun itself (WeaponLog.HasAmmoFor).
+        if (!SAIN.SAINComponent.Classes.Tactics.WeaponLog.HasAmmoFor(owner.GetPlayer, main.weapon))
         {
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("weapon.keptOffEmptyMain");
             return false;
         }
         return true;
