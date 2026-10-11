@@ -14,17 +14,12 @@ namespace SAIN.Patches.Generic;
 /// Remove, so the same entry throws again every frame and the queue never moves. In the sim that was ~45 exceptions a
 /// second from 03:57:19 (40 ms after a corpse delete) on, native memory went 33 -> 58 GB in 2 minutes and the game ran
 /// out of memory. This drops queue entries whose renderer is gone before the painter runs (CorpseCleanup also removes
-/// a deleted body's entries and decal textures right before deleting it).
+/// a deleted body's queued marks right before deleting it; its textures are freed by CorpseDecalRelease).
 /// </summary>
 public class DecalPainterGuardPatch : ModulePatch
 {
-    public static TextureDecalsPainter Painter { get; private set; }
-
     public static readonly AccessTools.FieldRef<TextureDecalsPainter, List<TextureDecalsPainter.DecalDescription>> Queue =
         AccessTools.FieldRefAccess<TextureDecalsPainter, List<TextureDecalsPainter.DecalDescription>>("_decalDescriptions");
-
-    public static readonly AccessTools.FieldRef<TextureDecalsPainter, Dictionary<UnityEngine.Renderer, UnityEngine.RenderTexture>> Painted =
-        AccessTools.FieldRefAccess<TextureDecalsPainter, Dictionary<UnityEngine.Renderer, UnityEngine.RenderTexture>>("_renderers");
 
     protected override MethodBase GetTargetMethod()
     {
@@ -34,7 +29,6 @@ public class DecalPainterGuardPatch : ModulePatch
     [PatchPrefix]
     public static void Prefix(TextureDecalsPainter __instance)
     {
-        Painter = __instance;
         var queue = Queue(__instance);
         if (queue == null || queue.Count == 0)
         {
