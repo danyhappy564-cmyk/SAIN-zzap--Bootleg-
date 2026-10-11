@@ -36,9 +36,34 @@ public class BotSpawnController : BotManagerBase
     public Dictionary<string, BotComponent> BotDictionary { get; } = [];
     private static IReadOnlyList<WildSpawnType> StrictExclusionList { get; set; } = [];
 
+    /// <summary>
+    /// zzap: types that never get SAIN even when the server list can't be fetched (same as the server's
+    /// DefaultBotTypes.StrictExclusionList). User 2026-10-11: with SAIN on, Zryachiy and his guards lost long-range
+    /// accuracy/recognition and Lighthouse island got easy - they must stay vanilla EFT. Without this fallback a failed
+    /// fetch (logged below) silently put them on SAIN.
+    /// </summary>
+    private static readonly ESainWildSpawnType[] AlwaysExcluded =
+    [
+        ESainWildSpawnType.bossZryachiy,
+        ESainWildSpawnType.followerZryachiy,
+        ESainWildSpawnType.peacefullZryachiyEvent,
+        ESainWildSpawnType.ravangeZryachiyEvent,
+        ESainWildSpawnType.shooterBTR,
+        ESainWildSpawnType.marksman,
+        ESainWildSpawnType.infectedAssault,
+        ESainWildSpawnType.infectedCivil,
+        ESainWildSpawnType.infectedLaborant,
+        ESainWildSpawnType.infectedPmc,
+        ESainWildSpawnType.infectedTagilla,
+    ];
+
     public static void LoadExclusionList()
     {
         var list = new List<WildSpawnType>();
+        foreach (var type in AlwaysExcluded)
+        {
+            list.Add(type.ToEft());
+        }
         try
         {
             string json = ServerDataClient.GetBotTypeExclusions();
@@ -47,7 +72,11 @@ public class BotSpawnController : BotManagerBase
             {
                 foreach (var type in shared)
                 {
-                    list.Add(type.ToEft());
+                    WildSpawnType eft = type.ToEft();
+                    if (!list.Contains(eft))
+                    {
+                        list.Add(eft);
+                    }
                 }
             }
         }
@@ -56,6 +85,7 @@ public class BotSpawnController : BotManagerBase
             Logger.LogError($"[SAIN] Failed to fetch bot exclusion list from the server: {ex.Message}");
         }
         StrictExclusionList = list.AsReadOnly();
+        Logger.LogInfo($"[SAIN] Bot types kept vanilla (no SAIN): {string.Join(", ", list)}");
     }
 
     public static bool IsExcluded(WildSpawnType type)

@@ -224,8 +224,15 @@ public class NoAIESPPatch : ModulePatch
     }
 
     [PatchPrefix]
-    public static bool PatchPrefix(ref bool __result)
+    public static bool PatchPrefix(BotOwner __instance, ref bool __result)
     {
+        // zzap: bots SAIN never runs (Zryachiy and guards, BTR, marksman, infected) keep EFT's own check - they are meant
+        // to play exactly as vanilla (user 2026-10-11, Lighthouse island).
+        var role = __instance?.Profile?.Info?.Settings?.Role;
+        if (role != null && SAIN.Components.BotController.BotSpawnController.IsExcluded(role.Value))
+        {
+            return true;
+        }
         __result = false;
         return false;
     }
