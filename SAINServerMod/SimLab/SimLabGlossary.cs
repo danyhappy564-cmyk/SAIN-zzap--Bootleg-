@@ -39,7 +39,7 @@ public static class SimLabGlossary
         new("quiet.", "발소리 관리: start=조용한 접근 시작, skip.roll성격=성격 굴림에서 안 함, timeout=20초 넘어 해제, move.sprint/walk/crouch=30m 안 접근 표본, holdOnHear=다가오는 소리에 지키기, heardComing.판단=다가오는 소리에 다른 판단", "Footstep discipline", "FootstepDiscipline / HiddenEnemyUtility / SimLabProbe"),
         new("firstContact.", "사망 때: killer/victim이 상대를 소리로 먼저 알았나(heardFirst) / 먼저 봤나(sawFirst) / 못 봄(neverSaw)", "At a death: did killer / victim hear the other before seeing him", "BattleStats.OnBotDied / EnemyEvents.CountFirstSeen"),
         new("nade.skip.vanillaSmoke", "연막만 든 봇이 연막을 세열처럼 던지려던 것을 막음", "Smoke-only bot kept from throwing it like a frag", "DisableGrenadesPatch"),
-        new("door.thirdParty.otherFloorIgnored", "문 전술 제3자: 다른 층 소리라 무시", "Door third party: other floor ignored", "DoorTacticClass.OtherEnemyActive"),
+        new("door.thirdParty.otherFloorIgnored", "문 전술 제3자: 다른 층 소리라 무시 (검사할 때마다 셈 — 큰 숫자 정상)", "Door third party: other floor ignored", "DoorTacticClass.OtherEnemyActive"),
         new("postCombat.alert.", "전투 후 정리: coming=다가오는 소리, gunfire=근처 총소리로 SAIN 유지", "Post-combat alert (coming / gunfire)", "PostCombatAction / SoundWatch"),
         // close combat
         new("diamond.tap", "다이아몬드 스텝: 좌우로 한 번 디딤 (근거리 교전 중 몸을 흔드는 동작 한 번)", "Diamond step: one side step (body shuffle in a close fight)", "DiamondStepper tap"),

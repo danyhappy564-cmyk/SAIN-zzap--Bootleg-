@@ -110,7 +110,7 @@ public static class BattleStats
             string diamond = TacticDiagnostics.GetDiamond(victim.ProfileId);
             int cut = diamond.IndexOfAny(new[] { ' ', '(', ':' });
             string head = cut > 0 ? diamond.Substring(0, cut) : diamond;
-            // "off(notPmc)" style reasons matter here (that was the 10/10 bug) - keep the reason in brackets.
+            // "off(scav)" style reasons matter here (on a non-scav that is the 10/10 "PMC only" bug) - keep the reason in brackets.
             int open = diamond.IndexOf('(');
             int close = open >= 0 ? diamond.IndexOf(')', open) : -1;
             string why = open >= 0 && close > open ? "." + diamond.Substring(open + 1, close - open - 1) : string.Empty;

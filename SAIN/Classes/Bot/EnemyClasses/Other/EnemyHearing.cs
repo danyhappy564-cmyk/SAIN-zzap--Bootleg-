@@ -25,6 +25,10 @@ public class EnemyHearing(EnemyData enemyData) : EnemyBase(enemyData, enemyData.
     /// </summary>
     public SAINSoundType LastHeardSoundType { get; private set; }
     public float LastHeardSoundTime { get; private set; } = -1000f;
+
+    /// <summary>remake5: when the last reload / heal / surgery / grenade / looting sound of this enemy was heard (VulnerableRush's
+    /// time window - a footstep after the reload must not restart it).</summary>
+    public float LastVulnerableSoundTime { get; private set; } = -1000f;
     public Vector3 LastHeardSoundPosition { get; private set; }
     public Vector3? LastHeardPosition { get; private set; }
 
@@ -142,11 +146,14 @@ public class EnemyHearing(EnemyData enemyData) : EnemyBase(enemyData, enemyData.
         if (action != EEnemyAction.None)
         {
             // zzap remake5: low-spec preset - bots don't bait each other (user 2026-10-11); a human's sounds always count.
-            if (Enemy.IsAI && SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.Hearing?.BotsTakeBotBait == false)
+            // (a grenade out is a reason to back off, not bait - always kept)
+            if (action != EEnemyAction.HasGrenade && Enemy.IsAI
+                && SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.Hearing?.BotsTakeBotBait == false)
             {
                 SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("sound.bait.ignoredBot");
                 return;
             }
+            LastVulnerableSoundTime = Time.time;
             SAIN.SAINComponent.Classes.Tactics.VulnerableRush.OnHeard(Bot, Enemy, action, soundPosition);
             Enemy.Status.SetVulnerableAction(action);
             Bot.Squad.SquadInfo.UpdateSharedEnemyStatus(EnemyPlayer, action, Bot, soundType, soundPosition, currentTime);

@@ -38,6 +38,7 @@ public static class VulnerableRush
 
     private static readonly Dictionary<string, Record> _rushes = new();
     private static readonly Dictionary<string, float> _heardBooked = new();
+    private static readonly Dictionary<string, float> _noBooked = new();
 
     public static float Window(EEnemyAction action)
     {
@@ -112,7 +113,10 @@ public static class VulnerableRush
             return false;
         }
         float path = enemy.Path.PathLength;
-        float heardAgo = enemy.Hearing != null ? Time.time - enemy.Hearing.LastHeardSoundTime : 0f;
+        // time of the busy sound itself; a squadmate who only got the shared status falls back to his last heard sound
+        var hearing = enemy.Hearing;
+        float heardAt = hearing == null ? Time.time : hearing.LastVulnerableSoundTime > 0f ? hearing.LastVulnerableSoundTime : hearing.LastHeardSoundTime;
+        float heardAgo = Time.time - heardAt;
         float left = window * Nerve(bot.Info.Personality) - Mathf.Max(0f, heardAgo);
         float need = path / SPRINT_SPEED;
         bool underFire = bot.BotOwner?.Memory?.IsUnderFire == true;
@@ -156,12 +160,12 @@ public static class VulnerableRush
             }
             return;
         }
-        string key = id + enemy.EnemyProfileId + "no" + (int)action;
-        if (_heardBooked.TryGetValue(key, out float last) && Time.time - last < 4f)
+        // per bot, at most once every 4 s (no key strings built per decision tick)
+        if (_noBooked.TryGetValue(id, out float last) && Time.time - last < 4f)
         {
             return;
         }
-        _heardBooked[key] = Time.time;
+        _noBooked[id] = Time.time;
         TacticDiagnostics.Count($"vuln.reach.{action}.no.{why}");
     }
 
@@ -215,5 +219,6 @@ public static class VulnerableRush
     {
         _rushes.Clear();
         _heardBooked.Clear();
+        _noBooked.Clear();
     }
 }

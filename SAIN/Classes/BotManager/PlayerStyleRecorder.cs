@@ -219,7 +219,11 @@ public sealed class PlayerStyleRecorder
             if (_nextLog > 0f)
             {
                 Logger.LogWarning($"[PlayerStyle] RUNNING: {Summary()}");
-                SaveCheckpoint();
+                // remake5: no checkpoint in sim raids - StartFiles would append it to the style record next raid
+                if (!SAIN.SimLab.SimLab.Active)
+                {
+                    SaveCheckpoint();
+                }
             }
             _nextLog = time + every * 60f;
         }
@@ -602,13 +606,10 @@ public sealed class PlayerStyleRecorder
             return;
         }
         // zzap remake5 (2026-10-11 review): a sim raid's "player" is the god-mode spectator standing by the arena - with
-        // "Use Test Raids For Adaptation" on (default), those raids fed the bots' picture of the user's real play style.
-        if (SAIN.SimLab.SimLab.Active)
-        {
-            Logger.LogWarning($"[PlayerStyle] not saving ({why}): simulation preset loaded - the spectator is not the user's play style");
-            return;
-        }
-        Logger.LogWarning($"[PlayerStyle] saving ({why})...");
+        // "Use Test Raids For Adaptation" on (default), those raids fed the bots' picture of the user's real play style. The raid
+        // summary, battle table and journal end still run (the sim journal needs them); only the style record is skipped.
+        bool sim = SAIN.SimLab.SimLab.Active;
+        Logger.LogWarning($"[PlayerStyle] saving ({why}){(sim ? " - simulation preset: summary only, not added to the play-style record" : "")}...");
         _written = true;
         CloseCampSegment(Time.time);
         try
@@ -620,7 +621,10 @@ public sealed class PlayerStyleRecorder
             Logger.LogWarning($"[PlayerStyle] key recorder end failed: {ex.Message}");
         }
         _d.EndReason = why;
-        PlayerOutcomeLearner.Save(why);
+        if (!sim)
+        {
+            PlayerOutcomeLearner.Save(why);
+        }
         Logger.LogWarning($"[PlayerStyle] RAID SUMMARY ({why}): {Summary()}");
         if (SAIN.SAINComponent.Classes.Tactics.RaidJournal.IsOpen) SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line($"[PlayerStyle] RAID SUMMARY ({why}): {Summary()}");
         SAIN.SAINComponent.Classes.Tactics.BattleStats.Report(why);
@@ -629,12 +633,15 @@ public sealed class PlayerStyleRecorder
         try
         {
             Directory.CreateDirectory(Dir);
-            File.AppendAllText(RecordFile, JsonConvert.SerializeObject(_d, Formatting.None) + Environment.NewLine);
+            if (!sim)
+            {
+                File.AppendAllText(RecordFile, JsonConvert.SerializeObject(_d, Formatting.None) + Environment.NewLine);
+            }
             if (File.Exists(CheckpointFile))
             {
                 File.Delete(CheckpointFile);
             }
-            Logger.LogWarning($"[PlayerStyle] saved to {RecordFile}");
+            Logger.LogWarning(sim ? "[PlayerStyle] simulation raid - not added to the play-style record" : $"[PlayerStyle] saved to {RecordFile}");
         }
         catch (Exception ex)
         {

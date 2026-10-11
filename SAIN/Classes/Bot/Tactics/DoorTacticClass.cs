@@ -1351,6 +1351,7 @@ public class DoorTacticClass : BotComponentClassBase
                     if (s.Jumped)
                     {
                         TacticDiagnostics.Count("door.jumpOut");
+                        Bot.Mover.MarkJump("doorPeek");
                         if (LogOn) Log($"{Who()} jump peek OUT at door {s.Door.Id}");
                     }
                 }
@@ -1374,6 +1375,7 @@ public class DoorTacticClass : BotComponentClassBase
                     if (s.JumpedBack)
                     {
                         TacticDiagnostics.Count("door.jumpBack");
+                        Bot.Mover.MarkJump("doorPeek");
                         if (LogOn) Log($"{Who()} jump peek BACK at door {s.Door.Id}");
                     }
                 }

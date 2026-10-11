@@ -92,7 +92,7 @@ public static class SimLabRemake5
             {
                 sb.AppendLine("- SAIN 아닌 봇의 킬: " + string.Join(", ", vanillaKills));
             }
-            sb.AppendLine("- 읽는 법: 'SAIN 아님'이 높으면 그 팩션은 SAIN이 안 붙음(제외 설정·다른 모드). 다이아몬드 `off.notPmc`가 보이면 10/10 'PMC만' 버그 재발. 보스·Goons 판단 분포가 그 보스의 패턴.");
+            sb.AppendLine("- 읽는 법: 'SAIN 아님'이 높으면 그 팩션은 SAIN이 안 붙음(제외 설정·다른 모드). Scav가 아닌 팩션에 다이아몬드 `off.scav`(옛 빌드 `off.notPmc`)가 보이면 10/10 'PMC만' 버그 재발. 보스·Goons 판단 분포가 그 보스의 패턴.");
         }
 
         if (raid != null && (!string.IsNullOrEmpty(raid.Boss) || Sum(b, "sim.boss.") > 0 || !string.IsNullOrEmpty(raid.FactionRoles)))
@@ -122,7 +122,7 @@ public static class SimLabRemake5
         }
 
         AppendGroup(sb, b, "sound.", "### 소리 반응 (2단계) — 들은 소리 → 반응",
-            "gun.near=100m 안 수색, gun.mid=100~250m 고개만, gun.far=250m 밖 무시, gun.shotAtMe=나를 쏜 사람이라 거리 무시하고 반응, gun.chase=추격 성격, floor.*=층 차이로 줄어든 소리, bait.ignoredBotFake=저사양: 봇 미끼 무시, watch.gun=전투 후 정리가 총소리를 들음");
+            "gun.near=100m 안 수색, gun.mid=100~250m 고개만, gun.far=250m 밖 무시, gun.shotAtMe=나를 쏜 사람이라 거리 무시하고 반응, gun.chase=추격 성격, floor.*=층 차이로 줄어든 소리, bait.ignoredBot=저사양: 봇의 미끼 소리 무시 (전투 후 정리가 총소리로 유지된 횟수는 카운터 postCombat.alert.gunfire)");
         AppendGroup(sb, b, "vuln.", "### 취약 순간 반응 (3단계) — 장전·치료·수술·수류탄·루팅 소리",
             "heard.{행동}=그 소리를 들음, reach.{행동}.yes/no=남은 시간 안에 도착 가능?, rush.{행동}.start/arrivedBusy/arrivedLate/died/killed=돌격 결과, grenade.backOff=수류탄 핀 소리에 물러남, loot.sneak=루팅 소리에 조용히 접근");
         AppendGroup(sb, b, "quiet.", "### 발소리 관리 (4단계) — 아는 적에게 다가갈 때 (2초 표본)",
@@ -190,11 +190,15 @@ public static class SimLabRemake5
                     Fix = $"SAINEnableClass.ShallExludeByWildSpawnType / 프리셋 VanillaBots 설정 / BotSpawnController 엄격 제외 목록에 {f} 역할이 걸리는지, 다른 모드(블디 SainBrainFix 등)가 레이어를 바꾸는지 확인.",
                 });
             }
-            int notPmc = With(b, $"faction.{f}.death.diamond.").Where(kv => kv.Key.Contains("notPmc", StringComparison.Ordinal)).Sum(kv => kv.Value);
+            // since 8a32f65 the stop reason is "scav" (old builds: "notPmc") - on a non-scav faction either one means the
+            // "PMC only" switch is again leaving that faction on vanilla close combat
+            int notPmc = With(b, $"faction.{f}.death.diamond.")
+                .Where(kv => kv.Key.EndsWith(".notPmc", StringComparison.Ordinal) || kv.Key.EndsWith(".off.scav", StringComparison.Ordinal))
+                .Sum(kv => kv.Value);
             if (notPmc > 0 && f != "PMC")
             {
-                list.Add(new(SimLabAnalyzer.HIGH, T($"{f}: 'PMC만' 근접전 버그 재발 (diamond off notPmc)", $"{f}: 'PMC only' close-combat bug is back (diamond off notPmc)"),
-                    T($"사망 시 다이아몬드 상태 notPmc {notPmc}회.", $"diamond notPmc at death {notPmc} times."))
+                list.Add(new(SimLabAnalyzer.HIGH, T($"{f}: 'PMC만' 근접전 버그 재발 (diamond off scav/notPmc)", $"{f}: 'PMC only' close-combat bug is back (diamond off scav/notPmc)"),
+                    T($"스캐브가 아닌데 사망 시 다이아몬드 상태가 off(scav)/off(notPmc) {notPmc}회.", $"not a scav, yet diamond off(scav)/off(notPmc) at death {notPmc} times."))
                 {
                     Fix = "PmcOnly 검사가 IsPMC로 돌아간 곳 찾기: grep 'PmcOnly' → 전부 Bot.Info.Profile.SkippedByPmcOnly 사용해야 함(8a32f65).",
                 });
@@ -213,8 +217,8 @@ public static class SimLabRemake5
         foreach (var kv in With(b, "sim.faction.called."))
         {
             string role = kv.Key.Substring("sim.faction.called.".Length);
-            string group = role == "exUsec" ? "Rogue" : role == "pmcBot" ? "Raider" : role;
-            if (kv.Value >= 2 && Get(b, $"faction.{group}.spawned") == 0)
+            string? group = role == "exUsec" ? "Rogue" : role == "pmcBot" ? "Raider" : null;
+            if (group != null && kv.Value >= 2 && Get(b, $"faction.{group}.spawned") == 0)
             {
                 list.Add(new(SimLabAnalyzer.WARN, T($"팩션 분대({role})를 불렀지만 안 나옴", $"Faction squad ({role}) called but never spawned"),
                     T($"호출 {kv.Value}회, 등장 0.", $"{kv.Value} calls, 0 spawned."))

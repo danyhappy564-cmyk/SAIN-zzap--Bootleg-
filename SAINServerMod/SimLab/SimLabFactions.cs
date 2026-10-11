@@ -124,6 +124,7 @@ public static class SimLabFactions
         }
         location.BossLocationSpawn!.Add(wave);
         info.Boss = boss;
+        info.BossDelay = Math.Clamp(config.BossDelaySeconds, 0, 900);
         info.BossTime = (float)(wave.Time ?? 0d);
         info.BossSource = source;
         var escorts = new List<string>();

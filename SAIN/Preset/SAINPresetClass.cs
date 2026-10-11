@@ -89,6 +89,13 @@ public class SAINPresetClass
             Logger.LogWarning("[SAIN] Preset editing is locked by the server. Your changes were not saved.");
             return;
         }
+        // zzap remake5: during a sim raid with the zzap cross-check the behaviour sections hold zzap's values, not this preset's -
+        // saving now would write them into the preset. Save after the raid (the sim preset's own values are back then).
+        if (SAIN.SimLab.SimLabZzapCheck.Applied)
+        {
+            Logger.LogWarning("[SAIN] Sim raid with the zzap cross-check running - preset not saved (save again after the raid).");
+            return;
+        }
 
         ConfigEditingTracker.Clear();
 

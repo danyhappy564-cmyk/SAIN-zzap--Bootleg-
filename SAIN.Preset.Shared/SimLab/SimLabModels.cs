@@ -124,6 +124,8 @@ public class SimRaidInfo
     public string Boss = string.Empty;
     public string BossEscorts = string.Empty;
     public float BossTime;
+    /// <summary>Seconds after the first squads before the boss wave is called (sim setting BossDelaySeconds).</summary>
+    public float BossDelay = 60f;
     /// <summary>Where the boss template came from ("database:bigmap" / "builtin") and anything that went wrong.</summary>
     public string BossSource = string.Empty;
     /// <summary>Waves of modded factions (Black Division etc.) kept when the map's other spawns were cleared.</summary>

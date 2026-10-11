@@ -741,6 +741,7 @@ public class RepositionClass : BotComponentClassBase
                 if (s.BaitJump && !s.BaitJumpedBack && phaseTime > 0.05f)
                 {
                     s.BaitJumpedBack = JumpSafe(s.Home) && Bot.Mover.TryJump();
+                    if (s.BaitJumpedBack) Bot.Mover.MarkJump("bait");
                 }
                 if (MoveTo(s, s.Home, s.BaitJump, phaseTime) || phaseTime > 1.2f)
                 {

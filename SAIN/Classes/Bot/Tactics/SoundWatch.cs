@@ -28,6 +28,7 @@ public static class SoundWatch
     }
 
     private static readonly List<Sound> _sounds = new();
+    private static readonly Dictionary<string, float> _lastShot = new();
     private static BotHearingClass _hearing;
 
     public static void Attach(BotHearingClass hearing)
@@ -48,6 +49,7 @@ public static class SoundWatch
             _hearing = null;
         }
         _sounds.Clear();
+        _lastShot.Clear();
     }
 
     private static void OnSound(SAINSoundType type, Vector3 position, PlayerComponent source, float range, float volume)
@@ -77,6 +79,18 @@ public static class SoundWatch
         if (source == null || _hearing == null || SAIN.SimLab.SimLab.IsSpectatorPlayer(source.Player))
         {
             return;
+        }
+        // one entry per shooter per 0.5 s: full-auto fire would otherwise push the footstep ("someone coming") entries out of
+        // the 256-entry list within a second or two
+        float time = Time.time;
+        if (_lastShot.TryGetValue(source.ProfileId, out float last) && time - last < 0.5f)
+        {
+            return;
+        }
+        _lastShot[source.ProfileId] = time;
+        if (_lastShot.Count > 128)
+        {
+            _lastShot.Clear();
         }
         OnSound(SAINSoundType.Shot, position, source, 0f, 1f);
     }

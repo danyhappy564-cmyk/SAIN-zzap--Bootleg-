@@ -948,7 +948,7 @@ public sealed class SimLabRunner : MonoBehaviour
         }
         if (_bossCalledAt < 0f)
         {
-            if (now - _firstSquadsAt < 60f)
+            if (now - _firstSquadsAt < Mathf.Max(0f, info.BossDelay))
             {
                 return;
             }

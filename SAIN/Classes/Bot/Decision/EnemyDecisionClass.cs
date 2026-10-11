@@ -831,11 +831,6 @@ public class EnemyDecisionClass : BotBase
                 reason = "enemyVulnerable";
                 return true;
             }
-            if (busy == EEnemyAction.HasGrenade)
-            {
-                reason = "enemyHasGrenade";
-                return false;
-            }
         }
         if (!inRange)
         {
@@ -859,6 +854,12 @@ public class EnemyDecisionClass : BotBase
         if (!Bot.Info.PersonalitySettings.Rush.CanRushEnemyReloadHeal)
         {
             reason = "cantRush";
+            return false;
+        }
+        // remake5: grenade in his hand - no rush (a dying / prone-hurt enemy below still is one; the corner chase above too)
+        if (busy == EEnemyAction.HasGrenade && enemy.EnemyPlayer.HealthStatus != ETagStatus.Dying)
+        {
+            reason = "enemyHasGrenade";
             return false;
         }
 
