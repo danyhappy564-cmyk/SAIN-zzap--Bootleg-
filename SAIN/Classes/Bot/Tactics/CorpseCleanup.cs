@@ -168,6 +168,7 @@ public static class CorpseCleanup
                 world.GetAlivePlayerByProfileID(registered.ProfileId)?.ResetInteractionRaycast(corpse);
             }
             DropOrbitCorpseWaypoint(corpse);
+            ForgetDecals(player);
             Object.Destroy(player.gameObject);
             Deleted++;
             TacticDiagnostics.Count("sim.corpseDeleted");
@@ -232,6 +233,66 @@ public static class CorpseCleanup
         {
             TacticDiagnostics.Count("sim.corpseOrbitWaypointFailed");
             Logger.LogWarning($"[SAIN zzap] dropping ORBIT's waypoint for a deleted corpse failed: {ex.Message}");
+        }
+    }
+
+    // 2026-10-12 (sim crash 03:59): the game's TextureDecalsPainter keeps every body renderer it painted blood on (with its
+    // own render texture) and a queue of marks still to paint, and never lets go of them - vanilla never destroys bodies.
+    // A queued mark on a deleted body jammed the queue (exception every frame -> out of memory, see DecalPainterGuardPatch),
+    // and the kept textures were VRAM that never came back (VRAM was 15.5 / 15.7 GB in that sim). Remove this body's
+    // queued marks and textures before it is destroyed; also drops any entry whose renderer is already gone.
+    private static readonly List<KeyValuePair<Renderer, RenderTexture>> _deadDecals = new();
+
+    private static void ForgetDecals(Player player)
+    {
+        TextureDecalsPainter painter = SAIN.Patches.Generic.DecalPainterGuardPatch.Painter;
+        if (painter == null)
+        {
+            return;
+        }
+        try
+        {
+            Transform root = player.gameObject.transform;
+            var queue = SAIN.Patches.Generic.DecalPainterGuardPatch.Queue(painter);
+            if (queue != null)
+            {
+                for (int i = queue.Count - 1; i >= 0; i--)
+                {
+                    Renderer r = queue[i].Renderer;
+                    if (r == null || r.transform.IsChildOf(root))
+                    {
+                        queue.RemoveAt(i);
+                    }
+                }
+            }
+            var painted = SAIN.Patches.Generic.DecalPainterGuardPatch.Painted(painter);
+            if (painted == null || painted.Count == 0)
+            {
+                return;
+            }
+            _deadDecals.Clear();
+            foreach (var pair in painted)
+            {
+                if (pair.Key == null || pair.Key.transform.IsChildOf(root))
+                {
+                    _deadDecals.Add(pair);
+                }
+            }
+            foreach (var pair in _deadDecals)
+            {
+                painted.Remove(pair.Key);
+                if (pair.Value != null)
+                {
+                    painter.DestroyDecalTexture(pair.Value);
+                }
+                TacticDiagnostics.Count("sim.corpseDecalTextureFreed");
+            }
+            _deadDecals.Clear();
+        }
+        catch (System.Exception ex)
+        {
+            TacticDiagnostics.Count("sim.corpseDecalCleanupFailed");
+            Logger.LogWarning($"[SAIN zzap] clearing blood decals of a deleted corpse failed: {ex.Message}");
         }
     }
 
