@@ -92,7 +92,7 @@ public static class SimLabRemake5
             {
                 sb.AppendLine("- SAIN 아닌 봇의 킬: " + string.Join(", ", vanillaKills));
             }
-            sb.AppendLine("- 읽는 법: 'SAIN 아님'이 높으면 그 팩션은 SAIN이 안 붙음(제외 설정·다른 모드). Scav가 아닌 팩션에 다이아몬드 `off.scav`(옛 빌드 `off.notPmc`)가 보이면 10/10 'PMC만' 버그 재발. 보스·Goons 판단 분포가 그 보스의 패턴.");
+            sb.AppendLine("- 읽는 법: 'SAIN봇인데 바닐라 레이어'는 대부분 싸움이 없을 때의 순찰(PatrolAssault/PatrolFollower — 로그·레이더·보스는 ORBIT 대상이 아님)이라 정상. 'SAIN 아님'이 높으면 그 팩션은 SAIN이 안 붙음(제외 설정·다른 모드). Scav가 아닌 팩션에 다이아몬드 `off.scav`(옛 빌드 `off.notPmc`)가 보이면 10/10 'PMC만' 버그 재발. 보스·Goons 판단 분포가 그 보스의 패턴.");
         }
 
         if (raid != null && (!string.IsNullOrEmpty(raid.Boss) || Sum(b, "sim.boss.") > 0 || !string.IsNullOrEmpty(raid.FactionRoles)))
@@ -205,7 +205,8 @@ public static class SimLabRemake5
             }
         }
 
-        if (Get(b, "sim.boss.notSeen") > 0 || Get(b, "sim.boss.waveMissing") > 0 || Get(b, "sim.boss.callFailed") > 0)
+        // notSeen = not there 90 s after the call; it can still turn up (10/11 Factory: Shturman after 107 s) - warn only when never seen
+        if ((Get(b, "sim.boss.notSeen") > 0 && Get(b, "sim.boss.seen") == 0) || Get(b, "sim.boss.waveMissing") > 0 || Get(b, "sim.boss.callFailed") > 0)
         {
             list.Add(new(SimLabAnalyzer.WARN, T("보스가 안 나옴", "Boss did not spawn"),
                 T($"보스 {raid?.Boss} (템플릿 {raid?.BossSource}, 구역 {raid?.ZonesA}/{raid?.ZonesB}): 미등장 {Get(b, "sim.boss.notSeen")}, 웨이브 없음 {Get(b, "sim.boss.waveMissing")}, 호출 실패 {Get(b, "sim.boss.callFailed")}.",
@@ -226,6 +227,19 @@ public static class SimLabRemake5
                     Fix = "LogOutput '[SimLab] faction squad' 뒤 BotBossSpawn 경고 확인. 맵에 그 역할 보스 스폰 지점(Categories Boss)이 시뮬 구역에 있는지, 다른 모드가 그 역할을 막는지.",
                 });
             }
+        }
+
+        int manyNades = With(b, "loadout.nades.10plus.").Sum(kv => kv.Value);
+        int spawnedAll = With(b, "loadout.nades.").Sum(kv => kv.Value);
+        if (manyNades > 0)
+        {
+            var who = With(b, "loadout.nades.10plus.").Select(kv => $"{kv.Key.Substring("loadout.nades.10plus.".Length)} {kv.Value}");
+            list.Add(new(SimLabAnalyzer.WARN, T("봇 수류탄이 비정상적으로 많음", "Bots carry an abnormal number of grenades"),
+                T($"생성 때 수류탄 10개 이상인 봇 {manyNades}/{spawnedAll}명 ({string.Join(", ", who)}). 10/11 판에서 PMC·로그가 50개 안팎을 들고 나옴 — 10/10까지는 0~5개.",
+                  $"{manyNades} of {spawnedAll} bots spawned with 10+ grenades ({string.Join(", ", who)})."))
+            {
+                Fix = "SAIN이 만드는 게 아님(봇 생성은 서버). 10/10 이후 바뀐 서버 모드·APBS 설정(수류탄 generation weights)·봇 생성 모드 확인. 일지 [Loadout] 줄의 수류탄 종류로 출처 추정.",
+            });
         }
 
         int jsMade = Get(b, "jump.jumpShot.made");

@@ -256,7 +256,7 @@ public sealed class SimLogListener : ILogListener
                     Source = source,
                     Count = 1,
                     FirstRaidTime = RaidSeconds,
-                    Sample = text.Length > 1500 ? text.Substring(0, 1500) : text,
+                    Sample = MakeSample(text),
                 };
             }
         }
@@ -268,5 +268,32 @@ public sealed class SimLogListener : ILogListener
 
     public void Dispose()
     {
+    }
+
+    /// <summary>
+    /// First 1200 characters, plus (2026-10-11) every later stack line that names SAIN or a game-side mod namespace: a deep
+    /// EFT stack (Labs StackOverflow in InventoryController.CheckOverLimit) used to be cut before the SAIN frame that called it.
+    /// </summary>
+    private static string MakeSample(string text)
+    {
+        if (text.Length <= 1500)
+        {
+            return text;
+        }
+        var sb = new System.Text.StringBuilder(text.Substring(0, 1200));
+        int added = 0;
+        foreach (string line in text.Substring(1200).Split('\n'))
+        {
+            if (line.IndexOf("SAIN", StringComparison.Ordinal) >= 0 && added < 12)
+            {
+                sb.Append("\n  ... ").Append(line.Trim());
+                added++;
+            }
+        }
+        if (added == 0)
+        {
+            sb.Append("\n  ... (no SAIN frame in the rest of the stack)");
+        }
+        return sb.ToString();
     }
 }

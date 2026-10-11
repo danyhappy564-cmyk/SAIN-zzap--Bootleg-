@@ -92,6 +92,7 @@ public class EnemyEvents
         {
             FirstSeenDone = true;
             HeardBeforeSeen = hearing != null && hearing.Heard && hearing.TimeSinceHeard < 10f;
+            SAIN.SAINComponent.Classes.Tactics.BattleStats.NoteFirstSeen(Enemy.Bot?.ProfileId, Enemy.EnemyProfileId, HeardBeforeSeen);
         }
         if (!SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
         {

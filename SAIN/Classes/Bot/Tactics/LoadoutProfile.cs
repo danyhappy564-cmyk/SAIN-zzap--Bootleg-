@@ -34,6 +34,8 @@ public sealed class LoadoutProfile
 
     private float _nextRefresh;
     private Weapon _weapon;
+    private bool _nadesChecked;
+    private static int _loggedMany;
 
     private static readonly Dictionary<string, LoadoutProfile> _profiles = new();
 
@@ -152,6 +154,7 @@ public sealed class LoadoutProfile
 
         Grenades = 0;
         Meds = 0;
+        Dictionary<string, int> nadeNames = !_nadesChecked ? new Dictionary<string, int>() : null;
         try
         {
             var inventory = bot.Player?.Inventory;
@@ -162,6 +165,12 @@ public sealed class LoadoutProfile
                     if (item is ThrowWeap)
                     {
                         Grenades++;
+                        if (nadeNames != null)
+                        {
+                            string n = item.ShortName.Localized();
+                            nadeNames.TryGetValue(n, out int c);
+                            nadeNames[n] = c + 1;
+                        }
                     }
                     else if (item is MedKit || item.GetItemComponent<MedKitComponent>() != null)
                     {
@@ -173,6 +182,34 @@ public sealed class LoadoutProfile
         catch
         {
         }
+        // zzap 2026-10-11: the 10/11 sims had PMCs and rogues spawning with ~50 grenades (10/10: 0-5) - something in bot
+        // generation changed. Checked once per bot: counter loadout.nades.{0|1-3|4-9|10plus}.{faction}, and a [Loadout] line
+        // with what the grenades are when there are 10 or more.
+        if (nadeNames != null)
+        {
+            _nadesChecked = true;
+            var role = bot.Info?.Profile?.WildSpawnType ?? EFT.WildSpawnType.assault;
+            string band = Grenades >= 10 ? "10plus" : Grenades >= 4 ? "4-9" : Grenades >= 1 ? "1-3" : "0";
+            TacticDiagnostics.Count($"loadout.nades.{band}.{SAIN.SimLab.SimFaction.Of(role)}");
+            if (Grenades >= 10)
+            {
+                var parts = new List<string>();
+                foreach (var kv in nadeNames)
+                {
+                    parts.Add($"{kv.Key} x{kv.Value}");
+                }
+                string line = $"[Loadout] [{bot.name}] [role {role}] spawned with {Grenades} grenades: {string.Join(", ", parts)}";
+                if (_loggedMany < 5)
+                {
+                    _loggedMany++;
+                    Logger.LogWarning(line);
+                }
+                if (TacticDiagnostics.LogOn)
+                {
+                    RaidJournal.Line(line);
+                }
+            }
+        }
         Summary = $"{cls}{(Bolt ? " bolt" : "")}{(FullAuto ? $" auto {FireRate}rpm" : "")}{(optic ? " scope" : redDot ? " dot" : "")} ideal {IdealRange:0}m, "
             + $"cqb {Cqb:0.0} long {Long:0.0}, nades {Grenades} meds {Meds}";
     }
@@ -180,5 +217,6 @@ public sealed class LoadoutProfile
     public static void Clear()
     {
         _profiles.Clear();
+        _loggedMany = 0;
     }
 }

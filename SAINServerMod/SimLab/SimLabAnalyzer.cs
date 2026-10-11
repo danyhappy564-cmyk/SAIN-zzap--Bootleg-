@@ -743,7 +743,7 @@ public static class SimLabAnalyzer
                         if (!string.IsNullOrEmpty(e.Sample))
                         {
                             sb.AppendLine("  ```");
-                            foreach (string line in e.Sample.Split('\n').Take(8))
+                            foreach (string line in e.Sample.Split('\n').Take(24))
                             {
                                 sb.AppendLine("  " + line.TrimEnd());
                             }

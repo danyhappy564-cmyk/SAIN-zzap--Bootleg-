@@ -243,6 +243,7 @@ public class SelfActionDecisionClass : BotBase
     private const float RELOAD_FAULT_BACKOFF = 10f;
 
     private float _reloadCheckBlockedUntil;
+    private int _reloadFaults;
     private static bool _loggedReloadFault;
 
     /// <summary>zzap: post-combat top-up (no enemy around, so the normal reload decision never runs).</summary>
@@ -299,7 +300,18 @@ public class SelfActionDecisionClass : BotBase
         }
         catch (Exception error)
         {
-            _reloadCheckBlockedUntil = Time.time + RELOAD_FAULT_BACKOFF;
+            _reloadFaults++;
+            // zzap (2026-10-11 sim, Labs 1.8 min, rogue Bot125): CanReload threw a StackOverflowException deep in EFT's
+            // inventory code (InventoryController.CheckOverLimit), the 10 s backoff asked again, and the game died ~25 s
+            // later. A stack overflow leaves Mono barely alive - never walk that bot's inventory again this raid. Any third
+            // fault of another kind does the same.
+            bool permanent = error is StackOverflowException || _reloadFaults >= 3;
+            _reloadCheckBlockedUntil = permanent ? float.MaxValue : Time.time + RELOAD_FAULT_BACKOFF;
+            if (permanent)
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"reload.faultPermanent.{error.GetType().Name}");
+                Logger.LogError($"[{Bot?.name}] [role {botOwner?.Profile?.Info?.Settings?.Role}] reload check off for the rest of the raid after {error.GetType().Name} (fault {_reloadFaults})");
+            }
 
             if (!_loggedReloadFault)
             {

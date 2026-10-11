@@ -34,8 +34,11 @@ internal static class TacticDiagnostics
         get
         {
             var general = GlobalSettingsClass.Instance?.General;
+            // zzap 2026-10-11: a sim run on a preset with the diagnostic toggles off (the user's "zzap" sim run) had no counters at
+            // all - the analysis lost every feature / remake5 table. In sim mode counters are always kept.
             return general != null
-                && (general.DoorTactics.DiagnosticLogs || general.FreezeAmbush.DiagnosticLogs || general.SquadCombat.DiagnosticLogs || general.Reposition.DiagnosticLogs);
+                && (general.DoorTactics.DiagnosticLogs || general.FreezeAmbush.DiagnosticLogs || general.SquadCombat.DiagnosticLogs || general.Reposition.DiagnosticLogs
+                    || general.SimLab?.Enabled == true);
         }
     }
 

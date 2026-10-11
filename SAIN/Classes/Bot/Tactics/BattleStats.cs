@@ -86,11 +86,12 @@ public static class BattleStats
             VulnerableRush.OnDeath(victim.ProfileId, killer?.ProfileId);
             if (TacticDiagnostics.CountOn && killer != null)
             {
-                // did the side that heard the other first win? (footstep discipline / bots hearing bots)
-                TacticDiagnostics.Count("firstContact.victim." + Contact(victim.EnemyController?.GetEnemy(killer.ProfileId, false)));
-                if (killer.IsAI && SAINEnableClass.GetSAIN(killer.ProfileId, out BotComponent kb) && kb != null)
+                // did the side that heard the other first win? (footstep discipline / bots hearing bots). From a table filled at
+                // first sight: the killer's Enemy object for the victim is already gone here (2026-10-11 run: killer.neverSaw 89/89).
+                TacticDiagnostics.Count("firstContact.victim." + Contact(victim.ProfileId, killer.ProfileId));
+                if (killer.IsAI)
                 {
-                    TacticDiagnostics.Count("firstContact.killer." + Contact(kb.EnemyController?.GetEnemy(victim.ProfileId, false)));
+                    TacticDiagnostics.Count("firstContact.killer." + Contact(killer.ProfileId, victim.ProfileId));
                 }
             }
         }
@@ -151,13 +152,29 @@ public static class BattleStats
         }
     }
 
-    private static string Contact(SAIN.SAINComponent.Classes.EnemyClasses.Enemy e)
+    private static readonly Dictionary<string, bool> _firstSeen = new();
+
+    /// <summary>EnemyEvents: observer saw target for the first time; heard = had heard him in the 10 s before.</summary>
+    public static void NoteFirstSeen(string observer, string target, bool heard)
     {
-        if (e == null || !e.Events.FirstSeenDone)
+        if (observer == null || target == null || !TacticDiagnostics.CountOn)
+        {
+            return;
+        }
+        if (_firstSeen.Count > 4096)
+        {
+            _firstSeen.Clear();
+        }
+        _firstSeen[observer + "|" + target] = heard;
+    }
+
+    private static string Contact(string observer, string target)
+    {
+        if (!_firstSeen.TryGetValue(observer + "|" + target, out bool heard))
         {
             return "neverSaw";
         }
-        return e.Events.HeardBeforeSeen ? "heardFirst" : "sawFirst";
+        return heard ? "heardFirst" : "sawFirst";
     }
 
     /// <summary>Called from the journal tick; writes the table every 5 minutes.</summary>
@@ -261,6 +278,7 @@ public static class BattleStats
         _reason.Clear();
         _combat.Clear();
         _faction.Clear();
+        _firstSeen.Clear();
         VulnerableRush.Clear();
         FootstepDiscipline.Clear();
         _botKills = 0;

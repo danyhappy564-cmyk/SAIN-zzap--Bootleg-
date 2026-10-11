@@ -349,6 +349,12 @@ public static class SimLabFactions
         }
         string sa = a?.ToJsonString() ?? "null";
         string sb = b?.ToJsonString() ?? "null";
+        // 2.0 vs 2: the same number written differently (2026-10-11 run listed 30 such "differences")
+        if (a is JsonValue va && b is JsonValue vb && double.TryParse(sa, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double da)
+            && double.TryParse(sb, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double db) && Math.Abs(da - db) < 1e-6)
+        {
+            return;
+        }
         if (sa != sb)
         {
             diffs.Add(b == null ? $"{path}={Short(sa)} (zzap: 코드 기본값)" : $"{path}={Short(sa)} (zzap {Short(sb)})");
