@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using EFT;
+using EFT.Interactive;
+using HarmonyLib;
 using SAIN.Plugin;
 using SAIN.Preset.Shared.GlobalSettings;
 using UnityEngine;
@@ -120,15 +122,23 @@ public static class CorpseCleanup
     }
 
     // zzap, 11th sim (user 2026-10-01): hiding keeps the whole body in memory (83 corpses, 43 hidden, RAM still +293 MB per
-    // death). Experiment to split "the corpses" from "what new spawns load": really remove old corpses through EFT's own
-    // loot removal (GameWorld.DestroyLoot -> out of the loot lists, body disposed, object back to its pool) and compare
-    // RAM per death. TEST preset only, off in code.
+    // death) - so old corpses are really removed. TEST preset only (SimCorpseDelete).
+    // 2026-10-12 (user: "once deleting starts, bots that die right then vanish", and living bots that can be searched with
+    // someone else's gear): this used GameWorld.DestroyLoot, which ends in Corpse.Kill -> LootItem.Kill ->
+    // AssetPoolObject.ReturnToPool(gameObject). The corpse lives on the player's own GameObject (Corpse.CreateCorpse adds
+    // it there) and bots are pooled, so the dead player went back to the bot pool with the old Corpse still on it and the
+    // next spawned bot reused it: alive but searchable (the old body's inventory), and on its own death the reused, already
+    // killed Corpse took over. Now done like RemoveTheDead (jbs4bmx, MIT): DestroyLoot's list bookkeeping without Kill, then
+    // Object.Destroy the player - it never goes back to the pool.
     private static bool Delete
     {
         get { return GlobalSettingsClass.Instance?.General?.Performance?.SimCorpseDelete == true; }
     }
 
     public static int Deleted { get; private set; }
+
+    private static readonly AccessTools.FieldRef<GameWorld, System.Action<IKillable>> _onLootItemDestroyed =
+        AccessTools.FieldRefAccess<GameWorld, System.Action<IKillable>>("_onLootItemDestroyed");
 
     private static bool TryDelete(Player player)
     {
@@ -140,21 +150,24 @@ public static class CorpseCleanup
         }
         try
         {
-            // 10/10 Factory+Labs sim: 57x "KeyNotFoundException 'Body'" in PlayerBody.IsVisible from CorpseRagdoll's
-            // WorkingCycle - the ragdoll's settle coroutine runs on the Corpse and polls the body every frame, but
-            // DestroyLoot disposes the body (BodySkins cleared). Stop the corpse's coroutines first.
+            // 10/10 Factory+Labs sim: 57x "KeyNotFoundException 'Body'" from CorpseRagdoll's settle coroutine polling a
+            // disposed body - stop the corpse's coroutines first.
             corpse.StopAllCoroutines();
-            world.DestroyLoot(corpse);
+            // GameWorld.DestroyLoot(IKillable) minus the final loot.Kill() (= return to pool).
+            _onLootItemDestroyed(world)?.Invoke(corpse);
+            world.LootList.Remove(corpse);
+            if (corpse.ItemOwner != null)
+            {
+                world.ItemOwners.Remove(corpse.ItemOwner);
+            }
+            world.LootItems.Remove(corpse.GetNetId());
+            foreach (IPlayer registered in world.RegisteredPlayers)
+            {
+                world.GetAlivePlayerByProfileID(registered.ProfileId)?.ResetInteractionRaycast(corpse);
+            }
+            Object.Destroy(player.gameObject);
             Deleted++;
             TacticDiagnostics.Count("sim.corpseDeleted");
-            // 13th sim (user: "delete was on but the corpses stayed"): DestroyLoot took the corpse off the loot lists but the
-            // body object stayed in the scene (EFT never removes corpses mid-raid; the player object isn't returned to a pool),
-            // and because this counted as done the corpse wasn't hidden either. Hide whatever is left.
-            if (player != null && player.gameObject != null && player.gameObject.activeSelf)
-            {
-                player.gameObject.SetActive(false);
-                TacticDiagnostics.Count("sim.corpseDeletedStillThere");
-            }
             return true;
         }
         catch (System.Exception ex)
