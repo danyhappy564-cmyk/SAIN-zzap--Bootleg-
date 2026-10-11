@@ -231,14 +231,25 @@ public sealed class LoadoutProfile
             + $"cqb {Cqb:0.0} long {Long:0.0}, nades {Grenades} meds {Meds}";
     }
 
+    // 2026-10-12 hotfix: the walk must stop at the top. The root InventoryEquipment's address is OwnerItself, whose Container
+    // is the InventoryController, whose ParentItem is that same equipment - "parent of the top is the top" - so the old
+    // `while parent != null` loop never ended for any grenade outside the secured container and froze the game (two sim
+    // raids, right after a PMC carrying a vest grenade was first sized up). Stop when the walk stops moving, and cap it.
     private static bool IsInside(Item item, Item container)
     {
-        for (Item parent = item.Parent?.Container?.ParentItem; parent != null; parent = parent.Parent?.Container?.ParentItem)
+        Item current = item;
+        for (int depth = 0; depth < 16; depth++)
         {
+            Item parent = current.Parent?.Container?.ParentItem;
+            if (parent == null || ReferenceEquals(parent, current))
+            {
+                return false;
+            }
             if (ReferenceEquals(parent, container))
             {
                 return true;
             }
+            current = parent;
         }
         return false;
     }
