@@ -34,6 +34,9 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
     }
 
     public float ChangeDecisionTime { get; private set; }
+
+    /// <summary>zzap: when the bot was last hit, as of the latest decision change (BattleStats: a switch made because it was hit).</summary>
+    public float HitTimeAtChange { get; private set; } = -1f;
     public float TimeSinceChangeDecision
     {
         get { return Time.time - ChangeDecisionTime; }
@@ -379,6 +382,7 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
             }
 
             ChangeDecisionTime = Time.time;
+            HitTimeAtChange = Bot.Medical.TimeLastShot;
             if (SAIN.SAINComponent.Classes.Tactics.RaidJournal.File != null)
             {
                 string enemyText = enemy == null ? "none"

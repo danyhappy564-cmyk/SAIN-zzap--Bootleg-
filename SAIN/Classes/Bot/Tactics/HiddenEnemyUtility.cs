@@ -167,11 +167,16 @@ public static class HiddenEnemyUtility
         float nade = nadeReady
             ? 0.3f + 0.05f * Mathf.Min(load.Grenades, 3) + (load.Grenades >= 3 ? 0.1f : 0f) + 0.4f * quiet + (busy ? 0.15f : 0f) + (indoor ? 0.1f : 0f) + (holdsAngle ? 0.1f : 0f) - 0.25f * info
             : 0f;
-        float hold = 0.2f * load.Long + 0.25f + (coming ? 0.35f : 0f) + 0.25f * (1f - health) + (holdsAngle ? 0.1f : 0f) + 0.15f * (1f - aggr) - (justLost ? 0.05f : 0f)
+        // "Hurt -> stay put" only pays in cover (10/12 sim: a Dying Chad out of cover wanting first aid 0.87 picked Hold 0.79 on
+        // that bonus, stepped out to see the angle and was shot by a second enemy 1.4 s later). Out of cover, badly hurt with meds:
+        // get to cover so the heal can start.
+        bool hurtInOpen = !inCover && health <= 0.35f && load.Meds > 0;
+        float hold = 0.2f * load.Long + 0.25f + (coming ? 0.35f : 0f) + (inCover ? 0.25f : 0.05f) * (1f - health) + (holdsAngle ? 0.1f : 0f) + 0.15f * (1f - aggr) - (justLost ? 0.05f : 0f)
             + (inCover ? 0.1f : 0f) + (pushyPlayer ? 0.15f : 0f) - 0.3f * quiet;
         float flank = 0.2f + (holdsAngle ? 0.3f : 0f) + 0.15f * Mathf.Max(0f, numbers) + 0.1f * quiet - 0.2f * (1f - health);
         float search = -0.15f * load.Long + 0.15f + 0.35f * info + 0.1f * aggr - 0.2f * (1f - health);
-        float fallBack = (closingOnLongGun ? 0.35f : 0f) + 0.05f + 0.45f * (1f - health) + (ammo < 0.25f ? 0.3f : 0f) + (numbers < 0f ? 0.25f * -numbers : 0f);
+        float fallBack = (closingOnLongGun ? 0.35f : 0f) + 0.05f + 0.45f * (1f - health) + (ammo < 0.25f ? 0.3f : 0f) + (numbers < 0f ? 0.25f * -numbers : 0f)
+            + (hurtInOpen ? 0.2f : 0f);
         if (grenadeOut)
         {
             // close by, he's about to throw: don't walk into it - step back from the throw line or keep the angle from cover
@@ -229,6 +234,7 @@ public static class HiddenEnemyUtility
         if (quiet > 0.3f) sb.Append($"he's been quiet {infoAge:0}s (clock favors him); ");
         if (info > 0.5f) sb.Append($"info {infoAge:0}s old; ");
         if (health < 1f) sb.Append($"I'm {healthStatus}; ");
+        if (hurtInOpen) sb.Append("hurt out of cover - get to cover to heal; ");
         if (ammo < 0.5f) sb.Append($"mag {ammo:P0}; ");
         if (numbers > 0f) sb.Append("we outnumber him; ");
         if (numbers < 0f) sb.Append("he has friends near; ");

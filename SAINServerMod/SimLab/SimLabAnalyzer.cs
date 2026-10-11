@@ -231,7 +231,7 @@ public static class SimLabAnalyzer
         if (deaths >= 6 && switching * 10 >= deaths * 3)
         {
             list.Add(new(WARN, T("판단을 바꾼 직후 사망이 많음", "Many deaths right after a decision change"),
-                T($"사망 {deaths} 중 {switching}이 싸우던 중 엄폐·후퇴·수색 같은 비사격 판단으로 바꾼 지 1.5초 안 (30% 이상, 근접전 사격 판단 재선택은 제외). 카운터 death.switchedAway.*·일지 [Death] why=·decisionAge= 확인.", $"{switching} of {deaths} deaths within 1.5 s of switching away from fighting (cover/retreat/search; re-picking 'shoot' in a dogfight is excluded). See death.switchedAway.* and the journal's [Death] lines.")));
+                T($"사망 {deaths} 중 {switching}이 싸우던 중 엄폐·후퇴·수색 같은 비사격 판단으로 바꾼 지 1.5초 안 (30% 이상, 근접전 사격 판단 재선택·맞은 지 2초 안에 바꾼 것(death.switchedAfterHit) 제외). 카운터 death.switchedAway.*·일지 [Death] why=·decisionAge= 확인.", $"{switching} of {deaths} deaths within 1.5 s of switching away from fighting (cover/retreat/search; re-picking 'shoot' in a dogfight is excluded). See death.switchedAway.* and the journal's [Death] lines.")));
         }
 
         int freezeDeaths = Get(b, "death.Freeze") - Get(b, "death.bySpectator.Freeze"); // the spectator can't be reacted to

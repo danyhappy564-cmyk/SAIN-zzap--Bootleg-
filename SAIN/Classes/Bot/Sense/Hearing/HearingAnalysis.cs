@@ -67,7 +67,7 @@ public class HearingAnalysis(HearingSensor hearingSensor) : BotSubClass<HearingS
     // zzap remake5 (2026-10-11 review): SAIN's occlusion only knew "in line of sight or not" - a step one floor up sounded like
     // a step behind the next wall, and the door tactic's "third party within 25 m" counted people a floor away (Labs, Reserve
     // bunkers, Interchange). Indoors (bot under a roof), out of sight, a height difference of a floor muffles the sound:
-    // footsteps and other noises ~half, gunshots a little. Two floors and more, more. Outdoors (hills) nothing changes.
+    // footsteps and other noises ~half (two floors: 0.3), gunshots only from two floors (0.85). Outdoors (hills) nothing changes.
     private const float FLOOR_HEIGHT = 2.5f;
     private const float TWO_FLOORS = 5.5f;
 
@@ -85,9 +85,12 @@ public class HearingAnalysis(HearingSensor hearingSensor) : BotSubClass<HearingS
             return 1f;
         }
         bool twoFloors = dy >= TWO_FLOORS;
+        // 10/12 sim (Factory): 336 of 655 attenuated sounds went unheard, 270 of them gunshots - a shot one floor up/down was cut
+        // at 80 % range, though in game a gunshot carries through a floor or two of a building like Factory, and far shots are
+        // already filtered by the distance bands (HearingSensor.ShallReactToGunshot). One floor: no cut for shots; two+: slight.
         if (sound.IsGunShot)
         {
-            return twoFloors ? 0.65f : 0.8f;
+            return twoFloors ? 0.85f : 1f;
         }
         return twoFloors ? 0.3f : 0.5f;
     }

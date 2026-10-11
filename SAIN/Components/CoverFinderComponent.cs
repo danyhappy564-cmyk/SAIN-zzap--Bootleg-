@@ -104,6 +104,7 @@ public class CoverFinderComponent : BotComponentBase
         }
     }
 
+    private readonly List<CoverPoint> _scan = [];
     private float _nextGetCollidersTime;
     private readonly SainBotCoverData CoverData = new();
 
@@ -135,7 +136,12 @@ public class CoverFinderComponent : BotComponentBase
 
                 _totalChecked = 0;
 
-                CoverPoints.Clear();
+                // zzap (10/12 sim: decisions flip-flopping FallBack <-> Search 182x / FallBack <-> Hold 107x within 1.5 s, the enemy
+                // unseen throughout): this loop used to Clear() CoverPoints and refill it one collider per frame, so for part of
+                // every scan the list was empty or partial - and "is there cover to fall back to" (EnemyDecisionClass.FallBackAllowed,
+                // VisibleEnemyUtility's cover option) said no, then yes again a few frames later. Build the new list in a buffer and
+                // swap it in when the scan is done.
+                _scan.Clear();
                 CurrentStatus = ECoverFinderStatus.SearchingColliders;
                 List<SainBotColliderData> validCollders = CoverData.ValidCollidersList;
                 int validCount = validCollders.Count;
@@ -180,7 +186,7 @@ public class CoverFinderComponent : BotComponentBase
                         else
                         {
                             colliderData.CoverPoint.CoverData.IsBad = false;
-                            CoverPoints.Add(colliderData.CoverPoint);
+                            _scan.Add(colliderData.CoverPoint);
                         }
                     }
                     else if (
@@ -194,18 +200,21 @@ public class CoverFinderComponent : BotComponentBase
                         )
                     )
                     {
-                        CoverPoints.Add(newPoint);
+                        _scan.Add(newPoint);
                         colliderData.CoverPoint = newPoint;
                         CoverData.ValidCollidersList[i] = colliderData;
                     }
-                    if (CoverPoints.Count >= max)
+                    if (_scan.Count >= max)
                     {
                         break;
                     }
 
                     yield return null;
                 }
-                sort(CoverPoints.Count, CoverPoints);
+                sort(_scan.Count, _scan);
+                CoverPoints.Clear();
+                CoverPoints.AddRange(_scan);
+                _scan.Clear();
 #if DEBUG
                 log(CoverPoints.Count);
 #endif

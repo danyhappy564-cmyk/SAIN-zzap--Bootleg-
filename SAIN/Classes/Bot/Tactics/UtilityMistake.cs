@@ -26,6 +26,22 @@ public static class UtilityMistake
         { EPersonality.GigaChad, 0.02f },
     };
 
+    private const float VERDICT_TIME = 5f;
+
+    private sealed class Verdict
+    {
+        public object Best;
+        public object Picked;
+        public float Until;
+    }
+
+    private static readonly Dictionary<(string, string), Verdict> _verdicts = new();
+
+    public static void Clear()
+    {
+        _verdicts.Clear();
+    }
+
     /// <summary>Maybe swap the best entry with a worse one (only options that scored above zero). True when it did.</summary>
     public static bool Apply<T>(BotComponent bot, List<(T option, float score)> ranked, string what)
     {
@@ -34,12 +50,41 @@ public static class UtilityMistake
         {
             return false;
         }
-        float chance = (_chance.TryGetValue(bot.Info.Personality, out float c) ? c : 0.05f) * settings.UtilityMistakeMultiplier;
-        if (Random.value >= chance)
+        // zzap (10/12 sim: a Rat 18 m from a visible enemy went cover -> shoot "(mistake)" -> cover in 0.5 s): the roll was made on
+        // every re-score (several per second), so a mistake lasted one evaluation and the next one undid it. A mistake is a
+        // misjudged moment: roll once while the natural best option stays the same, keep that verdict for 5 s.
+        var key = (bot.ProfileId, what);
+        float time = Time.time;
+        var comparer = EqualityComparer<T>.Default;
+        int pick;
+        bool fresh = false;
+        if (_verdicts.TryGetValue(key, out Verdict v) && time < v.Until && v.Best is T best && comparer.Equals(best, ranked[0].option))
         {
-            return false;
+            if (v.Picked is not T picked)
+            {
+                return false;
+            }
+            pick = ranked.FindIndex(1, r => comparer.Equals(r.option, picked));
+            if (pick < 1 || ranked[pick].score <= 0f)
+            {
+                return false;
+            }
         }
-        int pick = ranked.Count > 2 && ranked[2].score > 0f && Random.value < 0.3f ? 2 : 1;
+        else
+        {
+            float chance = (_chance.TryGetValue(bot.Info.Personality, out float c) ? c : 0.05f) * settings.UtilityMistakeMultiplier;
+            pick = Random.value < chance ? (ranked.Count > 2 && ranked[2].score > 0f && Random.value < 0.3f ? 2 : 1) : 0;
+            _verdicts[key] = new Verdict { Best = ranked[0].option, Picked = pick > 0 ? ranked[pick].option : null, Until = time + VERDICT_TIME };
+            if (_verdicts.Count > 1024)
+            {
+                _verdicts.Clear();
+            }
+            if (pick == 0)
+            {
+                return false;
+            }
+            fresh = true;
+        }
         // A mistake is misjudging a close call, not doing something plainly suicidal (sim 4: first aid at 0.10 over waiting
         // at 0.65 with the enemy 9m away).
         if (ranked[0].score - ranked[pick].score > 0.35f)
@@ -47,7 +92,7 @@ public static class UtilityMistake
             return false;
         }
         (ranked[0], ranked[pick]) = (ranked[pick], ranked[0]);
-        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utility.mistake.{what}.{bot.Info.Personality}");
+        if (fresh && TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utility.mistake.{what}.{bot.Info.Personality}");
         return true;
     }
 }

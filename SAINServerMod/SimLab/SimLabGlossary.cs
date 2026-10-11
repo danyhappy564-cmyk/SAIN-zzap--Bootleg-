@@ -33,7 +33,7 @@ public static class SimLabGlossary
         new("sim.faction.", "시뮬 팩션 분대 호출 (called.역할, callFailed)", "Sim faction squad calls", "SimLabRunner.Spawn"),
         new("jump.", "점프 종류별(jumpShot·rush·bait·retreat) made=점프, hit.air/landed.fast/slow=점프 뒤 2.5초 안 첫 명중", "Jumps per kind and the first hit within 2.5 s", "SAINMoverClass.MarkJump / EnemyEvents.BookJumpHit"),
         new("sound.gun.", "총소리 거리 단계: near=100m 안 수색, mid=100~250m 고개만, far=250m 밖 무시, shotAtMe=나를 쏜 사람(거리 무시), chase=추격 성격, glance=실제로 고개 돌림", "Gunshot distance bands", "HearingSensor.ShallReactToGunshot"),
-        new("sound.floor.", "층 차이(실내·2.5m+) 감쇠: applied=적용, cut=그 때문에 못 들음", "Floor attenuation (indoors, 2.5 m+)", "HearingAnalysis.CalcFloorMod"),
+        new("sound.floor.", "층 차이(실내·2.5m+) 감쇠: applied=적용, cut=그 때문에 못 들음 (10/12부터 총소리는 두 층 이상만 0.85)", "Floor attenuation (indoors, 2.5 m+)", "HearingAnalysis.CalcFloorMod"),
         new("sound.bait.", "저사양: 봇의 장전·치료·핀 소리를 봇이 무시함", "Low-spec: bots ignore other bots' bait sounds", "EnemyHearing.updateEnemyAction"),
         new("vuln.", "취약 순간: heard.행동=소리 들음, reach.행동.yes/no.이유=도착 가능 판정, rush.행동.start/arrivedBusy/arrivedLate/died/killed=돌격 결과, grenade.backOff=수류탄 꺼낸 적, loot.sneak=루팅하는 적에게 조용히 접근", "Busy-enemy reactions per sound type", "VulnerableRush / FootstepDiscipline"),
         new("quiet.", "발소리 관리: start=조용한 접근 시작, skip.roll성격=성격 굴림에서 안 함, timeout=20초 넘어 해제, move.sprint/walk/crouch=30m 안 접근 표본, holdOnHear=다가오는 소리에 지키기, heardComing.판단=다가오는 소리에 다른 판단", "Footstep discipline", "FootstepDiscipline / HiddenEnemyUtility / SimLabProbe"),
@@ -66,6 +66,8 @@ public static class SimLabGlossary
         new("utilityV.do.", "적이 보일 때 고른 행동 (StandAndShoot=서서 쏘기, RushEnemy=돌격, SeekCover=엄폐)", "Action chosen with the enemy visible (StandAndShoot, RushEnemy, SeekCover)", "VisibleEnemyUtility"),
         new("utilityV.top.", "보이는 적 상대로 점수가 가장 높았던 선택지 (Shoot/Push/Cover)", "Highest-scored option against a visible enemy", "VisibleEnemyUtility scores"),
         new("decision.", "판단 유지 규칙 (closeOcclusionKeep=가까운 적이 잠깐 가려져도 유지)", "Decision keep rules", "EnemyDecisionClass"),
+        new("death.switchedAfterHit.", "맞은 지 2초 안에 엄폐·후퇴 등으로 바꾸고 1.5초 안 사망 (이미 지던 싸움 — 판단 전환 경고에서 제외)", "Switched within 2 s after being hit, died within 1.5 s (fight already lost; not in the switch warning)", "BattleStats.OnBotDied"),
+        new("death.switchedAway.", "맞지 않았는데 비사격 판단으로 바꾸고 1.5초 안 사망 — 판단 전환 경고의 근거", "Switched away from fighting without being hit, died within 1.5 s", "BattleStats.OnBotDied"),
         new("death.", "봇이 죽을 때 하고 있던 전투 행동 (DogFight=근접 난전, SeekCover=엄폐 이동, StandAndShoot=서서 쏘기, Freeze=얼음 매복...)", "Combat action the bot was doing when it died", "DoorTacticClass death log"),
         // reload / heal / weapons
         new("reload.pick.", "장전 판단: Reload=지금 장전, Hold=버티고 나중에 (판단할 때마다 셈)", "Reload decision: Reload now / Hold (counted every decision)", "ReloadUtility"),

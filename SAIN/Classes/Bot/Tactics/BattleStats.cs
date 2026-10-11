@@ -76,7 +76,17 @@ public static class BattleStats
         bool fighting = decision is ECombatDecision.DogFight or ECombatDecision.StandAndShoot or ECombatDecision.RushEnemy
             or ECombatDecision.ShootDistantEnemy or ECombatDecision.MeleeAttack;
         bool switching = decisionAge < 1.5f && !fighting;
-        if (switching)
+        // zzap (10/12 sim: 32 of 87 deaths "switched away" - but bots hit in a visible duel at 12-25 m died within 3 s 29-42% of
+        // the time after picking cover and 41-50% after keeping on shooting): a switch made within 2 s after being hit is the
+        // bot already losing that fight, not a switch that got it killed. Those are counted apart and kept out of the warning.
+        var dm = victim.Decision.DecisionManager;
+        bool afterHit = switching && dm.HitTimeAtChange > 0f && dm.ChangeDecisionTime - dm.HitTimeAtChange < 2f;
+        if (afterHit)
+        {
+            TacticDiagnostics.Count($"death.switchedAfterHit.{decision}.{reason}");
+            switching = false;
+        }
+        else if (switching)
         {
             TacticDiagnostics.Count($"death.switchedAway.{decision}.{reason}");
         }
@@ -281,6 +291,7 @@ public static class BattleStats
         _firstSeen.Clear();
         VulnerableRush.Clear();
         FootstepDiscipline.Clear();
+        UtilityMistake.Clear();
         _botKills = 0;
         _otherKills = 0;
         _teamKills = 0;
