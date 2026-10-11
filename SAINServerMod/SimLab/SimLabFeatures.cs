@@ -11,7 +11,12 @@ namespace SAINServerMod.SimLab;
 /// </summary>
 public static class SimLabFeatures
 {
-    public sealed record Feature(string Group, string Name, string[] Fired, string[] Refused, string[] Bad, string Journal, string Note = "", bool ZeroOk = false);
+    public sealed record Feature(string Group, string Name, string[] Fired, string[] Refused, string[] Bad, string Journal, string Note = "", bool ZeroOk = false, bool ZeroOnlyInTestPreset = false)
+    {
+        /// <summary>0 is fine for this map - except a "0 only because of the TEST preset's switches" row in a zzap cross-check raid
+        /// (remake5), which then must fire like for zzap users.</summary>
+        public bool ZeroFine(SimMapRecord? m) => ZeroOk && !(ZeroOnlyInTestPreset && m?.Raid?.ZzapBehaviour == true);
+    }
 
     private static string[] A(params string[] keys) => keys;
 
@@ -26,7 +31,7 @@ public static class SimLabFeatures
         new("tactic", "방 진입(Clear)", A("door.pick.Clear", "door.breach."), A("door.planFailed"), A(), "[DoorTactic]"),
         new("tactic", "방 가두기(Trap)", A("door.pick.Trap"), A(), A(), "[DoorTactic]"),
         new("tactic", "지키기 = 문 지키기", A("door.start.hold."), A("door.holdReject."), A(), "[DoorTactic]", "holdReject는 매 판단마다 세서 큰 게 정상"),
-        new("tactic", "문 옆 매복(Rat)", A("door.start.Rat."), A(), A(), "[DoorTactic]", "Rat 성격이 있어야 나옴 — TEST 프리셋은 문 전술에서 PMC 전원을 GigaChad로 취급(TestModeAllPmcGigaChad)해 시뮬에선 0이 정상", ZeroOk: true),
+        new("tactic", "문 옆 매복(Rat)", A("door.start.Rat."), A(), A(), "[DoorTactic]", "Rat 성격이 있어야 나옴 — TEST 프리셋은 문 전술에서 PMC 전원을 GigaChad로 취급(TestModeAllPmcGigaChad)해 시뮬에선 0이 정상. zzap 교차 검증 판에선 나와야 함", ZeroOk: true, ZeroOnlyInTestPreset: true),
         new("tactic", "분대 역할(오버워치/후방)", A("door.role."), A(), A(), "[DoorTactic]"),
         new("tactic", "제3자 감지(문 전술 중단)", A("door.abort.otherEnemyActive", "door.end.Clear.otherEnemyActive", "door.end.Trap.otherEnemyActive", "door.end.Peek.otherEnemyActive"), A(), A(), "[DoorTactic]"),
         new("tactic", "다이아몬드 스텝", A("diamond.start", "diamond.tap"), A("diamond.blocked"), A(), "[Diamond]"),
@@ -41,7 +46,7 @@ public static class SimLabFeatures
         new("ai", "두려움", A(), A(), A(), "[Utility]", "별도 카운터 없음 — 유틸리티 점수 안에 포함"),
         new("ai", "결과로 배우기", A(), A(), A(), "[Learn]", "사람 플레이어 상대 기록이라 봇끼리 시뮬에선 측정 안 됨"),
         new("ai", "레이드 일지", A(), A(), A(), "-", "일지 파일이 생겼는지로 확인"),
-        new("ai", "사람 같은 실수", A("utility.mistake."), A(), A(), "[Utility] (mistake)", "TEST 프리셋은 꺼 둠 → 0이 정상", ZeroOk: true),
+        new("ai", "사람 같은 실수", A("utility.mistake."), A(), A(), "[Utility] (mistake)", "TEST 프리셋은 꺼 둠 → 0이 정상. zzap 교차 검증 판에선 나와야 함", ZeroOk: true, ZeroOnlyInTestPreset: true),
         new("close", "근접 교전 우선", A("close.fightInsteadOfCover"), A(), A(), "[Decide]", "보이는 적 유틸리티가 켜져 있으면(기본) 유틸리티 점수가 같은 판단을 대신함 → 0이 정상", ZeroOk: true),
         new("close", "개활지 질주 대신 교전", A("close.exposedCommit."), A(), A(), "[Decide]", "보이는 적 유틸리티가 켜져 있으면(기본) 유틸리티 점수가 같은 판단을 대신함 → 0이 정상", ZeroOk: true),
         new("close", "코너 추격", A("chase.style."), A("chase.rollFailed"), A(), "[Chase]"),
@@ -80,6 +85,20 @@ public static class SimLabFeatures
         new("fix", "시체 피·총알 자국 텍스처", A("perf.corpseDecalsFreed"), A(), A(), "[Perf]"),
         new("fix", "전술장비 딸깍 반복", A("light.turnOnFailedBackoff"), A(), A(), "-"),
         new("fix", "치료하며 피킹", A("lean.stoppedForMeds"), A(), A(), "-"),
+
+        // remake5 (2026-10-11)
+        new("remake5", "팩션 분대 섞기(로그·레이더)", A("sim.faction.called."), A("sim.faction.callFailed"), A(), "[SimLab] faction squad", "시뮬 설정 '팩션 분대 섞기'가 꺼져 있으면 0"),
+        new("remake5", "판마다 보스 무작위", A("sim.boss.seen"), A(), A("sim.boss.notSeen", "sim.boss.waveMissing", "sim.boss.callFailed"), "[SimLab] boss"),
+        new("remake5", "연막 오투척 방지", A("nade.skip.vanillaSmoke"), A(), A(), "[Nade]", "연막만 든 봇이 있을 때만 — APBS PMC는 2~3%라 0이 흔함", ZeroOk: true),
+        new("remake5", "층 차이 소리 감쇠", A("sound.floor.applied"), A("sound.floor.cut"), A(), "-", "거부 칸 = 층 때문에 못 들은 횟수"),
+        new("remake5", "문 전술 제3자: 다른 층 제외", A("door.thirdParty.otherFloorIgnored"), A(), A(), "[DoorTactic]", "여러 층 맵(연구소 등)에서만", ZeroOk: true),
+        new("remake5", "먼 총소리 3단계(고개만/무시)", A("sound.gun.mid", "sound.gun.far", "sound.gun.glance"), A(), A(), "-", "싸움 구역이 좁으면 100m 넘는 총소리가 드묾", ZeroOk: true),
+        new("remake5", "나를 쏜 원거리 적은 거리 무시하고 반응", A("sound.gun.shotAtMe"), A(), A(), "-", "100m 넘는 곳에서 쏜 경우만", ZeroOk: true),
+        new("remake5", "전투 후 정리가 총소리를 들음", A("postCombat.alert.gunfire"), A(), A(), "[PostCombat]"),
+        new("remake5", "저사양: 봇끼리 미끼 안 낚임", A("sound.bait.ignoredBot"), A(), A(), "-", "저사양 프리셋에서만 켜짐", ZeroOk: true),
+        new("remake5", "취약 순간 돌격(소리 종류별 남은 시간)", A("vuln.rush."), A("vuln.reach."), A(), "[Vuln]", "거부 칸에 yes도 섞여 있음 — md '취약 순간 반응' 절 참고"),
+        new("remake5", "수류탄 꺼낸 적에게 안 달려듦", A("vuln.grenade.backOff"), A(), A(), "[Vuln]", "", ZeroOk: true),
+        new("remake5", "발소리 관리(30m 걷기·12m 숙여 걷기)", A("quiet.start"), A("quiet.skip.", "quiet.timeout"), A(), "[Quiet]"),
     };
 
     /// <summary>Counters under <paramref name="prefixes"/> that are not under any of <paramref name="except"/>.</summary>

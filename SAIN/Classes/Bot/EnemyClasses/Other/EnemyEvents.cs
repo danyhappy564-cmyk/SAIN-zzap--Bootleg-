@@ -81,13 +81,22 @@ public class EnemyEvents
     /// only. At the moment a bot first sees an enemy, was that enemy heard in the 10 s before - and by what kind of sound - and how
     /// far away is he. hear.firstSeen.&lt;heard.move|heard.gun|heard.other|notHeard&gt;.&lt;close|mid|far&gt; (close &lt;15 m, mid &lt;40 m).
     /// </summary>
+    /// <summary>remake5: when this bot first saw this enemy, had it heard him in the 10 s before (BattleStats firstContact.*).</summary>
+    public bool HeardBeforeSeen { get; private set; }
+    public bool FirstSeenDone { get; private set; }
+
     private void CountFirstSeen()
     {
+        var hearing = Enemy.Hearing;
+        if (!FirstSeenDone)
+        {
+            FirstSeenDone = true;
+            HeardBeforeSeen = hearing != null && hearing.Heard && hearing.TimeSinceHeard < 10f;
+        }
         if (!SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
         {
             return;
         }
-        var hearing = Enemy.Hearing;
         string heard = "notHeard";
         if (hearing != null && hearing.Heard && hearing.TimeSinceHeard < 10f)
         {

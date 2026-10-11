@@ -325,11 +325,11 @@ public static class SimLabAnalyzer
                 var (fired, _, badCount) = SimLabFeatures.Measure(f, b);
                 // zzap (user 2026-10-10: "a few blue !"): features whose 0 is expected in a sim (off in the TEST preset,
                 // replaced by the utility, a fix that had nothing to repair) are not listed as "never fired".
-                if (fired == 0 && !f.ZeroOk)
+                if (fired == 0 && !f.ZeroFine(m))
                 {
                     silent.Add(f.Name);
                 }
-                if (badCount > 0 && f.Group == "fix")
+                if (badCount > 0 && f.Group is "fix" or "remake5")
                 {
                     bad.Add($"{f.Name} {badCount}");
                 }
@@ -686,8 +686,8 @@ public static class SimLabAnalyzer
                 foreach (var f in SimLabFeatures.All)
                 {
                     var (fired, refused, badCount) = SimLabFeatures.Measure(f, b);
-                    string state = f.Fired.Length == 0 ? "➖" : fired > 0 ? "✅" : f.ZeroOk ? "➖" : "⚠️";
-                    if (badCount > 0 && f.Group == "fix")
+                    string state = f.Fired.Length == 0 ? "➖" : fired > 0 ? "✅" : f.ZeroFine(m) ? "➖" : "⚠️";
+                    if (badCount > 0 && f.Group is "fix" or "remake5")
                     {
                         state = "❌";
                     }

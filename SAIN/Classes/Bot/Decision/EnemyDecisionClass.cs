@@ -818,7 +818,26 @@ public class EnemyDecisionClass : BotBase
             reason = stormReason;
             return true;
         }
-        if (!checkInRangeForRush(enemy))
+        bool inRange = checkInRangeForRush(enemy);
+        // zzap remake5 (user 2026-10-11): a busy enemy is judged by what the sound means - can the bot get there before the
+        // reload / heal / surgery / looting ends (VulnerableRush) - not only by SAIN's 10 m path rule. Grenade out = never.
+        EEnemyAction busy = enemy.Status.VulnerableAction;
+        if (busy != EEnemyAction.None && Bot.Info.PersonalitySettings.Rush.CanRushEnemyReloadHeal)
+        {
+            bool reach = SAIN.SAINComponent.Classes.Tactics.VulnerableRush.CanReach(Bot, enemy, busy, inRange, out string why);
+            SAIN.SAINComponent.Classes.Tactics.VulnerableRush.OnDecision(Bot, enemy, busy, reach, why);
+            if (reach)
+            {
+                reason = "enemyVulnerable";
+                return true;
+            }
+            if (busy == EEnemyAction.HasGrenade)
+            {
+                reason = "enemyHasGrenade";
+                return false;
+            }
+        }
+        if (!inRange)
         {
             reason = "outOfRange";
             return false;
@@ -843,11 +862,6 @@ public class EnemyDecisionClass : BotBase
             return false;
         }
 
-        if (enemy.Status.VulnerableAction != EEnemyAction.None)
-        {
-            reason = "enemyVulnerable";
-            return true;
-        }
         ETagStatus enemyHealth = enemy.EnemyPlayer.HealthStatus;
         if (enemyHealth == ETagStatus.Dying)
         {

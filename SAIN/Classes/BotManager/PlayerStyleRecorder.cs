@@ -601,6 +601,13 @@ public sealed class PlayerStyleRecorder
             Logger.LogWarning($"[PlayerStyle] not saving ({why}): enabled={Enabled} player={_playerFound} recorded={_d.Seconds:0}s (min 30s)");
             return;
         }
+        // zzap remake5 (2026-10-11 review): a sim raid's "player" is the god-mode spectator standing by the arena - with
+        // "Use Test Raids For Adaptation" on (default), those raids fed the bots' picture of the user's real play style.
+        if (SAIN.SimLab.SimLab.Active)
+        {
+            Logger.LogWarning($"[PlayerStyle] not saving ({why}): simulation preset loaded - the spectator is not the user's play style");
+            return;
+        }
         Logger.LogWarning($"[PlayerStyle] saving ({why})...");
         _written = true;
         CloseCampSegment(Time.time);

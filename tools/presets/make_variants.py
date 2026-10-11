@@ -106,6 +106,9 @@ def lowspec(src_normal):
     gen.setdefault("FreezeAmbush", {})["PeekSpotMaxStep"] = 1.5
     # Bot-vs-bot footstep hearing: every moving bot's steps go through every bot's hearing - off for low-spec.
     d["GlobalSettings"].setdefault("Hearing", {})["BotsHearBotFootsteps"] = False
+    # Bots don't bait each other with reload / heal / grenade-pin sounds (user 2026-10-11: "low-spec users are better off
+    # without bots fishing each other - fewer frame drops"); a human player's sounds still count.
+    d["GlobalSettings"]["Hearing"]["BotsTakeBotBait"] = False
     return d
 
 

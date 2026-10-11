@@ -125,6 +125,10 @@ public static class SimLabOddity
         // cover 80-160m from the enemy; the FallBack stall guard, which skips bots in cover, rightly fired 0 times)
         bool inCover = decision == "SeekCover" && bot.Cover?.CoverInUse != null;
         Check(s, "stalledMove", IsMovingDecision(decision) && !selfAction && !inCover && reason.IndexOf("Hold", StringComparison.OrdinalIgnoreCase) < 0 && speed < 0.25f, 6f, now);
+        // remake5 (user 2026-10-11: "long-range snipers / DMRs shooting at the bot itself must be excluded" from the distant-gunfire
+        // filter): hit by someone 80 m+ away in the last 10 s, nobody in sight, and the bot doesn't go for him (goal enemy is
+        // someone else / nobody) while standing still.
+        Check(s, "ignoredSniper", FarShooterIgnored(bot, now) && speed < 0.5f, 6f, now);
 
         foreach (string kind in KINDS)
         {
@@ -137,14 +141,41 @@ public static class SimLabOddity
         }
     }
 
-    private static readonly string[] KINDS = { "noShoot", "backTurned", "hitNoReact", "flipFlop", "bunched", "stalledMove" };
+    private static readonly string[] KINDS = { "noShoot", "backTurned", "hitNoReact", "flipFlop", "bunched", "stalledMove", "ignoredSniper" };
+
+    private static bool FarShooterIgnored(BotComponent bot, float now)
+    {
+        var known = bot.EnemyController?.KnownEnemies;
+        if (known == null)
+        {
+            return false;
+        }
+        SAIN.SAINComponent.Classes.EnemyClasses.Enemy far = null;
+        for (int i = 0; i < known.Count; i++)
+        {
+            var e = known[i];
+            if (e == null)
+            {
+                continue;
+            }
+            if (e.IsVisible)
+            {
+                return false;
+            }
+            if (e.Status.TimeLastShotMe > 0f && now - e.Status.TimeLastShotMe < 10f && e.RealDistance > 80f)
+            {
+                far = e;
+            }
+        }
+        return far != null && !ReferenceEquals(bot.GoalEnemy, far);
+    }
 
     private static float Need(string kind)
     {
         return kind switch
         {
             "flipFlop" => 0f,
-            "bunched" or "stalledMove" => 6f,
+            "bunched" or "stalledMove" or "ignoredSniper" => 6f,
             _ => 4f,
         };
     }

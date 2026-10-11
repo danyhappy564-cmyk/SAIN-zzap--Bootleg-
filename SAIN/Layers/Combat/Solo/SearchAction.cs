@@ -187,6 +187,11 @@ internal class SearchAction(BotOwner bot) : BotAction(bot, "Search"), IBotAction
 
     private void checkShouldSprint()
     {
+        if (SAIN.SAINComponent.Classes.Tactics.FootstepDiscipline.BlockSprint(Bot, _searchTarget))
+        {
+            _sprintEnabled = false;
+            return;
+        }
         //  || Search.CurrentState == ESearchMove.MoveToDangerPoint
         if (Search.CurrentState == ESearchMove.Wait)
         {

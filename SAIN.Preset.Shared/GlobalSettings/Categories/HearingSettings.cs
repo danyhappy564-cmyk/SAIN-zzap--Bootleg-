@@ -488,6 +488,12 @@ public class HearingSettings : SAINSettingsBase<HearingSettings>, ISAINSettings
     public bool BotsHearBotFootsteps = true;
 
     [DataMember]
+    [Category("Hearing Distance")]
+    [Name("Bots Take Other Bots' Bait")]
+    [Description("zzap: a bot that hears another bot reload, heal, pull a grenade pin or loot treats it as a moment to rush (the door tactics' fake heal / fake grenade baits work on bots too). Off = only a human player's sounds count, so bots don't bait each other - less work for weak PCs (low-spec preset).")]
+    public bool BotsTakeBotBait = true;
+
+    [DataMember]
     [MinMax(1f, 150f, 100f)]
     [Category("Hearing Distance")]
     [Name("Footstep Sound")]

@@ -130,7 +130,9 @@ public static class HiddenEnemyUtility
         };
         float ammo = SAINBotSuppressClass.CalcAmmoRatio(bot.BotOwner, out _);
         float weak = SquadStorm.Weakness(bot, enemy, out string weakWhy);
-        bool busy = enemy.Status.VulnerableAction != EEnemyAction.None;
+        // zzap remake5: a grenade out / pin pulled is not a window to push - he throws it at whoever comes (VulnerableRush).
+        bool grenadeOut = enemy.Status.VulnerableAction == EEnemyAction.HasGrenade;
+        bool busy = enemy.Status.VulnerableAction != EEnemyAction.None && !grenadeOut;
         float infoAge = enemy.TimeSinceLastKnownUpdated;
         float quiet = Mathf.Clamp01((infoAge - 8f) / 12f);
         float lastShot = enemy.Status.TimeLastShotAtMe;
@@ -170,6 +172,16 @@ public static class HiddenEnemyUtility
         float flank = 0.2f + (holdsAngle ? 0.3f : 0f) + 0.15f * Mathf.Max(0f, numbers) + 0.1f * quiet - 0.2f * (1f - health);
         float search = -0.15f * load.Long + 0.15f + 0.35f * info + 0.1f * aggr - 0.2f * (1f - health);
         float fallBack = (closingOnLongGun ? 0.35f : 0f) + 0.05f + 0.45f * (1f - health) + (ammo < 0.25f ? 0.3f : 0f) + (numbers < 0f ? 0.25f * -numbers : 0f);
+        if (grenadeOut)
+        {
+            // close by, he's about to throw: don't walk into it - step back from the throw line or keep the angle from cover
+            bool near = path < 25f;
+            push -= 0.35f;
+            flank -= 0.15f;
+            search -= 0.25f;
+            fallBack += near ? 0.3f : 0.1f;
+            hold += 0.1f;
+        }
 
         // Fear (personality + mates dying, the player's streak, hurt, outnumbered, pinned): toward falling back / holding.
         float fear = FearModel.Fear(bot, enemy, health, numbers < 0f, out string fearWhy);
@@ -205,6 +217,7 @@ public static class HiddenEnemyUtility
         if (farHold > 0.05f) sb.Append($"he's {knownDist:0}m off - too far to ambush; ");
         if (weak >= 0.3f) sb.Append($"he's weak ({weakWhy}); ");
         if (busy) sb.Append($"he's {enemy.Status.VulnerableAction}; ");
+        if (grenadeOut) sb.Append("he has a grenade out - don't walk into it; ");
         if (holdsAngle) sb.Append("he's holding an angle on us; ");
         if (justLost) sb.Append("just lost sight (momentum); ");
         if (brokeOff)
@@ -285,6 +298,11 @@ public static class HiddenEnemyUtility
             why += " | (mistake)";
         }
         commit = list[0].Item1 == EStance.Hold ? Random.Range(4f, 7f) : Random.Range(2.5f, 4f);
+        // remake5 measurement: footsteps coming our way -> held the angle (the listening side of footstep discipline)
+        if (coming && TacticDiagnostics.CountOn)
+        {
+            TacticDiagnostics.Count(list[0].Item1 == EStance.Hold ? "quiet.holdOnHear" : $"quiet.heardComing.{list[0].Item1}");
+        }
         return list;
     }
 

@@ -80,6 +80,16 @@ public static class BattleStats
         {
             TacticDiagnostics.Count($"death.switchedAway.{decision}.{reason}");
         }
+        VulnerableRush.OnDeath(victim.ProfileId, killer?.ProfileId);
+        if (TacticDiagnostics.CountOn && killer != null)
+        {
+            // remake5: did the side that heard the other first win? (footstep discipline / bots hearing bots)
+            TacticDiagnostics.Count("firstContact.victim." + Contact(victim.EnemyController.GetEnemy(killer.ProfileId, false)));
+            if (killer.IsAI && SAINEnableClass.GetSAIN(killer.ProfileId, out BotComponent kb) && kb != null)
+            {
+                TacticDiagnostics.Count("firstContact.killer." + Contact(kb.EnemyController.GetEnemy(victim.ProfileId, false)));
+            }
+        }
         string victimFaction = SAIN.SimLab.SimFaction.Of(victim.Info.Profile.WildSpawnType);
         var f = Get(_faction, victimFaction);
         f.Deaths++;
@@ -131,6 +141,15 @@ public static class BattleStats
                 Get(_faction, SAIN.SimLab.SimFaction.Of(killer.Profile.Info.Settings.Role) + "(vanilla)").Kills++;
             }
         }
+    }
+
+    private static string Contact(SAIN.SAINComponent.Classes.EnemyClasses.Enemy e)
+    {
+        if (e == null || !e.Events.FirstSeenDone)
+        {
+            return "neverSaw";
+        }
+        return e.Events.HeardBeforeSeen ? "heardFirst" : "sawFirst";
     }
 
     /// <summary>Called from the journal tick; writes the table every 5 minutes.</summary>
@@ -234,6 +253,8 @@ public static class BattleStats
         _reason.Clear();
         _combat.Clear();
         _faction.Clear();
+        VulnerableRush.Clear();
+        FootstepDiscipline.Clear();
         _botKills = 0;
         _otherKills = 0;
         _teamKills = 0;

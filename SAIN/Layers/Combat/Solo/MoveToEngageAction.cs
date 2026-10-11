@@ -22,8 +22,14 @@ internal class MoveToEngageAction(BotOwner bot) : BotAction(bot, nameof(MoveToEn
             return;
         }
 
-        Bot.Mover.SetTargetPose(1f);
-        Bot.Mover.SetTargetMoveSpeed(1f);
+        // zzap remake5: footstep discipline - walk / crouch-walk when the enemy is within 30 / 12 m (FootstepDiscipline)
+        bool quiet = SAIN.SAINComponent.Classes.Tactics.FootstepDiscipline.Quiet(Bot, enemy, out float quietSpeed, out float quietPose);
+        Bot.Mover.SetTargetPose(quiet ? quietPose : 1f);
+        Bot.Mover.SetTargetMoveSpeed(quiet ? quietSpeed : 1f);
+        if (quiet && Bot.Mover.Running)
+        {
+            Bot.Mover.ActivePath?.RequestEndSprint(ESprintUrgency.None, "quiet approach");
+        }
 
         if (enemy.IsVisible && Shoot.ShootAnyVisibleEnemies(enemy))
         {
@@ -49,7 +55,7 @@ internal class MoveToEngageAction(BotOwner bot) : BotAction(bot, nameof(MoveToEn
         _recalcPathTime = Time.time + RECALC_PATH_INTERVAL;
 
         Vector3 destination = firingPosition.Value;
-        bool sprint = !BotOwner.Memory.IsUnderFire && (destination - Bot.Position).magnitude > SPRINT_MIN_DISTANCE;
+        bool sprint = !quiet && !BotOwner.Memory.IsUnderFire && (destination - Bot.Position).magnitude > SPRINT_MIN_DISTANCE;
         if (sprint && Bot.Mover.RunToPoint(destination, true, -1f, ESprintUrgency.Middle))
         {
             return;

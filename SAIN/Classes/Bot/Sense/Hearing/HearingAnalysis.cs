@@ -1,4 +1,5 @@
 using EFT;
+using SAIN.Components;
 using SAIN.Components.PlayerComponentSpace;
 using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.GlobalSettings;
@@ -37,12 +38,64 @@ public class HearingAnalysis(HearingSensor hearingSensor) : BotSubClass<HearingS
             _settings.HEAR_MODIFIER_MAX_CLAMP
         );
         float FinalRange = sound.Sound.Range * sound.Sound.Volume * FinalModifier;
+        float floorMod = CalcFloorMod(sound);
+        if (floorMod < 1f)
+        {
+            bool countOn = SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn;
+            if (countOn && sound.PlayerDistance <= FinalRange)
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("sound.floor.applied");
+            }
+            if (sound.PlayerDistance <= FinalRange && sound.PlayerDistance > FinalRange * floorMod)
+            {
+                if (countOn)
+                {
+                    SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"sound.floor.cut.{(sound.IsGunShot ? "gun" : "other")}");
+                    SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("sound.floor.cut");
+                }
+                return false;
+            }
+        }
         if (sound.PlayerDistance > FinalRange)
         {
             return false;
         }
 
         return true;
+    }
+
+    // zzap remake5 (2026-10-11 review): SAIN's occlusion only knew "in line of sight or not" - a step one floor up sounded like
+    // a step behind the next wall, and the door tactic's "third party within 25 m" counted people a floor away (Labs, Reserve
+    // bunkers, Interchange). Indoors (bot under a roof), out of sight, a height difference of a floor muffles the sound:
+    // footsteps and other noises ~half, gunshots a little. Two floors and more, more. Outdoors (hills) nothing changes.
+    private const float FLOOR_HEIGHT = 2.5f;
+    private const float TWO_FLOORS = 5.5f;
+
+    private float CalcFloorMod(AISoundData sound)
+    {
+        var enemy = sound.Enemy;
+        var source = sound.Sound.PlayerComponent;
+        if (enemy == null || source == null || enemy.InLineOfSight || !Bot.Memory.Location.UnderRoof)
+        {
+            return 1f;
+        }
+        float dy = Mathf.Abs(source.Position.y - Bot.Position.y);
+        if (dy < FLOOR_HEIGHT)
+        {
+            return 1f;
+        }
+        bool twoFloors = dy >= TWO_FLOORS;
+        if (sound.IsGunShot)
+        {
+            return twoFloors ? 0.65f : 0.8f;
+        }
+        return twoFloors ? 0.3f : 0.5f;
+    }
+
+    /// <summary>Same floor test for other code (door tactic third party): true when the two are a floor or more apart indoors.</summary>
+    public static bool OtherFloor(BotComponent bot, Vector3 other)
+    {
+        return bot != null && bot.Memory.Location.UnderRoof && Mathf.Abs(other.y - bot.Position.y) >= FLOOR_HEIGHT;
     }
 
     private static HearingSettings _settings

@@ -2927,6 +2927,14 @@ public class DoorTacticClass : BotComponentClassBase
                 float dist = HorizontalDistance(heardAt, Bot.Position);
                 if (dist < 25f)
                 {
+                    // zzap remake5: a floor up or down (indoors) is not the fight at this door - Labs / Reserve bunkers / Interchange
+                    // stairwells counted steps a floor away as a third party 25 m around. Gunfire keeps its own rule (CloseThirdPartyGunfire).
+                    if (!other.IsVisible && SAIN.Classes.Bot.Sense.Hearing.HearingAnalysis.OtherFloor(Bot, heardAt)
+                        && hearing.LastHeardSoundType != SAINSoundType.Shot && hearing.LastHeardSoundType != SAINSoundType.SuppressedShot)
+                    {
+                        TacticDiagnostics.Count("door.thirdParty.otherFloorIgnored");
+                        continue;
+                    }
                     what = $"{other.EnemyName} heard ({hearing.LastHeardSoundType}) {dist:0}m away";
                     return true;
                 }

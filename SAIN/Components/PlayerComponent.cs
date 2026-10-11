@@ -288,6 +288,7 @@ public class PlayerComponent : MonoBehaviour, IDisposable, ISPlayer
             {
                 OnShoot?.Invoke(WeaponInfo, Force);
                 PlayAISound(WeaponInfo.SoundType, Transform.WeaponData.FirePort, WeaponInfo.CalculatedAudibleRange, 1);
+                SAIN.SAINComponent.Classes.Tactics.SoundWatch.OnShot(this, Transform.WeaponData.FirePort);
             }
         }
     }

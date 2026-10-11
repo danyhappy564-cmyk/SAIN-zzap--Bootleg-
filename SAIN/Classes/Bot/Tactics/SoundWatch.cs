@@ -67,6 +67,20 @@ public static class SoundWatch
         _sounds.Add(new Sound { Time = time, Position = position, ProfileId = source.ProfileId, Player = source.Player, Shot = shot });
     }
 
+    /// <summary>
+    /// zzap remake5 (2026-10-11 review): gunshots never reached this list - SAIN sends shots straight from
+    /// PlayerComponent.OnMakingShot to the hearing cache, not through BotHearingClass.AISoundPlayed - so "gunfire nearby"
+    /// never kept a bot in post-combat. OnMakingShot now calls this. The sim spectator's shots are left out (bots can't react to him).
+    /// </summary>
+    public static void OnShot(PlayerComponent source, Vector3 position)
+    {
+        if (source == null || _hearing == null || SAIN.SimLab.SimLab.IsSpectatorPlayer(source.Player))
+        {
+            return;
+        }
+        OnSound(SAINSoundType.Shot, position, source, 0f, 1f);
+    }
+
     /// <summary>True when the bot hears someone coming or gunfire nearby. Where = the closest such sound (approach first).</summary>
     public static bool Heard(BotComponent bot, out Vector3 where, out bool coming, out string why)
     {

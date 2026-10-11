@@ -225,7 +225,17 @@ public static class SimLabProbe
         SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"faction.{group}.layer.{kind}");
         if (sain && layer == SAIN.SAINComponent.Classes.Tactics.LayerHandoff.SainCombat)
         {
-            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"faction.{group}.decision.{bot.Decision.CurrentCombatDecision}");
+            var decision = bot.Decision.CurrentCombatDecision;
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"faction.{group}.decision.{decision}");
+            // remake5 footstep discipline: how bots move while going after an unseen enemy 30 m or closer
+            var goal = bot.GoalEnemy;
+            if (goal != null && !goal.IsVisible && goal.Path.PathLength <= SAIN.SAINComponent.Classes.Tactics.FootstepDiscipline.WALK_DISTANCE
+                && (decision == SAIN.Preset.Shared.Enums.ECombatDecision.Search || decision == SAIN.Preset.Shared.Enums.ECombatDecision.MoveToEngage)
+                && player.MovementContext != null)
+            {
+                string move = player.IsSprintEnabled ? "sprint" : player.MovementContext.PoseLevel < 0.8f ? "crouch" : "walk";
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"quiet.move.{move}");
+            }
         }
     }
 

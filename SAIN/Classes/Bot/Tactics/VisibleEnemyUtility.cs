@@ -129,6 +129,8 @@ public static class VisibleEnemyUtility
         float ammo = SAINBotSuppressClass.CalcAmmoRatio(bot.BotOwner, out _);
         float weak = SquadStorm.Weakness(bot, enemy, out string weakWhy);
         bool busy = enemy.Status.VulnerableAction != EEnemyAction.None;
+        // zzap remake5: grenade in his hand - shooting him now is right (busy), running at him is not.
+        bool grenadeOut = enemy.Status.VulnerableAction == EEnemyAction.HasGrenade;
         bool looking = enemy.EnemyLookingAtMe;
         float lk = looking ? 1f : 0.3f;
         float visibleFor = Time.time - enemy.Vision.VisibleStartTime;
@@ -167,7 +169,7 @@ public static class VisibleEnemyUtility
             + (cover <= 12f ? (tooClose ? 0.3f : 0f) + (tooFar ? 0.2f : 0f) : 0f) - (finishHim ? 0.15f : 0f)
             // He's reloading/healing = he can't shoot back right now; that is the window to trade, not to turn around.
             - (busy && cover > 2f ? 0.25f : 0f);
-        float push = 0.1f + 0.3f * weak + (busy ? 0.35f : 0f) + 0.2f * aggr + 0.15f * numbers + (dist < 12f ? 0.15f : 0f)
+        float push = 0.1f + 0.3f * weak + (busy && !grenadeOut ? 0.35f : 0f) - (grenadeOut ? 0.3f : 0f) + 0.2f * aggr + 0.15f * numbers + (dist < 12f ? 0.15f : 0f)
             - 0.3f * (1f - health) - (ammo < 0.4f ? 0.3f : 0f) - (dist > 30f ? 0.25f : 0f) - (looking && !busy ? 0.1f : 0f)
             + 0.15f * load.Cqb - 0.25f * load.Long - (tooClose ? 0.3f : 0f);
 

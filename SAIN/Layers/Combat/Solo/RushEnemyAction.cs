@@ -21,6 +21,7 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
     private void updateRushBehavior()
     {
         _enemy = Bot.GoalEnemy;
+        VulnerableRush.TickRush(Bot, _enemy);
         if (_enemy == null)
         {
             Bot.Steering.SteerByPriority(null, true);

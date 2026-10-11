@@ -154,6 +154,17 @@ public class SearchClass : BotComponentClassBase
 
         bool shallBeStealthy = Decider.ShallBeStealthyDuringSearch(enemy);
         GetSpeedAndPose(out float speed, out float pose, shallSprint, shallBeStealthy);
+        // zzap remake5: footstep discipline - no sprint within 30 m of the enemy, crouch-walk within 12 m (FootstepDiscipline)
+        if (SAIN.SAINComponent.Classes.Tactics.FootstepDiscipline.Quiet(Bot, enemy, out float quietSpeed, out float quietPose))
+        {
+            shallSprint = false;
+            speed = Mathf.Min(speed, quietSpeed);
+            pose = Mathf.Min(pose, quietPose);
+            if (Bot.Mover.Running)
+            {
+                Bot.Mover.ActivePath?.RequestEndSprint(ESprintUrgency.None, "quiet approach");
+            }
+        }
         HandleLight(shallBeStealthy);
 
         if (CheckShallWaitandReload())
