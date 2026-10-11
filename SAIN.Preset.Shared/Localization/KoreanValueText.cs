@@ -13,7 +13,7 @@ public static class KoreanValueText
     {
         // Personality > Search > Heard From Peace Behavior
         { "EHeardFromPeaceBehavior.None", "기본 반응" },
-        { "EHeardFromPeaceBehavior.Freeze", "얼음(매복)" },
+        { "EHeardFromPeaceBehavior.Freeze", "정지 및 매복" },
         { "EHeardFromPeaceBehavior.SearchNow", "바로 수색" },
         { "EHeardFromPeaceBehavior.Charge", "돌격" },
 

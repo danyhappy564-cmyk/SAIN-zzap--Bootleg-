@@ -572,8 +572,13 @@ public class RepositionClass : BotComponentClassBase
     private bool TryStartBait(Enemy enemy, Vector3 enemyPos, out string reason)
     {
         reason = "noBait";
-        if (!Settings.BaitPeek || (!Settings.TestMode && !Bot.Info.PersonalitySettings.Rush.CanRushEnemyReloadHeal))
+        if (!Settings.BaitPeek)
         {
+            return false;
+        }
+        if (!Settings.TestMode && !Bot.Info.PersonalitySettings.Rush.CanRushEnemyReloadHeal)
+        {
+            TacticDiagnostics.Count("repo.baitSkipped.personality");
             return false;
         }
         if (!Roll(Settings.BaitPeekChance))
@@ -1043,10 +1048,17 @@ public class RepositionClass : BotComponentClassBase
                     {
                         continue;
                     }
-                    if (!Physics.Linecast(hit.position + Vector3.up * 1.4f, enemyChest, LayersMaskController.HighPolyWithTerrainMask))
+                    // 10/12 sim: indoors his last known spot is usually just behind a corner, so a line to his chest was
+                    // always blocked (repo.noPoint.BaitPeek). Seeing the corner 0.8m beside him is enough to draw his fire.
+                    Vector3 eye = hit.position + Vector3.up * 1.4f;
+                    for (int t = 0; t < 3; t++)
                     {
-                        result = hit.position;
-                        return true;
+                        Vector3 target = enemyChest + lateral * (t == 0 ? 0f : t == 1 ? 0.8f : -0.8f);
+                        if (!Physics.Linecast(eye, target, LayersMaskController.HighPolyWithTerrainMask))
+                        {
+                            result = hit.position;
+                            return true;
+                        }
                     }
                 }
             }

@@ -68,6 +68,7 @@ public class CombatWeaponClass : BotComponentClassBase
     // zzap: the game refused the holster swap (13th/14th sims: 245-306 refusals, the same bots re-asking every tick and
     // never reloading in between) - don't offer the pistol again for 3s.
     private float _pistolRefusedUntil;
+    private bool _pistolBackHeldNoted;
 
     /// <summary>ReloadUtility picked the pistol (mag nearly empty, enemy in sight within 30m).</summary>
     public bool SwapToPistol(Enemy enemy, float ammoRatio)
@@ -149,14 +150,27 @@ public class CombatWeaponClass : BotComponentClassBase
         if (slot == EquipmentSlot.Holster && _pistolByUs)
         {
             bool empty = wm.PistolWeaponInfo == null || wm.PistolWeaponInfo.BulletCount <= 0;
-            bool gone = enemy == null || !enemy.Seen || enemy.TimeSinceSeen > 6f;
+            // 10/12 sim ping-pong (Bot27, 1 round in the main gun): the goal enemy switched to one shooting at us but not seen
+            // yet, which counted as "gone" -> main gun back unreloaded -> he showed up 2s later -> pistol again. Someone
+            // shooting at us in the last 6s is not gone.
+            bool shotAtMe = enemy != null && enemy.Status.ShotAtMe && enemy.Status.TimeLastShotAtMe > 0f
+                && Time.time - enemy.Status.TimeLastShotAtMe < 6f;
+            bool gone = enemy == null || (!enemy.IsVisible && !shotAtMe && (!enemy.Seen || enemy.TimeSinceSeen > 6f));
             bool far = enemy != null && enemy.RealDistance > s.PistolSwapMaxDistance + 15f;
+            if (!gone && !_pistolBackHeldNoted && enemy != null && !enemy.IsVisible && (!enemy.Seen || enemy.TimeSinceSeen > 6f))
+            {
+                _pistolBackHeldNoted = true;
+                TacticDiagnostics.Count("weapon.pistolBackHeld");
+            }
             if (empty || gone || far)
             {
                 string why = empty ? "pistol empty" : gone ? "enemy gone" : "enemy far";
                 if (ForceChange(selector._mainWeapon))
                 {
                     _pistolByUs = false;
+                    // Give the main gun time to be reloaded before the pistol is offered again.
+                    _pistolRefusedUntil = Time.time + 5f;
+                    _pistolBackHeldNoted = false;
                     TacticDiagnostics.Count("weapon.pistolBack");
                     if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Weapon] [{Bot.name}] back to the main gun ({why})");
                 }

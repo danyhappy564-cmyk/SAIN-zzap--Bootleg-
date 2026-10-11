@@ -8,7 +8,7 @@ namespace SAINServerMod.SimLab;
 /// zzap remake5 analysis (user 2026-10-11: "I can't watch the hour-long sim - log so that you can check and fix it yourself").
 /// Everything here reads counters the game writes in sim raids, grouped by prefix:
 ///   faction.{group}.spawned / .layer.{sain|orbit|vanillaLayer|vanilla} / .decision.{decision} / .death.diamond.{state}[.{why}]
-///   sim.boss.{called|seen|notSeen|waveMissing|callFailed}, sim.faction.called.{role}
+///   sim.boss.{called|seen|slow|notSeen|waveMissing|callFailed}, sim.faction.called.{role}
 ///   jump.{kind}.made / jump.{kind}.hit.{air|landed}.{fast|slow}
 ///   sound.*  (phase 2), vuln.*  (phase 3), quiet.* / firstContact.* (phase 4)
 /// Each section is plain numbers + a one-line reading; findings carry a "how to fix" line for Claude.
@@ -99,7 +99,7 @@ public static class SimLabRemake5
         {
             sb.AppendLine();
             sb.AppendLine("### 보스·팩션 분대 호출");
-            sb.AppendLine($"- 보스: {(string.IsNullOrEmpty(raid.Boss) ? "없음" : $"{raid.Boss} + [{raid.BossEscorts}] (템플릿 {raid.BossSource})")} — 호출 {Get(b, "sim.boss.called")}, 등장 {Get(b, "sim.boss.seen")}, 90초 안 미등장 {Get(b, "sim.boss.notSeen")}, 웨이브 못 찾음 {Get(b, "sim.boss.waveMissing")}, 호출 실패 {Get(b, "sim.boss.callFailed")}");
+            sb.AppendLine($"- 보스: {(string.IsNullOrEmpty(raid.Boss) ? "없음" : $"{raid.Boss} + [{raid.BossEscorts}] (템플릿 {raid.BossSource})")} — 호출 {Get(b, "sim.boss.called")}, 등장 {Get(b, "sim.boss.seen")}, 90초 넘게 늦음 {Get(b, "sim.boss.slow")}, 5분 안 미등장 {Get(b, "sim.boss.notSeen")}, 웨이브 못 찾음 {Get(b, "sim.boss.waveMissing")}, 호출 실패 {Get(b, "sim.boss.callFailed")}");
             sb.AppendLine($"- 팩션 분대: [{raid.FactionRoles}] 비율 {raid.FactionShare:0.00}, 호출 " + string.Join(", ", With(b, "sim.faction.called.").Select(kv => $"{kv.Key.Substring(19)} {kv.Value}")) + $", 실패 {Get(b, "sim.faction.callFailed")}");
             if (!string.IsNullOrEmpty(raid.KeptModdedWaves))
             {

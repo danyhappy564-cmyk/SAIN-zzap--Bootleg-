@@ -1009,17 +1009,17 @@ public static class KoreanSettingText
         { "SillyMode", "장난 모드" },
         // FreezeAmbushSettings
         { "Max Enemy Distance", "최대 적 거리" },
-        { "Meters. Only freeze if the heard enemy is closer than this. SAIN original: 70. zzap: the hidden-enemy utility's Hold also fades out from this distance to twice it (long guns keep most of it).", "m. 들은 적이 이보다 가까울 때만 얼음(매복). SAIN 원본: 70. zzap: 안 보이는 적 판단(유틸리티)의 버티기도 이 거리부터 2배 거리까지 점점 줄어듦(DMR·저격총은 대부분 유지)." },
-        { "Freeze Outdoors", "실외에서도 얼음" },
-        { "SAIN original only freezes indoors. On: also hold still outside (the bot freezes where it stands, so it can end up in the open).", "SAIN 원본은 실내에서만 얼음. 켜면 실외에서도 가만히 있음(선 자리에서 멈추니 개활지에 남을 수 있음)." },
-        { "Min Freeze Time", "최소 얼음 시간" },
-        { "Seconds, before the personality's aggression is applied (freeze time = random(min, max) / aggression). SAIN original: 10.", "초, 성격 공격성 적용 전(얼음 시간 = 무작위(최소, 최대) ÷ 공격성). SAIN 원본: 10." },
-        { "Max Freeze Time", "최대 얼음 시간" },
+        { "Meters. Only freeze if the heard enemy is closer than this. SAIN original: 70. zzap: the hidden-enemy utility's Hold also fades out from this distance to twice it (long guns keep most of it).", "m. 들은 적이 이보다 가까울 때만 정지·매복. SAIN 원본: 70. zzap: 안 보이는 적 판단(유틸리티)의 버티기도 이 거리부터 2배 거리까지 점점 줄어듦(DMR·저격총은 대부분 유지)." },
+        { "Freeze Outdoors", "실외에서도 정지 및 매복" },
+        { "SAIN original only freezes indoors. On: also hold still outside (the bot freezes where it stands, so it can end up in the open).", "SAIN 원본은 실내에서만 정지·매복. 켜면 실외에서도 가만히 있음(선 자리에서 멈추니 개활지에 남을 수 있음)." },
+        { "Min Freeze Time", "최소 정지 및 매복 시간" },
+        { "Seconds, before the personality's aggression is applied (freeze time = random(min, max) / aggression). SAIN original: 10.", "초, 성격 공격성 적용 전(정지 시간 = 무작위(최소, 최대) ÷ 공격성). SAIN 원본: 10." },
+        { "Max Freeze Time", "최대 정지 및 매복 시간" },
         { "Seconds, before the personality's aggression is applied. SAIN original: 120.", "초, 성격 공격성 적용 전. SAIN 원본: 120." },
         { "Not Seen For", "못 본 지 시간" },
-        { "Seconds. Only freeze if the enemy hasn't been seen for at least this long. SAIN original: 240.", "초. 적을 최소 이 시간 동안 못 봤을 때만 얼음. SAIN 원본: 240." },
+        { "Seconds. Only freeze if the enemy hasn't been seen for at least this long. SAIN original: 240.", "초. 적을 최소 이 시간 동안 못 봤을 때만 정지·매복. SAIN 원본: 240." },
         { "Heard Within", "들은 지 시간 이내" },
-        { "Seconds. Only freeze if the enemy was heard within this time. SAIN original: 80.", "초. 이 시간 안에 적 소리를 들었을 때만 얼음. SAIN 원본: 80." },
+        { "Seconds. Only freeze if the enemy was heard within this time. SAIN original: 80.", "초. 이 시간 안에 적 소리를 들었을 때만 정지·매복. SAIN 원본: 80." },
         { "Watch Approach Corner", "접근 코너 주시" },
         { "Step To A Spot That Sees Past The Corner", "코너 너머가 보이는 자리로 한 걸음" },
         {
@@ -1028,8 +1028,8 @@ public static class KoreanSettingText
         },
         { "Peek Spot Max Step (m)", "피킹 자리 최대 이동 거리 (m)" },
         { "How far a holding bot may step toward the corner edge to get a clear angle.", "지키는 봇이 각을 얻으려고 코너 모서리 쪽으로 옮길 수 있는 최대 거리." },
-        { "While frozen, aim at the corner the enemy has to come around (the last visible point on the path to them) instead of the default look.", "얼음 상태에서 기본 시선 대신 적이 돌아 나와야 하는 코너(적까지 경로의 마지막 보이는 지점)를 조준." },
-        { "Writes [Freeze] lines to BepInEx LogOutput.log when a bot starts/stops a freeze ambush.", "봇이 얼음 매복을 시작/종료할 때 BepInEx LogOutput.log에 [Freeze] 줄을 기록." },
+        { "While frozen, aim at the corner the enemy has to come around (the last visible point on the path to them) instead of the default look.", "정지·매복 중에 기본 시선 대신 적이 돌아 나와야 하는 코너(적까지 경로의 마지막 보이는 지점)를 조준." },
+        { "Writes [Freeze] lines to BepInEx LogOutput.log when a bot starts/stops a freeze ambush.", "봇이 정지 및 매복을 시작/종료할 때 BepInEx LogOutput.log에 [Freeze] 줄을 기록." },
         // GeneralSettings
         { "Bots Use Grenades", "봇 수류탄 사용" },
         { "Bots Use Grenades Vs Other Bots", "봇끼리 싸울 때 수류탄 사용" },
@@ -1043,8 +1043,8 @@ public static class KoreanSettingText
         { "Doors", "문" },
         { "Door Tactics (zzap)", "문 전술 (zzap)" },
         { "Skilled-player door tactics added by the zzap fork: jump peek, fake grenade/heal, room trap, door grenade, silent ambush.", "zzap 포크가 추가한 숙련 플레이어식 문 전술: 점프 피킹, 페이크 수류탄/치료, 방 가두기, 문 앞 수류탄, 조용한 매복." },
-        { "Freeze Ambush (zzap)", "얼음 매복 (zzap)" },
-        { "When a Freeze personality hears an enemy close by before any fight, it holds still and ambushes. These limits were hardcoded before.", "'얼음' 성격이 교전 전에 가까운 적 소리를 들으면 가만히 매복함. 예전엔 이 한계값들이 코드에 박혀 있었음." },
+        { "Freeze Ambush (zzap)", "정지 및 매복 (zzap)" },
+        { "When a Freeze personality hears an enemy close by before any fight, it holds still and ambushes. These limits were hardcoded before.", "'정지·매복' 성격이 교전 전에 가까운 적 소리를 들으면 가만히 매복함. 예전엔 이 한계값들이 코드에 박혀 있었음." },
         { "Squad Combat (zzap)", "분대 교전 (zzap)" },
         { "Squad engagement in a live firefight: crossfire angles, covering a reloading/healing teammate, trading a downed teammate.", "실제 총격전 중 분대 교전: 교차 사격 각, 재장전·치료 중인 아군 엄호, 쓰러진 아군 복수(트레이드)." },
         { "Close Combat (zzap)", "근접 교전 (zzap)" },
@@ -1385,6 +1385,11 @@ public static class KoreanSettingText
         // PerformanceSettings (zzap sim)
         { "Sim: Hide Old Bot Corpses Above (TEST preset only)", "시뮬: 오래된 봇 시체 숨기기 기준 (TEST 프리셋 전용)" },
         { "Sim: Delete Instead Of Hide (TEST preset only)", "시뮬: 숨기지 말고 삭제 (TEST 프리셋 전용)" },
+        { "Sim: Also Clear All Old Corpses Every (minutes, TEST preset only)", "시뮬: 오래된 시체 전부 정리 주기 (분, TEST 프리셋 전용)" },
+        {
+            "zzap fork, for checking the corpse removal early: besides the limit above, every this many minutes of raid time all bot corpses that have been dead 20s+ are hidden/deleted, however few there are. Only works in a preset whose name contains TEST. 0 = off.",
+            "zzap 포크, 시체 정리를 일찍 확인하는 용도: 위 기준과 별개로, 레이드 시간 이 분마다 죽은 지 20초 넘은 봇 시체를 수와 상관없이 전부 숨김/삭제. 이름에 TEST가 들어간 프리셋에서만 작동. 0 = 끔."
+        },
         {
             "zzap fork, experiment: corpses over the limit above are removed through EFT's own loot removal instead of just hidden (hiding keeps the body in memory). Their loot is gone with them. Only works in a preset whose name contains TEST. Used to measure how much RAM the corpses themselves hold.",
             "zzap 포크, 실험용: 위 기준을 넘는 시체를 숨기는 대신 EFT 자체의 전리품 제거 방식으로 실제 삭제(숨기기는 몸이 메모리에 그대로 남음). 시체의 전리품도 같이 사라짐. 이름에 TEST가 들어간 프리셋에서만 작동. 시체 자체가 램을 얼마나 차지하는지 재는 용도."

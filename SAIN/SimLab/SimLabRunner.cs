@@ -74,6 +74,7 @@ public sealed class SimLabRunner : MonoBehaviour
     private float _bossCalledAt = -1f;
     private bool _bossSeen;
     private bool _bossMissNoted;
+    private bool _bossSlowNoted;
     private int _factionCalled;
     private int _activated;
     private float _lastSpawn = -999f;
@@ -557,6 +558,7 @@ public sealed class SimLabRunner : MonoBehaviour
         _bossCalledAt = -1f;
         _bossSeen = false;
         _bossMissNoted = false;
+        _bossSlowNoted = false;
         _factionCalled = 0;
         _zzapChanges.Clear();
         _activated = 0;
@@ -841,6 +843,10 @@ public sealed class SimLabRunner : MonoBehaviour
                     _bossSeen = true;
                     float after = _bossCalledAt > 0f ? now - _bossCalledAt : -1f;
                     TacticDiagnostics.Count("sim.boss.seen");
+                    if (_bossSlowNoted)
+                    {
+                        _notes.Add($"보스 {role}가 호출 {after:0}초 뒤 늦게 나옴 (동시 생존 상한 때문에 생성 대기였을 수 있음)");
+                    }
                     Logger.LogWarning($"[SimLab] boss {role} spawned {(after >= 0f ? $"{after:0}s after the call" : "(not called by the sim)")}");
                     if (TacticDiagnostics.LogOn)
                     {
@@ -974,12 +980,20 @@ public sealed class SimLabRunner : MonoBehaviour
             }
             return;
         }
-        if (!_bossSeen && !_bossMissNoted && now - _bossCalledAt > 90f)
+        // 10/12 sim: the boss came 115 s after the call (the alive cap of 10 held the spawn queue) and the 90 s check
+        // flagged it as a bad signal. 90 s now only counts as slow; not seen = 5 minutes.
+        if (!_bossSeen && !_bossSlowNoted && now - _bossCalledAt > 90f)
+        {
+            _bossSlowNoted = true;
+            TacticDiagnostics.Count("sim.boss.slow");
+            Logger.LogWarning($"[SimLab] boss {info.Boss} not seen yet 90 s after the call (zone [{_bossWave.BossZone}]) - waiting up to 5 min");
+        }
+        if (!_bossSeen && !_bossMissNoted && now - _bossCalledAt > 300f)
         {
             _bossMissNoted = true;
             TacticDiagnostics.Count("sim.boss.notSeen");
-            _notes.Add($"보스 {info.Boss}를 불렀지만 90초 안에 안 나옴 (구역 [{_bossWave.BossZone}], 템플릿 {info.BossSource}) — 게임 보스 생성기가 막혔거나 구역이 맞지 않음");
-            Logger.LogWarning($"[SimLab] boss {info.Boss} not seen 90 s after the call (zone [{_bossWave.BossZone}], template {info.BossSource})");
+            _notes.Add($"보스 {info.Boss}를 불렀지만 5분 안에 안 나옴 (구역 [{_bossWave.BossZone}], 템플릿 {info.BossSource}) — 게임 보스 생성기가 막혔거나 구역이 맞지 않음");
+            Logger.LogWarning($"[SimLab] boss {info.Boss} not seen 5 min after the call (zone [{_bossWave.BossZone}], template {info.BossSource})");
         }
     }
 

@@ -29,19 +29,36 @@ public static class CorpseCleanup
 
     public static int Hidden { get; private set; }
 
-    private static int Limit
+    private static bool TestPreset
     {
         get
         {
             string name = SAINPlugin.LoadedPreset?.Info?.Name;
-            if (string.IsNullOrEmpty(name) || name.IndexOf("TEST", System.StringComparison.OrdinalIgnoreCase) < 0)
-            {
-                return 0;
-            }
+            return !string.IsNullOrEmpty(name) && name.IndexOf("TEST", System.StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+    }
+
+    private static int Limit
+    {
+        get
+        {
             float limit = GlobalSettingsClass.Instance?.General?.Performance?.SimCorpseLimit ?? 0f;
             return limit >= 1f ? Mathf.RoundToInt(limit) : 0;
         }
     }
+
+    // 2026-10-12 (user: "delete corpses every 5 minutes - otherwise it can't be checked quickly without a 30-min sim"): the
+    // limit (TEST 40) is only reached after ~25 min, so also clear every corpse that is MIN_AGE+ old every N minutes.
+    private static float SweepSeconds
+    {
+        get
+        {
+            float minutes = GlobalSettingsClass.Instance?.General?.Performance?.SimCorpseSweepMinutes ?? 0f;
+            return minutes > 0f ? minutes * 60f : 0f;
+        }
+    }
+
+    private static float _nextSweep;
 
     public static void OnBotDied(Player player)
     {
@@ -96,12 +113,28 @@ public static class CorpseCleanup
     public static void Tick()
     {
         Inspect();
-        int limit = Limit;
-        if (limit <= 0)
+        if (!TestPreset)
         {
             return;
         }
-        while (_corpses.Count > limit)
+        int limit = Limit;
+        bool sweep = false;
+        float sweepEvery = SweepSeconds;
+        if (sweepEvery > 0f)
+        {
+            if (_nextSweep <= 0f)
+            {
+                _nextSweep = Time.time + sweepEvery;
+            }
+            else if (Time.time >= _nextSweep)
+            {
+                _nextSweep = Time.time + sweepEvery;
+                sweep = true;
+                TacticDiagnostics.Count("sim.corpseSweep");
+            }
+        }
+        // Each pass dequeues one corpse or returns, so this ends.
+        while (_corpses.Count > 0 && (sweep || (limit > 0 && _corpses.Count > limit)))
         {
             var (player, time) = _corpses.Peek();
             if (Time.time - time < MIN_AGE)
@@ -282,5 +315,6 @@ public static class CorpseCleanup
         _toInspect.Clear();
         Hidden = 0;
         Deleted = 0;
+        _nextSweep = 0f;
     }
 }

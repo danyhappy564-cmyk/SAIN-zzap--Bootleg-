@@ -115,8 +115,19 @@ public class GrenadeController(BotManagerComponent controller) : BotManagerBase(
                         // something else (field report: 4-man squad ignored the fight next door, grenades included)
                         // didn't react. Add the thrower (hostility is checked by CheckAddEnemy -> EnemyInfo).
                         enemy = bot.EnemyController.CheckAddEnemy(player);
+                        // 10/12 sim: all 3 blasts came out "not hostile", but one of those throwers killed that bot later -
+                        // CheckAddEnemy only finds players already in the group's enemy list. Hostile but not listed yet
+                        // -> add him to the group first (same check SimLabProbe uses), then try again.
+                        string blastWhy = enemy != null ? "blast.newEnemy" : "blast.notHostile";
+                        var group = bot.BotOwner?.BotsGroup;
+                        if (enemy == null && group != null && !group.Enemies.ContainsKey(player) && group.IsPlayerEnemy(player))
+                        {
+                            group.AddEnemy(player, EBotEnemyCause.checkAddTODO);
+                            enemy = bot.EnemyController.CheckAddEnemy(player);
+                            blastWhy = enemy != null ? "blast.newEnemy.addedToGroup" : "blast.addToGroupFailed";
+                        }
                         var mover = bot.BotOwner?.Mover;
-                        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(enemy != null ? "blast.newEnemy" : "blast.notHostile");
+                        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(blastWhy);
                         Logger.LogWarning(
                             $"[BlastHeard] [{bot.name}] [{bot.Info.Personality}] frag {distance:0}m away from {player.Profile?.Nickname} it didn't know: "
                                 + $"{(enemy != null ? "now known" : "not hostile/no enemy info")} | SAINLayersActive={bot.SAINLayersActive} "

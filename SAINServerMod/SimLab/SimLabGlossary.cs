@@ -29,7 +29,7 @@ public static class SimLabGlossary
         new("door.", "문 전술 관련 기타", "Other door-tactic events", "DoorTacticClass / DoorHandler"),
         // remake5 (2026-10-11)
         new("faction.", "팩션별 (PMC·Rogue·Raider·Goons·Boss·Follower·BlackDivision): spawned=나옴, layer.sain/orbit/vanillaLayer/vanilla=2초 표본의 두뇌, decision.*=SAIN 전투 중 판단 표본, death.diamond.*=사망 시 다이아몬드 상태", "Per faction: spawned, brain layer samples, combat decision samples, diamond state at death", "SimLabProbe.SampleFaction / BattleStats.OnBotDied / SimLabRunner.Tick"),
-        new("sim.boss.", "시뮬 보스 (called=호출, seen=등장, notSeen=90초 안 미등장, waveMissing=웨이브 못 찾음)", "Sim boss (called / seen / not seen in 90 s / wave missing)", "SimLabRunner.TickBoss / SimLabFactions.AddBoss"),
+        new("sim.boss.", "시뮬 보스 (called=호출, seen=등장, slow=90초 넘게 늦음, notSeen=5분 안 미등장, waveMissing=웨이브 못 찾음)", "Sim boss (called / seen / slow > 90 s / not seen in 5 min / wave missing)", "SimLabRunner.TickBoss / SimLabFactions.AddBoss"),
         new("sim.faction.", "시뮬 팩션 분대 호출 (called.역할, callFailed)", "Sim faction squad calls", "SimLabRunner.Spawn"),
         new("jump.", "점프 종류별(jumpShot·rush·bait·retreat) made=점프, hit.air/landed.fast/slow=점프 뒤 2.5초 안 첫 명중", "Jumps per kind and the first hit within 2.5 s", "SAINMoverClass.MarkJump / EnemyEvents.BookJumpHit"),
         new("sound.gun.", "총소리 거리 단계: near=100m 안 수색, mid=100~250m 고개만, far=250m 밖 무시, shotAtMe=나를 쏜 사람(거리 무시), chase=추격 성격, glance=실제로 고개 돌림", "Gunshot distance bands", "HearingSensor.ShallReactToGunshot"),
@@ -54,7 +54,7 @@ public static class SimLabGlossary
         new("threat.keep", "목표 적을 그대로 유지 (너무 자주 바꾸지 않게)", "Kept the current target enemy", "ThreatPicker keep"),
         new("threat.switch.", "목표 적을 바꿈 (flanker=옆으로 온 적, seen=보이는 적, unseen=안 보이지만 가까운 적)", "Switched target (flanker, seen, unseen)", "ThreatPicker switch"),
         // decision
-        new("utility.do.", "적이 안 보일 때 고른 행동 (Freeze=얼음 매복, Search=수색, RushEnemy=돌격, SeekCover=엄폐 찾기, DoorTactic=문 전술...). 판단할 때마다 셈", "Action chosen while the enemy is hidden (Freeze, Search, RushEnemy, SeekCover, DoorTactic...). Counted every decision", "HiddenEnemyUtility"),
+        new("utility.do.", "적이 안 보일 때 고른 행동 (Freeze=정지 및 매복, Search=수색, RushEnemy=돌격, SeekCover=엄폐 찾기, DoorTactic=문 전술...). 판단할 때마다 셈", "Action chosen while the enemy is hidden (Freeze, Search, RushEnemy, SeekCover, DoorTactic...). Counted every decision", "HiddenEnemyUtility"),
         new("utility.top.", "안 보이는 적 상대로 점수가 가장 높았던 선택지", "Highest-scored option against a hidden enemy", "HiddenEnemyUtility scores"),
         new("utility.fellTo.", "1순위를 못 써서 다음 선택지로 넘어감", "Fell back to the next option", "HiddenEnemyUtility fallback"),
         new("utility.noneRunnable", "쓸 수 있는 선택지가 하나도 없어 기본 판단에 맡김", "No option was runnable - left to the default decision", "HiddenEnemyUtility"),
@@ -68,7 +68,7 @@ public static class SimLabGlossary
         new("decision.", "판단 유지 규칙 (closeOcclusionKeep=가까운 적이 잠깐 가려져도 유지)", "Decision keep rules", "EnemyDecisionClass"),
         new("death.switchedAfterHit.", "맞은 지 2초 안에 엄폐·후퇴 등으로 바꾸고 1.5초 안 사망 (이미 지던 싸움 — 판단 전환 경고에서 제외)", "Switched within 2 s after being hit, died within 1.5 s (fight already lost; not in the switch warning)", "BattleStats.OnBotDied"),
         new("death.switchedAway.", "맞지 않았는데 비사격 판단으로 바꾸고 1.5초 안 사망 — 판단 전환 경고의 근거", "Switched away from fighting without being hit, died within 1.5 s", "BattleStats.OnBotDied"),
-        new("death.", "봇이 죽을 때 하고 있던 전투 행동 (DogFight=근접 난전, SeekCover=엄폐 이동, StandAndShoot=서서 쏘기, Freeze=얼음 매복...)", "Combat action the bot was doing when it died", "DoorTacticClass death log"),
+        new("death.", "봇이 죽을 때 하고 있던 전투 행동 (DogFight=근접 난전, SeekCover=엄폐 이동, StandAndShoot=서서 쏘기, Freeze=정지 및 매복...)", "Combat action the bot was doing when it died", "DoorTacticClass death log"),
         // reload / heal / weapons
         new("reload.pick.", "장전 판단: Reload=지금 장전, Hold=버티고 나중에 (판단할 때마다 셈)", "Reload decision: Reload now / Hold (counted every decision)", "ReloadUtility"),
         new("reload.justDucked.", "적이 방금 숨은 순간이라 장전 보류", "Held the reload: enemy just ducked", "ReloadUtility"),
@@ -100,7 +100,7 @@ public static class SimLabGlossary
         new("ownGrenade.", "내가 던진 수류탄 위치 추적", "Tracked own grenade", "OwnGrenadeTracker"),
         new("trick.", "속임수 동작 취소·건너뜀", "Tricks cancelled / skipped", "DoorTacticClass"),
         // freeze / search / post combat
-        new("freeze.", "얼음 매복: 가까이 들린 적을 기다림 (start=시작, end=끝난 이유, cornerWatch=코너 주시)", "Freeze ambush (start, end reason, corner watch)", "FreezeAction"),
+        new("freeze.", "정지 및 매복: 가까이 들린 적을 기다림 (start=시작, end=끝난 이유, cornerWatch=코너 주시)", "Freeze ambush (start, end reason, corner watch)", "FreezeAction"),
         new("peekSpot.", "피킹 자리 찾기 (none=못 찾음, step=한 걸음 옮겨 자리 잡음)", "Peek spot search (none / step)", "PeekSpot"),
         new("postCombat.", "교전이 끝난 뒤 행동 (regroup=모이기, heal=치료, advance=전진, reload=장전)", "After-fight actions (regroup, heal, advance, reload)", "PostCombatAction"),
         new("lean.", "기울이기 (hold=기울인 채 유지, rock=좌우 흔들기, stoppedForMeds=치료 때문에 멈춤)", "Leaning (hold, rock, stopped for meds)", "LeanClass"),

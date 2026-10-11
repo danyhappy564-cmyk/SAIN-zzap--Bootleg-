@@ -514,9 +514,14 @@ public class DoorTacticClass : BotComponentClassBase
             why = "noPathToStack";
             return false;
         }
-        if (PathLength(path) > Mathf.Max(14f, straight * 3f))
+        // 10/12 sim: both Peek plans of the raid died here (doors on a level change, stairs make the walk long). A peek is
+        // done from outside the door, so it may take a somewhat longer way than a Clear/Trap stack; the numbers go to the log.
+        float length = PathLength(path);
+        float limit = s.Plan == EPlan.Peek ? Mathf.Max(20f, straight * 4f) : Mathf.Max(14f, straight * 3f);
+        if (length > limit)
         {
             why = "stackPathDetour";
+            if (LogOn) Log($"{Who()} stack path {length:0}m vs straight {straight:0}m (limit {limit:0}m, plan {s.Plan})");
             return false;
         }
         return true;
@@ -884,6 +889,8 @@ public class DoorTacticClass : BotComponentClassBase
                 {
                     EPersonality.GigaChad => Settings.GigaChadFakeTrickChance,
                     EPersonality.Chad => Settings.ChadFakeTrickChance,
+                    // 10/12 sim: 5 of the 6 hold-stance traps were Normal bots with no fake at all - half Chad's chance.
+                    EPersonality.Normal => Settings.ChadFakeTrickChance * 0.5f,
                     _ => 0f,
                 } / 100f;
                 s.WantFakeNade = Settings.FakeGrenade && haveNade && Random.value < (testMode ? 1f : holdFake);

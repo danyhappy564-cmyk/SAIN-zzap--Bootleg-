@@ -39,7 +39,8 @@
       "Performance": {
         "PerformanceMode": false,
         "SimCorpseLimit": 40,
-        "SimCorpseDelete": true
+        "SimCorpseDelete": true,
+        "SimCorpseSweepMinutes": 5
       },
       "AILimit": {
         "LimitAIvsAIGlobal": false,

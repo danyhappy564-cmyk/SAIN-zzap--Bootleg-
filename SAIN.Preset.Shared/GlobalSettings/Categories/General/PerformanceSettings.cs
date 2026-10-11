@@ -32,6 +32,15 @@ public class PerformanceSettings : SAINSettingsBase<PerformanceSettings>, ISAINS
     public bool SimCorpseDelete = false;
 
     [DataMember]
+    [Name("Sim: Also Clear All Old Corpses Every (minutes, TEST preset only)")]
+    [Description(
+        "zzap fork, for checking the corpse removal early: besides the limit above, every this many minutes of raid time all bot corpses "
+            + "that have been dead 20s+ are hidden/deleted, however few there are. Only works in a preset whose name contains TEST. 0 = off."
+    )]
+    [MinMax(0f, 60f, 1f)]
+    public float SimCorpseSweepMinutes = 0f;
+
+    [DataMember]
     [Name("Free Corpse Blood Decal Textures")]
     [Description(
         "zzap fork: every character mesh that gets hit gets its own blood/bullet-hole texture (about 4 MB each) that EFT keeps until the raid ends, "

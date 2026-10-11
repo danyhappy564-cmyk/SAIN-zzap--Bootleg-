@@ -92,7 +92,7 @@ public static class SimLabAnalyzer
         ("멈춤(1초 넘는 프레임)", "Stalls", "해당 시각 LogOutput의 예외·GC·로딩 확인."),
         ("메모리 증가", "Memory growth", "맵끼리 비교. 시체(SimCorpseLimit/Delete)·디칼 해제 수치 확인, 계속 오르면 누수 후보(정적 리스트·이벤트 구독) 추적."),
         ("판단을 바꾼 직후 사망이 많음", "Many deaths right after a decision change", "death.switchedAway.<판단>.<이유> 상위를 보고, 적이 보일 때 엄폐로 빠지는 판단(VisibleEnemyUtility Cover/utilityFallBack)이면 '등 돌리는 순간' 노출 → 가까운 엄폐만 허용·뒷걸음 사격(close.walkFacingEnemy)·전환 최소 유지 시간 검토. 일지 [Death] 줄로 거리·맞은 부위 확인."),
-        ("얼음 매복 중 사망", "Died while freeze-ambushing", "FreezeAction 종료 조건(enemySpotted/underFire 반응 지연) 점검."),
+        ("정지 및 매복 중 사망", "Died while freeze-ambushing", "FreezeAction 종료 조건(enemySpotted/underFire 반응 지연) 점검."),
         ("벽을 보고 있는 시간이 많음", "Much time facing a wall", "WallStareByDecision 상위 판단의 시선 목표 확인 → SAINSteeringClass.AvoidWallStare 조건(조준 중 제외 등)·거리 조정."),
         ("스폰 위치가 정한 구역과 다름", "Spawns outside the wanted zones", "sim.abpsZone.used/fallback 비율 확인. fallback이 많으면 SimLabAbpsSpawn MIN_DISTANCE 완화나 구역 추가."),
         ("보기 전에 소리로 알아챘는지", "Heard before seen?", "notHeard.close/mid가 많음 → PlayerSoundController(BotsHearBotFootsteps)·SAIN 청각 거리/가림 계산 확인."),
@@ -237,7 +237,7 @@ public static class SimLabAnalyzer
         int freezeDeaths = Get(b, "death.Freeze") - Get(b, "death.bySpectator.Freeze"); // the spectator can't be reacted to
         if (freezeDeaths > 0)
         {
-            list.Add(new(WARN, T("얼음 매복 중 사망", "Died while freeze-ambushing"), T($"death.Freeze={freezeDeaths} (0이어야 정상).", $"death.Freeze={freezeDeaths} (should be 0).")));
+            list.Add(new(WARN, T("정지 및 매복 중 사망", "Died while freeze-ambushing"), T($"death.Freeze={freezeDeaths} (0이어야 정상).", $"death.Freeze={freezeDeaths} (should be 0).")));
         }
         // zzap (2026-10-10 review): stuck.* summed stage + layer + freed counters (one episode counted 3-5 times) - every
         // episode in the 3-map run was freed. An episode = stage1; it is a problem only when it was not freed.
@@ -492,7 +492,7 @@ public static class SimLabAnalyzer
             "StandAndShoot" => T("서서 쏘기", "stand and shoot"),
             "RushEnemy" => T("돌격", "rush"),
             "SeekCover" => T("엄폐 찾기", "seek cover"),
-            "Freeze" => T("얼음 매복", "freeze ambush"),
+            "Freeze" => T("정지 및 매복", "freeze ambush"),
             "Search" => T("수색", "search"),
             "DoorTactic" => T("문 전술", "door tactic"),
             "ThrowGrenade" => T("수류탄", "grenade"),
@@ -548,7 +548,7 @@ public static class SimLabAnalyzer
         Use("코너 추격", "corner chases", Sum(b, "chase.start."));
         Use("다이아몬드 스텝", "diamond steps", Get(b, "diamond.start"));
         Use("위치 바꾸기", "repositions", Sum(b, "repo.start."));
-        Use("얼음 매복", "freeze ambushes", Sum(b, "freeze.start."));
+        Use("정지 및 매복", "freeze ambushes", Sum(b, "freeze.start."));
         if (used.Count > 0)
         {
             lines.Add(T("쓴 전술: ", "Tactics used: ") + string.Join(", ", used) + ".");
