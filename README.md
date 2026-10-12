@@ -1,10 +1,10 @@
 ### ⚠️ IMPORTANT NOTICE / DISCLAIMER
 
-**Original Author:** Solarint
-**Original Repository:** SAIN - Solarint's AI Modifications
-**Original Link:** https://github.com/Solarint/SAIN
-**License:** See upstream repository
-**This Port By:** R_F (danyhappy564-cmyk) — unofficial, AI-assisted port. Not affiliated with or endorsed by the original author.
+- **Original Author:** Solarint
+- **Original Repository:** SAIN - Solarint's AI Modifications
+- **Original Link:** https://github.com/Solarint/SAIN
+- **License:** See upstream repository
+- **This Port By:** R_F (danyhappy564-cmyk) — unofficial, AI-assisted port. Not affiliated with or endorsed by the original author.
 
 1. **Reflection & Take-Downs:** I deeply reflect on the ECOT incident. As an AI-assisted "vibe coder," I will immediately delete files if the original authors ask.
 2. **No Re-Distribution:** These ported builds are unverified, temporary fixes. Please do NOT re-upload or share them anywhere else.
