@@ -14,6 +14,12 @@
 
 ---
 
+## 변경 이력
+
+- 2026-10-13 04:47 — README 맨 위 원작자 표기를 한 줄씩 나눠 보기 쉽게 정리 (내용 변화 없음)
+
+전체 변경 이력 196개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-020.md`](changelog/CHANGELOG-020.md)).
+
 # SAIN (zzap fork)
 
 > **원작자 · 원본**
@@ -25,9 +31,9 @@
 SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포크는 ① **봇이 문 앞에서 낑기는 버그**를 고치고,
 ② 실제 고인물 플레이를 흉내 낸 **전술 행동**을 SAIN 전투 레이어 안에 추가하고, ③ 바로 쓸 수 있는 **zzap 프리셋**을 같이 넣었습니다.
 
-변경 이력은 [`changelog/CHANGELOG.md`](changelog/CHANGELOG.md), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
+변경 이력은 [`changelog/`](changelog/), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
 
-**최근 변경 (2026-10-12 17:42, remake5 릴리즈):** 교전 중 피킹 3종(스텝·점프·런바이), 분대 협동(제압+측면+후방), 봇끼리 발소리 듣기, 빈틈 노리기, 조용히 다가가기, 무기 핑퐁·주운 총 장전·로그 등 바닐라 전투 수정, 시뮬레이션 랩. 상세는 [`remake5 릴리즈 노트`](changelog/RELEASE_NOTES_remake5.md)와 [전체 이력](changelog/CHANGELOG.md). (시뮬로 확인, 사람 상대 체감은 미검증)
+**최근 변경 (2026-10-12 17:42, remake5 릴리즈):** 교전 중 피킹 3종(스텝·점프·런바이), 분대 협동(제압+측면+후방), 봇끼리 발소리 듣기, 빈틈 노리기, 조용히 다가가기, 무기 핑퐁·주운 총 장전·로그 등 바닐라 전투 수정, 시뮬레이션 랩. 상세는 [`remake5 릴리즈 노트`](changelog/RELEASE_NOTES_remake5.md)와 [전체 이력](changelog/). (시뮬로 확인, 사람 상대 체감은 미검증)
 그 전 (2026-10-06, Remix4.2): [`Remix4.2 릴리즈 노트`](changelog/RELEASE_NOTES_Remix4.2.md).
 그 전 (2026-10-04, Remix4.1): 문을 발로 차면 애니메이션 없이 바로 열리고 잠긴 문까지 열리던 문제 수정, 도망칠 때 고개가 지그재그 박자에 맞춰 까딱이던 문제 수정. 상세는 [`Remix4.1 릴리즈 노트`](changelog/RELEASE_NOTES_Remix4.1.md)와 변경 이력.
 직전(10/2): 가까이 다가오는 적으로 목표 변경, 게임 기본 봇 탈출 제거(F6, 재시작), 코너에서 먼저 쏘기, 실내 수류탄 포물선 (remake4).
