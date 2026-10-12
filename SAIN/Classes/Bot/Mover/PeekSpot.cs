@@ -36,6 +36,12 @@ public sealed class PeekSpot(BotComponent bot, string owner)
 
     public void Reset()
     {
+        // 15:34 sim: the 0.45 step speed outlived the freeze - 5 bots went on to StandAndShoot swing-walking at 0.45 x ADS
+        // (looked like "still frozen while fighting"). Whoever resets the peek gets full speed back.
+        if (_spot != null)
+        {
+            _bot.Mover.SetTargetMoveSpeed(1f);
+        }
         _spot = null;
         _tries = 0;
         _nextCheck = Time.time + 0.3f;
@@ -171,6 +177,7 @@ public sealed class PeekSpot(BotComponent bot, string owner)
         {
             _spot = null;
             _bot.Mover.Stop();
+            _bot.Mover.SetTargetMoveSpeed(1f);
             _nextCheck = Time.time + 1f;
             return false;
         }

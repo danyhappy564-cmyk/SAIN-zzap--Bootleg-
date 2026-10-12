@@ -60,6 +60,10 @@ public class EnemyDecisionClass : BotBase
         Bot.Reposition.Observe(enemy);
 
         BotWeaponManager weaponManager = BotOwner.WeaponManager;
+        // 15:34 sim (Alberta: Retreat "noBulletsOrReloading" for 80 s with 1 round in a half-loaded double barrel and no spare
+        // ammo): EFT's BotReload can leave Reloading set when its reload found nothing to load (ReloadAmmo returns early for
+        // an OnlyBarrel gun that isn't fully empty). Reloading for 6 s with no reload animation running -> clear it.
+        WatchStuckReload(weaponManager);
         if (weaponManager == null || !weaponManager.HaveBullets || weaponManager.Reload.Reloading)
         {
             // 04:55 sim (Hjal): retreating with an empty gun and 3 magazines, standing still for 10 s without reloading.
@@ -352,7 +356,10 @@ public class EnemyDecisionClass : BotBase
             _fallBackWatchPos = pos;
             return;
         }
-        float limit = fallingBack ? 5f : 6f;
+        // Search standing at the end of its path ("0m to go" in [Stuck]) - 2 s is enough near his last known spot (15:34 sim)
+        var goal = Bot.GoalEnemy;
+        bool atLastKnown = current == ECombatDecision.Search && goal != null && goal.KnownPlaces.BotDistanceFromLastKnown < 2f;
+        float limit = fallingBack ? 5f : atLastKnown ? 2f : 6f;
         if (time - _fallBackWatchSince < limit)
         {
             return;
@@ -427,7 +434,9 @@ public class EnemyDecisionClass : BotBase
             {
                 case HiddenEnemyUtility.EStance.Push:
                     // Already standing on his last known spot (info old): a push has nowhere to go (10/12 sim, Bot6).
-                    if (Time.time < _moveBanUntil || (enemy.Path.PathLength < 2.5f && enemy.TimeSinceLastKnownUpdated > 3f))
+                    // 15:34 sim (Zersus, 30 s standing): "path 0m" to an enemy 26-34 m away is a failed path, not "already
+                    // there" - use the straight distance to his last known spot.
+                    if (Time.time < _moveBanUntil || (enemy.KnownPlaces.BotDistanceFromLastKnown < 2.5f && enemy.TimeSinceLastKnownUpdated > 3f))
                     {
                         r = "pushNowhere";
                         break;
@@ -608,8 +617,37 @@ public class EnemyDecisionClass : BotBase
     }
 
     private float _holdOtherBanUntil;
+    private float _reloadingSince = -1f;
 
-    private bool OtherEnemyMaySeeMe(Enemy goal)
+    private void WatchStuckReload(BotWeaponManager weaponManager)
+    {
+        var reload = weaponManager?.Reload;
+        if (reload == null || !reload.Reloading)
+        {
+            _reloadingSince = -1f;
+            return;
+        }
+        float time = Time.time;
+        if (_reloadingSince < 0f)
+        {
+            _reloadingSince = time;
+            return;
+        }
+        if (time - _reloadingSince < 6f)
+        {
+            return;
+        }
+        if (Player.HandsController is EFT.Player.FirearmController fc && fc.IsInReloadOperation())
+        {
+            return;
+        }
+        reload.Reloading = false;
+        _reloadingSince = -1f;
+        TacticDiagnostics.Count("reload.stuckCleared");
+        if (TacticDiagnostics.LogOn) RaidJournal.Line($"[Reload] [{Bot.name}] reloading flag stuck 6 s with no reload running - cleared");
+    }
+
+    public bool OtherEnemyMaySeeMe(Enemy goal)
     {
         var known = Bot.EnemyController.KnownEnemies;
         for (int i = 0; i < known.Count; i++)

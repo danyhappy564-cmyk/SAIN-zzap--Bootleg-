@@ -113,6 +113,11 @@ public class EnemyEvents
         float distance = Enemy.RealDistance;
         string range = distance < 15f ? "close" : distance < 40f ? "mid" : "far";
         SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"hear.firstSeen.{heard}.{range}");
+        // 15:34 sim (user: "did they hear him and get ready, or were they busy with another enemy?"): what the bot was doing
+        // at that moment - no goal enemy (idle), already on him, or fighting someone else (in sight or not).
+        var goal = Enemy.Bot?.GoalEnemy;
+        string ctx = goal == null ? "idle" : ReferenceEquals(goal, Enemy) ? "goalIsHim" : goal.IsVisible ? "busyOtherVisible" : "busyOther";
+        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"hear.firstSeenCtx.{(heard == "notHeard" ? "notHeard" : "heard")}.{ctx}");
     }
 
     public void EnemyHeard(SAINSoundType type, bool gunFire, EnemyPlace place)

@@ -83,8 +83,21 @@ public static class HiddenEnemyUtility
     public static List<(EStance stance, float score)> Rank(BotComponent bot, Enemy enemy)
     {
         var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
-        if (settings == null || !settings.UtilityHiddenEnemy || enemy == null || enemy.IsVisible || !(enemy.Seen || enemy.Heard))
+        if (settings == null || !settings.UtilityHiddenEnemy || enemy == null || !(enemy.Seen || enemy.Heard))
         {
+            return null;
+        }
+        if (enemy.IsVisible)
+        {
+            // 15:34 sim: an enemy that just came into sight but can't be shot yet (no clear muzzle line) got no decision from
+            // either utility, so the old chain slipped in a 0.3-1.5 s cover move (71 times). Keep this enemy's hidden pick
+            // for up to 1 s past its memory instead.
+            if (!enemy.CanShoot && _memory.TryGetValue(bot.ProfileId, out Memory seen) && seen.EnemyId == enemy.EnemyProfileId
+                && Time.time < seen.Until + 1f && seen.Ranked != null)
+            {
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("utility.keptOnSightNoShot");
+                return seen.Ranked;
+            }
             return null;
         }
         if (enemy.TimeSinceLastKnownUpdated > 60f || enemy.KnownPlaces.LastKnownPosition == null)
@@ -100,6 +113,32 @@ public static class HiddenEnemyUtility
         // How long the bot has already been holding against this enemy (hold fatigue, see Score).
         float heldFor = m != null && m.EnemyId == enemy.EnemyProfileId && m.HoldSince > 0f ? time - m.HoldSince : 0f;
         var ranked = Score(bot, enemy, settings, heldFor, out string why, out float hold);
+        // 15:34 sim: under fire the memory is skipped and every re-score rolled the dice again - with Push 0.38 / FallBack 0.32 /
+        // Hold 0.31 the pick rotated every 0.1-0.3 s (RushEnemy <-> SeekCover 10x in 2 s), and a plain re-score after the
+        // memory ran out could also swap a running stance for an equally good one. Re-score, but keep the last pick for the
+        // same enemy while it is still close to the best (0.15 under fire, 0.08 otherwise). The dice still pick the first time.
+        if (m != null && m.EnemyId == enemy.EnemyProfileId && ranked.Count > 1 && ranked[0].stance != m.LastTop)
+        {
+            float best = ranked[0].score;
+            int keepIdx = -1;
+            for (int i = 0; i < ranked.Count; i++)
+            {
+                best = Mathf.Max(best, ranked[i].score);
+                if (ranked[i].stance == m.LastTop)
+                {
+                    keepIdx = i;
+                }
+            }
+            float margin = bot.BotOwner.Memory.IsUnderFire ? 0.15f : 0.08f;
+            if (keepIdx > 0 && ranked[keepIdx].score >= best - margin)
+            {
+                var kept = ranked[keepIdx];
+                ranked.RemoveAt(keepIdx);
+                ranked.Insert(0, kept);
+                why += $" | kept {kept.stance} (within {margin:0.00} of best)";
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("utility.keptPick");
+            }
+        }
         float holdSince = ranked[0].stance == EStance.Hold ? (heldFor > 0f ? m.HoldSince : time) : -1f;
         // Under fire it re-scores every tick (15:43 sim: the same line 9 times in 1s) - log on a change of pick or every 2s.
         bool sameTop = m != null && m.EnemyId == enemy.EnemyProfileId && m.LastTop == ranked[0].stance && time < m.NextLog;
@@ -269,6 +308,7 @@ public static class HiddenEnemyUtility
         // F6 mix setting. A much worse option is still very unlikely; close ones really get mixed.
         // x0.6: at the raw personality values the 3rd sim took a lower-ranked option 37% of the time - too random.
         float temp = (_mixMargin.TryGetValue(bot.Info.Personality, out float mm) ? mm : 0.1f) * settings.UtilityMixMargin * 0.6f;
+        bool diceDemoted = false;
         if (temp > 0.001f)
         {
             int n = Mathf.Min(3, list.Count);
@@ -295,11 +335,13 @@ public static class HiddenEnemyUtility
                 var chosen = list[pick];
                 list.RemoveAt(pick);
                 list.Insert(0, chosen);
+                diceDemoted = true;
                 why += $" | dice: took #{pick + 1} (p {w[pick] / sum:0.00})";
                 if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utility.dice.{pick + 1}");
             }
         }
-        if (UtilityMistake.Apply(bot, list, "hidden"))
+        // the dice already took a lower option -> no mistake on top (two demotions of the best in one pick)
+        if (!diceDemoted && UtilityMistake.Apply(bot, list, "hidden"))
         {
             why += " | (mistake)";
         }

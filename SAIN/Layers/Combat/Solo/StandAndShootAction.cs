@@ -35,6 +35,7 @@ public class StandAndShootAction(BotOwner bot) : BotAction(bot, nameof(StandAndS
     {
         const float STAND_AND_SHOOT_HOLDLEAN_DURATION = 0.66f;
         base.Start();
+        Bot.Mover.SetTargetMoveSpeed(1f); // a slow speed left by the previous action (freeze peek step 0.45) must not carry over
         _diamond ??= new DiamondStepper(Bot, "StandAndShoot");
         shallMoveShoot = moveShoot(Bot.GoalEnemy);
         if (!shallMoveShoot)

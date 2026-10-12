@@ -28,6 +28,9 @@ internal class FreezeAction(BotOwner bot) : BotAction(bot, nameof(FreezeAction))
         base.Start();
         Bot.Mover.Stop();
         _startTime = Time.time;
+        // The old freeze chain sets TimeToUnfreeze right before choosing Freeze; a utility Hold never does, so its end was
+        // labelled "timeUp" from a stale value (freeze.end.timeUp 358).
+        _timed = Bot.Decision.EnemyDecisions.TimeToUnfreeze > Time.time;
         _cornerLogged = false;
         _peekAim = null;
         Peek.Reset();
@@ -40,10 +43,12 @@ internal class FreezeAction(BotOwner bot) : BotAction(bot, nameof(FreezeAction))
     public override void Stop()
     {
         base.Stop();
+        Peek.Reset();
+        Bot.Mover.SetTargetMoveSpeed(1f);
         ECombatDecision next = Bot.Decision.CurrentCombatDecision;
         float held = Time.time - _startTime;
-        bool timeUp = Time.time >= Bot.Decision.EnemyDecisions.TimeToUnfreeze;
-        string how = next == ECombatDecision.StandAndShoot ? "enemySpotted" : timeUp ? "timeUp" : $"interrupted({next})";
+        bool timeUp = _timed && Time.time >= Bot.Decision.EnemyDecisions.TimeToUnfreeze;
+        string how = next == ECombatDecision.StandAndShoot ? "enemySpotted" : timeUp ? "timeUp" : _timed ? $"interrupted({next})" : $"utilityEnd({next})";
         if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"freeze.end.{how.Split('(')[0]}");
         if (GlobalSettingsClass.Instance.General.FreezeAmbush.DiagnosticLogs)
         {
@@ -52,7 +57,10 @@ internal class FreezeAction(BotOwner bot) : BotAction(bot, nameof(FreezeAction))
     }
 
     private float _startTime;
+    private bool _timed;
     private bool _cornerLogged;
+    private float _nextExposureCheck;
+    private bool _exposed;
 
     /// <summary>
     /// zzap: an ambushing bot aims at the corner the enemy has to come around (the last visible point
@@ -112,6 +120,21 @@ internal class FreezeAction(BotOwner bot) : BotAction(bot, nameof(FreezeAction))
     private void TickPeekStep()
     {
         if (_peekAim == null)
+        {
+            return;
+        }
+        // 15:34 sim (the freeze death): a 0.9 m peek step 0.3 s into the freeze took the bot out of cover and an enemy it
+        // didn't know headshot it. No step in the first second, and none while another known enemy may see us (checked 2x/s).
+        if (Time.time - _startTime < 1f)
+        {
+            return;
+        }
+        if (Time.time >= _nextExposureCheck)
+        {
+            _nextExposureCheck = Time.time + 0.5f;
+            _exposed = Bot.Decision.EnemyDecisions.OtherEnemyMaySeeMe(Bot.GoalEnemy);
+        }
+        if (_exposed && !Peek.Moving)
         {
             return;
         }

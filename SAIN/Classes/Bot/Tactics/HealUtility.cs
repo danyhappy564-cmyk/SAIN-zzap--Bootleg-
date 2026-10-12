@@ -54,6 +54,9 @@ public static class HealUtility
         float nearestAge = 999f;
         float nearestPath = 999f;
         Vector3? nearestKnown = null;
+        float freshPath = 999f;
+        float freshAge = 999f;
+        Vector3? freshKnown = null;
         float time = Time.time;
         foreach (Enemy enemy in bot.EnemyController.KnownEnemies)
         {
@@ -74,6 +77,14 @@ public static class HealUtility
                 nearestAge = enemy.TimeSinceLastKnownUpdated;
                 nearestKnown = enemy.KnownPlaces.LastKnownPosition;
             }
+            // 15:34 sim: "nearest threat 1m / 55s ago" (a stale entry) hid a fresh enemy 21m away -> first aid in a push.
+            // The nearest fresh one (under 30 s) within 40 m wins over stale ones.
+            if (enemy.TimeSinceLastKnownUpdated < 30f && path < 40f && path < freshPath)
+            {
+                freshPath = path;
+                freshAge = enemy.TimeSinceLastKnownUpdated;
+                freshKnown = enemy.KnownPlaces.LastKnownPosition;
+            }
             var hearing = enemy.Hearing;
             if (hearing != null && time - hearing.LastHeardSoundTime < 3f
                 && (hearing.LastHeardSoundType == SAINSoundType.FootStep || hearing.LastHeardSoundType == SAINSoundType.Sprint)
@@ -81,6 +92,12 @@ public static class HealUtility
             {
                 coming = true;
             }
+        }
+        if (freshKnown != null && nearestAge >= 30f)
+        {
+            nearestPath = freshPath;
+            nearestAge = freshAge;
+            nearestKnown = freshKnown;
         }
         float safe = Mathf.Clamp01((nearestAge - 3f) / 15f) * 0.5f + Mathf.Clamp01((nearestPath - 10f) / 30f) * 0.5f;
         // Standing where he could see us (e.g. still at the corner we were peeking from): step back before patching up

@@ -186,6 +186,13 @@ public class SAINCoverClass : BotComponentClassBase
             reason = "timeToRun";
             return true;
         }
+        // 15:34 sim (user: "shot and returning fire, still walking, never runs"): the 1-2 s walk at the start of every cover
+        // move also ran while being shot at. Under fire, run now.
+        if (BotOwner.Memory.IsUnderFire)
+        {
+            reason = "underFireRun";
+            return true;
+        }
 
         reason = "dontRunYet";
         return false;

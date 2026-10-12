@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using EFT;
 using SAIN.Components;
+using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.SimLab;
 using SAIN.SAINComponent.Classes.Tactics;
 using SAIN.SAINComponent.Classes.WeaponFunction;
@@ -36,6 +37,7 @@ public static class SimLabOddity
         public readonly HashSet<string> Flagged = new();
         public bool HasPos;
         public float LastSample = -1f;
+        public string LastGoalId;
     }
 
     private static readonly Dictionary<string, State> _states = new();
@@ -90,7 +92,26 @@ public static class SimLabOddity
 
         string decision = bot.Decision.CurrentCombatDecision.ToString();
         string reason = bot.Decision.EnemyDecisions?.LastReason ?? "-";
-        s.Decisions.Enqueue(decision);
+        // 15:34 sim (user: "if a third party joining changes who it fights, don't count it as an error"): 12 of 27 flip-flops
+        // were the goal enemy changing. A new goal enemy starts the decision window over.
+        string goalId = bot.GoalEnemy?.EnemyProfileId;
+        if (goalId != s.LastGoalId)
+        {
+            if (s.LastGoalId != null && s.Decisions.Count > 0)
+            {
+                TacticDiagnostics.Count("oddity.flipFlop.goalChangedReset");
+            }
+            s.Decisions.Clear();
+            s.Since.Remove("flipFlop");
+            s.Flagged.Remove("flipFlop");
+            s.LastGoalId = goalId;
+        }
+        // "None" while a squad decision runs (PushSuppressedEnemy etc.) is the squad layer acting, not a combat flip
+        bool squadActing = bot.Decision.CurrentCombatDecision == ECombatDecision.None && bot.Decision.CurrentSquadDecision != ESquadDecision.None;
+        if (!squadActing)
+        {
+            s.Decisions.Enqueue(decision);
+        }
         while (s.Decisions.Count > 5)
         {
             s.Decisions.Dequeue();

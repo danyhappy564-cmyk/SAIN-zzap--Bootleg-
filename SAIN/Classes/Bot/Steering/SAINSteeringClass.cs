@@ -265,7 +265,12 @@ public class SAINSteeringClass : BotComponentClassBase
         {
             dir = AvoidWallStare(dir);
         }
-        if (ShallHideHeadRunning(dir, out float pitch))
+        bool headDown = ShallHideHeadRunning(dir, out float pitch);
+        if (!headDown)
+        {
+            dir = ClampLookPitch(dir);
+        }
+        if (headDown)
         {
             Vector3 flat = new(dir.x, 0f, dir.z);
             // Retreat weave: swing the view with the run, like a player moving the mouse left/right while sprinting.
@@ -281,6 +286,64 @@ public class SAINSteeringClass : BotComponentClassBase
             }
         }
         PlayerComponent.CharacterController.SetTargetLookDirection(dir, BotOwner, Bot);
+    }
+
+    // zzap (user 2026-10-12, 15:34 sim screenshot: a bot aiming at the sky for a few seconds): the +-10 deg pitch clamp only
+    // covered the tactical look points (pre-aim, wall look, ...). Last-known / heard / under-fire / path-corner looks had
+    // none, so an enemy, a sound or a path node a floor up and close by could tilt the gun far up. While the bot isn't
+    // aiming at a visible enemy, keep the pitch within +-25 deg; a steep look is logged once per bot per 10 s ([LookUp]).
+    private const float MAX_LOOK_PITCH = 25f;
+    private float _steepSince = -1f;
+    private float _nextSteepLog;
+
+    private Vector3 ClampLookPitch(Vector3 dir)
+    {
+        if (dir.sqrMagnitude < 0.0001f)
+        {
+            return dir;
+        }
+        Enemy enemy = Bot.GoalEnemy;
+        if ((enemy != null && enemy.IsVisible) || Bot.Aim.AimStatus != AimStatus.NoTarget)
+        {
+            _steepSince = -1f;
+            return dir;
+        }
+        Vector3 n = dir.normalized;
+        float pitch = Mathf.Asin(Mathf.Clamp(n.y, -1f, 1f)) * Mathf.Rad2Deg;
+        if (pitch > 35f)
+        {
+            if (_steepSince < 0f)
+            {
+                _steepSince = Time.time;
+            }
+            else if (Time.time - _steepSince > 0.3f && Time.time > _nextSteepLog)
+            {
+                _nextSteepLog = Time.time + 10f;
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("look.steepUp");
+                if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+                    $"[LookUp] [{Bot.name}] look {pitch:0} deg up for 0.3 s+ (steer {CurrentSteerPriority}, decision {Bot.Decision.CurrentCombatDecision}) - clamped to {MAX_LOOK_PITCH:0}");
+            }
+        }
+        else
+        {
+            _steepSince = -1f;
+        }
+        if (Mathf.Abs(pitch) <= MAX_LOOK_PITCH)
+        {
+            return dir;
+        }
+        Vector3 flat = new(n.x, 0f, n.z);
+        if (flat.sqrMagnitude < 0.0001f)
+        {
+            flat = Bot.Transform.LookDirection;
+            flat.y = 0f;
+            if (flat.sqrMagnitude < 0.0001f)
+            {
+                return dir;
+            }
+        }
+        float rad = Mathf.Sign(pitch) * MAX_LOOK_PITCH * Mathf.Deg2Rad;
+        return (flat.normalized * Mathf.Cos(rad) + Vector3.up * Mathf.Sin(rad)) * dir.magnitude;
     }
 
     // zzap: don't stare at a wall (field screenshot 2026-10-09: a bot crouched with its face on a flat wall, "peeking" at an

@@ -25,7 +25,7 @@ public static class SimLabFeatures
         // README "추가한 기능"
         new("tactic", "점프 피킹", A("door.jumpOut", "door.jumpBack"), A("door.jumpUnsafe", "door.jumpFrameInTheWay", "door.jumpLeafTooClose"), A(), "[DoorTactic]"),
         new("tactic", "런바이 피킹", A("door.runBy.start"), A("door.runBy.noPoint", "door.runBy.noAnglePoint", "door.runBy.abortHeard"), A(), "[DoorTactic]"),
-        new("tactic", "스텝 피킹", A("door.stepPeek"), A(), A(), "[DoorTactic]"),
+        new("tactic", "스텝 피킹", A("door.stepPeek", "door.peek.plain"), A(), A(), "[DoorTactic]"),
         new("tactic", "페이크 수류탄", A("fakeNade.drawn"), A("fakeNade.putAwayRefused", "trick.skipped", "trick.cancelledOnSound"), A(), "[DoorTactic]"),
         new("tactic", "페이크 치료·스팀", A("fakeStim.started", "fakeHeal.started"), A("fakeStim.cancelled", "fakeHeal.failedToStart"), A(), "[DoorTactic]", "문 전술(가두기·피킹)이 문틀까지 가야 결정됨 — 문 전술 시작이 적으면 0이 흔함"),
         new("tactic", "방 진입(Clear)", A("door.pick.Clear", "door.breach."), A("door.planFailed"), A(), "[DoorTactic]"),

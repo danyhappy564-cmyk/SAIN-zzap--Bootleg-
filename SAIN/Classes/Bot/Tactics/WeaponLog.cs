@@ -106,18 +106,25 @@ public static class WeaponLog
         {
             return false;
         }
-        foreach (EquipmentSlot slot in new[] { wm.Selector._mainWeapon, EquipmentSlot.FirstPrimaryWeapon, EquipmentSlot.SecondPrimaryWeapon, EquipmentSlot.Holster })
+        // Two passes: a gun that is loaded right now first (15:34 sim: an empty gun with spare mags
+        // was drawn and then swapped out again before it was reloaded), then one that at least has ammo to reload with.
+        var slots = new[] { wm.Selector._mainWeapon, EquipmentSlot.FirstPrimaryWeapon, EquipmentSlot.SecondPrimaryWeapon, EquipmentSlot.Holster };
+        for (int pass = 0; pass < 2; pass++)
         {
-            if (slot == current || !wm.info.TryGetValue(slot, out BotWeaponInfo info) || info == null)
+            foreach (EquipmentSlot slot in slots)
             {
-                continue;
-            }
-            // BotWeaponInfo.BulletCount reads the gun IN HAND (BotReload.BulletCount uses the shoot controller), not this
-            // slot's gun - count this slot's own magazine + chamber (Remix 4.2 feedback: the M4 in slot 2 was never chosen).
-            if (HasAmmoFor(wm.Selector._owner?.GetPlayer, info.weapon))
-            {
-                target = slot;
-                return true;
+                if (slot == current || !wm.info.TryGetValue(slot, out BotWeaponInfo info) || info == null)
+                {
+                    continue;
+                }
+                // BotWeaponInfo.BulletCount reads the gun IN HAND (BotReload.BulletCount uses the shoot controller), not this
+                // slot's gun - count this slot's own magazine + chamber (Remix 4.2 feedback: the M4 in slot 2 was never chosen).
+                bool ok = pass == 0 ? LoadedRounds(info.weapon) > 0 : HasAmmoFor(wm.Selector._owner?.GetPlayer, info.weapon);
+                if (ok)
+                {
+                    target = slot;
+                    return true;
+                }
             }
         }
         return false;

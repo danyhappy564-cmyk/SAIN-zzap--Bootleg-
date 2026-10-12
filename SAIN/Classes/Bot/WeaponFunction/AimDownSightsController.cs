@@ -154,6 +154,16 @@ public class AimDownSightsController : BotComponentClassBase
         }
 
         ECombatDecision currentDecision = Bot.Decision.CurrentCombatDecision;
+        // 15:34 sim (user: "bots walk slowly aiming, even when shot"): ADS cuts EFT move speed to 1/3, and it stayed on for
+        // every non-sprint move with an enemy seen in the last 5 s - 28 of 41 bots killed while moving to cover / retreating /
+        // pushing died at ADS-walk speed. Moving for one of those and not firing right now -> hip, full speed.
+        if (Bot.Mover.Moving && !BotOwner.ShootData.Shooting
+            && (currentDecision == ECombatDecision.SeekCover || currentDecision == ECombatDecision.Retreat
+                || currentDecision == ECombatDecision.RunAway || currentDecision == ECombatDecision.RushEnemy)
+            && !(currentDecision == ECombatDecision.SeekCover && Bot.Cover.CoverInUse != null))
+        {
+            return EAimDownSightsStatus.None;
+        }
         if (currentDecision == ECombatDecision.ShootDistantEnemy)
         {
             return EAimDownSightsStatus.StandAndShoot;

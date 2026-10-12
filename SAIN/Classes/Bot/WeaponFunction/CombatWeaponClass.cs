@@ -49,10 +49,31 @@ public class CombatWeaponClass : BotComponentClassBase
     /// <summary>
     /// Called from the reload decision right before a reload starts. True = the pistol is coming out instead.
     /// </summary>
+    /// <summary>
+    /// EFT put our pistol away itself (BotWeaponSelector.ManualUpdate / CanReload -> TryChangeToMain, or BotFirstAid
+    /// cancelling a heal -> TakePrevWeapon): same 5 s hold-off as our own return, so the main gun gets reloaded first
+    /// (Labs sim Bot143). Checked here and in PistolReady - ManualUpdate returns early while the weapon isn't ready, so the
+    /// reload check could offer the pistol again first (15:34 sim Bot81: pistol again 1.7 s after a cancelled heal).
+    /// </summary>
+    private void NoteEftPutPistolAway(EquipmentSlot slot)
+    {
+        if (_pistolByUs && slot != EquipmentSlot.Holster)
+        {
+            _pistolByUs = false;
+            _pistolBackHeldNoted = false;
+            _pistolRefusedUntil = Time.time + 5f;
+            TacticDiagnostics.Count("weapon.pistolBackByEft");
+        }
+    }
+
     /// <summary>A loaded pistol we could switch to right now (not already in hands).</summary>
     public bool PistolReady()
     {
         var wm = BotOwner.WeaponManager;
+        if (wm?.Selector != null)
+        {
+            NoteEftPutPistolAway(wm.Selector.EquipmentSlot);
+        }
         if (!Applies || !Settings.PistolSwap || wm?.Selector == null || wm.Selector.EquipmentSlot == EquipmentSlot.Holster)
         {
             return false;
@@ -148,16 +169,7 @@ public class CombatWeaponClass : BotComponentClassBase
         Enemy enemy = Bot.GoalEnemy;
         EquipmentSlot slot = selector.EquipmentSlot;
 
-        if (_pistolByUs && slot != EquipmentSlot.Holster)
-        {
-            // EFT put our pistol away itself (BotWeaponSelector.ManualUpdate / CanReload -> TryChangeToMain): same 5 s
-            // hold-off as our own return, so the main gun gets reloaded first (10/12 Labs sim, Bot143: pistol offered again
-            // right away -> 2 PING-PONG).
-            _pistolByUs = false;
-            _pistolBackHeldNoted = false;
-            _pistolRefusedUntil = Time.time + 5f;
-            TacticDiagnostics.Count("weapon.pistolBackByEft");
-        }
+        NoteEftPutPistolAway(slot);
 
         if (slot == EquipmentSlot.Holster && _pistolByUs)
         {

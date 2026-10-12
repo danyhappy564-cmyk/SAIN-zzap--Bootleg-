@@ -287,14 +287,19 @@ public static class SimLabAnalyzer
         }
 
         // hearing before sight (user: "they react only when they see him")
+        // 15:34 sim: the text only counted footsteps (64 of 353) although 232 were heard in some way - report all kinds, and
+        // how many of the not-heard ones came while the bot was fighting someone else.
         int heardMove = Sum(b, "hear.firstSeen.heard.move");
-        int notHeardClose = Sum(b, "hear.firstSeen.notHeard.close") + Sum(b, "hear.firstSeen.notHeard.mid");
+        int heardAll = Sum(b, "hear.firstSeen.heard.");
+        int notHeardNear = Sum(b, "hear.firstSeen.notHeard.close");
+        int notHeardClose = notHeardNear + Sum(b, "hear.firstSeen.notHeard.mid");
+        int notHeardBusy = Sum(b, "hear.firstSeenCtx.notHeard.busyOther");
         int firstSeen = Sum(b, "hear.firstSeen.");
         if (firstSeen >= 10)
         {
-            list.Add(new(notHeardClose * 2 > firstSeen ? WARN : INFO, T("보기 전에 소리로 알아챘는지", "Heard before seen?"),
-                T($"적을 처음 볼 때 {firstSeen}회 중 발소리 등으로 먼저 들은 것 {heardMove}, 40m 안인데 못 들은 것 {notHeardClose}. 못 들은 게 많으면 가까운 적 소리를 놓치는 것.",
-                  $"Of {firstSeen} first sightings, {heardMove} were heard moving first, {notHeardClose} within 40 m were not heard at all.")));
+            list.Add(new(notHeardNear * 4 > firstSeen ? WARN : INFO, T("보기 전에 소리로 알아챘는지", "Heard before seen?"),
+                T($"적을 처음 볼 때 {firstSeen}회 중 소리로 먼저 안 것 {heardAll} (발소리 {heardMove}). 40m 안인데 못 들은 것 {notHeardClose} (15m 안 {notHeardNear}), 그중 다른 적과 싸우던 중 {notHeardBusy}. 15m 안 못 들은 게 많으면 가까운 소리를 놓치는 것.",
+                  $"Of {firstSeen} first sightings, {heardAll} were heard first ({heardMove} footsteps); {notHeardClose} within 40 m not heard ({notHeardNear} within 15 m), {notHeardBusy} of them while fighting someone else.")));
         }
 
         // ORBIT vs SAIN time

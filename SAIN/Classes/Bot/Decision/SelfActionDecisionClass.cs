@@ -217,6 +217,18 @@ public class SelfActionDecisionClass : BotBase
         }
         _nextOutOfAmmoSwap = Time.time + 2f;
 
+        // 15:34 sim (Bot1: AKM 0/30 with 4 magazines <-> empty pistol): the gun in hand is empty but has ammo to reload -
+        // reload it instead of swapping to another gun.
+        if (Player.HandsController?.Item is Weapon inHand && SAIN.SAINComponent.Classes.Tactics.WeaponLog.HasAmmoFor(Player, inHand)
+            && !reload.Reloading && Time.time >= _reloadCheckBlockedUntil)
+        {
+            if (TryReload(BotOwner, reload))
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("reload.noAmmo.reloadInstead");
+                return;
+            }
+        }
+
         // Pick a gun that actually has ammo, main first (BSG's TryChangeWeapon toggles without looking at ammo).
         var selector = weaponManager.Selector;
         if (SAIN.SAINComponent.Classes.Tactics.WeaponLog.PickGunWithAmmo(weaponManager, selector.EquipmentSlot, out EquipmentSlot slot))
@@ -415,6 +427,19 @@ public class SelfActionDecisionClass : BotBase
                 return false;
             }
             _nextCheckHealTime = Time.time + 2f;
+            // 15:34 sim (user: "some bots heal while rushing"): 4 pushes turned into first aid on the run. While pushing an
+            // enemy with fresh info (under 5 s), only a dying bot may pop a stim - no first aid / surgery mid-push.
+            if (Bot.Decision.CurrentCombatDecision == ECombatDecision.RushEnemy
+                && Bot.GoalEnemy != null && Bot.GoalEnemy.TimeSinceLastKnownUpdated < 5f)
+            {
+                if (Bot.Memory.Health.HealthStatus == ETagStatus.Dying && GetCanUseStims())
+                {
+                    Decision = ESelfActionType.Stims;
+                    return true;
+                }
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("heal.skippedPushing");
+                return false;
+            }
             // zzap: heal timing by expected gain while enemies are around (first aid / stim / surgery / wait).
             if (SAIN.SAINComponent.Classes.Tactics.HealUtility.Applies(Bot))
             {

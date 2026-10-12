@@ -1864,6 +1864,7 @@ public class DoorTacticClass : BotComponentClassBase
                 TacticDiagnostics.Count("door.jumpUnsafe");
             }
             if (LogOn) Log($"{Who()} peek style at door {s.Door.Id}: {(s.PeekStyle == 2 ? "RUN-BY" : s.PeekStyle == 1 ? "jump peek" : "plain step peek")} (jumpSafe={jumpOk}, runByPoint={runByOk})");
+            if (s.PeekStyle == 0 && TacticDiagnostics.CountOn) TacticDiagnostics.Count("door.peek.plain");
             if (s.PeekStyle == 2)
             {
                 TacticDiagnostics.Count("door.runBy.start");

@@ -79,6 +79,7 @@ public class SquadCombatClass : BotComponentClassBase
         public Vector3 Target;
         public Vector3 Look;
         public BotComponent Mate;
+        public Vector3 MateStartPos;
         public bool Arrived;
         public float StartTime;
         public float ArriveTime;
@@ -392,6 +393,7 @@ public class SquadCombatClass : BotComponentClassBase
             }
             _coverClaims[member.ProfileId] = Bot.ProfileId;
             Start(EMode.CoverMate, enemy, point, theirKnown.Value + Vector3.up * 1.3f, member, $"covering {member.name} ({busy})");
+            _session.MateStartPos = member.Position;
             reason = "coverMate";
             return true;
         }
@@ -855,6 +857,13 @@ public class SquadCombatClass : BotComponentClassBase
                 if (elapsed > COVER_HOLD_MAX)
                 {
                     End("coverTimeout");
+                    return;
+                }
+                // 15:34 sim (bunched): the spot was fixed 1.6 m beside where the mate stood at the start; the mate moved off
+                // and the coverer ended up on top of it. Mate moved 1.5 m+ or we're within 1 m of it -> end (re-picked next tick).
+                if ((s.Mate.Position - s.MateStartPos).sqrMagnitude > 1.5f * 1.5f || (s.Mate.Position - Bot.Position).sqrMagnitude < 1f)
+                {
+                    End("mateMoved");
                     return;
                 }
                 break;
