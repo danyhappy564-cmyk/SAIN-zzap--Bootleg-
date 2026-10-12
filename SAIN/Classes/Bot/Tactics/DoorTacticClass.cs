@@ -899,8 +899,12 @@ public class DoorTacticClass : BotComponentClassBase
                     EPersonality.Normal => Settings.ChadFakeTrickChance * 0.5f,
                     _ => 0f,
                 } / 100f;
-                s.WantFakeNade = Settings.FakeGrenade && haveNade && Random.value < (testMode ? 1f : holdFake);
-                s.WantFakeHeal = !s.WantFakeNade && CanFakeHeal() && Random.value < holdFake;
+                // 04:55 sim: the fake heal only rolled after the fake-nade roll failed (~1 % per trap) -> roll for a trick
+                // once, then pick heal or grenade.
+                bool holdTrick = Random.value < (testMode ? 1f : holdFake);
+                bool holdNadeOk = Settings.FakeGrenade && haveNade;
+                s.WantFakeHeal = holdTrick && CanFakeHeal() && (!holdNadeOk || Random.value < 0.5f);
+                s.WantFakeNade = holdTrick && !s.WantFakeHeal && holdNadeOk;
             }
             reason = string.Empty;
             return s;
@@ -946,8 +950,10 @@ public class DoorTacticClass : BotComponentClassBase
                     s.NeedsOpenForPeek = !doorOpen;
                     float fakeChance = testMode ? 1f : (personality == EPersonality.GigaChad ? Settings.GigaChadFakeTrickChance
                         : personality == EPersonality.Normal ? Settings.ChadFakeTrickChance * 0.5f : Settings.ChadFakeTrickChance) / 100f;
-                    s.WantFakeNade = Settings.FakeGrenade && haveNade && Random.value < fakeChance;
-                    s.WantFakeHeal = !s.WantFakeNade && CanFakeHeal() && Random.value < fakeChance;
+                    bool trick = Random.value < fakeChance;
+                    bool nadeOk = Settings.FakeGrenade && haveNade;
+                    s.WantFakeHeal = trick && CanFakeHeal() && (!nadeOk || Random.value < 0.5f);
+                    s.WantFakeNade = trick && !s.WantFakeHeal && nadeOk;
                     s.HoldTime = Random.Range(3f, 6f);
                     s.HoldPose = 0.8f;
                 }

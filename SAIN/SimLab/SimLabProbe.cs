@@ -239,6 +239,24 @@ public static class SimLabProbe
         }
     }
 
+    // 04:55 sim: every "enemy within 4 m unknown" sample was a pair fighting each other at that moment - EFT keys spawned
+    // bots by their BotOwner (BotSpawner.SetBotAsEnemy), not the Player, so ContainsKey(player) missed. Match the profile.
+    private static bool KnowsProfile<T>(System.Collections.Generic.Dictionary<IPlayer, T> map, string profileId)
+    {
+        if (map == null)
+        {
+            return false;
+        }
+        foreach (IPlayer key in map.Keys)
+        {
+            if (key != null && key.ProfileId == profileId)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void SampleCloseUnaware(Player player, BotOwner owner, string layer)
     {
         var world = Comfort.Common.Singleton<GameWorld>.Instance;
@@ -255,7 +273,7 @@ public static class SimLabProbe
                 continue;
             }
             float d = Vector3.Distance(player.Position, other.Position);
-            if (d > CLOSE_UNAWARE || group.IsAlly(other) || other.AIData.BotOwner.BotsGroup == group || known.ContainsKey(other) || !group.IsPlayerEnemy(other))
+            if (d > CLOSE_UNAWARE || group.IsAlly(other) || other.AIData.BotOwner.BotsGroup == group || KnowsProfile(known, other.ProfileId) || !group.IsPlayerEnemy(other))
             {
                 continue;
             }
@@ -277,7 +295,7 @@ public static class SimLabProbe
                     OtherRole = other.Profile?.Info?.Settings?.Role.ToString(),
                     Layer = layer,
                     Distance = d,
-                    OtherKnows = other.AIData.BotOwner.EnemiesController?.EnemyInfos?.ContainsKey(player) == true,
+                    OtherKnows = KnowsProfile(other.AIData.BotOwner.EnemiesController?.EnemyInfos, player.ProfileId),
                     X = pos.x,
                     Y = pos.y,
                     Z = pos.z,

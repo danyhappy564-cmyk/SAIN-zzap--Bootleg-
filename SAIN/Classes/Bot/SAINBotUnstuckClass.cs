@@ -276,7 +276,10 @@ public class SAINBotUnstuckClass : BotComponentClassBase
     {
         if (_wdStage > 0 && why != null)
         {
-            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"stuck.freed.stage{_wdStage}");
+            // 04:55 sim: "stoppedMoving" is the bot giving up the move (or dying / going prone), not getting free - counted
+            // apart so the analyzer's freed-vs-stuck comparison is honest.
+            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(
+                why == "stoppedMoving" ? $"stuck.gaveUp.stage{_wdStage}" : $"stuck.freed.stage{_wdStage}");
             if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
                 $"[Stuck] [{Bot.name}] freed after stage {_wdStage} ({why}) in layer {BotOwner.Brain?.ActiveLayerName()}"
             );

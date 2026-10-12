@@ -37,6 +37,19 @@ public class SAINCoverClass : BotComponentClassBase
 
     public CoverPoint CoverInUse { get; private set; }
 
+    /// <summary>zzap: the run to this cover stalled a few metres short (BotDecisionManager.ContinueMoveToCover) - take it as reached.</summary>
+    public void AcceptCoverMovingTo()
+    {
+        if (CoverPoint_MovingTo == null)
+        {
+            return;
+        }
+        CoverInUse = CoverPoint_MovingTo;
+        CoverPoint_MovingTo = null;
+        _shallSprint = false;
+        SetCoverSeekingState(ECoverSeekingState.HoldInCover);
+    }
+
     private float _spottedTime;
     public bool SpottedInCover
     {

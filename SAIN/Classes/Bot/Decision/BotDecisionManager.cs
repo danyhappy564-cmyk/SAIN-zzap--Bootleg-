@@ -466,6 +466,9 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
         }
     }
 
+    private Vector3 _runAnchorPos;
+    private float _runAnchorTime = -1f;
+
     private bool ContinueMoveToCover()
     {
         bool runningToCover = Bot.Decision.RunningToCover;
@@ -492,7 +495,36 @@ public class BotDecisionManager(SAINDecisionClass decisionClass) : BotSubClass<S
         float timeChangeDec = Bot.Decision.TimeSinceChangeDecision;
         if (timeChangeDec < 0.5f)
         {
+            _runAnchorTime = -1f;
             return true;
+        }
+
+        // 04:55 sim (Логгерхед, rayleefx): "0 m to go" but never in cover - a CloseToCover point keeps this true forever
+        // (the cover status uses a 1.25 m distance) and the bot stood 14-22 s until shot. No 0.5 m of movement for 3 s ->
+        // within 3 m take the point as reached, else mark it bad, and let the decision run again.
+        Vector3 pos = Bot.Position;
+        if (_runAnchorTime < 0f || (pos - _runAnchorPos).sqrMagnitude > 0.25f)
+        {
+            _runAnchorPos = pos;
+            _runAnchorTime = Time.time;
+        }
+        else if (Time.time - _runAnchorTime > 3f)
+        {
+            _runAnchorTime = -1f;
+            CoverPoint stalled = Bot.Cover.CoverPoint_MovingTo;
+            if (stalled != null)
+            {
+                if (stalled.GetDistance(Bot.Position) < 3f)
+                {
+                    Bot.Cover.AcceptCoverMovingTo();
+                }
+                else
+                {
+                    stalled.CoverData.IsBad = true;
+                }
+            }
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("decision.runToCoverStalled");
+            return false;
         }
 
         //if (timeChangeDec > 3 &&

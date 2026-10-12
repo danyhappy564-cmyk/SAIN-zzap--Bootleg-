@@ -62,6 +62,13 @@ public class EnemyDecisionClass : BotBase
         BotWeaponManager weaponManager = BotOwner.WeaponManager;
         if (weaponManager == null || !weaponManager.HaveBullets || weaponManager.Reload.Reloading)
         {
+            // 04:55 sim (Hjal): retreating with an empty gun and 3 magazines, standing still for 10 s without reloading.
+            // Start the reload from here once the retreat has run 1.5 s (ReloadNow has its own retry block).
+            if (weaponManager != null && !weaponManager.HaveBullets && weaponManager.Reload != null && !weaponManager.Reload.Reloading
+                && Bot.Decision.TimeSinceChangeDecision > 1.5f && Bot.Decision.SelfActionDecisions.ReloadNow())
+            {
+                TacticDiagnostics.Count("reload.fromEmptyRetreat");
+            }
             result = ECombatDecision.Retreat;
             LastReason = "noBulletsOrReloading";
             return true;
@@ -477,10 +484,19 @@ public class EnemyDecisionClass : BotBase
                         // 10/12 sim (only death during a freeze): Bot24 froze in the open against a hidden enemy 19m away and
                         // was shot in the head 3.6s later by another enemy it had seen 13s before at 55m - no shot first,
                         // so the under-fire check above never fired. Out of cover, a second enemy that may see us = no hold.
-                        if (Bot.Cover.CoverInUse == null && OtherEnemyMaySeeMe(enemy))
+                        // 04:55 sim: the "out of cover" part made it flip at 10 Hz (148 times on Factory) - switching to
+                        // Freeze stops the cover move and clears CoverInUse, so the next tick skipped the hold, FallBack put
+                        // the bot back on the same point, CoverInUse came back, hold again... That cover was picked against
+                        // the goal enemy only anyway (one freeze death was "in cover"). Now: the line check alone decides,
+                        // and a skip holds for 4 s.
+                        if (Time.time < _holdOtherBanUntil || OtherEnemyMaySeeMe(enemy))
                         {
+                            if (Time.time >= _holdOtherBanUntil)
+                            {
+                                _holdOtherBanUntil = Time.time + 4f;
+                                TacticDiagnostics.Count("utility.hold.skippedOtherEnemy");
+                            }
                             holdSkipped = true;
-                            TacticDiagnostics.Count("utility.hold.skippedOtherEnemy");
                             break;
                         }
                         // zzap: he's in a room behind a door close by -> hold THAT door from beside the frame instead of
@@ -591,6 +607,8 @@ public class EnemyDecisionClass : BotBase
         return false;
     }
 
+    private float _holdOtherBanUntil;
+
     private bool OtherEnemyMaySeeMe(Enemy goal)
     {
         var known = Bot.EnemyController.KnownEnemies;
@@ -605,9 +623,12 @@ public class EnemyDecisionClass : BotBase
             {
                 return true;
             }
-            // Seen lately and close enough: only if his last known spot has a clear line to our head (one ray per enemy).
+            // Seen lately and close enough, or heard close by just now (04:55 sim: both freeze killers were enemies the bot
+            // had only heard or not noticed): only if his last known spot has a clear line to our head (one ray per enemy).
             Vector3? last = e.LastKnownPosition;
-            if (e.Seen && e.TimeSinceSeen < 15f && e.RealDistance < 80f && last != null
+            bool recentSeen = e.Seen && e.TimeSinceSeen < 15f && e.RealDistance < 80f;
+            bool heard = e.Heard && e.TimeSinceHeard < 6f && e.RealDistance < 25f;
+            if ((recentSeen || heard) && last != null
                 && !Physics.Linecast(last.Value + Vector3.up * 1.5f, Bot.Transform.EyePosition, LayersMaskController.HighPolyWithTerrainMask))
             {
                 return true;
@@ -813,6 +834,14 @@ public class EnemyDecisionClass : BotBase
             }
             TimeToUnfreeze = 0f;
             reason = broken;
+            return false;
+        }
+
+        // 04:55 Labs sim: a freeze from this old chain (right after a grenade throw, out of cover) had no check for a second
+        // enemy at all - same check as the utility Hold before starting one.
+        if (Bot.Decision.CurrentCombatDecision != ECombatDecision.Freeze && OtherEnemyMaySeeMe(enemy))
+        {
+            reason = "exposedFreeze";
             return false;
         }
 

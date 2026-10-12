@@ -112,7 +112,8 @@ public static class SimLabOddity
 
         // not an oddity: a squadmate in the line of fire (the bot holds fire on purpose) or sprinting to cover
         bool mateInLine = bot.FriendlyFire?.FriendlyFireStatus == SAIN.Preset.Shared.Enums.FriendlyFireStatus.FriendlyBlock;
-        bool runningToCover = decision == "SeekCover" && speed > 2.5f;
+        // 04:55 sim: vo1ter ran to cover with its back to the enemy (134 deg) at 2.2 m/s - not a missed shot
+        bool runningToCover = decision == "SeekCover" && (speed > 2.5f || reason == "keepRunToCover" || angle > 90f);
         Check(s, "noShoot", enemy != null && visible && enemy.CanShoot && enemyDist < 40f && bullets > 0 && gunIdle && !mateInLine && !runningToCover, 4f, now);
         // 10/12 sim: the only backTurned was a Freeze bot aiming at the corner an enemy 8m away (but 42m of path, other side
         // of a wall) had to come round - correct. Only count an enemy that can see us or reach us about directly.
@@ -263,7 +264,15 @@ public static class SimLabOddity
         TacticDiagnostics.Count("oddity." + kind);
         if (TacticDiagnostics.LogOn)
         {
-            RaidJournal.Line($"[Oddity] {kind} [{player.Profile?.Nickname}] [{bot.Info.Personality}] {decision}/{reason} layer={layer} enemy={enemyDist:0.0}m visible={visible} angle={angle:0} speed={speed:0.0} bullets={bullets} for {seconds:0}s at ({player.Position.x:0},{player.Position.y:0},{player.Position.z:0})");
+            // 04:55 sim: 2 of 3 noShoot came right after a grenade throw - log what blocks the shot so the next sim can tell
+            string extra = string.Empty;
+            if (kind == "noShoot")
+            {
+                var owner = bot.BotOwner;
+                extra = $" hands={player.HandsController?.GetType().Name} canShootByState={owner?.ShootData?.CanShootByState}"
+                    + $" aimStatus={bot.Aim?.AimStatus} friendlyFire={bot.FriendlyFire?.FriendlyFireStatus}";
+            }
+            RaidJournal.Line($"[Oddity] {kind} [{player.Profile?.Nickname}] [{bot.Info.Personality}] {decision}/{reason} layer={layer} enemy={enemyDist:0.0}m visible={visible} angle={angle:0} speed={speed:0.0} bullets={bullets} for {seconds:0}s at ({player.Position.x:0},{player.Position.y:0},{player.Position.z:0}){extra}");
         }
         _examplesPerKind.TryGetValue(kind, out int shown);
         if (shown >= MAX_EXAMPLES_PER_KIND)

@@ -202,6 +202,7 @@ public static class CorpseCleanup
             }
             DropOrbitCorpseWaypoint(corpse);
             ForgetDecals(player);
+            ForgetPlayer(world, player);
             Object.Destroy(player.gameObject);
             Deleted++;
             TacticDiagnostics.Count("sim.corpseDeleted");
@@ -306,6 +307,29 @@ public static class CorpseCleanup
         {
             TacticDiagnostics.Count("sim.corpseDecalCleanupFailed");
             Logger.LogWarning($"[SAIN zzap] clearing queued blood marks of a deleted corpse failed: {ex.Message}");
+        }
+    }
+
+    // 04:55 sim (DynamicMaps CorpseMarkerProvider error when the map was opened): the destroyed body stayed in GameWorld's
+    // player lists (RegisteredPlayers, _allPlayersEverExisted), and other mods reading Player.Position from them hit the
+    // destroyed transform. Take it out of those lists first (what EFT does when a bot despawns).
+    private static readonly AccessTools.FieldRef<GameWorld, Dictionary<string, Player>> _everExisted =
+        AccessTools.FieldRefAccess<GameWorld, Dictionary<string, Player>>("_allPlayersEverExisted");
+
+    private static void ForgetPlayer(GameWorld world, Player player)
+    {
+        try
+        {
+            if (world.RegisteredPlayers.Contains(player))
+            {
+                world.UnregisterPlayer(player);
+            }
+            _everExisted(world)?.Remove(player.ProfileId);
+        }
+        catch (System.Exception ex)
+        {
+            TacticDiagnostics.Count("sim.corpseUnregisterFailed");
+            Logger.LogWarning($"[SAIN zzap] removing a deleted corpse from the player lists failed: {ex.Message}");
         }
     }
 

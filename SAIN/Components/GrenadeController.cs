@@ -88,6 +88,20 @@ public class GrenadeController(BotManagerComponent controller) : BotManagerBase(
 
     private const float CLOSE_BLAST_KNOWN_DIST = 25f;
 
+    // EFT keys spawned bots by their BotOwner in the group's enemy list (BotSpawner.SetBotAsEnemy), so a lookup by the Player
+    // object misses them - compare profile ids.
+    private static bool GroupHasEnemy(BotsGroup group, string profileId)
+    {
+        foreach (IPlayer key in group.Enemies.Keys)
+        {
+            if (key != null && key.ProfileId == profileId)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static bool IsSquadmate(BotComponent bot, Player thrower)
     {
         var members = bot.Squad?.Members;
@@ -120,7 +134,7 @@ public class GrenadeController(BotManagerComponent controller) : BotManagerBase(
                         // -> add him to the group first (same check SimLabProbe uses), then try again.
                         string blastWhy = enemy != null ? "blast.newEnemy" : "blast.notHostile";
                         var group = bot.BotOwner?.BotsGroup;
-                        if (enemy == null && group != null && !group.Enemies.ContainsKey(player) && group.IsPlayerEnemy(player))
+                        if (enemy == null && group != null && !GroupHasEnemy(group, player.ProfileId) && group.IsPlayerEnemy(player))
                         {
                             group.AddEnemy(player, EBotEnemyCause.checkAddTODO);
                             enemy = bot.EnemyController.CheckAddEnemy(player);
@@ -129,7 +143,7 @@ public class GrenadeController(BotManagerComponent controller) : BotManagerBase(
                         var mover = bot.BotOwner?.Mover;
                         SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(blastWhy);
                         Logger.LogWarning(
-                            $"[BlastHeard] [{bot.name}] [{bot.Info.Personality}] frag {distance:0}m away from {player.Profile?.Nickname} it didn't know: "
+                            $"[BlastHeard] [{bot.name}] [{bot.Info.Personality}] ({bot.Info.Profile.WildSpawnType}) frag {distance:0}m away from {player.Profile?.Nickname} ({player.Profile?.Info?.Settings?.Role}) it didn't know: "
                                 + $"{(enemy != null ? "now known" : "not hostile/no enemy info")} | SAINLayersActive={bot.SAINLayersActive} "
                                 + $"brainLayer={bot.BotOwner?.Brain?.ActiveLayerName()} moverPaused={mover?.Pause}"
                         );
