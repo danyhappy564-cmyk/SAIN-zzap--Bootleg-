@@ -34,10 +34,6 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 변경 이력은 [`changelog/`](changelog/), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
 
 **최근 변경 (2026-10-12 17:42, remake5 릴리즈):** 교전 중 피킹 3종(스텝·점프·런바이), 분대 협동(제압+측면+후방), 봇끼리 발소리 듣기, 빈틈 노리기, 조용히 다가가기, 무기 핑퐁·주운 총 장전·로그 등 바닐라 전투 수정, 시뮬레이션 랩. 상세는 [`remake5 릴리즈 노트`](changelog/RELEASE_NOTES_remake5.md)와 [전체 이력](changelog/). (시뮬로 확인, 사람 상대 체감은 미검증)
-그 전 (2026-10-06, Remix4.2): [`Remix4.2 릴리즈 노트`](changelog/RELEASE_NOTES_Remix4.2.md).
-그 전 (2026-10-04, Remix4.1): 문을 발로 차면 애니메이션 없이 바로 열리고 잠긴 문까지 열리던 문제 수정, 도망칠 때 고개가 지그재그 박자에 맞춰 까딱이던 문제 수정. 상세는 [`Remix4.1 릴리즈 노트`](changelog/RELEASE_NOTES_Remix4.1.md)와 변경 이력.
-직전(10/2): 가까이 다가오는 적으로 목표 변경, 게임 기본 봇 탈출 제거(F6, 재시작), 코너에서 먼저 쏘기, 실내 수류탄 포물선 (remake4).
-이전: remake3 릴리즈(프리셋 5종 — `zzap 쉬움` / `zzap 보통` / `zzap` / `zzap 저사양 [테스트]` / `zzap TEST [시뮬 전용]`).
 
 릴리즈별 변경 요약: [`remake5`](changelog/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](changelog/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](changelog/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
 
