@@ -521,7 +521,7 @@ public class DoorTacticClass : BotComponentClassBase
         if (length > limit)
         {
             why = "stackPathDetour";
-            if (LogOn) Log($"{Who()} stack path {length:0}m vs straight {straight:0}m (limit {limit:0}m, plan {s.Plan})");
+            if (LogOn) Log($"{Who()} stack path {length:0}m vs straight {straight:0}m (limit {limit:0}m, plan {s.Plan}, height diff {s.Stack.y - Bot.Position.y:0.0}m)");
             return false;
         }
         return true;
@@ -605,6 +605,12 @@ public class DoorTacticClass : BotComponentClassBase
             toBot.y = 0f;
             float botDist = toBot.magnitude;
             if (botDist > MAX_BOT_DOOR_DIST || botDist >= bestDist)
+            {
+                continue;
+            }
+            // 10/12 sims: 3 of 4 peek picks died at "stack path 107m vs 6m straight" - the horizontally nearest door was a
+            // floor above/below (height is ignored above), lost the plan and shadowed the right door for the cooldown.
+            if (Mathf.Abs(data.Link.BottomY - botPos.y) > 1.8f)
             {
                 continue;
             }
@@ -909,11 +915,15 @@ public class DoorTacticClass : BotComponentClassBase
         }
 
         EPlan pushPick = EPlan.None;
-        if (personality == EPersonality.GigaChad || personality == EPersonality.Chad)
+        // 10/12 sims (zzap cross-check): 0 peeks in an hour. Peek was Chad/GigaChad-only and PMC Normals - about half the
+        // PMCs - could only Clear; remake4's frequent peeks came from the TEST preset's test mode (every PMC GigaChad).
+        // A PMC Normal now picks Clear or Peek like a Chad (no trap: that stays GigaChad-only).
+        bool normalPeeker = personality == EPersonality.Normal && Bot.Info.Profile.IsPMC;
+        if (personality == EPersonality.GigaChad || personality == EPersonality.Chad || normalPeeker)
         {
             pushPick = PickPushPlan(personality, enemy, geo, peekPointOk, haveNade);
         }
-        bool clearPersonality = personality == EPersonality.Wreckless || personality == EPersonality.Normal || pushPick == EPlan.Clear;
+        bool clearPersonality = personality == EPersonality.Wreckless || (personality == EPersonality.Normal && !normalPeeker) || pushPick == EPlan.Clear;
         if (Settings.RoomClear && clearPersonality)
         {
             BuildClear(s, geo, enemy, haveNade, doorOpen);
@@ -925,6 +935,7 @@ public class DoorTacticClass : BotComponentClassBase
         {
             case EPersonality.GigaChad:
             case EPersonality.Chad:
+            case EPersonality.Normal: // only a PMC Normal whose pick was Peek gets here (else Clear above, or base chance 0)
                 // Shut door: opened first from the stack point beside the frame, out of the room's line of sight.
                 bool peekAllowed = Settings.JumpPeek && peekPointOk;
                 bool trapAllowed = personality == EPersonality.GigaChad && Settings.RoomTrap;
@@ -933,7 +944,8 @@ public class DoorTacticClass : BotComponentClassBase
                     s.Plan = EPlan.Peek;
                     s.FirstStep = EStep.MoveToStack;
                     s.NeedsOpenForPeek = !doorOpen;
-                    float fakeChance = testMode ? 1f : (personality == EPersonality.GigaChad ? Settings.GigaChadFakeTrickChance : Settings.ChadFakeTrickChance) / 100f;
+                    float fakeChance = testMode ? 1f : (personality == EPersonality.GigaChad ? Settings.GigaChadFakeTrickChance
+                        : personality == EPersonality.Normal ? Settings.ChadFakeTrickChance * 0.5f : Settings.ChadFakeTrickChance) / 100f;
                     s.WantFakeNade = Settings.FakeGrenade && haveNade && Random.value < fakeChance;
                     s.WantFakeHeal = !s.WantFakeNade && CanFakeHeal() && Random.value < fakeChance;
                     s.HoldTime = Random.Range(3f, 6f);
