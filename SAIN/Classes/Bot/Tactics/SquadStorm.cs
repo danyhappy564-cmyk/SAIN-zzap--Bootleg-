@@ -114,6 +114,18 @@ public static class SquadStorm
         return joined;
     }
 
+    /// <summary>zzap: this squad is storming this enemy right now (squad maneuver stays out of it).</summary>
+    public static bool IsStorming(BotComponent bot, Enemy enemy)
+    {
+        var group = bot?.BotOwner?.BotsGroup;
+        if (group == null || enemy == null)
+        {
+            return false;
+        }
+        string key = $"{RuntimeHelpers.GetHashCode(group)}:{enemy.EnemyProfileId}";
+        return _decisions.TryGetValue(key, out Decision d) && d.Storm && Time.time <= d.Until;
+    }
+
     private static int SquadNear(BotComponent bot)
     {
         int count = 1;

@@ -171,7 +171,8 @@
       },
       "SquadCombat": {
         "SquadStormWeakness": 0.6,
-        "TradeWindow": 8.0
+        "TradeWindow": 8.0,
+        "ManeuverChance": 45.0
       },
       "Reposition": {
         "BaitPeekChance": 25.0,

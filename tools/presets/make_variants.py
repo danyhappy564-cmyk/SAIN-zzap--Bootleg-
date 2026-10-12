@@ -39,7 +39,7 @@ TACTICS = {
     "easy": {
         "DoorTactics": dict(ChanceMultiplier=0.5, GigaChadFakeTrickChance=15.0, ChadFakeTrickChance=8.0,
                             GigaChadTrapFakeHealChance=10.0, RoomClearGrenadeChance=30.0, RunByChance=25.0),
-        "SquadCombat": dict(SquadStorm=False, CrossfireBackDoorPush=False, TradeWindow=6.0),
+        "SquadCombat": dict(SquadStorm=False, CrossfireBackDoorPush=False, TradeWindow=6.0, ManeuverChance=30.0),
         "CloseCombat": dict(ThreatTargetKeepTime=3.0, CornerChasePrefireChance=25.0, CornerChaseJumpChance=10.0,
                             CornerJiggleChance=20.0, LeanSpamChance=25.0, GrenadeMaxInfoAge=12.0,
                             GrenadeMaxThrowDistance=30.0, DiamondStepPlant=False),
@@ -48,7 +48,7 @@ TACTICS = {
     "normal": {
         "DoorTactics": dict(ChanceMultiplier=0.75, GigaChadFakeTrickChance=30.0, ChadFakeTrickChance=15.0,
                             GigaChadTrapFakeHealChance=20.0, RoomClearGrenadeChance=45.0, RunByChance=35.0),
-        "SquadCombat": dict(SquadStormWeakness=0.6, TradeWindow=8.0),
+        "SquadCombat": dict(SquadStormWeakness=0.6, TradeWindow=8.0, ManeuverChance=45.0),
         "CloseCombat": dict(ThreatTargetKeepTime=2.5, CornerChasePrefireChance=45.0, CornerChaseJumpChance=20.0,
                             CornerJiggleChance=35.0, LeanSpamChance=45.0, GrenadeMaxInfoAge=16.0,
                             GrenadeMaxThrowDistance=38.0, DiamondStepPlantMinDistance=12.0),

@@ -24,6 +24,12 @@ internal class SquadCombatAction(BotOwner bot) : BotAction(bot, nameof(SquadComb
             Bot.Steering.SteerByPriority(enemy, false);
             return;
         }
+        // squad maneuver base of fire: suppress his last known spot unless the flanker is near the line
+        if (Bot.SquadCombat.Mode == SAIN.SAINComponent.Classes.Tactics.SquadCombatClass.EMode.ManeuverFire && Bot.SquadCombat.ManeuverMaySuppress(out _)
+            && Bot.Suppression.TrySuppressAnyEnemy(enemy, Bot.EnemyController.KnownEnemies))
+        {
+            return;
+        }
         var look = Bot.SquadCombat.LookTarget;
         if (look != null)
         {

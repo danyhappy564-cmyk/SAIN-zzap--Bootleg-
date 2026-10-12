@@ -34,6 +34,9 @@ public class SquadCombatClass : BotComponentClassBase
         CoverMate,
         TradePush,
         TradeAngle,
+        ManeuverFire,
+        ManeuverFlank,
+        ManeuverRear,
     }
 
     private const float DECISION_THROTTLE = 0.5f;
@@ -158,6 +161,10 @@ public class SquadCombatClass : BotComponentClassBase
 
         reason = "noSquadBehaviour";
         if (Settings.Trade && TryStartTrade(enemy, known.Value, out reason))
+        {
+            return true;
+        }
+        if (Settings.Maneuver && TryManeuver(enemy, known.Value, out reason))
         {
             return true;
         }
@@ -835,9 +842,15 @@ public class SquadCombatClass : BotComponentClassBase
         float time = Time.time;
         float elapsed = time - s.StartTime;
 
-        if (BotOwner.Memory.IsUnderFire && s.Mode != EMode.TradePush)
+        // The base of fire and the rear guard hold their ground under fire (they are the ones drawing it); everyone else
+        // drops the squad behaviour and fights.
+        if (BotOwner.Memory.IsUnderFire && s.Mode != EMode.TradePush && s.Mode != EMode.ManeuverFire && s.Mode != EMode.ManeuverRear)
         {
             End("underFire");
+            return;
+        }
+        if (IsManeuver(s.Mode) && !TickManeuver(s, time))
+        {
             return;
         }
 
@@ -997,6 +1010,10 @@ public class SquadCombatClass : BotComponentClassBase
         {
             _coverClaims.Remove(s.Mate.ProfileId);
         }
+        if (s.Mode == EMode.ManeuverFlank)
+        {
+            OnFlankerEnded(result);
+        }
         string key = result.Contains("(") ? result.Substring(0, result.IndexOf('(')) : result;
         if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"squad.end.{s.Mode}.{key}");
         if (LogOn) Log($"{Who()} END {s.Mode} result={result} after {Time.time - s.StartTime:0.0}s arrived={s.Arrived}");
@@ -1006,6 +1023,460 @@ public class SquadCombatClass : BotComponentClassBase
     {
         End("disposed");
         base.Dispose();
+    }
+
+    // ---------------------------------------------------------------- squad maneuver (suppress + flank)
+    // zzap (user 2026-10-12: "while fighting, split the squad - one suppresses, one flanks"): SAIN's own squad layer only
+    // acts after the enemy has been out of sight for 10 s, and the zzap squad behaviours above are each bot on its own. Here
+    // the squad shares one plan per enemy: 2+ members within 35 m on the same hidden enemy 15-80 m away -> the most
+    // aggressive healthy member with ammo flanks to an angle 35 deg+ off, the rest hold and suppress his last known spot,
+    // with 3+ the one farthest back watches the rear. Suppressors hold fire while the flanker is near their line. The plan
+    // lives on its own (a member's session can end and restart without ending it), lasts 25 s at most, and the squad waits
+    // 25 s before another one on that enemy. Plans are keyed by squad id, cleared at raid end (ClearStatic).
+    private sealed class ManeuverPlan
+    {
+        public string Key;
+        public string EnemyId;
+        public string FlankerId;
+        public string FlankerName;
+        public string RearId;
+        public readonly HashSet<string> Suppressors = new();
+        public float StartTime;
+        public float Until;
+        public bool FlankerArrived;
+        public float ConvergeUntil;
+        public bool Done;
+        public string DoneWhy;
+        public BotComponent Flanker;
+        public bool FlankerStarted;
+    }
+
+    private const float MANEUVER_TIME = 25f;
+    private const float MANEUVER_COOLDOWN = 25f;
+    private const float MANEUVER_CONVERGE = 5f;
+    private const float MANEUVER_SQUAD_RADIUS = 35f;
+
+    private static readonly Dictionary<string, ManeuverPlan> _plans = new();
+    private static readonly Dictionary<string, float> _planCooldown = new();
+    private static readonly Dictionary<string, (bool ok, float until)> _planRoll = new();
+    private static readonly List<BotComponent> _maneuverMembers = new();
+
+    /// <summary>Raid end: shared squad state (plans, cover claims, claimed angle points) must not carry into the next raid.</summary>
+    public static void ClearStatic()
+    {
+        _plans.Clear();
+        _planCooldown.Clear();
+        _planRoll.Clear();
+        _maneuverMembers.Clear();
+        _coverClaims.Clear();
+        _claimedPoints.Clear();
+    }
+
+    private static bool IsManeuver(EMode mode)
+    {
+        return mode == EMode.ManeuverFire || mode == EMode.ManeuverFlank || mode == EMode.ManeuverRear;
+    }
+
+    private string SquadKey
+    {
+        get { return Bot.Squad.SquadInfo?.Id; }
+    }
+
+    private float _nextManeuverCheck;
+
+    /// <summary>
+    /// Asked by the hidden-enemy decision before its own stances (EnemyDecisionClass.TryUtility), so a squad plan can start
+    /// and every member takes its role even when its own pick would be something else. 0.5 s throttle per bot.
+    /// </summary>
+    public bool ShallManeuver(Enemy enemy, out string reason)
+    {
+        reason = string.Empty;
+        if (_session != null)
+        {
+            return false; // a running session is kept by ShallUse
+        }
+        float time = Time.time;
+        if (!Settings.Enabled || !Settings.Maneuver || time < _nextManeuverCheck || time < _cooldownUntil)
+        {
+            return false;
+        }
+        _nextManeuverCheck = time + DECISION_THROTTLE;
+        if (!Bot.Squad.BotInGroup || Bot.Squad.Members == null || Bot.Squad.Members.Count <= 1 || Bot.DoorTactic.Active)
+        {
+            return false;
+        }
+        if (enemy == null || enemy.IsVisible || BotOwner.Memory.IsUnderFire)
+        {
+            return false;
+        }
+        Vector3? known = enemy.KnownPlaces.LastKnownPosition;
+        if (known == null)
+        {
+            return false;
+        }
+        return TryManeuver(enemy, known.Value, out reason);
+    }
+
+    private bool TryManeuver(Enemy enemy, Vector3 known, out string reason)
+    {
+        reason = string.Empty;
+        string squad = SquadKey;
+        if (string.IsNullOrEmpty(squad))
+        {
+            return false;
+        }
+        float time = Time.time;
+        if (_plans.TryGetValue(squad, out ManeuverPlan plan) && (plan.Done || time > plan.Until))
+        {
+            FinishPlan(plan, plan.Done ? plan.DoneWhy : "timeout");
+            plan = null;
+        }
+        if (plan == null && !AssessManeuver(enemy, known, squad, out plan, out reason))
+        {
+            return false;
+        }
+        if (plan.EnemyId != enemy.EnemyProfileId)
+        {
+            reason = "maneuverOnOtherEnemy";
+            return false;
+        }
+        string me = Bot.ProfileId;
+        if (me == plan.FlankerId)
+        {
+            return StartFlank(plan, enemy, known, out reason);
+        }
+        if (plan.FlankerArrived)
+        {
+            reason = "maneuverConverging";
+            return false;
+        }
+        if (me == plan.RearId)
+        {
+            Vector3 away = Flat(Bot.Position - known);
+            Vector3 look = Bot.Position + (away.sqrMagnitude > 0.01f ? away.normalized : -Bot.Transform.LookDirection) * 10f + Vector3.up * 1.3f;
+            Start(EMode.ManeuverRear, enemy, Bot.Position, look, null, $"maneuver: rear guard while {plan.FlankerName} flanks");
+            _session.Arrived = true;
+            _session.ArriveTime = time;
+            reason = "maneuverRear";
+            return true;
+        }
+        if (plan.Suppressors.Contains(me))
+        {
+            Start(EMode.ManeuverFire, enemy, Bot.Position, known + Vector3.up * 1.3f, plan.Flanker, $"maneuver: base of fire while {plan.FlankerName} flanks");
+            _session.Arrived = true;
+            _session.ArriveTime = time;
+            reason = "maneuverFire";
+            return true;
+        }
+        reason = "maneuverNoRole";
+        return false;
+    }
+
+    private bool AssessManeuver(Enemy enemy, Vector3 known, string squad, out ManeuverPlan plan, out string reason)
+    {
+        plan = null;
+        float time = Time.time;
+        string key = squad + ":" + enemy.EnemyProfileId;
+        if (_planCooldown.TryGetValue(key, out float cd) && time < cd)
+        {
+            reason = "maneuverCooldown";
+            return false;
+        }
+        float dist = Flat(known - Bot.Position).magnitude;
+        if (dist < 15f || dist > 80f || enemy.TimeSinceLastKnownUpdated > 10f)
+        {
+            reason = "maneuverRange";
+            return false;
+        }
+        if (SquadStorm.IsStorming(Bot, enemy) || Bot.DoorTactic.Active)
+        {
+            reason = "maneuverStormOrDoor";
+            return false;
+        }
+        // members close by on the same enemy (profile id - kb 2.46), nobody seeing him right now (that's crossfire's job)
+        _maneuverMembers.Clear();
+        foreach (var member in Bot.Squad.Members.Values)
+        {
+            if (member == null || member.IsDead || (member.Position - Bot.Position).sqrMagnitude > MANEUVER_SQUAD_RADIUS * MANEUVER_SQUAD_RADIUS)
+            {
+                continue;
+            }
+            Enemy theirs = member.GoalEnemy;
+            if (theirs == null || theirs.EnemyProfileId != enemy.EnemyProfileId || member.DoorTactic.Active)
+            {
+                continue;
+            }
+            if (theirs.IsVisible)
+            {
+                reason = "maneuverSomeoneSees";
+                return false;
+            }
+            _maneuverMembers.Add(member);
+        }
+        if (_maneuverMembers.Count < 2)
+        {
+            reason = "maneuverTooFew";
+            return false;
+        }
+        if (!_planRoll.TryGetValue(key, out var roll) || time > roll.until)
+        {
+            roll = (Random.value * 100f < Settings.ManeuverChance, time + 30f);
+            _planRoll[key] = roll;
+            TacticDiagnostics.Count(roll.ok ? "squad.maneuver.rollOk" : "squad.maneuver.rollFailed");
+        }
+        if (!roll.ok)
+        {
+            reason = "maneuverRollFailed";
+            return false;
+        }
+        // flanker: most aggressive personality first, then health, then ammo; Timmy / Rat / Coward / Turtle never flank
+        BotComponent flanker = null;
+        float best = float.MinValue;
+        foreach (var m in _maneuverMembers)
+        {
+            float score = FlankScore(m);
+            if (score > best)
+            {
+                best = score;
+                flanker = m;
+            }
+        }
+        if (flanker == null || best < 0f)
+        {
+            _planCooldown[key] = time + 10f;
+            reason = "maneuverNoFlanker";
+            TacticDiagnostics.Count("squad.maneuver.noFlanker");
+            return false;
+        }
+        plan = new ManeuverPlan
+        {
+            Key = key,
+            EnemyId = enemy.EnemyProfileId,
+            FlankerId = flanker.ProfileId,
+            FlankerName = flanker.name,
+            Flanker = flanker,
+            StartTime = time,
+            Until = time + MANEUVER_TIME,
+        };
+        BotComponent rear = null;
+        if (_maneuverMembers.Count >= 3)
+        {
+            float far = -1f;
+            foreach (var m in _maneuverMembers)
+            {
+                if (ReferenceEquals(m, flanker))
+                {
+                    continue;
+                }
+                float d = Flat(m.Position - known).sqrMagnitude;
+                if (d > far)
+                {
+                    far = d;
+                    rear = m;
+                }
+            }
+        }
+        foreach (var m in _maneuverMembers)
+        {
+            if (ReferenceEquals(m, flanker) || ReferenceEquals(m, rear))
+            {
+                continue;
+            }
+            if (SAIN.SAINComponent.Classes.WeaponFunction.SAINBotSuppressClass.CalcAmmoRatio(m.BotOwner, out _) >= 0.33f)
+            {
+                plan.Suppressors.Add(m.ProfileId);
+            }
+        }
+        if (plan.Suppressors.Count == 0 && rear != null
+            && SAIN.SAINComponent.Classes.WeaponFunction.SAINBotSuppressClass.CalcAmmoRatio(rear.BotOwner, out _) >= 0.33f)
+        {
+            plan.Suppressors.Add(rear.ProfileId);
+            rear = null;
+        }
+        if (plan.Suppressors.Count == 0)
+        {
+            _planCooldown[key] = time + 10f;
+            reason = "maneuverNoSuppressor";
+            TacticDiagnostics.Count("squad.maneuver.noSuppressor");
+            plan = null;
+            return false;
+        }
+        plan.RearId = rear?.ProfileId;
+        _plans[squad] = plan;
+        reason = "maneuverStart";
+        TacticDiagnostics.Count("squad.maneuver.start");
+        if (LogOn) Log($"[Maneuver] [{Bot.name}]'s squad vs {enemy.EnemyPlayer?.Profile?.Nickname} ({dist:0}m): flank {flanker.name} [{flanker.Info.Personality}], "
+            + $"fire {plan.Suppressors.Count}, rear {(rear != null ? rear.name : "-")}");
+        return true;
+    }
+
+    private static float FlankScore(BotComponent m)
+    {
+        float rank = m.Info.Personality switch
+        {
+            EPersonality.GigaChad or EPersonality.Chad or EPersonality.Wreckless => 2f,
+            EPersonality.Normal => 1f,
+            _ => -10f,
+        };
+        var health = m.Memory.Health.HealthStatus;
+        if (health == ETagStatus.BadlyInjured || health == ETagStatus.Dying)
+        {
+            return -10f;
+        }
+        float ammo = SAIN.SAINComponent.Classes.WeaponFunction.SAINBotSuppressClass.CalcAmmoRatio(m.BotOwner, out _);
+        if (ammo < 0.5f || m.Decision.CurrentSelfDecision != ESelfActionType.None)
+        {
+            return -10f;
+        }
+        return rank + (health == ETagStatus.Healthy ? 0.5f : 0f) + ammo * 0.3f;
+    }
+
+    private bool StartFlank(ManeuverPlan plan, Enemy enemy, Vector3 known, out string reason)
+    {
+        // angle off the base of fire: reference = the suppressors' middle (else our own spot)
+        Vector3 reference = Bot.Position;
+        int n = 0;
+        Vector3 sum = Vector3.zero;
+        foreach (var member in Bot.Squad.Members.Values)
+        {
+            if (member != null && !member.IsDead && plan.Suppressors.Contains(member.ProfileId))
+            {
+                sum += member.Position;
+                n++;
+            }
+        }
+        if (n > 0)
+        {
+            reference = sum / n;
+        }
+        bool indoor = Bot.Player.Environment == EnvironmentType.Indoor;
+        if (!FindAnglePoint(enemy, known, reference, out Vector3 point, out string why, indoor, out float pose))
+        {
+            plan.Done = true;
+            plan.DoneWhy = $"noFlankPoint({why})";
+            reason = plan.DoneWhy;
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"squad.maneuver.noFlankPoint.{why}");
+            return false;
+        }
+        Start(EMode.ManeuverFlank, enemy, point, known + Vector3.up * 1.3f, null, $"maneuver: flanking ({(indoor ? "indoor" : "outdoor")}, {plan.Suppressors.Count} on fire)");
+        plan.FlankerStarted = true;
+        _session.HoldPose = pose;
+        reason = "maneuverFlank";
+        return true;
+    }
+
+    /// <summary>Per-tick plan checks for a maneuver session. False = the session ended.</summary>
+    private bool TickManeuver(Session s, float time)
+    {
+        string squad = SquadKey;
+        if (squad == null || !_plans.TryGetValue(squad, out ManeuverPlan plan) || plan.EnemyId != s.EnemyId)
+        {
+            End("planGone");
+            return false;
+        }
+        if (plan.Flanker == null || plan.Flanker.IsDead)
+        {
+            plan.Done = true;
+            plan.DoneWhy = "flankerDown"; // the trade behaviour picks his killer up
+        }
+        // the flanker never took its role (busy with something else) -> nobody holds fire for nothing
+        if (!plan.FlankerStarted && time - plan.StartTime > 3f)
+        {
+            plan.Done = true;
+            plan.DoneWhy = "flankerNoShow";
+        }
+        if (plan.FlankerArrived && time > plan.ConvergeUntil)
+        {
+            plan.Done = true;
+            plan.DoneWhy ??= "converged";
+        }
+        if (plan.Done || time > plan.Until)
+        {
+            End(plan.Done ? $"plan({plan.DoneWhy})" : "planTimeout");
+            return false;
+        }
+        if (s.Mode == EMode.ManeuverFlank && s.Arrived && !plan.FlankerArrived)
+        {
+            plan.FlankerArrived = true;
+            plan.ConvergeUntil = time + MANEUVER_CONVERGE;
+            TacticDiagnostics.Count("squad.maneuver.flankArrived");
+            if (LogOn) Log($"{Who()} [Maneuver] flanker in position after {time - plan.StartTime:0.0}s - converging");
+        }
+        return true;
+    }
+
+    private void OnFlankerEnded(string result)
+    {
+        string squad = SquadKey;
+        if (squad == null || !_plans.TryGetValue(squad, out ManeuverPlan plan) || plan.FlankerId != Bot.ProfileId || plan.Done)
+        {
+            return;
+        }
+        if (result.StartsWith("enemySpotted") || plan.FlankerArrived)
+        {
+            // he sees him from the new angle (or got there): a few seconds for everyone to converge, then the plan ends
+            if (!plan.FlankerArrived)
+            {
+                plan.FlankerArrived = true;
+                plan.ConvergeUntil = Time.time + MANEUVER_CONVERGE;
+                TacticDiagnostics.Count("squad.maneuver.flankerSpotted");
+            }
+            return;
+        }
+        plan.Done = true;
+        plan.DoneWhy = $"flanker:{result}";
+    }
+
+    private void FinishPlan(ManeuverPlan plan, string why)
+    {
+        string squad = SquadKey;
+        if (squad != null && _plans.TryGetValue(squad, out ManeuverPlan current) && ReferenceEquals(current, plan))
+        {
+            _plans.Remove(squad);
+        }
+        _planCooldown[plan.Key] = Time.time + MANEUVER_COOLDOWN;
+        string key = why == null ? "unknown" : why.Contains("(") ? why.Substring(0, why.IndexOf('(')) : why.Contains(":") ? why.Substring(0, why.IndexOf(':')) : why;
+        TacticDiagnostics.Count($"squad.maneuver.end.{key}");
+        if (LogOn) Log($"[Maneuver] [{Bot.name}]'s squad plan over: {why} after {Time.time - plan.StartTime:0.0}s (flanker arrived {plan.FlankerArrived})");
+    }
+
+    /// <summary>
+    /// For the base of fire: suppress now? Not while the flanker stands within 2 m of the line from this bot to the target
+    /// (he's crossing it, or already near the enemy).
+    /// </summary>
+    public bool ManeuverMaySuppress(out Vector3 target)
+    {
+        target = default;
+        Session s = _session;
+        if (s == null || s.Mode != EMode.ManeuverFire || s.Enemy?.KnownPlaces?.LastKnownPosition is not Vector3 known)
+        {
+            return false;
+        }
+        target = known + Vector3.up * 1.3f;
+        // the flanker is on his angle (or sees him): stop throwing rounds into that area
+        string squad = SquadKey;
+        if (squad != null && _plans.TryGetValue(squad, out ManeuverPlan plan) && plan.FlankerArrived)
+        {
+            return false;
+        }
+        BotComponent flanker = s.Mate;
+        if (flanker == null || flanker.IsDead)
+        {
+            return true;
+        }
+        Vector3 a = Bot.Position;
+        Vector3 b = known;
+        Vector3 p = flanker.Position;
+        Vector3 ab = Flat(b - a);
+        float len2 = ab.sqrMagnitude;
+        float t = len2 > 0.01f ? Mathf.Clamp01(Vector3.Dot(Flat(p - a), ab) / len2) : 0f;
+        float dist = Flat(p - (a + ab * t)).magnitude;
+        if (dist < 2f)
+        {
+            TacticDiagnostics.Count("squad.maneuver.holdFireFlanker");
+            return false;
+        }
+        return true;
     }
 
     // ---------------------------------------------------------------- helpers

@@ -404,6 +404,13 @@ public class EnemyDecisionClass : BotBase
             TacticDiagnostics.Count("utility.do.doorRole");
             return true;
         }
+        // zzap: squad maneuver (suppress + flank) - start a squad plan or take this bot's role in one.
+        if (Bot.SquadCombat.ShallManeuver(enemy, out reason))
+        {
+            result = ECombatDecision.SquadTactic;
+            TacticDiagnostics.Count("utility.do.maneuver");
+            return true;
+        }
         // zzap: a teammate just went down to this enemy -> trade first (push the killer / take his angle).
         if (Bot.SquadCombat.ShallTrade(enemy, out reason))
         {

@@ -66,6 +66,7 @@ public static class SimLabFeatures
         new("repo", "가짜 재장전", A("repo.start.FakeReload"), A("repo.fakeReload.refused"), A(), "[Reposition]"),
         new("repo", "수류탄 신관 선택", A("nade.fuse."), A(), A(), "[Nade]"),
         new("squad", "분대 교전(교차·엄호·트레이드)", A("squad.start."), A("squad.crossfire.noPoint"), A(), "[SquadCombat]"),
+        new("squad", "분대 협동(제압+측면)", A("squad.maneuver.start"), A("squad.maneuver.noFlanker", "squad.maneuver.noSuppressor", "squad.maneuver.noFlankPoint."), A("squad.maneuver.end.flanker"), "[Maneuver] / [SquadCombat]", "flankArrived = 측면조 도착, holdFireFlanker = 측면조가 사선 근처라 사격 멈춤. 나쁜 신호 = 측면조가 도착 전에 끝남(맞음·길 없음 등)"),
         new("squad", "약한 적 일제 돌격", A("squad.storm.start"), A("squad.storm.notWeak"), A(), "[Storm]"),
         new("squad", "전투 후 정리", A("postCombat.start"), A(), A(), "[PostCombat]"),
         new("squad", "아군 사선 회피", A("squad.fireLane."), A(), A("death.teamKill."), "[FireLane]", "나쁜 신호 = 아군 사격 사망"),

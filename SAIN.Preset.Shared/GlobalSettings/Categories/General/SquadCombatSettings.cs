@@ -83,6 +83,17 @@ public class SquadCombatSettings : SAINSettingsBase<SquadCombatSettings>, ISAINS
     public float FireLaneWidth = 0.9f;
 
     [DataMember]
+    [Name("Squad Maneuver (Suppress + Flank)")]
+    [Description("zzap: two or more squadmates near each other on the same enemy who hides 15-80 m away split the work: one flanks to an angle 35 deg+ off (most aggressive personality first, then health and ammo), the rest hold and suppress his position, a third watches the rear. Suppressors hold fire while the flanker is near their line. Up to 25 s, then 25 s cooldown on that enemy.")]
+    public bool Maneuver = true;
+
+    [DataMember]
+    [Name("Squad Maneuver Chance")]
+    [Description("Percent, rolled once per squad and enemy when a maneuver is possible.")]
+    [MinMax(0f, 100f, 1f)]
+    public float ManeuverChance = 60f;
+
+    [DataMember]
     [Name("Crossfire")]
     [Description("While a teammate is shooting at the enemy, a squadmate who can't see that enemy moves to a different angle on it (spread out) instead of stacking behind the teammate.")]
     public bool Crossfire = true;

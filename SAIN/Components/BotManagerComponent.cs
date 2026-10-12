@@ -149,6 +149,7 @@ public class BotManagerComponent : MonoBehaviour
         SAIN.SAINComponent.Classes.Tactics.OwnGrenadeTracker.Clear();
         SAIN.SAINComponent.Classes.Tactics.FireLaneGuard.Clear();
         SAIN.SAINComponent.Classes.Tactics.SquadStorm.Clear();
+        SAIN.SAINComponent.Classes.Tactics.SquadCombatClass.ClearStatic();
         SAIN.SAINComponent.Classes.Tactics.LayerHandoff.Clear();
         SAIN.SAINComponent.Classes.Tactics.RetreatWeave.Clear();
         SAIN.SAINComponent.Classes.Tactics.HiddenEnemyUtility.Clear();

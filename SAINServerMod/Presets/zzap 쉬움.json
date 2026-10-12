@@ -172,7 +172,8 @@
       "SquadCombat": {
         "SquadStorm": false,
         "CrossfireBackDoorPush": false,
-        "TradeWindow": 6.0
+        "TradeWindow": 6.0,
+        "ManeuverChance": 30.0
       },
       "Reposition": {
         "BaitPeekChance": 15.0,

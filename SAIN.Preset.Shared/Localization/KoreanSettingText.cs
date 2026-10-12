@@ -1392,6 +1392,13 @@ public static class KoreanSettingText
             "zzap: of the corner peeks above, the percent that are run-by peeks (sprint across the opening to cover on the far side, then peek from there). Same personalities as the jump peek. The rest are step peeks.",
             "zzap: 위 코너 피킹 중 런바이 피킹 비율(%). 트인 곳을 반대편 엄폐까지 질주해 건너간 뒤 그쪽에서 피킹. 점프 피킹과 같은 성격만. 나머지는 스텝 피킹."
         },
+        { "Squad Maneuver (Suppress + Flank)", "분대 협동 (제압 + 측면)" },
+        {
+            "zzap: two or more squadmates near each other on the same enemy who hides 15-80 m away split the work: one flanks to an angle 35 deg+ off (most aggressive personality first, then health and ammo), the rest hold and suppress his position, a third watches the rear. Suppressors hold fire while the flanker is near their line. Up to 25 s, then 25 s cooldown on that enemy.",
+            "zzap: 가까이 있는 분대원 2명 이상이 15~80m 떨어져 숨은 같은 적을 상대할 때 역할을 나눔 — 한 명은 35° 이상 다른 각도로 측면 이동(공격적인 성격 우선, 같으면 체력·탄 순), 나머지는 제자리에서 그 위치에 제압 사격, 3명 이상이면 한 명은 후방 경계. 측면조가 사선 근처면 제압조는 사격 중지. 최대 25초, 끝나면 그 적에게 25초 쿨다운."
+        },
+        { "Squad Maneuver Chance", "분대 협동 확률" },
+        { "Percent, rolled once per squad and enemy when a maneuver is possible.", "%, 협동이 가능할 때 분대·적마다 한 번 굴림." },
         // PerformanceSettings (zzap sim)
         { "Sim: Hide Old Bot Corpses Above (TEST preset only)", "시뮬: 오래된 봇 시체 숨기기 기준 (TEST 프리셋 전용)" },
         { "Sim: Delete Instead Of Hide (TEST preset only)", "시뮬: 숨기지 말고 삭제 (TEST 프리셋 전용)" },
