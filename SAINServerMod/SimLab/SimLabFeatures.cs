@@ -23,9 +23,9 @@ public static class SimLabFeatures
     public static readonly Feature[] All =
     {
         // README "추가한 기능"
-        new("tactic", "점프 피킹", A("door.jumpOut", "door.jumpBack"), A("door.jumpUnsafe", "door.jumpFrameInTheWay", "door.jumpLeafTooClose"), A(), "[DoorTactic]"),
-        new("tactic", "런바이 피킹", A("door.runBy.start"), A("door.runBy.noPoint", "door.runBy.noAnglePoint", "door.runBy.abortHeard"), A(), "[DoorTactic]"),
-        new("tactic", "스텝 피킹", A("door.stepPeek", "door.peek.plain"), A(), A(), "[DoorTactic]"),
+        new("tactic", "점프 피킹", A("diamond.jumpPeek", "door.jumpOut", "door.jumpBack"), A("diamond.jumpPeek.unsafe", "door.jumpUnsafe", "door.jumpFrameInTheWay", "door.jumpLeafTooClose"), A(), "[Diamond] / [DoorTactic]", "교전 중 코너 피킹(diamond.*) + 문 전술(door.*). 점프 비율 25%, Chad·GigaChad·PMC Normal 절반"),
+        new("tactic", "런바이 피킹", A("diamond.runBy.start", "door.runBy.start"), A("diamond.runBy.noPoint", "door.runBy.noPoint", "door.runBy.noAnglePoint", "door.runBy.abortHeard"), A(), "[Diamond] / [DoorTactic]", "교전 중 코너 피킹(diamond.*) + 문 전술(door.*). 런바이 비율 15%, 반대편 엄폐가 있는 트인 곳만"),
+        new("tactic", "스텝 피킹", A("diamond.peekStyle.Step", "door.stepPeek", "door.peek.plain"), A(), A(), "[Diamond] / [DoorTactic]", "교전 중 코너 흔들기(A/D) = 스텝 피킹"),
         new("tactic", "페이크 수류탄", A("fakeNade.drawn"), A("fakeNade.putAwayRefused", "trick.skipped", "trick.cancelledOnSound"), A(), "[DoorTactic]"),
         new("tactic", "페이크 치료·스팀", A("fakeStim.started", "fakeHeal.started"), A("fakeStim.cancelled", "fakeHeal.failedToStart"), A(), "[DoorTactic]", "문 전술(가두기·피킹)이 문틀까지 가야 결정됨 — 문 전술 시작이 적으면 0이 흔함"),
         new("tactic", "방 진입(Clear)", A("door.pick.Clear", "door.breach."), A("door.planFailed"), A(), "[DoorTactic]"),

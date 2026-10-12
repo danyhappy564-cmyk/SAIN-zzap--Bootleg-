@@ -138,6 +138,18 @@ public class CloseCombatSettings : SAINSettingsBase<CloseCombatSettings>, ISAINS
     public float CornerJiggleChance = 50f;
 
     [DataMember]
+    [Name("Corner Peek: Jump Peek Share")]
+    [Description("zzap: of the corner peeks above, the percent that are jump peeks (hop sideways out of cover to see, land and shoot, step back). Chad / GigaChad and half of the PMC Normals only; others always step-peek.")]
+    [MinMax(0f, 100f, 1f)]
+    public float CornerPeekJumpShare = 25f;
+
+    [DataMember]
+    [Name("Corner Peek: Run-By Share")]
+    [Description("zzap: of the corner peeks above, the percent that are run-by peeks (sprint across the opening to cover on the far side, then peek from there). Same personalities as the jump peek. The rest are step peeks.")]
+    [MinMax(0f, 100f, 1f)]
+    public float CornerPeekRunByShare = 15f;
+
+    [DataMember]
     [Name("Door/Squad Hold: Step To See The Angle")]
     [Description("Door tactics holding a door (trap, ambush, overwatch, rear guard) and squad angles (crossfire, covering a mate): if the wall is between the gun and what the bot watches, it steps to the first spot (toward the door / the angle, else sideways) where the line is open, up to the distance below. Not used while in cover - cover is meant to hide the bot.")]
     public bool HoldStepToOpenAngle = true;

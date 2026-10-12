@@ -1382,6 +1382,16 @@ public static class KoreanSettingText
         { "Shooting from a corner or door frame (one side step puts the body behind cover): now and then the diamond step turns into a jiggle peek - quick A/D taps out of cover and back, the body showing and hiding while it shoots, to throw off the enemy's aim.", "코너나 문틀에서 쏠 때(옆으로 한 걸음이면 몸이 엄폐 뒤로 숨는 자리): 확률로 다이아몬드 스텝 대신 흔들기 피킹 — A/D를 빠르게 눌러 엄폐 밖으로 나왔다 들어갔다 하며 쏨. 몸이 보였다 안 보였다 해서 상대 조준을 흐트러뜨림." },
         { "Corner Jiggle Peek Chance", "코너 흔들기 피킹 확률" },
         { "Percent, rolled once per engagement when the bot is at such a corner.", "%, 봇이 그런 코너에 있을 때 교전마다 한 번 굴림." },
+        { "Corner Peek: Jump Peek Share", "코너 피킹: 점프 피킹 비율" },
+        {
+            "zzap: of the corner peeks above, the percent that are jump peeks (hop sideways out of cover to see, land and shoot, step back). Chad / GigaChad and half of the PMC Normals only; others always step-peek.",
+            "zzap: 위 코너 피킹 중 점프 피킹 비율(%). 엄폐에서 옆으로 점프해 나가 확인하고, 착지해서 쏘고, 다시 엄폐로. Chad·GigaChad와 PMC Normal 절반만 — 나머지는 항상 스텝 피킹."
+        },
+        { "Corner Peek: Run-By Share", "코너 피킹: 런바이 피킹 비율" },
+        {
+            "zzap: of the corner peeks above, the percent that are run-by peeks (sprint across the opening to cover on the far side, then peek from there). Same personalities as the jump peek. The rest are step peeks.",
+            "zzap: 위 코너 피킹 중 런바이 피킹 비율(%). 트인 곳을 반대편 엄폐까지 질주해 건너간 뒤 그쪽에서 피킹. 점프 피킹과 같은 성격만. 나머지는 스텝 피킹."
+        },
         // PerformanceSettings (zzap sim)
         { "Sim: Hide Old Bot Corpses Above (TEST preset only)", "시뮬: 오래된 봇 시체 숨기기 기준 (TEST 프리셋 전용)" },
         { "Sim: Delete Instead Of Hide (TEST preset only)", "시뮬: 숨기지 말고 삭제 (TEST 프리셋 전용)" },

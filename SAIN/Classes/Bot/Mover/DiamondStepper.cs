@@ -171,7 +171,18 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         if (!_jiggleChecked)
         {
             _jiggleChecked = true;
-            _jiggle = settings.CornerJiggle && Random.value * 100f < settings.CornerJiggleChance && FindCoverSide(enemy, right, out _jiggleCoverDir);
+            // 15:34 sim: the diamond step restarted within 0.3 s 132 times (shoot <-> dog fight) and every restart re-rolled the
+            // peek. One roll per engagement: same enemy within 3 s of the last stop keeps the last roll and style.
+            bool sameFight = enemy.EnemyProfileId == _rollEnemyId && Time.time < _rollKeepUntil;
+            if (!sameFight)
+            {
+                _rollEnemyId = enemy.EnemyProfileId;
+                _rollWantsJiggle = settings.CornerJiggle && Random.value * 100f < settings.CornerJiggleChance;
+                _peekStyle = PickPeekStyle(settings);
+                _jumpPeeks = 0;
+                _runByDone = false;
+            }
+            _jiggle = _rollWantsJiggle && FindCoverSide(enemy, right, out _jiggleCoverDir);
             if (_jiggle)
             {
                 // zzap (10/2 21:37 raid, user: "at a corner they look at me 1-2s late, then shoot"): the first jiggle tap was
@@ -180,7 +191,11 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
                 _jiggleHide = true;
                 _jiggleFrom = Time.time + JIGGLE_DELAY;
                 TacticDiagnostics.Count("diamond.jiggle");
-                if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] corner jiggle peek: cover on the {(Vector3.Dot(_jiggleCoverDir, right) > 0f ? "right" : "left")}, enemy {dist:0}m");
+                if (!sameFight)
+                {
+                    TacticDiagnostics.Count($"diamond.peekStyle.{_peekStyle}");
+                }
+                if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] corner {_peekStyle} peek: cover on the {(Vector3.Dot(_jiggleCoverDir, right) > 0f ? "right" : "left")}, enemy {dist:0}m{(sameFight ? " (same fight, kept)" : "")}");
             }
         }
         // zzap (10/2 14:38 sim, user: "peek-shooting accuracy is a bit off"): every tap is a moving shot - EFT gives
@@ -195,12 +210,28 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         {
             _jiggling[Bot.ProfileId] = Time.time;
         }
+        if (_runByActive)
+        {
+            return TickRunBy(enemy, right);
+        }
         if (Time.time >= _tapEnd)
         {
             _tapsSincePlant++;
             if (_jiggle && Time.time >= _jiggleFrom)
             {
+                if (_peekStyle == EPeekStyle.RunBy && !_runByDone)
+                {
+                    _runByDone = true; // one try per engagement, whether a crossing point is found or not
+                    if (TryStartRunBy(enemy))
+                    {
+                        return TickRunBy(enemy, right);
+                    }
+                }
                 PickJiggleTap();
+                if (!_jiggleHide && _peekStyle == EPeekStyle.Jump)
+                {
+                    TryJumpPeek();
+                }
             }
             else
             {
@@ -317,6 +348,161 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         return false;
     }
 
+    // ---------------------------------------------------------------- corner peek styles
+    // zzap (user 2026-10-12): jump / run-by / step peeking are fighting peeks - with the enemy in sight, from a corner or door
+    // frame, hide and show again and again so he can't land his shots. They only existed in the door tactic (enemy hidden
+    // 1.5 s+ behind a door), so they practically never ran. Now the corner jiggle (= step peek) has two more styles, rolled
+    // once per engagement: step 60 / jump 25 / run-by 15 (F6). Jump and run-by: Chad / GigaChad and half of the PMC Normals.
+    public enum EPeekStyle
+    {
+        Step,
+        Jump,
+        RunBy,
+    }
+
+    private string _rollEnemyId;
+    private float _rollKeepUntil;
+    private bool _rollWantsJiggle;
+    private EPeekStyle _peekStyle;
+    private int _jumpPeeks;
+    private float _nextJumpPeek;
+    private bool _runByDone;
+    private bool _runByActive;
+    private Vector3 _runByTarget;
+    private float _runByUntil;
+
+    private const int MAX_JUMP_PEEKS = 3;
+
+    private bool BoldPeeker()
+    {
+        var personality = Bot.Info.Personality;
+        if (personality == EPersonality.Chad || personality == EPersonality.GigaChad)
+        {
+            return true;
+        }
+        // half of the PMC Normals, the same half all raid (by profile id)
+        return personality == EPersonality.Normal && Bot.Info.Profile.IsPMC && (StableHash(Bot.ProfileId) & 1) == 0;
+    }
+
+    private static int StableHash(string s)
+    {
+        int h = 17;
+        for (int i = 0; i < s.Length; i++)
+        {
+            h = h * 31 + s[i];
+        }
+        return h;
+    }
+
+    private EPeekStyle PickPeekStyle(CloseCombatSettings settings)
+    {
+        if (!BoldPeeker())
+        {
+            return EPeekStyle.Step;
+        }
+        float roll = Random.value * 100f;
+        if (roll < settings.CornerPeekJumpShare)
+        {
+            return EPeekStyle.Jump;
+        }
+        if (roll < settings.CornerPeekJumpShare + settings.CornerPeekRunByShare)
+        {
+            return EPeekStyle.RunBy;
+        }
+        return EPeekStyle.Step;
+    }
+
+    /// <summary>On a peek tap: hop out instead of stepping (headroom, level 1.2 m landing on the navmesh, 2.5-4 s apart, 3 per fight).</summary>
+    private void TryJumpPeek()
+    {
+        float time = Time.time;
+        if (_jumpPeeks >= MAX_JUMP_PEEKS || time < _nextJumpPeek || !Bot.Player.MovementContext.IsGrounded)
+        {
+            return;
+        }
+        Vector3 pos = Bot.Position;
+        Vector3 land = pos + _tapDir * 1.2f;
+        int mask = LayersMaskController.HighPolyWithTerrainMask;
+        if (NavMesh.Raycast(pos, land, out _, -1)
+            || Physics.Raycast(pos + Vector3.up * 1.7f, Vector3.up, 0.7f, mask)
+            || Physics.Raycast(pos + Vector3.up * 0.5f, _tapDir, 1.4f, mask)
+            || Physics.Raycast(pos + Vector3.up * 1.2f, _tapDir, 1.4f, mask))
+        {
+            TacticDiagnostics.Count("diamond.jumpPeek.unsafe");
+            _nextJumpPeek = time + 1f;
+            return;
+        }
+        if (!Bot.Mover.TryJump())
+        {
+            return;
+        }
+        _jumpPeeks++;
+        _nextJumpPeek = time + Random.Range(2.5f, 4f);
+        _tapEnd = time + 0.55f; // the hop is this peek
+        Bot.BotOwner.ShootData?.BlockFor(0.4f); // look in the air, shoot on landing
+        Bot.Mover.MarkJump("jumpPeek");
+        TacticDiagnostics.Count("diamond.jumpPeek");
+    }
+
+    /// <summary>
+    /// Run-by: a point 2.5-4.5 m along the open side that is hidden from him again (cover on the far side of the opening),
+    /// with the way there open on the navmesh and the middle of the run in his sight (it is an opening, not a wall).
+    /// </summary>
+    private bool TryStartRunBy(Enemy enemy)
+    {
+        Vector3 pos = Bot.Position;
+        Vector3 across = -_jiggleCoverDir;
+        Vector3 eye = enemy.EnemyPosition + Vector3.up * 1.5f;
+        int mask = LayersMaskController.HighPolyWithTerrainMask;
+        for (int i = 0; i < _runByDistances.Length; i++)
+        {
+            Vector3 raw = pos + across * _runByDistances[i];
+            if (!NavMesh.SamplePosition(raw, out NavMeshHit hit, 0.5f, -1) || NavMesh.Raycast(pos, hit.position, out _, -1))
+            {
+                continue;
+            }
+            Vector3 mid = (pos + hit.position) * 0.5f;
+            bool farHidden = Physics.Linecast(eye, hit.position + Vector3.up * 1.2f, mask);
+            bool midOpen = !Physics.Linecast(eye, mid + Vector3.up * 1.2f, mask);
+            if (!farHidden || !midOpen)
+            {
+                continue;
+            }
+            _runByTarget = hit.position;
+            _runByUntil = Time.time + _runByDistances[i] / 4f + 0.6f;
+            _runByActive = true;
+            TacticDiagnostics.Count("diamond.runBy.start");
+            if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Diamond] [{Bot.name}] run-by peek: crossing {_runByDistances[i]:0.0}m to cover on the far side");
+            return true;
+        }
+        TacticDiagnostics.Count("diamond.runBy.noPoint");
+        return false;
+    }
+
+    private static readonly float[] _runByDistances = { 3.5f, 2.5f, 4.5f };
+
+    private bool TickRunBy(Enemy enemy, Vector3 right)
+    {
+        Vector3 to = _runByTarget - Bot.Position;
+        to.y = 0f;
+        if (to.sqrMagnitude < 0.4f * 0.4f || Time.time > _runByUntil)
+        {
+            _runByActive = false;
+            Bot.PlayerComponent.CharacterController.SetWantToSprint(false);
+            bool arrived = to.sqrMagnitude < 0.4f * 0.4f;
+            TacticDiagnostics.Count(arrived ? "diamond.runBy.done" : "diamond.runBy.timeout");
+            // keep peeking from the new side if it is a corner too, else plain diamond steps
+            _jiggle = FindCoverSide(enemy, right, out _jiggleCoverDir);
+            _jiggleHide = true;
+            _jiggleFrom = Time.time + 0.2f;
+            _tapEnd = 0f;
+            return true;
+        }
+        Bot.PlayerComponent.CharacterController.SetWantToSprint(true);
+        Bot.PlayerComponent.CharacterController.SetTargetMoveDirection(to.normalized, _runByTarget, Bot.PlayerComponent, 0f, 1f);
+        return true;
+    }
+
     /// <summary>A corner: one side step (0.8m, walkable) puts the bot's chest out of the enemy's sight.</summary>
     private bool FindCoverSide(Enemy enemy, Vector3 right, out Vector3 coverDir)
     {
@@ -423,6 +609,12 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
 
     public bool Stop(string why = "actionStopped")
     {
+        _rollKeepUntil = Time.time + 3f;
+        if (_runByActive)
+        {
+            _runByActive = false;
+            Bot.PlayerComponent?.CharacterController?.SetWantToSprint(false);
+        }
         if (_jiggle)
         {
             _jiggle = false;
