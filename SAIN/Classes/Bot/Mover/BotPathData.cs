@@ -5,6 +5,7 @@ using EFT.Interactive;
 using SAIN.Components;
 using SAIN.Helpers;
 using SAIN.Models.Enums;
+using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.GlobalSettings;
 using UnityEngine;
 using UnityEngine.AI;
@@ -93,7 +94,23 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
         // onto the door. Gating on raw proximity here (DoorsNearby, not "eligible to interact
         // right now") also covers the door this bot just opened, which sits on interaction
         // cooldown and would otherwise let sprint resume mid-swing the instant Clear() fires.
-        bool doorsNearby = Bot.DoorOpener.DoorsNearby && !Bot.Mover.IgnoreDoorSlow;
+        // zzap (user 2026-10-12: "in a fight near a door they slow-walk toward it, react / hide very late and die a lot"):
+        // the 0.25 crawl (9/20 door-jam fix, copied from ORBIT's non-combat door handling) hit every move within 3 m of any
+        // door in any state - running to cover under fire too. An urgent move (cover / retreat / grenade / rush while under
+        // fire, just hit or the enemy seen in the last 3 s) only minds doors that aren't standing open: no sprint into
+        // them, and the crawl only in the last 1.5 m.
+        bool urgent = UrgentMove();
+        bool doorsNearby = !Bot.Mover.IgnoreDoorSlow
+            && (urgent ? Bot.DoorOpener.BlockingDoorNearby(3f * 3f) : Bot.DoorOpener.DoorsNearby);
+        bool skippedForOpenDoor = urgent && !doorsNearby && !Bot.Mover.IgnoreDoorSlow && Bot.DoorOpener.DoorsNearby;
+        if (skippedForOpenDoor != _urgentDoorNoted)
+        {
+            _urgentDoorNoted = skippedForOpenDoor;
+            if (skippedForOpenDoor)
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("door.slowSkipped.openDoor");
+            }
+        }
         if (doorsNearby)
         {
             // SetSprint() below only ever touched the character controller's *physical* sprint
@@ -112,7 +129,14 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
             }
             CurrentSprintStatus = GetSprintStatus(botPosition);
             SetSprint(false);
-            Bot.Mover.ApplyDoorSlow(DOOR_NEARBY_MOVE_SPEED);
+            if (!urgent || Bot.DoorOpener.BlockingDoorNearby(1.5f * 1.5f))
+            {
+                Bot.Mover.ApplyDoorSlow(DOOR_NEARBY_MOVE_SPEED);
+            }
+            else
+            {
+                Bot.Mover.ReleaseDoorSlow();
+            }
         }
         else
         {
@@ -739,6 +763,39 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
     /// gate (moveSpeedMult = 0.25f) for the same reason: cross-referenced, not independently tuned.
     /// </summary>
     private const float DOOR_NEARBY_MOVE_SPEED = 0.25f;
+
+    private bool _urgentDoorNoted;
+
+    private bool UrgentMove()
+    {
+        switch (Bot.Decision.CurrentCombatDecision)
+        {
+            case ECombatDecision.SeekCover:
+            case ECombatDecision.Retreat:
+            case ECombatDecision.RunAway:
+            case ECombatDecision.AvoidGrenade:
+            case ECombatDecision.RushEnemy:
+                break;
+            default:
+                return false;
+        }
+        float time = Time.time;
+        var memory = Bot.BotOwner?.Memory;
+        if (memory != null && time - memory.UnderFireTime < 3f)
+        {
+            return true;
+        }
+        var enemy = Bot.GoalEnemy;
+        if (enemy == null)
+        {
+            return false;
+        }
+        if (enemy.IsVisible || (enemy.Seen && enemy.TimeSinceSeen < 3f))
+        {
+            return true;
+        }
+        return enemy.Status.TimeLastShotMe > 0f && time - enemy.Status.TimeLastShotMe < 3f;
+    }
 
     private EBotSprintStatus GetSprintStatus(Vector3 botPosition)
     {

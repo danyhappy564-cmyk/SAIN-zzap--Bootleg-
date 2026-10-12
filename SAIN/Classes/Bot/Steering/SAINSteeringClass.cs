@@ -133,8 +133,32 @@ public class SAINSteeringClass : BotComponentClassBase
     {
         if (enemy != null)
         {
-            LookToPoint(enemy.EnemyPosition + WeaponRootOffset);
+            // In a sight blip, hold on where he was last seen instead of tracking his live position through the wall.
+            Vector3? lastSeen = enemy.IsVisible ? null : enemy.KnownPlaces?.LastSeenPlace?.Position;
+            LookToPoint((lastSeen ?? enemy.EnemyPosition) + WeaponRootOffset);
         }
+    }
+
+    // zzap (user 2026-10-12: "while peeking the muzzle still wobbles left-right-left-right"): when the enemy drops out of
+    // sight for a moment mid-fight, the shoot decision is held for up to 1.5 s, but the look switched 2-3 times - his live
+    // position, corner pre-aim (+lean to the corner side), last known / wall fix - then snapped back when he reappeared.
+    // One window for all of them: shooting / dog-fighting, he was seen under 1.5 s ago -> keep looking where he was.
+    public const float SIGHT_BLIP_HOLD = 1.5f;
+
+    public static bool SightBlipHold(Enemy enemy)
+    {
+        if (enemy == null || enemy.IsVisible || !enemy.Seen || enemy.TimeSinceSeen >= SIGHT_BLIP_HOLD)
+        {
+            return false;
+        }
+        var bot = enemy.Bot;
+        if (bot == null)
+        {
+            return false;
+        }
+        var decision = bot.Decision.CurrentCombatDecision;
+        return decision == ECombatDecision.StandAndShoot || decision == ECombatDecision.DogFight
+            || SAIN.SAINComponent.Classes.Mover.DiamondStepper.JiggleActive(bot.ProfileId);
     }
 
     public void LookToRandomPosition()
@@ -275,13 +299,14 @@ public class SAINSteeringClass : BotComponentClassBase
     private Vector3? _wallKept;
     private float _wallKeptUntil;
     private float _wallKeptSide;
+    private int _wallClearChecks;
 
     private Vector3 AvoidWallStare(Vector3 dir)
     {
         var settings = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat;
         Enemy enemy = Bot.GoalEnemy;
         if (settings == null || !settings.WallLookFix || enemy == null || enemy.IsVisible || (enemy.Seen && enemy.TimeSinceSeen < 0.5f)
-            || Bot.Aim.AimStatus != AimStatus.NoTarget || _headDown)
+            || SightBlipHold(enemy) || Bot.Aim.AimStatus != AimStatus.NoTarget || _headDown)
         {
             _wallLook = null;
             _wallKept = null;
@@ -297,9 +322,19 @@ public class SAINSteeringClass : BotComponentClassBase
         int mask = LayersMaskController.HighPolyWithTerrainMask;
         if (dir.sqrMagnitude < 0.01f || !Physics.Raycast(eye, dir.normalized, WALL_STARE_DISTANCE, mask))
         {
+            // A lean or a step moves the eyes ~0.3 m at a corner edge, so the straight ray clears for one check and is
+            // blocked the next - the kept side look went off and on every 0.25 s (not counted as a flip). Drop it only
+            // after two clear checks in a row.
+            if (_wallKept != null && ++_wallClearChecks < 2)
+            {
+                _wallLook = _wallKept;
+                return _wallLook.Value;
+            }
             _wallKept = null;
+            _wallClearChecks = 0;
             return dir;
         }
+        _wallClearChecks = 0;
         // keep the last pick while it is still open - no re-pick, no flip
         if (_wallKept != null && (Time.time < _wallKeptUntil || !Physics.Raycast(eye, _wallKept.Value, 3f, mask)))
         {
@@ -372,6 +407,12 @@ public class SAINSteeringClass : BotComponentClassBase
         var settings = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat;
         Enemy enemy = Bot.GoalEnemy;
         if (settings == null || !settings.CornerPreAim || enemy == null || enemy.IsVisible || !(enemy.Seen || enemy.Heard))
+        {
+            return false;
+        }
+        // Not for a sight blip mid-fight (that's the look hold above), and not again within 1 s of seeing him - pre-aim is
+        // for walking up on a hidden enemy (10/12 sim: 56 of 58 pre-aims in shoot / dog-fight came 0-1 s after losing sight).
+        if (SightBlipHold(enemy) || (enemy.Seen && enemy.TimeSinceSeen < 1f))
         {
             return false;
         }

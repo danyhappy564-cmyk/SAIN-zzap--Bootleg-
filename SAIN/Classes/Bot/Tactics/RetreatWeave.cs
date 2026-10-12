@@ -26,6 +26,28 @@ public static class RetreatWeave
         public float StraightUntil;
         public bool LandingJumpDone;
         public Vector3 LastDestination;
+        public float LastFilter = -10f;
+        public float HopPendingUntil;
+        public bool SlowLandingNoted;
+    }
+
+    // 10/12 sim (user: "shoot -> jump -> head down: the backward jump is short"): EFT's jump keeps the speed the bot had at
+    // take-off (JumpPlayerState.Enter), and neither hop checked it. Right after shooting the bot stands or diamond-steps
+    // (1-2.5 m/s), and the first Filter call of every run did a weave switch (stale NextSwitch) with its 20% hop on the
+    // first sprint frame - about 55-60% of the hops. Hops now wait until the run is at sprint speed along the run line.
+    private const float HOP_MIN_SPEED = 3.8f;
+
+    private static bool FastAlong(BotComponent bot, Vector3 dir, out float speed)
+    {
+        Vector3 v = bot.Player.Velocity;
+        v.y = 0f;
+        speed = v.magnitude;
+        if (speed < HOP_MIN_SPEED)
+        {
+            return false;
+        }
+        dir.y = 0f;
+        return dir.sqrMagnitude < 0.0001f || Vector3.Dot(v / speed, dir.normalized) > 0.85f;
     }
 
     private static Vector3 Bend(Vector3 flat, float angle)
@@ -76,6 +98,21 @@ public static class RetreatWeave
             return false;
         }
         Vector3 dir = to / dist;
+        // Only at sprint speed (else the hop falls short - not counted as this run's one roll), and taken where a hop at this
+        // speed lands at the cover (~0.7 s of flight) instead of anywhere 3-5 m out.
+        if (!FastAlong(bot, dir, out float speed))
+        {
+            if (!st.SlowLandingNoted)
+            {
+                st.SlowLandingNoted = true;
+                TacticDiagnostics.Count("retreat.landingJumpTooSlow");
+            }
+            return false;
+        }
+        if (dist > Mathf.Clamp(speed * 0.7f, LANDING_JUMP_MIN, LANDING_JUMP_MAX))
+        {
+            return false;
+        }
         int mask = LayersMaskController.HighPolyWithTerrainMask;
         // clear, level run-up to the landing spot: navmesh straight line, nothing at knee/chest height, headroom
         if (NavMesh.Raycast(pos, destination, out _, -1)
@@ -115,12 +152,20 @@ public static class RetreatWeave
             _states[id] = st;
         }
         float time = Time.time;
+        if (time - st.LastFilter > 0.3f)
+        {
+            // a new run: first swing after the run got going, not on its first sprint frame
+            st.NextSwitch = time + Random.Range(0.45f, 0.8f);
+            st.HopPendingUntil = 0f;
+        }
+        st.LastFilter = time;
         if (destination != null)
         {
             if ((destination.Value - st.LastDestination).sqrMagnitude > 4f)
             {
                 st.LastDestination = destination.Value; // a new cover to run to: one landing jump allowed again
                 st.LandingJumpDone = false;
+                st.SlowLandingNoted = false;
             }
             TryLandingJump(bot, st, destination.Value, time, settings.RetreatLandingJumpChance);
         }
@@ -136,17 +181,39 @@ public static class RetreatWeave
             st.NextSwitch = time + Random.Range(0.45f, 0.8f);
             st.BlockedThisSwing = false;
             TacticDiagnostics.Count("retreat.weave");
+            if (Random.value * 100f < settings.RetreatWeaveJumpChance)
+            {
+                // rolled a hop: taken the first frame within 0.5 s that the run is fast enough (same 20% rate)
+                st.HopPendingUntil = time + 0.5f;
+            }
+        }
+        if (time < st.HopPendingUntil)
+        {
             bool nearCover = destination != null
                 && (destination.Value - bot.Position).sqrMagnitude < SWITCH_HOP_MIN_COVER * SWITCH_HOP_MIN_COVER;
-            if (!nearCover && Random.value * 100f < settings.RetreatWeaveJumpChance && bot.Player.MovementContext.IsGrounded
-                && !Physics.Raycast(bot.Position + Vector3.up * 1.7f, Vector3.up, 0.7f, LayersMaskController.HighPolyWithTerrainMask)
-                && bot.Mover.TryJump())
+            if (nearCover)
             {
-                st.StraightUntil = time + 0.8f; // fly along the run line, not the bent one
-                st.AppliedUntil = 0f;
-                TacticDiagnostics.Count("retreat.weaveJump");
-                bot.Mover.MarkJump("retreat");
-                return;
+                st.HopPendingUntil = 0f;
+            }
+            else if (!FastAlong(bot, direction, out _))
+            {
+                if (time + Time.deltaTime >= st.HopPendingUntil)
+                {
+                    TacticDiagnostics.Count("retreat.hopDroppedSlow");
+                }
+            }
+            else
+            {
+                st.HopPendingUntil = 0f;
+                if (!Physics.Raycast(bot.Position + Vector3.up * 1.7f, Vector3.up, 0.7f, LayersMaskController.HighPolyWithTerrainMask)
+                    && bot.Mover.TryJump())
+                {
+                    st.StraightUntil = time + 0.8f; // fly along the run line, not the bent one
+                    st.AppliedUntil = 0f;
+                    TacticDiagnostics.Count("retreat.weaveJump");
+                    bot.Mover.MarkJump("retreat");
+                    return;
+                }
             }
         }
         Vector3 flat = direction;

@@ -184,6 +184,11 @@ public class SteerPriorityClass(SAINSteeringClass steering) : BotSubClass<SAINSt
             {
                 return true;
             }
+            // Mid-fight sight blip: the shoot decision is held (EnemyDecisionClass.KeepCloseFight), the look holds too.
+            if (SAINSteeringClass.SightBlipHold(enemy))
+            {
+                return true;
+            }
         }
         return false;
     }

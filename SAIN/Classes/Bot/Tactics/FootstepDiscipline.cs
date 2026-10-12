@@ -60,7 +60,8 @@ public static class FootstepDiscipline
     {
         speed = 1f;
         pose = 1f;
-        if (bot == null || enemy == null || enemy.IsVisible)
+        // 10/12 sim (slow walk into door fights): an enemy in sight a moment ago is a fight, not a stalk - no quiet walk.
+        if (bot == null || enemy == null || enemy.IsVisible || (enemy.Seen && enemy.TimeSinceSeen < 3f))
         {
             return false;
         }

@@ -54,6 +54,23 @@ public class DoorOpener : BotComponentClassBase
     }
 
     /// <summary>
+    /// zzap: like DoorsNearby, but only doors that are not standing fully open (shut, locked, swinging) - the ones a
+    /// sprinting bot can actually run into. Used for urgent moves under fire (BotPathData).
+    /// </summary>
+    public bool BlockingDoorNearby(float distSqr)
+    {
+        for (int i = 0; i < _allDoors.Count; i++)
+        {
+            var data = _allDoors[i];
+            if (data.CurrentSqrMagnitude < distSqr && (data.Door == null || data.Door.DoorState != EDoorState.Open))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Doors in the bot's current nav voxel, refreshed by SearchForDoors on the ~0.5s path poll.
     /// Read-only view for DoorTacticClass.
     /// </summary>

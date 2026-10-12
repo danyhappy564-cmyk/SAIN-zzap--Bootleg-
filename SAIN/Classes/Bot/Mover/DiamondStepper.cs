@@ -139,7 +139,9 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         // Without Classic Movement's quick tilt (it applies to bots too) a bot's lean has vanilla inertia and a 0.13s swing
         // never gets past half way - keep the swings at 0.25s+ then.
         float leanInterval = ClassicMovementInterop.BotsQuickTilt ? settings.LeanSpamInterval : Mathf.Max(settings.LeanSpamInterval, 0.25f);
-        Bot.Mover.Lean.SetLeanSpam(_leanSpam && enemy.IsVisible, leanInterval);
+        // 10/12 sim (muzzle wobble while peeking): Q/E spam went off on every sub-second sight blip (lean reset to none, then
+        // corner pre-aim leaned, then spam picked a side again) - keep it through the same tolerance the step keeps.
+        Bot.Mover.Lean.SetLeanSpam(_leanSpam && (enemy.IsVisible || (enemy.Seen && enemy.TimeSinceSeen < sightTolerance)), leanInterval);
 
         Vector3 forward = enemy.EnemyPosition - Bot.Position;
         forward.y = 0f;
