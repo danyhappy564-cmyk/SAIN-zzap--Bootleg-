@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using EFT;
 using EFT.InventoryLogic;
@@ -86,9 +87,59 @@ public class NoReturnToEmptyMainPatch : ModulePatch
         // Bot38 "Mk 16 0/30 +0 mags" <-> pistol, weapon.pingPong 70). Ask about the main gun itself (WeaponLog.HasAmmoFor).
         if (!SAIN.SAINComponent.Classes.Tactics.WeaponLog.HasAmmoFor(owner.GetPlayer, main.weapon))
         {
-            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("weapon.keptOffEmptyMain");
+            // ManualUpdate runs every frame: count once per hold (10/12 Labs sim: 14172 counts were one bot x 211 s x 67 fps).
+            if (_held.Add(owner.ProfileId))
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("weapon.keptOffEmptyMain");
+            }
             return false;
         }
+        _held.Remove(owner.ProfileId);
         return true;
+    }
+
+    private static readonly HashSet<string> _held = new();
+
+    public static void Clear()
+    {
+        _held.Clear();
+    }
+}
+
+/// <summary>
+/// zzap fork, 10/12 Labs sim (Bot152: RPD 0/100 with no spare box <-> SR-1MP pistol, 65 PING-PONG in 5 minutes): EFT's
+/// BotReloadMagazine.CanReload / BotReload call BotWeaponSelector.TryChangeToMain before they even look for the support gun's
+/// magazine, and TryChangeToMain draws the main gun whenever the enemy is far - without checking its ammo. The empty main
+/// gun came out, the out-of-ammo fallback put the pistol back 2 s later, and every 5 s it started over (the pistol never
+/// got reloaded either). For SAIN bots: don't go back to a main gun that has no ammo at all; the reload then goes on with
+/// the gun in hand.
+/// </summary>
+public class NoTryChangeToEmptyMainPatch : ModulePatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return AccessTools.Method(typeof(BotWeaponSelector), nameof(BotWeaponSelector.TryChangeToMain));
+    }
+
+    [PatchPrefix]
+    public static bool PatchPrefix(BotWeaponSelector __instance, ref bool __result)
+    {
+        BotOwner owner = __instance._owner;
+        if (owner == null || __instance.EquipmentSlot == __instance._mainWeapon || !SAINEnableClass.GetSAIN(owner.ProfileId, out _))
+        {
+            return true;
+        }
+        var wm = owner.WeaponManager;
+        if (wm?.info == null || !wm.info.TryGetValue(__instance._mainWeapon, out BotWeaponInfo main) || main == null)
+        {
+            return true;
+        }
+        if (WeaponLog.HasAmmoFor(owner.GetPlayer, main.weapon))
+        {
+            return true;
+        }
+        TacticDiagnostics.Count("weapon.keptOffEmptyMain.reload");
+        __result = false;
+        return false;
     }
 }

@@ -78,7 +78,7 @@ public static class SimLabFeatures
         // README "버그 수정"
         new("fix", "문 낑김 / 아무도 못 여는 문", A("door.interactionRepaired."), A(), A(), "[DoorTactic]", "복구가 돌았다는 뜻 — 0이면 문제가 안 생긴 것", ZeroOk: true),
         new("fix", "주운 총 장전·무기 교체", A("weapon.infoSync.replaced", "weapon.infoSync.added", "weapon.infoSync.current"), A(), A("weapon.infoSync.threw"), "[Weapon]", "added는 안 든 슬롯 표 추가라 흔함, replaced = 주운 총 반영"),
-        new("fix", "무기 계속 바꾸기(핑퐁)", A("weapon.toggle.keptLoadedGun", "weapon.keptOffEmptyMain", "weapon.pistolBackHeld"), A(), A("weapon.pingPong"), "[Weapon]", "발동 = 막은 횟수(0이면 막을 일이 없었음). 나쁜 신호 pingPong이 0이어야 정상", ZeroOk: true),
+        new("fix", "무기 계속 바꾸기(핑퐁)", A("weapon.toggle.keptLoadedGun", "weapon.keptOffEmptyMain", "weapon.pistolBackHeld", "weapon.pistolBackByEft"), A(), A("weapon.pingPong"), "[Weapon]", "발동 = 막은 횟수(0이면 막을 일이 없었음). 나쁜 신호 pingPong이 0이어야 정상", ZeroOk: true),
         new("fix", "빠른 재장전 탄창 소실", A("weapon.quickReload.keptLastSpare"), A(), A(), "[Weapon]"),
         new("fix", "벽에 계속 박기(끼임 해제)", A("stuck.freed."), A(), A(), "[Stuck]", "stuck.stage만 있고 freed가 적으면 못 풀린 것"),
         new("fix", "죽은 채로 걷는 시체", A("deadBug.bodyOk"), A(), A("deadBug.bodyNotRagdoll", "deadBug.onDeadThrew", "deadBug.handlerThrew", "deadBug.unprocessedDeathRescued"), "[DeadBug]"),

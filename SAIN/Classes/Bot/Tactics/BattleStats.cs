@@ -300,5 +300,6 @@ public static class BattleStats
         _perfTime = 0f;
         CorpseCleanup.Clear();
         WeaponLog.Clear();
+        SAIN.Patches.Shoot.NoReturnToEmptyMainPatch.Clear();
     }
 }

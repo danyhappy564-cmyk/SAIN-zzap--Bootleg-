@@ -62,7 +62,8 @@ public class CombatWeaponClass : BotComponentClassBase
             return false;
         }
         var pistol = wm.PistolWeaponInfo;
-        return pistol != null && pistol.BulletCount > 0;
+        // BotWeaponInfo.BulletCount reads the gun IN HAND (here the main gun), not the pistol (kb 2.34).
+        return pistol != null && WeaponLog.LoadedRounds(pistol.weapon) > 0;
     }
 
     // zzap: the game refused the holster swap (13th/14th sims: 245-306 refusals, the same bots re-asking every tick and
@@ -108,7 +109,7 @@ public class CombatWeaponClass : BotComponentClassBase
             return false;
         }
         var pistol = wm.PistolWeaponInfo;
-        if (pistol == null || pistol.BulletCount <= 0)
+        if (pistol == null || WeaponLog.LoadedRounds(pistol.weapon) <= 0)
         {
             TacticDiagnostics.Count("weapon.pistolSwap.noPistolOrAmmo");
             return false;
@@ -146,6 +147,17 @@ public class CombatWeaponClass : BotComponentClassBase
         var s = Settings;
         Enemy enemy = Bot.GoalEnemy;
         EquipmentSlot slot = selector.EquipmentSlot;
+
+        if (_pistolByUs && slot != EquipmentSlot.Holster)
+        {
+            // EFT put our pistol away itself (BotWeaponSelector.ManualUpdate / CanReload -> TryChangeToMain): same 5 s
+            // hold-off as our own return, so the main gun gets reloaded first (10/12 Labs sim, Bot143: pistol offered again
+            // right away -> 2 PING-PONG).
+            _pistolByUs = false;
+            _pistolBackHeldNoted = false;
+            _pistolRefusedUntil = Time.time + 5f;
+            TacticDiagnostics.Count("weapon.pistolBackByEft");
+        }
 
         if (slot == EquipmentSlot.Holster && _pistolByUs)
         {
