@@ -77,6 +77,7 @@ public static class SimLabGlossary
         new("heal.pick.", "치료 판단 (FirstAid=구급상자, Stim=주사기, Wait=나중에)", "Heal decision (FirstAid, Stim, Wait)", "HealUtility"),
         new("heal.cancel.", "위협 때문에 치료 취소", "Heal cancelled by a threat", "HealUtility"),
         new("weapon.", "무기 교체·빠른 장전 등 무기 관련", "Weapon swaps, quick reloads", "CombatWeaponClass / WeaponLog"),
+        new("weapon.keptLongRange.", "SAIN이 일부러 든 저격총·DMR을 계속 듦 (reload=장전하려 할 때 게임이 주무기로 되돌리려는 것을 막음, otherEnemy=노리는 적이 바뀌어 '사라짐'으로 보였지만 20초 안에 본 다른 먼 적이 있음)", "Kept the long-range gun SAIN picked", "CombatWeaponClass / AmmoAwareWeaponSwapPatch"),
         // squad
         new("squad.start.", "분대 전술 시작 (CoverMate=장전·치료 중인 동료 엄호, Crossfire=교차 사격 자리, TradeAngle=복수 각도, TradePush=쓰러진 동료 복수 돌격)", "Squad tactic started (CoverMate, Crossfire, TradeAngle, TradePush)", "SquadCombatClass"),
         new("squad.arrived.", "분대 전술 자리에 도착", "Reached the squad-tactic spot", "SquadCombatClass"),

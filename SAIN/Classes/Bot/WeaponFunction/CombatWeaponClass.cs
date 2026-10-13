@@ -233,6 +233,17 @@ public class CombatWeaponClass : BotComponentClassBase
         {
             bool close = enemy != null && enemy.RealDistance < s.SniperSwapBackDistance;
             bool gone = enemy == null || !enemy.Seen || enemy.TimeSinceSeen > 20f;
+            // 23:30 sim Reserve Bot132 (G28 <-> Vector 4 times in 20 s): the goal enemy flipped between the one in sight at 81m
+            // and an old one unseen for 33 s, and each flip read as "gone". Another far enemy seen in the last 20 s keeps it.
+            if (gone && !close && OtherFarEnemySeen(s.SniperSwapBackDistance))
+            {
+                gone = false;
+                if (!_keptLongRangeNoted)
+                {
+                    _keptLongRangeNoted = true;
+                    TacticDiagnostics.Count("weapon.keptLongRange.otherEnemy");
+                }
+            }
             // WeaponLog.HasAmmoFor: EFT's CheckHaveAmmoForReload answers for the gun in hand and may change weapon itself
             bool empty = wm.SecondWeaponInfo == null || !WeaponLog.HasAmmoFor(Bot.Player, wm.SecondWeaponInfo.weapon);
             if (close || gone || empty)
@@ -241,6 +252,7 @@ public class CombatWeaponClass : BotComponentClassBase
                 if (ForceChange(selector._mainWeapon))
                 {
                     _longRangeByUs = false;
+                    _keptLongRangeNoted = false;
                     TacticDiagnostics.Count("weapon.longRangeBack");
                     if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat($"[Weapon] [{Bot.name}] long-range weapon away, main gun ({why})");
                 }
@@ -277,6 +289,23 @@ public class CombatWeaponClass : BotComponentClassBase
                 $"[Weapon] [{Bot.name}] enemy {enemy.RealDistance:0}m -> {((Weapon)selector.SecondPrimaryWeaponItem).ShortName.Localized()} (long range)"
             );
         }
+    }
+
+    private bool _keptLongRangeNoted;
+
+    // Any known enemy (not only the goal enemy) seen in the last 20 s and still farther than the swap-back distance.
+    private bool OtherFarEnemySeen(float minDistance)
+    {
+        var known = Bot.EnemyController.KnownEnemies;
+        for (int i = 0; i < known.Count; i++)
+        {
+            Enemy other = known[i];
+            if (other != null && other.Seen && other.TimeSinceSeen <= 20f && other.RealDistance >= minDistance)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static bool IsLongRange(Weapon weapon)
