@@ -242,6 +242,8 @@ public class SimBeat
     /// <summary>Automatic oddity detector (user 2026-10-09: "can't you measure it yourself?"): episodes per kind and examples.</summary>
     public Dictionary<string, int> OddityCounts = new();
     public List<SimOddity> Oddities = new();
+    /// <summary>F8 scene marks of this raid ([Mark] lines: camera, then one full state line per bot in view).</summary>
+    public List<string> SceneMarks = new();
 
     public float OrbitGhostSeconds;
     public Dictionary<string, float> OrbitObjectiveSeconds = new();

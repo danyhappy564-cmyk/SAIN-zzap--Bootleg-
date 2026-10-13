@@ -131,10 +131,14 @@ public static class EnemyGainSightClass
         float timeMod = CalcTimeModifier(flareEnabled, enemy);
         float moveMod = CalcMoveModifier(enemy);
         float elevMod = CalcElevationModifier(enemy);
-        float thirdPartyMod = CalcThirdPartyMod(enemy);
+        // zzap (2026-10-14, user screenshots, Labs: a bot stacked by a door let an enemy walk through right next to it): the
+        // "third party" (x1.5) and "unknown while busy with another enemy" (x1.5) slowdowns had no distance limit - 2.25x
+        // slower to notice a body 2 m away. Within 6 m nobody is a background distraction.
+        bool veryClose = enemy.RealDistance < 6f;
+        float thirdPartyMod = veryClose ? 1f : CalcThirdPartyMod(enemy);
         float angleMod = CalcAngleMod(enemy);
         float poseMod = PoseModifier(enemy);
-        float unknownMod = CalcUnknownMod(enemy);
+        float unknownMod = veryClose ? 1f : CalcUnknownMod(enemy);
 
         float notLookMod = 1f;
         if (!enemy.IsAI)
@@ -156,6 +160,11 @@ public static class EnemyGainSightClass
             * notLookMod
             * unknownMod
             * poseMod;
+        // within 3 m nothing (dark, crouched, gear, angle) makes someone slower to notice than normal
+        if (enemy.RealDistance < 3f && result > 1f)
+        {
+            result = 1f;
+        }
 
         //if (enemy.EnemyPlayer.IsYourPlayer)
         //{

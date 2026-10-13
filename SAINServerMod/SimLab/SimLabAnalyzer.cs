@@ -133,6 +133,12 @@ public static class SimLabAnalyzer
             "bunched" => "bunched: 분대 간격(SquadCombat·이동 목표 겹침) 벌리기",
             "stalledMove" => "stalledMove: 이동 판단인데 목표/경로 실패 → Mover·엄폐 찾기(utilityFallBack 등) 경로 실패 처리. 발소리 관리(quiet.*)가 켜진 봇이면 FootstepDiscipline 시간 상한 확인",
             "ignoredSniper" => "ignoredSniper: 멀리서 맞는데 쏜 적을 목표로 안 잡음 → HearingSensor 총소리 거리 단계의 '나를 쏜 사람' 예외, ThreatPicker 원거리 저격수 처리",
+            "backWalk" => "backWalk: 일지 [Oddity] state 줄의 layer/combat/squad로 어느 동작의 시선(OnSteeringTicked)이 이동 방향과 반대인지 → 그 동작에서 이동 중엔 LookToMovingDirection",
+            "slowUnderFire" => "slowUnderFire: state 줄의 doorSlow(문 근처 감속)·reloading(장전 중 질주 불가)·legs(다리 부상)·sprint로 원인 구분 → 해당 감속 조건에서 피격 중 예외",
+            "doorStuck" => "doorStuck: state 줄 door=(상태·sliding/swingsTowardBot)·leafWithin1m → 문 종류별 처리(BotDoorPushOpen·미닫이 대기·DoorLeafCheck)",
+            "wallStare" => "wallStare: state 줄 combat/why + wallAhead → SAINSteeringClass WallLookFix가 왜 안 걸렸는지(조준 중·PreAim)",
+            "closeNoReact" => "closeNoReact: 3m 안 적인데 발견 안 됨/조준 지연 → EnemyGainSightClass 근거리 보정, SAINEnemyController.CloseSense, 문 전술 중 시야",
+            "ignoredGunfire" => "ignoredGunfire: 전투 밖 레이어(ORBIT·순찰·PostCombat)가 40m 안 총격을 봤는데 전투로 안 넘어감 → 총소리 → 적 등록(HearingSensor)·LayerHandoff, shooter가 'not hostile'이면 같은 편이라 정상일 수 있음",
             _ => kind,
         };
     }
@@ -432,6 +438,12 @@ public static class SimLabAnalyzer
             "bunched" => T("아군과 몸이 겹침", "bunched with a mate"),
             "stalledMove" => T("움직여야 하는데 제자리", "should move, standing"),
             "ignoredSniper" => T("멀리서 쏘는 적 무시", "far shooter ignored"),
+            "backWalk" => T("적도 안 보이는데 뒷걸음질", "walking backwards"),
+            "slowUnderFire" => T("총 맞는 중인데 천천히 걸음", "walking slowly under fire"),
+            "doorStuck" => T("문 앞에서 멈춤(끼임)", "stuck at a door"),
+            "wallStare" => T("벽에 얼굴 박고 서 있음", "staring at a wall"),
+            "closeNoReact" => T("3m 안 적에게 반응 없음", "no reaction to an enemy within 3 m"),
+            "ignoredGunfire" => T("40m 안 보이는 총격 무시(전투 밖 레이어)", "nearby gunfire ignored (out of combat)"),
             _ => kind,
         };
     }
@@ -705,11 +717,20 @@ public static class SimLabAnalyzer
             if (b != null && (b.OddityCounts?.Count ?? 0) > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine("### 이상 행동 자동 감지 (SimLabOddity, SAIN 전투 레이어 봇, 2초 표본, 상태가 풀릴 때까지 1회)");
+                sb.AppendLine("### 이상 행동 자동 감지 (SimLabOddity, 2초 표본, 상태가 풀릴 때까지 1회 — ignoredGunfire만 전투 밖 레이어 봇. 일지 [Oddity] 줄 끝 'state:'에 그 순간 봇 상태 전체)");
                 sb.AppendLine("- 종류별: " + string.Join(", ", b.OddityCounts!.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}({OddityName(kv.Key)})={kv.Value}")));
                 foreach (var x in (b.Oddities ?? []).OrderBy(x => x.RaidTime))
                 {
                     sb.AppendLine($"- t={x.RaidTime / 60f:0.0}분 {x.Kind} [{x.Name}] {x.Role}/{x.Personality} {x.Decision}/{x.Reason} layer={x.Layer} 적 {x.EnemyDistance:0.0}m 보임={x.EnemyVisible} 각도={x.EnemyAngle:0} 속도={x.Speed:0.0} 탄={x.Bullets} {x.Seconds:0}초 pos=({x.X:0},{x.Y:0},{x.Z:0})");
+                }
+            }
+            if (b != null && (b.SceneMarks?.Count ?? 0) > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("### 장면 표시 (F8 — 사용자가 화면을 보다 누른 순간, 카메라 앞 봇 상태)");
+                foreach (string line in b.SceneMarks!)
+                {
+                    sb.AppendLine("- " + line.Trim());
                 }
             }
             if (b != null && b.CloseUnawareSamples > 0)

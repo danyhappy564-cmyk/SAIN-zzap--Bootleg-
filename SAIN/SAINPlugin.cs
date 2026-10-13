@@ -109,7 +109,16 @@ public class SAINPlugin : BaseUnityPlugin
             new KeyboardShortcut(KeyCode.F6),
             "The keyboard shortcut that toggles editor"
         );
+        // zzap (2026-10-14): mark the scene on screen in the raid journal (SimLabSceneMark)
+        MarkSceneShortcut = Config.Bind(
+            category,
+            "Mark Scene Shortcut",
+            new KeyboardShortcut(KeyCode.F8),
+            "Writes the full state of the bots in front of the camera into the raid journal ([Mark] lines) and the sim summary - press it when something looks wrong, so the screenshot and the log line match"
+        );
     }
+
+    public static ConfigEntry<KeyboardShortcut> MarkSceneShortcut { get; private set; }
 
     public static ConfigEntry<bool> OpenEditorButton { get; private set; }
 
@@ -122,6 +131,10 @@ public class SAINPlugin : BaseUnityPlugin
 
     public void Update()
     {
+        if (MarkSceneShortcut != null && MarkSceneShortcut.Value.IsDown())
+        {
+            SAIN.SimLab.SimLabSceneMark.Mark();
+        }
         PresetSyncWebSocket.Resync();
 
         ModDetection.ManualUpdate();

@@ -21,6 +21,14 @@ namespace SAIN.SimLab;
 ///   flipFlop     - combat decision changed on 4 of the last 5 samples (dithering)
 ///   bunched      - a squadmate within 0.8 m for 6 s+ (bodies blocking each other)
 ///   stalledMove  - a moving decision (cover, rush, search...) but under 0.5 m moved in 6 s
+/// 10/14 (user screenshots the journal couldn't match - "the analysis journal should record things like that"):
+///   backWalk       - walking 0.8 m/s+ with the look 120 deg+ off the move direction for 4 s, no enemy in sight, not shooting
+///   slowUnderFire  - under fire (3 s), a moving decision out of cover, but only 0.3-2.3 m/s and no sprint for 4 s
+///   doorStuck      - a moving decision, standing still within 1.5 m of a door / 1 m of an open leaf for 4 s
+///   wallStare      - standing, enemy out of sight, the look ray hits something within 0.8 m for 4 s
+///   ignoredGunfire - outside SAIN's combat layer (ORBIT, patrol, squad / post-combat) while someone 40 m or closer in clear
+///                    line of sight fired in the last 3 s - for 4 s
+/// Each episode also writes the full state line (SimLabSceneMark.Describe) to the journal.
 /// One episode per bot per kind until the state clears; sim raids only.
 /// </summary>
 public static class SimLabOddity
@@ -47,6 +55,8 @@ public static class SimLabOddity
 
     public static void Reset()
     {
+        _bulletsByPlayer.Clear();
+        _lastShotByPlayer.Clear();
         _states.Clear();
         _counts.Clear();
         _examples.Clear();
@@ -156,6 +166,27 @@ public static class SimLabOddity
         // someone else / nobody) while standing still.
         Check(s, "ignoredSniper", FarShooterIgnored(bot, now) && speed < 0.5f, 6f, now);
 
+        // 10/14 detectors (velocity, not the 2 s distance: a bot stepping back and forth reads 0 on distance)
+        Vector3 vel = player.Velocity;
+        vel.y = 0f;
+        float vNow = vel.magnitude;
+        Vector3 lookFlat = bot.Transform.LookDirection;
+        lookFlat.y = 0f;
+        float moveVsLook = vNow > 0.3f && lookFlat.sqrMagnitude > 0.01f ? Vector3.Angle(vel, lookFlat) : 0f;
+        bool shooting = owner.ShootData?.Shooting == true || !gunIdle;
+        Check(s, "backWalk", vNow > 0.8f && moveVsLook > 120f && !visible && !shooting, 4f, now);
+        bool underFire = owner.Memory != null && owner.Memory.UnderFireTime > 0f && now - owner.Memory.UnderFireTime < 3f;
+        Check(s, "slowUnderFire", underFire && IsMovingDecision(decision) && !inCover && !selfAction && vNow > 0.3f && vNow < 2.3f && !player.IsSprintEnabled, 4f, now);
+        bool doorNear = bot.DoorOpener != null && (bot.DoorOpener.BlockingDoorNearby(1.5f * 1.5f) || SAIN.SAINComponent.Classes.Mover.DoorLeafCheck.OpenLeafNear(pos, 1f));
+        Check(s, "doorStuck", IsMovingDecision(decision) && !selfAction && vNow < 0.3f && doorNear, 4f, now);
+        Vector3 eye = bot.Transform.EyePosition;
+        bool wallInFace = lookFlat.sqrMagnitude > 0.01f && Physics.Raycast(eye, bot.Transform.LookDirection.normalized, 0.8f, LayersMaskController.HighPolyWithTerrainMask);
+        Check(s, "wallStare", vNow < 0.3f && !visible && wallInFace, 4f, now);
+        // 10/14 (user: "an enemy walked through the door right next to it - reaction far too slow"): a hostile within 3 m in
+        // clear line of sight and no shot for 2 s
+        bool shotRecently = s.LastShotOrReload >= 0f && now - s.LastShotOrReload < 2f;
+        Check(s, "closeNoReact", HostileWithin(player, owner, 3f) && !shotRecently && bullets > 0, 2f, now);
+
         foreach (string kind in KINDS)
         {
             if (s.Flagged.Contains(kind) || !s.Since.TryGetValue(kind, out float since) || now - since < Need(kind))
@@ -167,7 +198,110 @@ public static class SimLabOddity
         }
     }
 
-    private static readonly string[] KINDS = { "noShoot", "backTurned", "hitNoReact", "flipFlop", "bunched", "stalledMove", "ignoredSniper" };
+    private static readonly string[] KINDS = { "noShoot", "backTurned", "hitNoReact", "flipFlop", "bunched", "stalledMove", "ignoredSniper",
+        "backWalk", "slowUnderFire", "doorStuck", "wallStare", "closeNoReact" };
+
+    private static bool HostileWithin(Player player, BotOwner owner, float meters)
+    {
+        var world = Comfort.Common.Singleton<GameWorld>.Instance;
+        var group = owner.BotsGroup;
+        if (world?.AllAlivePlayersList == null || group == null)
+        {
+            return false;
+        }
+        Vector3 eye = player.Position + Vector3.up * 1.4f;
+        var players = world.AllAlivePlayersList;
+        for (int i = 0; i < players.Count; i++)
+        {
+            Player other = players[i];
+            if (other == null || other == player || (other.Position - player.Position).sqrMagnitude > meters * meters)
+            {
+                continue;
+            }
+            if (SimLab.SpectatorActive && SimLab.IsSpectatorPlayer(other))
+            {
+                continue;
+            }
+            if (!group.IsPlayerEnemy(other) || Physics.Linecast(eye, other.Position + Vector3.up * 1.4f, LayersMaskController.HighPolyWithTerrainMask))
+            {
+                continue;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // ---------------------------------------------------------------- shots heard / seen by bots outside the fight
+
+    private static readonly Dictionary<string, int> _bulletsByPlayer = new();
+    private static readonly Dictionary<string, float> _lastShotByPlayer = new();
+
+    /// <summary>Every 2 s for every sim bot: a magazine count that went down = it fired since the last sample.</summary>
+    public static void NoteShots(Player player, BotOwner owner)
+    {
+        SAINBotSuppressClass.CalcAmmoRatio(owner, out int bullets);
+        if (_bulletsByPlayer.TryGetValue(player.ProfileId, out int last) && bullets < last)
+        {
+            _lastShotByPlayer[player.ProfileId] = Time.time;
+        }
+        _bulletsByPlayer[player.ProfileId] = bullets;
+    }
+
+    /// <summary>A bot outside SAIN's combat layer (ORBIT / patrol / squad layer) with someone firing 40 m away in plain sight.</summary>
+    public static void SampleOutOfCombat(Player player, BotOwner owner, string layer)
+    {
+        float now = Time.time;
+        if (!_states.TryGetValue(player.ProfileId, out State s))
+        {
+            s = new State();
+            _states[player.ProfileId] = s;
+        }
+        string shooter = NearbyShooterInSight(player, now);
+        Check(s, "ignoredGunfire", shooter != null, 4f, now);
+        if (!s.Flagged.Contains("ignoredGunfire") && s.Since.TryGetValue("ignoredGunfire", out float since) && now - since >= 4f)
+        {
+            s.Flagged.Add("ignoredGunfire");
+            _counts.TryGetValue("ignoredGunfire", out int n);
+            _counts["ignoredGunfire"] = n + 1;
+            TacticDiagnostics.Count("oddity.ignoredGunfire");
+            if (TacticDiagnostics.LogOn)
+            {
+                RaidJournal.Line($"[Oddity] ignoredGunfire [{player.Profile?.Nickname}] layer={layer} shooter {shooter} for {now - since:0}s | state: {SimLabSceneMark.Describe(player)}");
+            }
+            AddExample("ignoredGunfire", player, null, "-", "shooter " + shooter, layer, -1f, false, 0f, player.Velocity.magnitude, -1, now - since);
+        }
+    }
+
+    private static string NearbyShooterInSight(Player player, float now)
+    {
+        var world = Comfort.Common.Singleton<GameWorld>.Instance;
+        if (world?.AllAlivePlayersList == null)
+        {
+            return null;
+        }
+        Vector3 eye = player.Position + Vector3.up * 1.5f;
+        var players = world.AllAlivePlayersList;
+        for (int i = 0; i < players.Count; i++)
+        {
+            Player other = players[i];
+            if (other == null || other == player || !_lastShotByPlayer.TryGetValue(other.ProfileId, out float shot) || now - shot > 3f)
+            {
+                continue;
+            }
+            float dist = Vector3.Distance(other.Position, player.Position);
+            if (dist > 40f)
+            {
+                continue;
+            }
+            if (Physics.Linecast(eye, other.Position + Vector3.up * 1.4f, LayersMaskController.HighPolyWithTerrainMask))
+            {
+                continue;
+            }
+            bool hostile = player.AIData?.BotOwner?.BotsGroup?.IsPlayerEnemy(other) == true;
+            return $"{other.Profile?.Nickname} {dist:0}m {(hostile ? "hostile" : "not hostile")}";
+        }
+        return null;
+    }
 
     private static bool FarShooterIgnored(BotComponent bot, float now)
     {
@@ -202,6 +336,7 @@ public static class SimLabOddity
         {
             "flipFlop" => 0f,
             "bunched" or "stalledMove" or "ignoredSniper" => 6f,
+            "closeNoReact" => 2f,
             _ => 4f,
         };
     }
@@ -293,8 +428,13 @@ public static class SimLabOddity
                 extra = $" hands={player.HandsController?.GetType().Name} canShootByState={owner?.ShootData?.CanShootByState}"
                     + $" aimStatus={bot.Aim?.AimStatus} friendlyFire={bot.FriendlyFire?.FriendlyFireStatus}";
             }
-            RaidJournal.Line($"[Oddity] {kind} [{player.Profile?.Nickname}] [{bot.Info.Personality}] {decision}/{reason} layer={layer} enemy={enemyDist:0.0}m visible={visible} angle={angle:0} speed={speed:0.0} bullets={bullets} for {seconds:0}s at ({player.Position.x:0},{player.Position.y:0},{player.Position.z:0}){extra}");
+            RaidJournal.Line($"[Oddity] {kind} [{player.Profile?.Nickname}] [{bot.Info.Personality}] {decision}/{reason} layer={layer} enemy={enemyDist:0.0}m visible={visible} angle={angle:0} speed={speed:0.0} bullets={bullets} for {seconds:0}s at ({player.Position.x:0},{player.Position.y:0},{player.Position.z:0}){extra} | state: {SimLabSceneMark.Describe(player)}");
         }
+        AddExample(kind, player, bot, decision, reason, layer, enemyDist, visible, angle, speed, bullets, seconds);
+    }
+
+    private static void AddExample(string kind, Player player, BotComponent bot, string decision, string reason, string layer, float enemyDist, bool visible, float angle, float speed, int bullets, float seconds)
+    {
         _examplesPerKind.TryGetValue(kind, out int shown);
         if (shown >= MAX_EXAMPLES_PER_KIND)
         {
@@ -307,7 +447,7 @@ public static class SimLabOddity
             Kind = kind,
             Name = player.Profile?.Nickname,
             Role = player.Profile?.Info?.Settings?.Role.ToString(),
-            Personality = bot.Info.Personality.ToString(),
+            Personality = bot != null ? bot.Info.Personality.ToString() : "-",
             Decision = decision,
             Reason = reason,
             Layer = layer,

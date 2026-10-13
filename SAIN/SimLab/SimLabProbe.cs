@@ -66,6 +66,7 @@ public static class SimLabProbe
         _closeUnaware = 0;
         _closeSamples.Clear();
         SimLabOddity.Reset();
+        SimLabSceneMark.Reset();
         _orbitObjective.Clear();
         _wantedA = Split(info?.ZonesA);
         _wantedB = Split(info?.ZonesB);
@@ -176,9 +177,11 @@ public static class SimLabProbe
         SampleFaction(player, layer);
         SampleOrbit(player, dt);
         SampleCloseUnaware(player, owner, layer);
+        SimLabOddity.NoteShots(player, owner);
 
         if (layer != SAIN.SAINComponent.Classes.Tactics.LayerHandoff.SainCombat || !SAINEnableClass.GetSAIN(player.ProfileId, out BotComponent bot) || bot == null)
         {
+            SimLabOddity.SampleOutOfCombat(player, owner, layer);
             return;
         }
         _combatSamples++;
@@ -400,6 +403,7 @@ public static class SimLabProbe
         beat.CloseUnawareSamples = _closeUnaware;
         beat.CloseUnaware = new List<SimCloseSample>(_closeSamples);
         SimLabOddity.Fill(beat);
+        beat.SceneMarks = new List<string>(SimLabSceneMark.Marks);
         beat.OrbitGhostSeconds = _orbitGhost;
         beat.OrbitObjectiveSeconds = new Dictionary<string, float>(_orbitObjective);
     }
