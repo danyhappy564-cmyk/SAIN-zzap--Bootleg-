@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using EFT;
 using SAIN.Components;
+using SAIN.Models.Structs;
 using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.Helpers;
 
@@ -60,6 +61,7 @@ public class SAINEnemyController : BotComponentClassBase
     public override void ManualUpdate()
     {
         UpdateEnemies(Bot, UnityEngine.Time.time);
+        CloseSense(UnityEngine.Time.time);
         _listController.ManualUpdate();
         checkDiscrepency();
         base.ManualUpdate();
@@ -79,6 +81,79 @@ public class SAINEnemyController : BotComponentClassBase
     public Enemy GetEnemy(string profileID, bool mustBeActive)
     {
         return _listController.GetEnemy(profileID, mustBeActive);
+    }
+
+    // zzap (2026-10-14, 23:30 sim Factory "enemy within 4m unnoticed" x11): a hostile bot 2-3 m away with nothing in between,
+    // that one knew about this one but this one didn't - EFT's vision only covers the front, and a bot standing still or
+    // looting behind makes no footstep. Anyone notices a body that close: a hostile BOT (never the human player - sneaking
+    // up stays possible) within 3 m with a clear chest-to-chest line becomes a "heard" enemy at its position.
+    // Once per second per bot; one pass over the alive-players list.
+    private const float CLOSE_SENSE_RANGE = 3f;
+    private float _nextCloseSense;
+
+    private void CloseSense(float time)
+    {
+        if (time < _nextCloseSense)
+        {
+            return;
+        }
+        _nextCloseSense = time + 1f;
+        var world = Comfort.Common.Singleton<GameWorld>.Instance;
+        var group = BotOwner?.BotsGroup;
+        Player me = Bot.Player;
+        if (world?.AllAlivePlayersList == null || group == null || me == null)
+        {
+            return;
+        }
+        UnityEngine.Vector3 myPos = me.Position;
+        var players = world.AllAlivePlayersList;
+        for (int i = 0; i < players.Count; i++)
+        {
+            Player other = players[i];
+            if (other == null || other == me || !other.IsAI || other.HealthController?.IsAlive != true)
+            {
+                continue;
+            }
+            if ((other.Position - myPos).sqrMagnitude > CLOSE_SENSE_RANGE * CLOSE_SENSE_RANGE)
+            {
+                continue;
+            }
+            Enemy known = GetEnemy(other.ProfileId, false);
+            if (known != null && known.EnemyKnown)
+            {
+                continue;
+            }
+            if (group.IsAlly(other) || other.AIData?.BotOwner?.BotsGroup == group || !group.IsPlayerEnemy(other))
+            {
+                continue;
+            }
+            UnityEngine.Vector3 from = myPos + UnityEngine.Vector3.up * 1.3f;
+            UnityEngine.Vector3 to = other.Position + UnityEngine.Vector3.up * 1.3f;
+            if (UnityEngine.Physics.Linecast(from, to, LayersMaskController.HighPolyWithTerrainMask))
+            {
+                continue; // a wall or floor between - not "right next to me"
+            }
+            Enemy enemy = known ?? CheckAddEnemy(other);
+            if (enemy == null && !group.Enemies.ContainsKey(other))
+            {
+                group.AddEnemy(other, EBotEnemyCause.checkAddTODO);
+                enemy = CheckAddEnemy(other);
+            }
+            if (enemy == null)
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("closeSense.noEnemyInfo");
+                continue;
+            }
+            enemy.Hearing.SetHeard(new SAINHearingReport
+            {
+                position = other.Position,
+                soundType = SAINSoundType.FootStep,
+                placeType = EEnemyPlaceType.Hearing,
+                isDanger = true,
+                shallReportToSquad = true,
+            }, time);
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("closeSense.noticed");
+        }
     }
 
     public Enemy CheckAddEnemy(IPlayer IPlayer)

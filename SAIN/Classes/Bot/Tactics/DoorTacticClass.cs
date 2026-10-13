@@ -3291,6 +3291,12 @@ public partial class DoorTacticClass : BotComponentClassBase
                 if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"death.teamKill.{decision.CurrentCombatDecision}");
             }
             float decisionAge = Time.time - decision.ChangeDecisionTime;
+            // 23:30 sim Factory Bot5: picked Freeze, one headshot from an unseen enemy 0.5s later. No exit condition can act that
+            // fast, so the analyzer's "died while freeze-ambushing" leaves these out (death.freezeFresh).
+            if (decision.CurrentCombatDecision == ECombatDecision.Freeze && decisionAge < 1.5f)
+            {
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("death.freezeFresh");
+            }
             BattleStats.OnBotDied(Bot, lastAggressor, decisionAge, teamKill);
             CorpseCleanup.OnBotDied(player);
             bool sawKiller = goal != null && lastAggressor != null && goal.EnemyProfileId == lastAggressor.ProfileId && goal.Seen;

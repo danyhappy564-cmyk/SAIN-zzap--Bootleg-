@@ -213,7 +213,7 @@ public static class SimLabAnalyzer
         if (b.Stalls > 0)
         {
             list.Add(new(WARN, T("멈춤(1초 넘는 프레임)", "Stalls (frames over 1 s)"),
-                T($"{b.Stalls}회. 같은 시각 LogOutput.log에 예외나 GC가 있었는지 확인.", $"{b.Stalls} times. Check LogOutput.log at those times for exceptions or GC.")));
+                T($"{b.Stalls}회. 같은 시각 LogOutput.log에 예외나 GC가 있었는지 확인. 램 클리너 '누수 추적' 모드가 켜져 있으면 레이드 1분부터 5분마다 1~4초 멈춤(누수 스냅샷)이 정상 — 램 클리너 로그의 '[leak] #' 시각과 비교.", $"{b.Stalls} times. Check LogOutput.log at those times for exceptions or GC. With RamCleaner's 'Leak hunt' mode on, a 1-4 s stall every 5 min from minute 1 (leak snapshot) is expected - compare with '[leak] #' times in the RamCleaner log.")));
         }
         if (m.Samples.Count >= 2)
         {
@@ -234,7 +234,8 @@ public static class SimLabAnalyzer
                 T($"사망 {deaths} 중 {switching}이 싸우던 중 엄폐·후퇴·수색 같은 비사격 판단으로 바꾼 지 1.5초 안 (30% 이상, 근접전 사격 판단 재선택·맞은 지 2초 안에 바꾼 것(death.switchedAfterHit) 제외). 카운터 death.switchedAway.*·일지 [Death] why=·decisionAge= 확인.", $"{switching} of {deaths} deaths within 1.5 s of switching away from fighting (cover/retreat/search; re-picking 'shoot' in a dogfight is excluded). See death.switchedAway.* and the journal's [Death] lines.")));
         }
 
-        int freezeDeaths = Get(b, "death.Freeze") - Get(b, "death.bySpectator.Freeze"); // the spectator can't be reacted to
+        // the spectator can't be reacted to; death.freezeFresh = killed within 1.5s of picking Freeze (no exit condition acts that fast)
+        int freezeDeaths = Math.Max(0, Get(b, "death.Freeze") - Get(b, "death.bySpectator.Freeze") - Get(b, "death.freezeFresh"));
         if (freezeDeaths > 0)
         {
             list.Add(new(WARN, T("정지 및 매복 중 사망", "Died while freeze-ambushing"), T($"death.Freeze={freezeDeaths} (0이어야 정상).", $"death.Freeze={freezeDeaths} (should be 0).")));
