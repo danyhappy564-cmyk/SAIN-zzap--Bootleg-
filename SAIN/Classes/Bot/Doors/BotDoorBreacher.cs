@@ -525,9 +525,11 @@ public class BotBreachSwingFlipPatch : ModulePatch
             [typeof(EDoorState), typeof(float), typeof(float), typeof(AnimationCurve), typeof(bool)]);
     }
 
-    // after DualSideDoorBreach's own InitSmoothOpen prefix: on SAIN's breaches our direction is the final word (10/14)
+    // after DualSideDoorBreach's own InitSmoothOpen prefix: on SAIN's breaches our direction is the final word (10/14).
+    // SPT's ModulePatch registers each patch under its class name (new Harmony(GetType().Name)), not the plugin GUID - DSDB's
+    // is "DoorInitSmoothOpenPatch". Priority.Last alone already puts us after its default (Normal) prefix.
     [PatchPrefix]
-    [HarmonyAfter(DoorModInterop.DualSideGUID)]
+    [HarmonyAfter(DoorModInterop.DualSideGUID, "DoorInitSmoothOpenPatch")]
     [HarmonyPriority(Priority.Last)]
     public static void Prefix(EDoorState state, ref float resultAngle)
     {
