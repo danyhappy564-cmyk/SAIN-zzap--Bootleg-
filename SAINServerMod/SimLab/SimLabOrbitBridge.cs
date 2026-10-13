@@ -62,7 +62,10 @@ public static class SimLabOrbitBridge
         if (cfg.OrbitNoObjectives)
         {
             Set("main_objectives", "enabled_for_pmc", false);
-            changes.Add("no PMC objectives");
+            // 23:30 sim: 42% (Customs) / 46% (Labs) of ORBIT objective time pointed outside the arena, mostly loot runs -
+            // squads spot loot up to 80 m away (loot.detect_distance) and walk out of the fight for it. 35 m keeps them close.
+            Set("loot", "detect_distance", 35f);
+            changes.Add("no PMC objectives, loot within 35m");
         }
         return root.ToJsonString();
     }
@@ -89,7 +92,8 @@ public static class SimLabOrbitBridge
                 ["Name"] = "SAIN sim arena",
                 ["Position"] = new JsonObject { ["x"] = raid.ArenaX, ["y"] = raid.ArenaZ },
                 ["Radius"] = new JsonObject { ["Min"] = raid.ArenaRadius, ["Max"] = raid.ArenaRadius },
-                ["Force"] = new JsonObject { ["Min"] = 1.5f, ["Max"] = 2f },
+                // was 1.5-2: squads still spent 42-46% of ORBIT time heading outside the circle (23:30 sim)
+                ["Force"] = new JsonObject { ["Min"] = 3f, ["Max"] = 4f },
                 ["Decay"] = 1f,
                 ["KillMains"] = true,
             };
