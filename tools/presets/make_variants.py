@@ -38,7 +38,10 @@ LEVELS = {
 TACTICS = {
     "easy": {
         "DoorTactics": dict(ChanceMultiplier=0.5, GigaChadFakeTrickChance=15.0, ChadFakeTrickChance=8.0,
-                            GigaChadTrapFakeHealChance=10.0, RoomClearGrenadeChance=30.0, RunByChance=25.0),
+                            GigaChadTrapFakeHealChance=10.0, RoomClearGrenadeChance=30.0, RunByChance=25.0,
+                            # door mods (only with Door Overhaul / doordash installed): zzap 50/50/35
+                            DoorModShootThroughChance=20.0, DoorModShootMaxInfoAge=5.0,
+                            DoorModGrenadeBreachChance=25.0, DoorModRamChance=15.0),
         "SquadCombat": dict(SquadStorm=False, CrossfireBackDoorPush=False, TradeWindow=6.0, ManeuverChance=30.0),
         "CloseCombat": dict(ThreatTargetKeepTime=3.0, CornerChasePrefireChance=25.0, CornerChaseJumpChance=10.0,
                             CornerJiggleChance=20.0, LeanSpamChance=25.0, GrenadeMaxInfoAge=12.0,
@@ -47,7 +50,9 @@ TACTICS = {
     },
     "normal": {
         "DoorTactics": dict(ChanceMultiplier=0.75, GigaChadFakeTrickChance=30.0, ChadFakeTrickChance=15.0,
-                            GigaChadTrapFakeHealChance=20.0, RoomClearGrenadeChance=45.0, RunByChance=35.0),
+                            GigaChadTrapFakeHealChance=20.0, RoomClearGrenadeChance=45.0, RunByChance=35.0,
+                            DoorModShootThroughChance=35.0, DoorModShootMaxInfoAge=6.0,
+                            DoorModGrenadeBreachChance=40.0, DoorModRamChance=25.0),
         "SquadCombat": dict(SquadStormWeakness=0.6, TradeWindow=8.0, ManeuverChance=45.0),
         "CloseCombat": dict(ThreatTargetKeepTime=2.5, CornerChasePrefireChance=45.0, CornerChaseJumpChance=20.0,
                             CornerJiggleChance=35.0, LeanSpamChance=45.0, GrenadeMaxInfoAge=16.0,
@@ -129,14 +134,27 @@ def main():
     easy = tune(zzap, "easy")
     write(easy, "zzap 쉬움",
           "zzap 난이도 1/3 (쉬움). " + tactics + " 원본 SAIN '쉬움' 보정: 반동 크고 탄이 많이 퍼짐, 시야 거리 절반, 늦게 발견, "
-          "청각 약함, 시야각 120°, 연사 느림, 조준 최소 2초, 사람 같은 실수 2배. 문 전술 ×0.5, 페이크·미끼·코너 흔들기 크게 줄임, 분대 일제 돌격 없음, 수류탄 30m까지, 스텝 중 쏠 때 멈추기 없음.")
+          "청각 약함, 시야각 120°, 연사 느림, 조준 최소 2초, 사람 같은 실수 2배. 문 전술 ×0.5(문 모드 전술: 문 너머 사격 20%·수류탄 문 폭파 25%·몸통박치기 15%), 페이크·미끼·코너 흔들기 크게 줄임, 분대 일제 돌격 없음, 수류탄 30m까지, 스텝 중 쏠 때 멈추기 없음.")
     normal = tune(zzap, "normal")
     write(normal, "zzap 보통",
           "zzap 난이도 2/3 (보통). " + tactics + " 원본 SAIN '보통' 보정: 반동·탄 퍼짐 중간, 시야 거리 보통, 발견·청각 약간 약함, "
-          "시야각 150°, 연사 중간, 조준 최소 1초, 사람 같은 실수 1.5배. 문 전술 ×0.75, 페이크·미끼·코너 흔들기 조금 줄임, 수류탄 38m까지, 스텝 중 쏠 때 멈추기는 12m 이상에서만.")
+          "시야각 150°, 연사 중간, 조준 최소 1초, 사람 같은 실수 1.5배. 문 전술 ×0.75(문 모드 전술: 문 너머 사격 35%·수류탄 문 폭파 40%·몸통박치기 25%), 페이크·미끼·코너 흔들기 조금 줄임, 수류탄 38m까지, 스텝 중 쏠 때 멈추기는 12m 이상에서만.")
     write(lowspec(normal), "zzap 저사양 [테스트]",
           "[테스트] 저사양 PC용. zzap 보통 + 성능 설정(성능 모드 켬, 멀리 있는 봇끼리의 업데이트·시야·청각 제한 켬, 조준선 자리 찾기 범위 축소). "
           "프레임은 조금 나아질 수 있지만, 멀리서 벌어지는 봇끼리의 싸움은 덜 정교해질 수 있음. 의도한 전투 경험과 다를 수 있는 시험용.")
+
+    # zzap (2026-10-13, user: "make the sim easier to check for the door mods - a separate preset"): the TEST preset plus
+    # TestModeDoorMods - every door mod tactic whose conditions are met fires (still only with the mod installed). Separate
+    # so plain TEST sims stay comparable with earlier ones.
+    test_name = "zzap TEST [시뮬 전용]"
+    with open(os.path.join(PRESETS, test_name + ".json"), encoding="utf-8") as f:
+        test = json.load(f)
+    dm = copy.deepcopy(test)
+    dm["GlobalSettings"]["General"].setdefault("DoorTactics", {})["TestModeDoorMods"] = True
+    write(dm, "zzap TEST 문 모드 [시뮬 전용]",
+          "[시뮬 전용] 문 모드 전술 확인용 — Door Overhaul / doordash가 설치돼 있어야 의미 있음(없으면 그냥 TEST와 같음). "
+          "zzap TEST와 같고, 조건이 맞으면 문 모드 전술을 항상 씀(문 너머 사격·수류탄으로 문 날리기·몸통박치기 100%). "
+          "레이드 일지의 [DoorMod] 줄과 SUMMARY의 doormod.* 카운터, 시뮬 분석 md의 '문 모드' 줄로 확인. 일반 TEST 결과와 섞어 비교하지 말 것.")
 
 
 if __name__ == "__main__":

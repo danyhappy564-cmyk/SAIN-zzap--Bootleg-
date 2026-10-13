@@ -100,6 +100,13 @@ public static class SimLabFeatures
         new("remake5", "취약 순간 돌격(소리 종류별 남은 시간)", A("vuln.rush."), A("vuln.reach."), A(), "[Vuln]", "거부 칸에 yes도 섞여 있음 — md '취약 순간 반응' 절 참고"),
         new("remake5", "수류탄 꺼낸 적에게 안 달려듦", A("vuln.grenade.backOff"), A(), A(), "[Vuln]", "", ZeroOk: true),
         new("remake5", "발소리 관리(30m 걷기·12m 숙여 걷기)", A("quiet.start"), A("quiet.skip.", "quiet.timeout"), A(), "[Quiet]"),
+        // zzap door mods (2026-10-13): 0 is normal when the mod isn't installed - check the "doormod.present." counter first.
+        // "zzap TEST 문 모드 [시뮬 전용]" preset forces them (100%) for a sim check.
+        new("doormod", "문 모드 감지 (Door Overhaul / doordash)", A("doormod.present.DoorOverhaul", "doormod.present.doordash"), A(), A("doormod.present.DoorOverhaul.bridgeFailed", "doormod.present.doordash.bridgeFailed"), "[DoorMod]", "모드를 안 깔았으면 0이 정상. bridgeFailed는 그 모드 버전이 달라 연동이 꺼졌다는 뜻", ZeroOk: true),
+        new("doormod", "문 너머 사격 (Door Overhaul)", A("doormod.shoot.fired"), A("doormod.shoot.skipped."), A(), "[DoorTactic] door mod", "Door Overhaul 없으면 0 정상. 거부 사유는 md 카운터 doormod.shoot.skipped.*", ZeroOk: true),
+        new("doormod", "수류탄으로 문 날리기 (Door Overhaul)", A("doormod.breach.thrown"), A("doormod.breach.noThrowPoint.", "doormod.breach.skipped."), A(), "[DoorTactic] door mod", "결과는 doormod.breach.doorDestroyed / holeOnly / noDamage", ZeroOk: true),
+        new("doormod", "몸통박치기 진입 (doordash)", A("doormod.ram.burst"), A("doormod.ram.noRunUp.", "doormod.ram.fallback."), A(), "[DoorTactic] door mod", "doordash 없으면 0 정상. fallback이 많으면 봇 달리기 속도가 doordash 기준(4.5m/s)보다 느린 것", ZeroOk: true),
+        new("doormod", "덜 열린 문 밀어 열기 (Door Overhaul)", A("doormod.pushPartlyOpen."), A(), A(), "-", "플레이어가 문을 엿본 뒤 봇이 지나갈 때만 — 시뮬(프리캠)에선 0이 정상", ZeroOk: true),
     };
 
     /// <summary>Counters under <paramref name="prefixes"/> that are not under any of <paramref name="except"/>.</summary>

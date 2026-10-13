@@ -98,6 +98,11 @@ public class DoorOpener : BotComponentClassBase
     /// </summary>
     public bool TryOpenDoorForTactic(DoorDataStruct data)
     {
+        // zzap (Door Overhaul): "open" but only cracked (player peek) -> push it the rest of the way instead.
+        if (data.Door != null && data.Door.DoorState == EDoorState.Open && TryPushPartlyOpenForTactic(data))
+        {
+            return true;
+        }
         if (data.Door == null || data.Door.DoorState != EDoorState.Shut)
         {
             return false;
@@ -210,6 +215,13 @@ public class DoorOpener : BotComponentClassBase
                 currentDoor = _interactionDoors[_interactionDoorIndex];
                 return true;
             }
+        }
+
+        if (NoInteractUntil > time)
+        {
+            interactionType = EInteractionType.Open;
+            currentDoor = ActiveDoor;
+            return false;
         }
 
         SearchForDoors(botPosition, time);
@@ -400,6 +412,11 @@ public class DoorOpener : BotComponentClassBase
 #if DEBUG
                 Logger.LogDebug($"Found door from hit collider [PlayerStaticDoorMask] [{hit.collider.name}]");
 #endif
+                if (data.Door.DoorState == EDoorState.Open && PushIfPartlyOpen(data, "path"))
+                {
+                    interactionType = EInteractionType.Open;
+                    return false;
+                }
                 if (data.Door.DoorState == EDoorState.Open && AutoCloseAllowed && !RecentlySelfOpened(data))
                 {
                     interactionType = EInteractionType.Close;
@@ -424,6 +441,11 @@ public class DoorOpener : BotComponentClassBase
 #if DEBUG
                 Logger.LogDebug($"Found door from hit collider [DoorLayer] [{hit.collider.name}]");
 #endif
+                if (data.Door.DoorState == EDoorState.Open && PushIfPartlyOpen(data, "path"))
+                {
+                    interactionType = EInteractionType.Open;
+                    return false;
+                }
                 if (data.Door.DoorState == EDoorState.Open && AutoCloseAllowed && !RecentlySelfOpened(data))
                 {
                     interactionType = EInteractionType.Close;
@@ -465,6 +487,11 @@ public class DoorOpener : BotComponentClassBase
                 Logger.LogDebug($"hit door  [Door.collider.Raycast]");
                 DebugGizmos.DrawLine(ray.origin, hit.point, Color.red, 0.25f, 30f, true);
 #endif
+                if (data.Door.DoorState == EDoorState.Open && PushIfPartlyOpen(data, "path"))
+                {
+                    interactionType = EInteractionType.Open;
+                    return false;
+                }
                 if (data.Door.DoorState == EDoorState.Open && AutoCloseAllowed && !RecentlySelfOpened(data))
                 {
                     interactionType = EInteractionType.Close;
@@ -496,6 +523,16 @@ public class DoorOpener : BotComponentClassBase
         index = -1;
         if (allowProximityFallback)
         {
+            for (var i = 0; i < doors.Count; i++)
+            {
+                if (doors[i].Door != null && doors[i].CurrentSqrMagnitude < 2f * 2f && PushIfPartlyOpen(doors[i], "jammed"))
+                {
+                    data = doors[i];
+                    index = -1;
+                    interactionType = EInteractionType.Open;
+                    return false;
+                }
+            }
             var closestSqr = float.MaxValue;
             for (var i = 0; i < doors.Count; i++)
             {
@@ -534,6 +571,37 @@ public class DoorOpener : BotComponentClassBase
     // minimal fix: don't reconsider closing a door for a few seconds after WE opened
     // it, regardless of how long the bot dawdles at the threshold.
     private const float JUST_OPENED_GRACE = 6f;
+
+    /// <summary>
+    /// zzap (Door Overhaul): a door a player peeked / opened quietly stands partly open - DoorState Open, so nothing here
+    /// ever touched it, but the leaf still blocks most of the doorway and bots walked into it until CheckStuck gave up.
+    /// Push it the rest of the way (DoorModInterop eases the angle). F6 Door Tactics > Door Mods: Bots Push Partly Open Doors.
+    /// </summary>
+    private static bool PushIfPartlyOpen(in DoorDataStruct data, string why)
+    {
+        if (GlobalSettingsClass.Instance?.General?.DoorTactics?.DoorModPushPartlyOpen != true || !DoorModInterop.IsPartlyOpen(data.Door))
+        {
+            return false;
+        }
+        if (!DoorModInterop.RequestPushOpen(data.Door, out bool started))
+        {
+            return false;
+        }
+        if (started && SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"doormod.pushPartlyOpen.{why}");
+        return true;
+    }
+
+    /// <summary>Door tactic: push a partly open door fully open before peeking / clearing through it.</summary>
+    public bool TryPushPartlyOpenForTactic(DoorDataStruct data)
+    {
+        return data.Door != null && PushIfPartlyOpen(data, "tactic");
+    }
+
+    /// <summary>
+    /// zzap: while a doordash ram is running the bot must not stop to open the shut door it is sprinting into (the ram needs
+    /// the door still Shut when the bot hits it). Set by DoorTacticClass for the length of the charge only.
+    /// </summary>
+    public float NoInteractUntil { get; set; }
 
     /// <summary>
     /// zzap: F6 General > Door Tactics (zzap) > Bots Close Open Doors In Their Way (default off).

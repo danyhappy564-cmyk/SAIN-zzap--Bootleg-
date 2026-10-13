@@ -168,7 +168,11 @@
         "ChadFakeTrickChance": 15.0,
         "GigaChadTrapFakeHealChance": 20.0,
         "RoomClearGrenadeChance": 45.0,
-        "RunByChance": 35.0
+        "RunByChance": 35.0,
+        "DoorModShootThroughChance": 35.0,
+        "DoorModShootMaxInfoAge": 6.0,
+        "DoorModGrenadeBreachChance": 40.0,
+        "DoorModRamChance": 25.0
       },
       "SquadCombat": {
         "SquadStormWeakness": 0.6,

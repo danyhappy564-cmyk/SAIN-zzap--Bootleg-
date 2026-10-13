@@ -36,7 +36,7 @@ namespace SAIN.SAINComponent.Classes.Tactics;
 /// the tactic ends. Every start, step change and result is logged as [DoorTactic] when
 /// the F6 setting General > Door Tactics (zzap) > Diagnostic Logs is on.
 /// </summary>
-public class DoorTacticClass : BotComponentClassBase
+public partial class DoorTacticClass : BotComponentClassBase
 {
     public enum EPlan
     {
@@ -73,6 +73,13 @@ public class DoorTacticClass : BotComponentClassBase
         ClearThrow,
         ClearWait,
         ClearDash,
+        // zzap door mods (DoorModInterop): only reachable while Door Overhaul / doordash are installed.
+        ModShootThrough,
+        ModBreachMove,
+        ModBreachThrow,
+        ModBreachWait,
+        ModRamRunUp,
+        ModRamCharge,
     }
 
     private const float MAX_BOT_DOOR_DIST = 8f;
@@ -492,6 +499,7 @@ public class DoorTacticClass : BotComponentClassBase
                 + $"botDist={geo.BotDistance:0.0}m enemyDepth={geo.EnemyDepth:0.0}m sinceKnown={enemy.TimeSinceLastKnownUpdated:0.0}s "
                 + $"fakeNade={session.WantFakeNade} fakeHeal={session.WantFakeHeal} hold={session.HoldTime:0}s"
         );
+        PlanDoorMods(session, personality, holdStance);
         SetStep(session.FirstStep, "start");
         if (Settings.SquadRoles)
         {
@@ -838,12 +846,35 @@ public class DoorTacticClass : BotComponentClassBase
         public bool RunByBackToAngle;
         public Vector3 RunByBackTarget;
         public readonly HashSet<string> SupportIds = new();
+        // zzap door mods
+        public bool WantShootThrough;
+        public Vector3 ShootAim;
+        public Vector3 ShootTarget;
+        public float ShootFor;
+        public bool ShootFired;
+        public EStep AfterShoot;
+        public bool WantBreachNade;
+        public Vector3 BreachThrowPoint;
+        public Vector3 BreachTarget;
+        public bool BreachThrown;
+        public bool WantRam;
+        public Vector3 RamRunUp;
+        public bool RamStarted;
+        public bool RamBurst;
+        public float RamNearDoorSince = -1f;
     }
 
     private Session BuildSession(EPersonality personality, Enemy enemy, DoorGeometry geo, bool holdStance, out string reason, bool searchClear = false)
     {
         bool testMode = Settings.TestModeAllPmcGigaChad && Bot.Info.Profile.IsPMC;
         bool doorOpen = geo.Data.Door.DoorState == EDoorState.Open;
+        // zzap (Door Overhaul): a door left cracked by a player peek is "Open" but the leaf still blocks the doorway - treat it
+        // as shut, so the plan opens it first (TryOpenDoorForTactic pushes it the rest of the way).
+        if (doorOpen && Settings.DoorModPushPartlyOpen && DoorModInterop.IsPartlyOpen(geo.Data.Door))
+        {
+            doorOpen = false;
+            TacticDiagnostics.Count("doormod.partlyOpenAtStart");
+        }
         var grenades = BotOwner.WeaponManager?.Grenades;
         bool haveNade = grenades != null && grenades.HaveGrenade;
 
@@ -1243,19 +1274,19 @@ public class DoorTacticClass : BotComponentClassBase
         {
             case EStep.MoveToStack:
                 s.LookTarget = s.InsidePoint;
-                if (MoveStep(s, s.Stack, false, stepTime))
+                if (MoveStep(s, s.Stack, s.BreachThrown, stepTime))
                 {
                     if (s.Plan == EPlan.Clear)
                     {
-                        SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : ClearEntry(s), "atStack");
+                        SetStep(ShootThroughFirst(s, s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : ClearEntry(s)), "atStack");
                     }
                     else if (s.Plan == EPlan.Peek)
                     {
-                        SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : PeekEntry(s), "atStack");
+                        SetStep(ShootThroughFirst(s, s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : PeekEntry(s)), "atStack");
                     }
                     else
                     {
-                        SetStep(FakeOrHold(s), "atStack");
+                        SetStep(ShootThroughFirst(s, FakeOrHold(s)), "atStack");
                     }
                 }
                 break;
@@ -1676,6 +1707,38 @@ public class DoorTacticClass : BotComponentClassBase
                     TacticDiagnostics.Count("door.clear.entered");
                     End("roomEntered");
                 }
+                break;
+
+            case EStep.ModShootThrough:
+                TickShootThrough(s, stepTime);
+                break;
+
+            case EStep.ModBreachMove:
+                s.LookTarget = s.BreachTarget + Vector3.up * 0.6f;
+                if (MoveStep(s, s.BreachThrowPoint, false, stepTime))
+                {
+                    SetStep(EStep.ModBreachThrow, "atThrowPoint");
+                }
+                break;
+
+            case EStep.ModBreachThrow:
+                TickBreachThrow(s, stepTime);
+                break;
+
+            case EStep.ModBreachWait:
+                TickBreachWait(s, stepTime);
+                break;
+
+            case EStep.ModRamRunUp:
+                s.LookTarget = s.Center + Vector3.up * 1.2f;
+                if (MoveStep(s, s.RamRunUp, false, stepTime))
+                {
+                    SetStep(EStep.ModRamCharge, "atRunUp");
+                }
+                break;
+
+            case EStep.ModRamCharge:
+                TickRamCharge(s, stepTime);
                 break;
 
             case EStep.MoveToOverwatch:
@@ -3136,7 +3199,7 @@ public class DoorTacticClass : BotComponentClassBase
         s.StepStartTime = Time.time;
         s.ProgressCheckTime = 0f;
         // Door-proximity slowdown (BotPathData) is only lifted for the quick peek hops.
-        Bot.Mover.IgnoreDoorSlow = step == EStep.PeekOut || step == EStep.PeekBack;
+        Bot.Mover.IgnoreDoorSlow = step == EStep.PeekOut || step == EStep.PeekBack || step == EStep.ModRamCharge;
         s.NextMoveOrderTime = 0f;
         if (step == EStep.Hold)
         {
@@ -3180,6 +3243,7 @@ public class DoorTacticClass : BotComponentClassBase
         }
         _session = null;
         Bot.Mover.IgnoreDoorSlow = false;
+        EndDoorMods(s);
         // The tactic walks at 0.45-0.7 and crouches; SAIN's StandAndShoot never resets either, so without this
         // the bot kept slow-walking (and backing off at slow-walk speed) after the tactic ended (first raid test).
         Bot.Mover.SetTargetMoveSpeed(1f);

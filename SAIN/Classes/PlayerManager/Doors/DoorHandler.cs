@@ -25,6 +25,8 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
         EnsureDoorFinalizeWatchdogInitialized(currentTime);
         TickDoorFinalizeWatches(currentTime);
         TickForcedDoorResync(currentTime);
+        // zzap: bots pushing partly open (Door Overhaul) doors, doordash rams running out.
+        DoorModInterop.Tick(currentTime);
     }
 
     // A forced door can still have BSG's smooth-open coroutine finishing its old interaction afterwards; re-check those

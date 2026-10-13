@@ -99,6 +99,13 @@ public static class SimLabGlossary
         new("fakeNade.", "가짜 수류탄 (꺼냈다 다시 넣기)", "Fake grenade", "DoorTacticClass"),
         new("ownGrenade.", "내가 던진 수류탄 위치 추적", "Tracked own grenade", "OwnGrenadeTracker"),
         new("trick.", "속임수 동작 취소·건너뜀", "Tricks cancelled / skipped", "DoorTacticClass"),
+        // zzap door mods (only with Door Overhaul / doordash installed)
+        new("doormod.present.", "이 판에 감지된 문 모드 (DoorOverhaul / doordash, .bridgeFailed=버전이 달라 연동 꺼짐, .destructionOff=그 모드의 문 파괴 설정 꺼짐)", "Door mods detected this raid (.bridgeFailed = version mismatch, bridge off)", "DoorModInterop"),
+        new("doormod.shoot.", "문 너머 사격 (planned=계획, start=시작, fired=실제로 쏨, end.이유[.hole=구멍 남], skipped.이유: ammoTooWeak=탄 관통력 부족, enemyInfoOld=정보 오래됨, wallBeforeDoor=문 앞에 벽)", "Shoot through door (planned / start / fired / end.reason / skipped.reason)", "DoorTacticClass.DoorMods"),
+        new("doormod.breach.", "수류탄으로 문 날리기 (planned, thrown=던짐, doorDestroyed=문 부서짐, holeOnly=구멍만, noDamage=멀쩡, noThrowPoint.이유, skipped.이유)", "Grenade on the door (planned / thrown / doorDestroyed / holeOnly / noDamage)", "DoorTacticClass.DoorMods"),
+        new("doormod.ram.", "몸통박치기 진입 (planned, charge=돌진 시작, burst=문 박차 열림, fallback.이유=안 돼서 평소처럼 엶, doorSwingsToward=봇 쪽으로 열리는 문)", "Sprint ram (planned / charge / burst / fallback.reason)", "DoorTacticClass.DoorMods"),
+        new("doormod.pushPartlyOpen.", "덜 열린 문(플레이어가 엿본 문)을 봇이 밀어 엶 (path=지나가다, jammed=낑겨서, tactic=문 전술 중)", "Bot pushed a partly open door (path / jammed / tactic)", "DoorOpener / DoorModInterop"),
+        new("doormod.partlyOpenAtStart", "문 전술 시작 때 문이 덜 열려 있어 닫힌 문처럼 처리", "Door tactic started at a partly open door (treated as shut)", "DoorTacticClass"),
         // freeze / search / post combat
         new("freeze.", "정지 및 매복: 가까이 들린 적을 기다림 (start=시작, end=끝난 이유, cornerWatch=코너 주시)", "Freeze ambush (start, end reason, corner watch)", "FreezeAction"),
         new("peekSpot.", "피킹 자리 찾기 (none=못 찾음, step=한 걸음 옮겨 자리 잡음)", "Peek spot search (none / step)", "PeekSpot"),

@@ -67,7 +67,7 @@ internal class PresetHandler
         CustomPresetOptions.AddRange(ordered);
     }
 
-    private static readonly string[] ZZAP_PRESET_ORDER = ["zzap 쉬움", "zzap 보통", "zzap", "zzap 저사양 [테스트]", "zzap TEST [시뮬 전용]"];
+    private static readonly string[] ZZAP_PRESET_ORDER = ["zzap 쉬움", "zzap 보통", "zzap", "zzap 저사양 [테스트]", "zzap TEST [시뮬 전용]", "zzap TEST 문 모드 [시뮬 전용]"];
 
     private static int ZzapOrder(string name)
     {
