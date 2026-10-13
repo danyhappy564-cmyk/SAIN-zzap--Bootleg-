@@ -413,6 +413,16 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             }
         }
 
+        // zzap (10/14 sim, user screenshots: a bot's own short indoor throw bounced off the wall back toward him and he walked
+        // into it on his way to cover - Dueleus t=266-273, killed by his own frag): our own grenade, once it has left the hand
+        // and lies within OWN_REACT_RADIUS in the open, is dodged like an enemy one.
+        GrenadeTrackerClass own = OwnGrenadeDanger(botPosition, out float ownSqr);
+        if (own != null && ownSqr < closestSqrDist)
+        {
+            closestSqrDist = ownSqr;
+            closest = own;
+        }
+
         if (closest == null)
         {
             // Confirms the avoid-grenade reaction actually clears once the grenade is gone, instead
@@ -441,6 +451,64 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
         // stuck at whatever it was last set to. Found via the same stuck-reaction investigation that
         // added the gas dodge window in the first place.
         SetReaction(GetReaction(), closestSqrDist);
+    }
+
+    private const float OWN_REACT_RADIUS = 6f;
+    private const float OWN_MIN_AGE = 0.7f;
+
+    private sealed class OwnGrenade
+    {
+        public Grenade Grenade;
+        public float ThrowTime;
+        public GrenadeTrackerClass Tracker;
+    }
+
+    private readonly List<OwnGrenade> _ownGrenades = new();
+
+    /// <summary>The bot's own nearest live grenade lying within OWN_REACT_RADIUS with nothing solid between it and the bot's
+    /// chest. Its tracker follows the grenade (DangerPoint = where it is now). Bounded: at most 4, dropped when gone / 8 s old.</summary>
+    private GrenadeTrackerClass OwnGrenadeDanger(Vector3 botPosition, out float sqrDist)
+    {
+        sqrDist = float.MaxValue;
+        GrenadeTrackerClass best = null;
+        for (int i = _ownGrenades.Count - 1; i >= 0; i--)
+        {
+            OwnGrenade o = _ownGrenades[i];
+            float age = Time.time - o.ThrowTime;
+            if (o.Grenade == null || age > 8f)
+            {
+                _ownGrenades.RemoveAt(i);
+                continue;
+            }
+            if (age < OWN_MIN_AGE)
+            {
+                continue; // still leaving the hand
+            }
+            Vector3 g = o.Grenade.transform.position;
+            float sq = (g - botPosition).sqrMagnitude;
+            if (sq > OWN_REACT_RADIUS * OWN_REACT_RADIUS || sq >= sqrDist)
+            {
+                continue;
+            }
+            if (Physics.Linecast(g + Vector3.up * 0.3f, botPosition + Vector3.up * 1.2f, LayersMaskController.HighPolyWithTerrainMask))
+            {
+                continue;
+            }
+            if (o.Tracker == null)
+            {
+                o.Tracker = new GrenadeTrackerClass(Bot, o.Grenade, g, 0.1f, true);
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("ownGrenade.dodge");
+                if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn)
+                {
+                    SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+                        $"[Nade] [{Bot.name}] own grenade {Mathf.Sqrt(sq):0.0}m away {age:0.0}s after the throw, in the open -> dodge it (decision {Bot.Decision.CurrentCombatDecision})");
+                }
+            }
+            o.Tracker.DangerPoint = g;
+            sqrDist = sq;
+            best = o.Tracker;
+        }
+        return best;
     }
 
     /// <summary>
@@ -706,6 +774,10 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
         {
             // zzap: remember our own grenade (fuse timing, never walk into it).
             SAIN.SAINComponent.Classes.Tactics.OwnGrenadeTracker.Add(profileId, grenade, dangerPoint);
+            if (_ownGrenades.Count < 4 && !IsCsGasGrenade(grenade) && grenade is not SmokeGrenade)
+            {
+                _ownGrenades.Add(new OwnGrenade { Grenade = grenade, ThrowTime = Time.time });
+            }
             return;
         }
         if (Bot == null || !Bot.BotActive)

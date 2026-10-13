@@ -29,7 +29,8 @@ public class BotLightController : BotComponentClassBase
             wantLightOn = false;
             if (IsLightEnabled && _nextDarkForce < Time.time)
             {
-                _nextDarkForce = Time.time + 0.5f;
+                // idle: once per 10 s at most - if EFT's own light logic wants it on there, no click loop
+                _nextDarkForce = Time.time + (why == "idleOutOfCombat" ? 10f : 0.5f);
                 setLight(false);
                 if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"light.dark.{why}");
             }
@@ -39,6 +40,7 @@ public class BotLightController : BotComponentClassBase
     }
 
     private float _nextDarkForce;
+    private float _idleSince = -1f;
     private float _darkUntil;
     private string _darkWhy;
 
@@ -61,6 +63,25 @@ public class BotLightController : BotComponentClassBase
         if (enemy != null && enemy.IsVisible)
         {
             return false;
+        }
+        // 10/14 sim F8 mark #1 (user: "camping with the laser on, no enemy in sight"): after a fight the bot went back to ORBIT
+        // and stood still with the light/laser it had switched on in combat - updateLightToggle only runs while a SAIN layer
+        // is active or an enemy is known, so nothing ever turned it off. Standing 2 s+ outside SAIN's layers -> off.
+        if (!Bot.SAINLayersActive && Player.Velocity.magnitude < 0.5f)
+        {
+            if (_idleSince < 0f)
+            {
+                _idleSince = Time.time;
+            }
+            if (Time.time - _idleSince > 2f)
+            {
+                why = "idleOutOfCombat";
+                return true;
+            }
+        }
+        else
+        {
+            _idleSince = -1f;
         }
         if (Time.time < _darkUntil)
         {

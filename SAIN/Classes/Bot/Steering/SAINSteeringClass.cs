@@ -358,6 +358,7 @@ public class SAINSteeringClass : BotComponentClassBase
     // enemy would come round (SAIN's blind corner on the path to him) if that is open, else at the open direction closest
     // to the enemy (+-20..90 deg, level). Re-checked every 0.25s; never while the enemy is visible or the bot is aiming.
     private const float WALL_STARE_DISTANCE = 1.2f;
+    private const float WALL_STARE_DISTANCE_STILL = 4f;
     private static readonly float[] _wallYawSteps = { 20f, -20f, 40f, -40f, 60f, -60f, 90f, -90f };
     private float _nextWallCheck;
     private Vector3? _wallLook;
@@ -408,7 +409,10 @@ public class SAINSteeringClass : BotComponentClassBase
         _wallLook = null;
         Vector3 eye = Bot.Transform.EyePosition;
         int mask = LayersMaskController.HighPolyWithTerrainMask;
-        if (dir.sqrMagnitude < 0.01f || !Physics.Raycast(eye, dir.normalized, WALL_STARE_DISTANCE, mask))
+        // 10/14 sim F8 mark #9 (user: "facing a wall, aiming at whom?"): holding still in cover the bot stared at the enemy's
+        // last known spot through a wall 3.7 m away. Standing still, a wall within 4 m counts too (moving: 1.2 m).
+        float stareDist = Bot.Player.Velocity.magnitude < 0.5f ? WALL_STARE_DISTANCE_STILL : WALL_STARE_DISTANCE;
+        if (dir.sqrMagnitude < 0.01f || !Physics.Raycast(eye, dir.normalized, stareDist, mask))
         {
             // A lean or a step moves the eyes ~0.3 m at a corner edge, so the straight ray clears for one check and is
             // blocked the next - the kept side look went off and on every 0.25 s (not counted as a flip). Drop it only

@@ -27,6 +27,8 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
         TickForcedDoorResync(currentTime);
         // zzap: bot sprint rams (BotDoorBreacher) - door casts, running out.
         SAIN.SAINComponent.Classes.Mover.BotDoorBreacher.Tick(currentTime);
+        // zzap: reversed leaves pushed back by a stuck bot (ReversedLeafUnjam).
+        SAIN.SAINComponent.Classes.Mover.ReversedLeafUnjam.Tick(currentTime);
     }
 
     // A forced door can still have BSG's smooth-open coroutine finishing its old interaction afterwards; re-check those

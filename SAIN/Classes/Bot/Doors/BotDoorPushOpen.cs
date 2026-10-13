@@ -60,7 +60,7 @@ public static class BotDoorPushOpen
     }
 
     /// <summary>The leaf turned to the reversed open angle: its middle and its far edge must not be inside static geometry.</summary>
-    private static bool SwingSpaceClear(Door door)
+    internal static bool SwingSpaceClear(Door door)
     {
         try
         {

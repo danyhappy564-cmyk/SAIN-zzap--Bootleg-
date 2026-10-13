@@ -149,6 +149,7 @@ public class SAINBotUnstuckClass : BotComponentClassBase
         if (!DontUnstuckMe && !Bot.BotActivation.BotInStandBy)
         {
             Watchdog();
+            GrenadeHandsWatchdog();
         }
         if (!DontUnstuckMe && !Bot.BotActivation.BotInStandBy)
         {
@@ -197,6 +198,8 @@ public class SAINBotUnstuckClass : BotComponentClassBase
     private float _wdAnchorTime = -1f;
     private int _wdStage;
     private float _wdNextCheck;
+    private bool _wdUnjamTried;
+    private bool _wdLedgeTried;
 
     private void Watchdog()
     {
@@ -227,6 +230,37 @@ public class SAINBotUnstuckClass : BotComponentClassBase
             return;
         }
         float stuckFor = now - _wdAnchorTime;
+        // 10/14 sim: a door leaf left at the reversed angle across the passage held every bot there for the rest of the
+        // raid - recalc / jump / hop never cleared it. Push it back first (once per stop).
+        if (stuckFor >= 1.5f && !_wdUnjamTried)
+        {
+            _wdUnjamTried = true;
+            bool pushed = SAIN.SAINComponent.Classes.Mover.ReversedLeafUnjam.TryUnjam(Player, out string what);
+            if (what != null && SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn)
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+                    $"[Stuck] [{Bot.name}] no progress {stuckFor:0.0}s by a reversed door leaf -> {(pushed ? what : $"no push: {what}")} "
+                        + $"| layer {BotOwner.Brain?.ActiveLayerName()} | at ({Bot.Position.x:0},{Bot.Position.z:0})");
+            }
+        }
+        // 10/14 sim F8 mark #6 (user: "hits a ledge while running, jumps a bit late"): the vault/jump stage waited 5 s even
+        // when a knee-high edge was right in front. Knee-high hit within 0.7 m with chest height clear -> vault/jump at 1 s.
+        if (stuckFor >= 1f && _wdStage == 0 && !_wdLedgeTried && LowLedgeAhead(pos))
+        {
+            _wdLedgeTried = true;
+            bool vaulted = Bot.Mover.TryVault();
+            bool jumped = !vaulted && Bot.Mover.TryJump();
+            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(vaulted ? "stuck.ledge.vault" : jumped ? "stuck.ledge.jump" : "stuck.ledge.cant");
+            }
+            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn)
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+                    $"[Stuck] [{Bot.name}] no progress {stuckFor:0.0}s at a knee-high edge -> {(vaulted ? "vault" : jumped ? "jump" : "vault/jump not possible")} early "
+                        + $"| layer {BotOwner.Brain?.ActiveLayerName()} | at ({pos.x:0},{pos.z:0})");
+            }
+        }
         if (stuckFor < 3f)
         {
             return;
@@ -272,6 +306,52 @@ public class SAINBotUnstuckClass : BotComponentClassBase
         }
     }
 
+    // zzap (10/14 sim F8 mark #12, user: "suddenly an arm out, then the gun pulled out in a hurry and the muzzle stuck to the
+    // sky"): the bot picked a grenade throw, the decision changed 1.8 s later (rush / dog fight) and the grenade was never
+    // thrown - EFT only puts the gun back after a throw (BotGrenadeController.EndAll). DoorTactic had its own fix
+    // (ForceRestoreWeapon); this one covers every layer: a grenade in hand for 2 s with no throw going on -> previous weapon.
+    private float _grenadeHandsSince = -1f;
+    private float _nextGrenadeHandsCheck;
+
+    private void GrenadeHandsWatchdog()
+    {
+        float now = Time.time;
+        if (now < _nextGrenadeHandsCheck || Player == null)
+        {
+            return;
+        }
+        _nextGrenadeHandsCheck = now + 0.5f;
+        var wm = BotOwner?.WeaponManager;
+        if (Player.HandsController is not IGrenadeController || wm?.Grenades == null || wm.Grenades.ThrowindNow
+            || Bot.Decision.CurrentCombatDecision == SAIN.Preset.Shared.Enums.ECombatDecision.ThrowGrenade
+            // DoorTactic shows a grenade on purpose (fake-nade bait) and restores the gun itself
+            || Bot.Decision.CurrentCombatDecision == SAIN.Preset.Shared.Enums.ECombatDecision.DoorTactic)
+        {
+            _grenadeHandsSince = -1f;
+            return;
+        }
+        if (_grenadeHandsSince < 0f)
+        {
+            _grenadeHandsSince = now;
+            return;
+        }
+        if (now - _grenadeHandsSince < 2f || wm.Selector == null || wm.Selector.IsChanging)
+        {
+            return;
+        }
+        _grenadeHandsSince = now; // next try in 2 s at the earliest
+        bool ok = wm.Selector.TakePrevWeapon();
+        if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
+        {
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(ok ? "hands.grenadePutAway" : "hands.grenadePutAwayRefused");
+        }
+        if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn)
+        {
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+                $"[Hands] [{Bot.name}] grenade in hand 2s+ with no throw (decision {Bot.Decision.CurrentCombatDecision}) -> TakePrevWeapon={ok}");
+        }
+    }
+
     private void ResetWatchdog(Vector3 pos, float now, string why)
     {
         if (_wdStage > 0 && why != null)
@@ -287,6 +367,8 @@ public class SAINBotUnstuckClass : BotComponentClassBase
         _wdAnchor = pos;
         _wdAnchorTime = now;
         _wdStage = 0;
+        _wdUnjamTried = false;
+        _wdLedgeTried = false;
     }
 
     private void LogStuck(string action, float stuckFor)
@@ -304,6 +386,32 @@ public class SAINBotUnstuckClass : BotComponentClassBase
             $"[Stuck] [{Bot.name}] [{Bot.Info.Personality}] no progress {stuckFor:0}s -> {action} | layer {layer} | combat={Bot.Decision.CurrentCombatDecision} "
                 + $"squad={Bot.Decision.CurrentSquadDecision} | {mover.DistDestination:0}m to go, wall ahead={wallAhead} | at ({Bot.Position.x:0},{Bot.Position.z:0})"
         );
+    }
+
+    /// <summary>Something solid at knee height within 0.7 m toward the next path point (or the look direction), nothing at
+    /// chest height - a step / curb / low pipe the bot runs into.</summary>
+    private bool LowLedgeAhead(Vector3 pos)
+    {
+        Vector3 dir = Player.LookDirection;
+        var path = BotOwner.Mover.ActualPathController?.CurPath;
+        if (path != null && path.CurIndex < path.Length)
+        {
+            Vector3 to = path.GetPoint(path.CurIndex) - pos;
+            to.y = 0f;
+            if (to.sqrMagnitude > 0.04f)
+            {
+                dir = to;
+            }
+        }
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.01f)
+        {
+            return false;
+        }
+        dir.Normalize();
+        int mask = LayersMaskController.HighPolyWithTerrainMask;
+        return Physics.Raycast(pos + Vector3.up * 0.4f, dir, 0.7f, mask)
+            && !Physics.Raycast(pos + Vector3.up * 1.3f, dir, 1.0f, mask);
     }
 
     private bool NextCorner(Vector3 pos, out Vector3 corner)

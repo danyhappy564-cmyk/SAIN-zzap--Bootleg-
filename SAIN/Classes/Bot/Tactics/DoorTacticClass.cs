@@ -3302,11 +3302,18 @@ public partial class DoorTacticClass : BotComponentClassBase
             bool sawKiller = goal != null && lastAggressor != null && goal.EnemyProfileId == lastAggressor.ProfileId && goal.Seen;
             SAIN.Components.BotControllerSpace.Classes.PlayerStyleRecorder.OnBotKilled(
                 Bot, lastAggressor, part, decision.CurrentCombatDecision.ToString(), sawKiller);
+            // 10/14 sim: a bot killed by its own grenade read "by=Dueleus" under its journal name Bot4 - nobody could tell.
+            bool selfKill = lastAggressor != null && lastAggressor.ProfileId == Bot.ProfileId;
+            if (selfKill && TacticDiagnostics.CountOn) TacticDiagnostics.Count($"death.selfKill.{damage.DamageType}");
+            string deathLine = $"[Death] [{Bot.name}] ({Player?.Profile?.Nickname}) [{Bot.Info.Personality}] layer={Bot.ActiveLayer} combat={decision.CurrentCombatDecision} "
+                + $"self={decision.CurrentSelfDecision} speed={Player.Velocity.magnitude:0.0} part={part} by={lastAggressor?.Profile?.Nickname} "
+                + $"damage={damage.DamageType}{(selfKill ? " SELFKILL" : "")} why={decision.EnemyDecisions?.LastReason}";
+            SAIN.SimLab.SimLabSceneMark.NoteDeath(Player, deathLine);
             if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
-                $"[Death] [{Bot.name}] [{Bot.Info.Personality}] layer={Bot.ActiveLayer} combat={decision.CurrentCombatDecision} self={decision.CurrentSelfDecision} "
+                $"[Death] [{Bot.name}] ({Player?.Profile?.Nickname}) [{Bot.Info.Personality}] layer={Bot.ActiveLayer} combat={decision.CurrentCombatDecision} self={decision.CurrentSelfDecision} "
                     + $"squad={decision.CurrentSquadDecision} diamond={TacticDiagnostics.GetDiamond(Bot.ProfileId)} enemy={enemyInfo} "
                     + $"underFire={BotOwner.Memory.IsUnderFire} pose={Player.PoseLevel:0.0} speed={Player.Velocity.magnitude:0.0} "
-                    + $"inCover={Bot.Cover.CoverInUse != null} part={part} by={lastAggressor?.Profile?.Nickname} "
+                    + $"inCover={Bot.Cover.CoverInUse?.BotInThisCover == true} part={part} by={lastAggressor?.Profile?.Nickname} damage={damage.DamageType}{(selfKill ? " SELFKILL" : "")} "
                     + $"why={decision.EnemyDecisions?.LastReason} decisionAge={decisionAge:0.0}s"
                     + (teamKill ? " TEAMKILL" : "")
                     + $" | guns: {WeaponLog.Guns(BotOwner)}"

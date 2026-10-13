@@ -681,6 +681,14 @@ public class DoorOpener : BotComponentClassBase
                 return false;
         }
         data.LastInteractTime = Time.time;
+        // 10/14: a rammed door the bot then used by hand - log what the leaf looked like (the journal only had the ram)
+        if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn
+            && (BotDoorBreacher.RecentlyBreached(data.Door, 30f) || ReversedLeafUnjam.IsReversed(data.Door)))
+        {
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
+                $"[DoorHand] [{Bot.name}] {type} door {data.Door.GetInstanceID()} by hand - before: {BotDoorBreacher.DescribeLeaf(data.Door)} "
+                    + $"| layer {BotOwner.Brain?.ActiveLayerName()} | at ({Bot.Position.x:0},{Bot.Position.z:0})");
+        }
         Player.MovementContext.ResetCanUsePropState();
         var interactionResult = Door.Interact(Player, type);
         if (interactionResult.Succeeded)

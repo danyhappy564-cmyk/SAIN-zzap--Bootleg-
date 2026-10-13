@@ -69,7 +69,17 @@ public static class BotDoorBreacher
             return false;
         }
         // CanBeBreached: BSG's own "this door can be kicked" (Labs glass doors etc. are not) - Interact(Breach) doesn't check it
-        return door.CanBeBreached && (BothSides || !WillSwingToward(door, position));
+        if (!door.CanBeBreached)
+        {
+            return false;
+        }
+        if (!WillSwingToward(door, position))
+        {
+            return true;
+        }
+        // turned away from the bot (ours or DualSideDoorBreach's): only when the reversed leaf has room to land - 10/14 sim, a
+        // turned leaf stuck across a passage for the rest of the raid (ReversedLeafUnjam clears the ones this misses)
+        return BothSides && BotDoorPushOpen.SwingSpaceClear(door);
     }
 
     /// <summary>
@@ -165,6 +175,7 @@ public static class BotDoorBreacher
     /// <summary>Every frame from DoorHandler.ManualUpdate. At most 16 jobs, one sphere cast each; the loop only removes.</summary>
     public static void Tick(float time)
     {
+        TickAfterBreach(time);
         for (int i = _jobs.Count - 1; i >= 0; i--)
         {
             Job job = _jobs[i];
@@ -187,6 +198,52 @@ public static class BotDoorBreacher
     public static void OnNewRaid()
     {
         _jobs.Clear();
+        _afterBreach.Clear();
+        _breachTimes.Clear();
+    }
+
+    // 10/14 sim (user: "one ram, the door burst, the bot stood there, then opened it by hand" - the journal had only the ram):
+    // where the leaf ended 2 s after each SAIN ram, and when it was last rammed (DoorOpener logs hand use of such doors).
+    private struct AfterBreach
+    {
+        public Door Door;
+        public float Time;
+        public string Who;
+    }
+
+    private static readonly List<AfterBreach> _afterBreach = new();
+    private static readonly Dictionary<int, float> _breachTimes = new();
+
+    public static bool RecentlyBreached(Door door, float within)
+    {
+        return door != null && _breachTimes.TryGetValue(door.GetInstanceID(), out float t) && Time.time - t < within;
+    }
+
+    /// <summary>"state angle (own open X, reversed)" - for journal lines about a door.</summary>
+    public static string DescribeLeaf(Door door)
+    {
+        if (door == null)
+        {
+            return "door gone";
+        }
+        return $"{door.DoorState} angle={door.CurrentAngle:0} (own open {door.GetAngle(EDoorState.Open):0}{(ReversedLeafUnjam.IsReversed(door) ? ", REVERSED" : "")})";
+    }
+
+    private static void TickAfterBreach(float time)
+    {
+        for (int i = _afterBreach.Count - 1; i >= 0; i--)
+        {
+            AfterBreach a = _afterBreach[i];
+            if (time - a.Time < 2f)
+            {
+                continue;
+            }
+            _afterBreach.RemoveAt(i);
+            if (TacticDiagnostics.LogOn)
+            {
+                TacticDiagnostics.LogCloseCombat($"[DoorRam] door {(a.Door != null ? a.Door.GetInstanceID() : 0)} 2s after {a.Who}'s ram: {DescribeLeaf(a.Door)}");
+            }
+        }
     }
 
     private static Door DoorInFrontOfRun(Player player)
@@ -305,6 +362,11 @@ public static class BotDoorBreacher
             SwingFlip.End();
         }
         TacticDiagnostics.Count(towardBot ? (flip ? "doorram.breach.flipped" : "doorram.breach.flippedByDualSide") : "doorram.breach");
+        _breachTimes[door.GetInstanceID()] = Time.time;
+        if (_afterBreach.Count < 32)
+        {
+            _afterBreach.Add(new AfterBreach { Door = door, Time = Time.time, Who = player.Profile?.Nickname });
+        }
         HurtRammer(player, door);
     }
 

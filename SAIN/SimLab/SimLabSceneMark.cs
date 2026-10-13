@@ -36,6 +36,31 @@ public static class SimLabSceneMark
     {
         _marks.Clear();
         _count = 0;
+        _deaths.Clear();
+    }
+
+    // 10/14 (user: "this one wasn't marked - dead, so it didn't show up"): F8 only looked at the living. Bots that died within
+    // the last 60 s in view are listed too, with their [Death] line. At most 64 kept (oldest dropped).
+    private struct Death
+    {
+        public Vector3 Position;
+        public float Time;
+        public string Line;
+    }
+
+    private static readonly List<Death> _deaths = new();
+
+    public static void NoteDeath(Player p, string line)
+    {
+        if (p == null)
+        {
+            return;
+        }
+        if (_deaths.Count >= 64)
+        {
+            _deaths.RemoveAt(0);
+        }
+        _deaths.Add(new Death { Position = p.Position, Time = Time.time, Line = line });
     }
 
     public static void Mark()
@@ -71,15 +96,35 @@ public static class SimLabSceneMark
                     picked.Add((p, angle, dist));
                 }
             }
+            var dead = new List<(Death d, float angle, float dist)>();
+            for (int i = 0; i < _deaths.Count; i++)
+            {
+                Death d = _deaths[i];
+                if (Time.time - d.Time > 60f)
+                {
+                    continue;
+                }
+                Vector3 to = d.Position + Vector3.up * 0.5f - eye;
+                float dist = to.magnitude;
+                float angle = Vector3.Angle(fwd, to);
+                if (dist <= 80f && angle < 35f)
+                {
+                    dead.Add((d, angle, dist));
+                }
+            }
             _count++;
-            float raidTime = SimLogListener.RaidSeconds;
-            string head = $"[Mark] #{_count} t={raidTime:0.0}s camera at {RaidJournal.Pos(eye)} looking {Compass(fwd)} - {picked.Count} bot(s) in view";
+            // the journal's own clock (its lines start t=), not the sim's raid clock (they differ by the loading time)
+            string head = $"[Mark] #{_count} camera at {RaidJournal.Pos(eye)} looking {Compass(fwd)} - {picked.Count} bot(s) in view, {dead.Count} died here in the last 60s";
             Write(head);
             foreach (var x in picked.OrderBy(x => x.angle * 2f + x.dist).Take(MAX_BOTS))
             {
                 Write($"  #{_count} {x.dist:0}m from camera: {Describe(x.p)}");
             }
-            Notify($"장면 표시 #{_count} — 봇 {Math.Min(picked.Count, MAX_BOTS)}명 기록 (일지 [Mark])");
+            foreach (var x in dead.OrderBy(x => x.angle * 2f + x.dist).Take(MAX_BOTS))
+            {
+                Write($"  #{_count} {x.dist:0}m from camera: DEAD {Time.time - x.d.Time:0}s ago: {x.d.Line}");
+            }
+            Notify($"장면 표시 #{_count} — 봇 {Math.Min(picked.Count, MAX_BOTS)}명{(dead.Count > 0 ? $", 방금 죽은 봇 {Math.Min(dead.Count, MAX_BOTS)}명" : "")} 기록 (일지 [Mark])");
         }
         catch (Exception ex)
         {
@@ -125,12 +170,19 @@ public static class SimLabSceneMark
         var d = bot.Decision;
         string decisions = $"combat={d.CurrentCombatDecision} squad={d.CurrentSquadDecision} self={d.CurrentSelfDecision} why={d.EnemyDecisions?.LastReason}";
         float underFireAgo = owner?.Memory != null && owner.Memory.UnderFireTime > 0f ? Time.time - owner.Memory.UnderFireTime : -1f;
-        string gun = $"reloading={owner?.WeaponManager?.Reload?.Reloading == true} shooting={owner?.ShootData?.Shooting == true} aim={bot.Aim?.AimStatus}";
+        // 10/14 marks #7/#11/#12: what holds the hands (gun / meds / grenade), whether EFT lets it sprint, where the muzzle points
+        string hands = p.HandsController == null ? "none" : p.HandsController is EFT.Player.FirearmController ? "gun"
+            : p.HandsController is IGrenadeController ? "GRENADE" : p.HandsController.GetType().Name.Replace("Controller", "");
+        float pitchUp = Mathf.Asin(Mathf.Clamp(bot.Transform.LookDirection.normalized.y, -1f, 1f)) * Mathf.Rad2Deg;
+        string gun = $"hands={hands} reloading={owner?.WeaponManager?.Reload?.Reloading == true} meds={owner?.Medecine?.Using == true} "
+            + $"shooting={owner?.ShootData?.Shooting == true} aim={bot.Aim?.AimStatus} lookPitch={pitchUp:0}deg light={owner?.BotLight?.IsEnable == true}";
+        var cover = bot.Cover?.CoverInUse;
+        string coverText = cover == null ? "none" : cover.BotInThisCover ? "in" : $"{(cover.Position - pos).magnitude:0}m away";
         string legs = Legs(p);
         var enemy = bot.GoalEnemy;
         string enemyText = enemy == null ? "none"
             : $"{enemy.EnemyPlayer?.Profile?.Nickname} {enemy.RealDistance:0}m {(enemy.IsVisible ? "visible" : enemy.Seen ? $"seen {enemy.TimeSinceSeen:0}s ago" : "never seen")}";
-        return $"{head} [{bot.Info.Personality}] layer={layer} {decisions} | speed={speed:0.0}m/s sprint={p.IsSprintEnabled} pose={p.PoseLevel:0.0} "
+        return $"{head} [{bot.Info.Personality}] layer={layer} {decisions} | speed={speed:0.0}m/s sprint={p.IsSprintEnabled} canSprint={p.MovementContext?.CanSprint == true} cover={coverText} pose={p.PoseLevel:0.0} "
             + $"moveVsLook={moveVsLook} doorSlow={bot.Mover.DoorSlowActive} | {gun} underFire={(underFireAgo >= 0f && underFireAgo < 30f ? $"{underFireAgo:0.0}s ago" : "no")} "
             + $"hp={bot.Memory.Health.HealthStatus} legs={legs} | enemy={enemyText} | {Door(bot, pos)} | wallAhead={WallAhead(bot)} | at {RaidJournal.Pos(pos)}";
     }

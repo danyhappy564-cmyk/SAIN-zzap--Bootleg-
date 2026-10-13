@@ -47,7 +47,17 @@ public static class HealUtility
             ETagStatus.BadlyInjured => 0.35f,
             _ => 0.1f,
         };
-        bool inCover = bot.Cover.CoverInUse != null;
+        // CoverInUse is also the cover the bot is still running to - only BotInThisCover means arrived.
+        var cover = bot.Cover.CoverInUse;
+        bool inCover = cover != null && cover.BotInThisCover;
+        // 10/14 sim F8 marks #11/#12 (user: "takes hits and just walks slowly"): first aid picked on the way to cover - EFT
+        // blocks sprinting while meds are in use (MovementContext.CanSprint: UsingMeds), so the bot crossed the open at walking
+        // pace. Get there first; with a damaged leg it can't sprint anyway, so the cost is smaller.
+        var decision = bot.Decision.CurrentCombatDecision;
+        bool runningToCover = !inCover && bot.Player.Velocity.magnitude > 0.5f
+            && (decision == ECombatDecision.SeekCover || decision == ECombatDecision.Retreat
+                || decision == ECombatDecision.RunAway);
+        bool legsHold = bot.Player.MovementContext != null && !bot.Player.MovementContext.CanSprint;
         bool hit = bot.Medical.TimeSinceShot < 2f;
         bool anyVisible = false;
         bool coming = false;
@@ -110,7 +120,7 @@ public static class HealUtility
         float medBias = load.Meds >= 3 ? 0.1f : load.Meds <= 1 && health > 0.35f ? -0.1f : 0f;
         float firstAid = canFirstAid
             ? medBias + 0.2f + 0.5f * (1f - health) + (inCover ? 0.2f : 0f) + 0.3f * safe - (anyVisible ? 0.6f : 0f) - (coming ? 0.35f : 0f) - (hit ? 0.3f : 0f)
-                - (inHisView ? 0.4f : 0f)
+                - (inHisView ? 0.4f : 0f) - (runningToCover ? (legsHold ? 0.2f : 0.5f) : 0f)
             : -1f;
         float stim = canStim && health <= 0.35f
             ? 0.3f + 0.4f * (1f - health) + (anyVisible ? 0.1f : 0f) - (bot.Medical.TimeSinceShot < 0.5f ? 0.2f : 0f)
@@ -138,7 +148,7 @@ public static class HealUtility
             _nextLog[id] = time + 4f;
             if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
                 $"[Heal] [{bot.name}] {list[0].choice}{(mistake ? " (mistake)" : "")} {list[0].score:0.00} > {list[1].choice} {list[1].score:0.00} | "
-                    + $"{hs}; {(anyVisible ? "enemy in sight; " : "")}{(inHisView ? "standing where he could see me; " : "")}{(coming ? "someone coming; " : "")}{(hit ? "just hit; " : "")}{(inCover ? "in cover; " : "")}"
+                    + $"{hs}; {(anyVisible ? "enemy in sight; " : "")}{(inHisView ? "standing where he could see me; " : "")}{(coming ? "someone coming; " : "")}{(hit ? "just hit; " : "")}{(inCover ? "in cover; " : "")}{(runningToCover ? "running to cover; " : "")}"
                     + $"nearest threat {nearestPath:0}m / {nearestAge:0}s ago; meds {load.Meds}");
         }
         if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"heal.pick.{list[0].choice}");

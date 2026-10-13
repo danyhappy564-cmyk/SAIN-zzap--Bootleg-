@@ -50,6 +50,20 @@ internal class SeekCoverAction(BotOwner bot) : BotAction(bot, nameof(SeekCoverAc
     public override void OnSteeringTicked()
     {
         Enemy enemy = Bot.GoalEnemy;
+        // zzap (10/14 sim F8 mark #7, user: "walks slowly sideways shooting, then dies"): walking (not sprinting - legs gone)
+        // to cover with the gun out of action (reloading / meds in hand), the bot still faced the enemy and went backwards at
+        // 1.1 m/s. It can't shoot anyway - face the way it walks (EFT walks forward faster than backward).
+        if (CantShootWhileWalkingToCover())
+        {
+            Bot.Aim.LoseAimTarget();
+            Bot.Steering.LookToMovingDirection();
+            if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn && Time.time > _nextFaceCount)
+            {
+                _nextFaceCount = Time.time + 5f;
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("cover.faceMoveWhileBusy");
+            }
+            return;
+        }
         if (!Shoot.ShootAnyVisibleEnemies(enemy) && !Bot.Suppression.TrySuppressAnyEnemy(enemy, Bot.EnemyController.KnownEnemies))
         {
             Bot.Aim.LoseAimTarget();
@@ -60,6 +74,22 @@ internal class SeekCoverAction(BotOwner bot) : BotAction(bot, nameof(SeekCoverAc
             Bot.Steering.LookToLastKnownEnemyPosition(enemy);
         }
         checkSetLean();
+    }
+
+    private float _nextFaceCount;
+
+    private bool CantShootWhileWalkingToCover()
+    {
+        var cover = Bot.Cover.CoverInUse;
+        if (cover == null || cover.BotInThisCover || Bot.Mover.Running || Bot.Player.Velocity.magnitude < 0.5f)
+        {
+            return false;
+        }
+        if ((cover.Position - Bot.Position).sqrMagnitude < 2f * 2f)
+        {
+            return false;
+        }
+        return BotOwner.WeaponManager?.Reload?.Reloading == true || BotOwner.Medecine?.Using == true;
     }
 
     private void checkSetLean()

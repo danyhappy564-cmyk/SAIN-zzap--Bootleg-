@@ -56,6 +56,31 @@ public static class DoorLeafCheck
         return found;
     }
 
+    /// <summary>The door of the nearest open (not mid-swing) leaf within <paramref name="radius"/> of a standing body, or null.</summary>
+    public static Door OpenLeafDoorNear(Vector3 point, float radius)
+    {
+        int count = Physics.OverlapSphereNonAlloc(point + Vector3.up * 1f, radius, _buffer, Mask, QueryTriggerInteraction.Ignore);
+        Door best = null;
+        float bestSq = float.MaxValue;
+        for (int i = 0; i < count && i < _buffer.Length; i++)
+        {
+            Collider c = _buffer[i];
+            Door door = c != null ? c.GetComponentInParent<Door>() : null;
+            if (door == null || door.DoorState != EDoorState.Open)
+            {
+                continue;
+            }
+            float sq = (c.bounds.ClosestPoint(point + Vector3.up * 1f) - (point + Vector3.up * 1f)).sqrMagnitude;
+            if (sq < bestSq)
+            {
+                bestSq = sq;
+                best = door;
+            }
+        }
+        System.Array.Clear(_buffer, 0, _buffer.Length);
+        return best;
+    }
+
     /// <summary>An open / opening door leaf within <paramref name="distance"/> straight ahead along <paramref name="dir"/> (knee and chest height).</summary>
     public static bool OpenLeafAhead(Vector3 feet, Vector3 dir, float distance)
     {
