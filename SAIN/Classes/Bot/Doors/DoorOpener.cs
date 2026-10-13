@@ -61,6 +61,30 @@ public class DoorOpener : BotComponentClassBase
     /// zzap: like DoorsNearby, but only doors that are not standing fully open (shut, locked, swinging) - the ones a
     /// sprinting bot can actually run into. Used for urgent moves under fire (BotPathData).
     /// </summary>
+    /// <summary>
+    /// zzap (2026-10-14, user: "the Labs sliding doors take about a second to open"): a sliding door within range, ahead of the
+    /// move, still sliding (Interacting) - the bot waits for it instead of running into the moving glass panel.
+    /// </summary>
+    public Door SlidingDoorStillOpening(Vector3 position, Vector3 moveDir, float distSqr)
+    {
+        for (int i = 0; i < _allDoors.Count; i++)
+        {
+            var data = _allDoors[i];
+            Door door = data.Door;
+            if (door == null || data.CurrentSqrMagnitude > distSqr || !BotDoorBreacher.IsSliding(door) || door.DoorState != EDoorState.Interacting)
+            {
+                continue;
+            }
+            Vector3 to = door.transform.position - position;
+            to.y = 0f;
+            if (Vector3.Dot(to, moveDir) > 0f)
+            {
+                return door;
+            }
+        }
+        return null;
+    }
+
     public bool BlockingDoorNearby(float distSqr)
     {
         for (int i = 0; i < _allDoors.Count; i++)

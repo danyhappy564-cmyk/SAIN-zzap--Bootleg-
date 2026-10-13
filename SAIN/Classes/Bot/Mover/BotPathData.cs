@@ -73,6 +73,15 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
             return;
         }
 
+        if (WaitForSlidingDoor(botPosition, currentCorner.Position))
+        {
+            Status = EBotMoveStatus.Paused;
+            SetSprint(false);
+            Bot.Player?.Move(Vector2.zero);
+            PathFinder.PathSteeringTicked(currentCorner, CurrentIndex, PathCorners.Count);
+            return;
+        }
+
         Status = EBotMoveStatus.Moving;
 
         //Util.StopVanillaMover(Bot.BotOwner.Mover);
@@ -541,6 +550,45 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
 
         //Bot.Steering.Unlock();
         return false;
+    }
+
+    // zzap (2026-10-14, user: Labs cafeteria sliding glass doors take ~1 s to open - bots ran into the sliding panel and stuck
+    // against the frame): stand still while a sliding door 1.8 m ahead is still sliding, at most 2.5 s per door.
+    private const float SLIDE_WAIT_DIST = 1.8f;
+    private const float SLIDE_WAIT_MAX = 2.5f;
+    private Door _slideWaitDoor;
+    private float _slideWaitSince;
+    private bool _slideWaitGaveUp;
+
+    private bool WaitForSlidingDoor(Vector3 botPosition, Vector3 corner)
+    {
+        Vector3 moveDir = corner - botPosition;
+        moveDir.y = 0f;
+        Door door = moveDir.sqrMagnitude > 0.01f
+            ? Bot.DoorOpener.SlidingDoorStillOpening(botPosition, moveDir, SLIDE_WAIT_DIST * SLIDE_WAIT_DIST)
+            : null;
+        if (door == null)
+        {
+            _slideWaitDoor = null;
+            return false;
+        }
+        if (!ReferenceEquals(door, _slideWaitDoor))
+        {
+            _slideWaitDoor = door;
+            _slideWaitSince = Time.time;
+            _slideWaitGaveUp = false;
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("door.slideWait");
+        }
+        if (Time.time - _slideWaitSince > SLIDE_WAIT_MAX)
+        {
+            if (!_slideWaitGaveUp)
+            {
+                _slideWaitGaveUp = true;
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("door.slideWait.timeout");
+            }
+            return false; // stays given up for this door until it is out of range
+        }
+        return true;
     }
 
     private bool CheckPaused()
