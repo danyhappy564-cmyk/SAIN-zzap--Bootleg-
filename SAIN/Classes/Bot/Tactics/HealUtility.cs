@@ -123,7 +123,11 @@ public static class HealUtility
                 - (inHisView ? 0.4f : 0f) - (runningToCover ? (legsHold ? 0.2f : 0.5f) : 0f)
             : -1f;
         float stim = canStim && health <= 0.35f
-            ? 0.3f + 0.4f * (1f - health) + (anyVisible ? 0.1f : 0f) - (bot.Medical.TimeSinceShot < 0.5f ? 0.2f : 0f)
+            // 10/14 (user screenshots, Bot35: "fighting, then healing where he could be seen, and died"): +0.1 for an enemy in
+            // sight held even standing in the open - he stimmed 25 m from a visible enemy. In cover it still helps; out of it,
+            // with the enemy in sight or able to see us, it costs.
+            ? 0.3f + 0.4f * (1f - health) + (anyVisible ? (inCover ? 0.1f : -0.25f) : 0f) - (inHisView && !inCover ? 0.2f : 0f)
+                - (bot.Medical.TimeSinceShot < 0.5f ? 0.2f : 0f)
             : -1f;
         float surgery = canSurgery
             ? 0.1f + 0.4f * safe + (inCover ? 0.15f : 0f) - (anyVisible ? 0.8f : 0f) - (coming ? 0.5f : 0f) - (nearestAge < 10f ? 0.3f : 0f) - (inHisView ? 0.5f : 0f)

@@ -66,6 +66,7 @@ public static class SimLabGlossary
         new("utilityV.do.", "적이 보일 때 고른 행동 (StandAndShoot=서서 쏘기, RushEnemy=돌격, SeekCover=엄폐)", "Action chosen with the enemy visible (StandAndShoot, RushEnemy, SeekCover)", "VisibleEnemyUtility"),
         new("utilityV.top.", "보이는 적 상대로 점수가 가장 높았던 선택지 (Shoot/Push/Cover)", "Highest-scored option against a visible enemy", "VisibleEnemyUtility scores"),
         new("decision.", "판단 유지 규칙 (closeOcclusionKeep=가까운 적이 잠깐 가려져도 유지)", "Decision keep rules", "EnemyDecisionClass"),
+        new("sim.corpseWeaponDeleted", "시체를 지울 때 죽을 때 손에서 떨어진 총도 같이 지움 (10/14 '몸만 사라지고 총만 남음')", "Dropped gun deleted with the corpse", "CorpseCleanup"),
         new("death.selfKill.", "자기 공격으로 사망 (.Explosion 등 = 자기 수류탄 — 10/14 벽에 튕긴 자기 수류탄)", "Killed by own damage (own grenade)", "DoorTacticClass death log"),
         new("death.freezeFresh", "정지 및 매복을 고른 지 1.5초 안에 사망 (보이지 않던 적의 한 방 등 — 매복 종료 조건이 반응할 수 없는 시간이라 '매복 중 사망' 경고에서 뺌)", "Died within 1.5 s of picking Freeze", "DoorTacticClass death log"),
         new("closeSense.", "3m 안 적 봇을 몸으로 알아챔 (noticed=벽 없이 3m 안에 있던 모르는 적 봇을 발소리로 들은 것처럼 등록, noEnemyInfo=등록 실패) — 플레이어는 대상 아님", "Noticed a hostile bot within 3 m", "SAINEnemyController.CloseSense"),

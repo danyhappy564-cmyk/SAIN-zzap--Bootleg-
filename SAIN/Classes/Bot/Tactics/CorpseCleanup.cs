@@ -20,7 +20,7 @@ public static class CorpseCleanup
 {
     private const float MIN_AGE = 20f;
 
-    private static readonly Queue<(Player player, float time)> _corpses = new();
+    private static readonly Queue<(Player player, float time, string weaponId)> _corpses = new();
 
     // Every death is checked once, 3s later, by what the body looks like - whatever the cause (user 2026-09-29: "you never
     // find the walking corpses in the log"): no ragdoll corpse built, character controller still on, or the body moved
@@ -64,7 +64,16 @@ public static class CorpseCleanup
     {
         if (player != null)
         {
-            _corpses.Enqueue((player, Time.time));
+            // OnPlayerDead fires before HandsController.OnPlayerDead drops the gun - the item in hand is the one that lands
+            string weaponId = null;
+            try
+            {
+                weaponId = player.HandsController?.Item is EFT.InventoryLogic.Weapon w ? w.Id : null;
+            }
+            catch
+            {
+            }
+            _corpses.Enqueue((player, Time.time, weaponId));
             _toInspect.Add((player, Time.time, player.Position, player.name));
         }
     }
@@ -136,7 +145,7 @@ public static class CorpseCleanup
         // Each pass dequeues one corpse or returns, so this ends.
         while (_corpses.Count > 0 && (sweep || (limit > 0 && _corpses.Count > limit)))
         {
-            var (player, time) = _corpses.Peek();
+            var (player, time, weaponId) = _corpses.Peek();
             if (Time.time - time < MIN_AGE)
             {
                 return;
@@ -146,8 +155,10 @@ public static class CorpseCleanup
             {
                 continue;
             }
+            Vector3 bodyPos = player.Position;
             if (Delete && TryDelete(player))
             {
+                DeleteDroppedWeapon(weaponId, bodyPos);
                 continue;
             }
             player.gameObject.SetActive(false);
@@ -330,6 +341,40 @@ public static class CorpseCleanup
         {
             TacticDiagnostics.Count("sim.corpseUnregisterFailed");
             Logger.LogWarning($"[SAIN zzap] removing a deleted corpse from the player lists failed: {ex.Message}");
+        }
+    }
+
+    // 10/14 (user screenshots: "died, and the body vanished leaving only the gun"): the gun a bot holds when it dies is
+    // dropped as its own loot item, apart from the corpse - deleting the corpse left it lying there. Deleted with it, unless
+    // someone picked it up (then it is no LootItem in the world any more) or it lies 10 m+ from the body.
+    private static void DeleteDroppedWeapon(string weaponId, Vector3 body)
+    {
+        var world = Comfort.Common.Singleton<GameWorld>.Instance;
+        if (string.IsNullOrEmpty(weaponId) || world == null)
+        {
+            return;
+        }
+        try
+        {
+            var list = world.LootList;
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] is not LootItem loot || loot.ItemId != weaponId)
+                {
+                    continue;
+                }
+                if ((loot.transform.position - body).sqrMagnitude > 10f * 10f)
+                {
+                    return;
+                }
+                world.DestroyLoot(loot);
+                TacticDiagnostics.Count("sim.corpseWeaponDeleted");
+                return;
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Logger.LogWarning($"[SAIN zzap] deleting a deleted corpse's dropped gun failed: {ex.Message}");
         }
     }
 
