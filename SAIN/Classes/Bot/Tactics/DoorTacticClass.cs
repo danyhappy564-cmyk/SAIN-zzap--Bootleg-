@@ -73,11 +73,7 @@ public partial class DoorTacticClass : BotComponentClassBase
         ClearThrow,
         ClearWait,
         ClearDash,
-        // zzap door mods (DoorModInterop): only reachable while Door Overhaul / doordash are installed.
-        ModShootThrough,
-        ModBreachMove,
-        ModBreachThrow,
-        ModBreachWait,
+        // zzap door mod (DoorModInterop): only reachable while doordash is installed.
         ModRamRunUp,
         ModRamCharge,
     }
@@ -846,17 +842,7 @@ public partial class DoorTacticClass : BotComponentClassBase
         public bool RunByBackToAngle;
         public Vector3 RunByBackTarget;
         public readonly HashSet<string> SupportIds = new();
-        // zzap door mods
-        public bool WantShootThrough;
-        public Vector3 ShootAim;
-        public Vector3 ShootTarget;
-        public float ShootFor;
-        public bool ShootFired;
-        public EStep AfterShoot;
-        public bool WantBreachNade;
-        public Vector3 BreachThrowPoint;
-        public Vector3 BreachTarget;
-        public bool BreachThrown;
+        // zzap door mod (doordash)
         public bool WantRam;
         public Vector3 RamRunUp;
         public bool RamStarted;
@@ -868,13 +854,6 @@ public partial class DoorTacticClass : BotComponentClassBase
     {
         bool testMode = Settings.TestModeAllPmcGigaChad && Bot.Info.Profile.IsPMC;
         bool doorOpen = geo.Data.Door.DoorState == EDoorState.Open;
-        // zzap (Door Overhaul): a door left cracked by a player peek is "Open" but the leaf still blocks the doorway - treat it
-        // as shut, so the plan opens it first (TryOpenDoorForTactic pushes it the rest of the way).
-        if (doorOpen && Settings.DoorModPushPartlyOpen && DoorModInterop.IsPartlyOpen(geo.Data.Door))
-        {
-            doorOpen = false;
-            TacticDiagnostics.Count("doormod.partlyOpenAtStart");
-        }
         var grenades = BotOwner.WeaponManager?.Grenades;
         bool haveNade = grenades != null && grenades.HaveGrenade;
 
@@ -1274,19 +1253,19 @@ public partial class DoorTacticClass : BotComponentClassBase
         {
             case EStep.MoveToStack:
                 s.LookTarget = s.InsidePoint;
-                if (MoveStep(s, s.Stack, s.BreachThrown, stepTime))
+                if (MoveStep(s, s.Stack, false, stepTime))
                 {
                     if (s.Plan == EPlan.Clear)
                     {
-                        SetStep(ShootThroughFirst(s, s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : ClearEntry(s)), "atStack");
+                        SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : ClearEntry(s), "atStack");
                     }
                     else if (s.Plan == EPlan.Peek)
                     {
-                        SetStep(ShootThroughFirst(s, s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : PeekEntry(s)), "atStack");
+                        SetStep(s.NeedsOpenForPeek ? EStep.OpenDoorFromSide : PeekEntry(s), "atStack");
                     }
                     else
                     {
-                        SetStep(ShootThroughFirst(s, FakeOrHold(s)), "atStack");
+                        SetStep(FakeOrHold(s), "atStack");
                     }
                 }
                 break;
@@ -1707,26 +1686,6 @@ public partial class DoorTacticClass : BotComponentClassBase
                     TacticDiagnostics.Count("door.clear.entered");
                     End("roomEntered");
                 }
-                break;
-
-            case EStep.ModShootThrough:
-                TickShootThrough(s, stepTime);
-                break;
-
-            case EStep.ModBreachMove:
-                s.LookTarget = s.BreachTarget + Vector3.up * 0.6f;
-                if (MoveStep(s, s.BreachThrowPoint, false, stepTime))
-                {
-                    SetStep(EStep.ModBreachThrow, "atThrowPoint");
-                }
-                break;
-
-            case EStep.ModBreachThrow:
-                TickBreachThrow(s, stepTime);
-                break;
-
-            case EStep.ModBreachWait:
-                TickBreachWait(s, stepTime);
                 break;
 
             case EStep.ModRamRunUp:

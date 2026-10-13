@@ -136,7 +136,7 @@ internal static class TacticDiagnostics
         {
             LogSettings();
         }
-        // zzap: door mods present this raid (Door Overhaul / doordash) -> SUMMARY counter + journal line.
+        // zzap: door mod present this raid (doordash) -> SUMMARY counter + journal line.
         DoorModInterop.OnNewRaid(key => { if (Enabled) Count(key); }, line => { if (RaidJournal.IsOpen) RaidJournal.Line(line); if (Enabled) Logger.LogWarning(line); });
     }
 
@@ -186,8 +186,8 @@ internal static class TacticDiagnostics
                 + $"chance%: giga={d.GigaChadChance:0} chad={d.ChadChance:0} turtle={d.SnappingTurtleChance:0} rat={d.RatChance:0} "
                 + $"peekVsTrap={d.GigaChadPeekChance:0} runBy%={d.RunByChance:0} stepPeek={d.StepPeek} autoClose={d.AutoCloseDoors} x{d.ChanceMultiplier:0.0} "
                 + $"TESTMODE={d.TestModeAllPmcGigaChad} logs={d.DiagnosticLogs}/{d.VerboseLogs} "
-                + $"doorMods: shoot={d.DoorModShootThrough}/{d.DoorModShootThroughChance:0}% age{d.DoorModShootMaxInfoAge:0}s breach={d.DoorModGrenadeBreach}/{d.DoorModGrenadeBreachChance:0}% "
-                + $"push={d.DoorModPushPartlyOpen} ram={d.DoorModRam}/{d.DoorModRamChance:0}% TESTMODE_DOORMODS={d.TestModeDoorMods}"
+                + $"doordash: clearRam={d.DoorModRam}/{d.DoorModRamChance:0}% moveRam={d.DoorModRamOnMove} flee{d.DoorModRamFleeChance:0}/rush{d.DoorModRamRushChance:0}/search{d.DoorModRamSearchChance:0}% "
+                + $"TESTMODE_DOORMODS={d.TestModeDoorMods}"
         );
         Logger.LogWarning(
             $"[Tactics] SETTINGS FreezeAmbush: maxDist={f.MaxDistance:0}m outdoors={f.AllowOutdoors} time={f.MinDuration:0}-{f.MaxDuration:0}s "

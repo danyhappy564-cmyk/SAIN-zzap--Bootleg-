@@ -111,7 +111,7 @@ public static class ModDetection
             RealismLoaded = true;
             Logger.LogInfo($"SAIN: Realism Detected.");
         }
-        // zzap: Door Overhaul / doordash bridges (door mod tactics only run while those mods are installed).
+        // zzap: doordash bridge (the ram only runs while doordash is installed).
         DoorModInterop.Init();
     }
 

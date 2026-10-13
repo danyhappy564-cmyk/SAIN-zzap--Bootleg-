@@ -53,7 +53,7 @@ public class Recoil(BotComponent sain) : BotBase(sain)
     {
         if (!_recoilFinished)
         {
-            float decayTime = Time.fixedDeltaTime * _recoilDecayCoef;
+            float decayTime = Time.fixedDeltaTime * _recoilDecayCoef * SettleMultiplier();
             _currentRecoilHorizAngle = Mathf.LerpAngle(0, _currentRecoilHorizAngle, 1f - decayTime);
             _currentRecoilVertAngle = Mathf.LerpAngle(0, _currentRecoilVertAngle, 1f - decayTime);
             if (_currentRecoilHorizAngle <= 0.001f && _currentRecoilVertAngle < 0.001f)
@@ -63,6 +63,22 @@ public class Recoil(BotComponent sain) : BotBase(sain)
                 _currentRecoilVertAngle = 0f;
             }
         }
+    }
+
+    // zzap (2026-10-13, user: "DMR / sniper bots hit less at long range than bots with assault rifles"): a shot's recoil is an
+    // aim offset (angle) that decays with a ~2s half-life, and it is scaled by the weapon's recoil times its "shootability"
+    // (sniper ~1.5x, DMR ~1.3x, AR 1.0x). Long-range fire waits a long time between shots, but not long enough for that - so
+    // the next deliberate shot still carried most of a big-recoil offset, and an angle error grows with distance. A shooter
+    // with a DMR / sniper re-settles on the target between single shots: their offset decays 3x faster (close-range rapid
+    // fire barely changes - 0.3s between shots keeps ~70% instead of ~90%).
+    private const float SETTLE_MULTI_MARKSMAN = 3f;
+
+    private float SettleMultiplier()
+    {
+        var weaponClass = Bot.Info.WeaponInfo?.EWeaponClass;
+        return weaponClass == SAIN.Preset.Shared.Enums.EWeaponClass.sniperRifle || weaponClass == SAIN.Preset.Shared.Enums.EWeaponClass.marksmanRifle
+            ? SETTLE_MULTI_MARKSMAN
+            : 1f;
     }
 
     public void WeaponShot(WeaponInfo WeaponInfo, Vector3 force)

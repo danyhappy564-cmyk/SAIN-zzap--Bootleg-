@@ -189,6 +189,13 @@ public class DogFight : BotBase
                     && (navMeshHit.position - BotPosition).sqrMagnitude > 1
                 )
                 {
+                    // zzap (2026-10-13 screenshots): not into the pocket behind an open door leaf - walkable NavMesh, but the
+                    // bot wedged there backing off with its gun on the enemy.
+                    if (DoorLeafCheck.OpenLeafNear(navMeshHit.position, 0.8f))
+                    {
+                        SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("dogfight.backupNotBehindDoorLeaf");
+                        continue;
+                    }
                     movePosition = navMeshHit.position;
                     if (Bot.Mover.WalkToPoint(movePosition, false))
                     {
@@ -213,6 +220,12 @@ public class DogFight : BotBase
                 Vector3 random = Random.onUnitSphere * Random.Range(1.25f, 2f);
                 random.y = 0f;
                 Vector3 Point = botNavPos + (direction * Random.Range(1f, 2f)) + random;
+                if (DoorLeafCheck.OpenLeafNear(Point, 0.8f))
+                {
+                    SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("dogfight.backupNotBehindDoorLeaf");
+                    MovePoint = Bot.Position;
+                    return false;
+                }
                 if (NavMesh.Raycast(botNavPos, Point, out NavMeshHit RaycastHit, -1))
                 {
                     if (RaycastHit.distance <= 0.5f)

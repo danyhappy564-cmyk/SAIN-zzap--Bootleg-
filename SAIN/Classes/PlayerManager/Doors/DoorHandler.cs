@@ -25,7 +25,7 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
         EnsureDoorFinalizeWatchdogInitialized(currentTime);
         TickDoorFinalizeWatches(currentTime);
         TickForcedDoorResync(currentTime);
-        // zzap: bots pushing partly open (Door Overhaul) doors, doordash rams running out.
+        // zzap: doordash rams running out.
         DoorModInterop.Tick(currentTime);
     }
 

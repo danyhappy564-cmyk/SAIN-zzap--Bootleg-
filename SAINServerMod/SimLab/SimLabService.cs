@@ -271,6 +271,15 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             config.NoModItemsInSim = true;
             config.DefaultsVersion = 5;
         }
+        if (config.DefaultsVersion < 6)
+        {
+            // Customs: ORBIT's attractor on the dorms (side A) instead of the open ground between dorms and crossroad.
+            if (config.Scenarios.TryGetValue("bigmap", out var customs) && customs != null && customs.ZonesA == "ZoneDormitory")
+            {
+                customs.ArenaOnA = true;
+            }
+            config.DefaultsVersion = 6;
+        }
         // Built-in sim presets: always the current definitions (user-saved ones are kept as they are).
         config.Presets ??= [];
         config.Presets.RemoveAll(x => x == null || x.BuiltIn);
@@ -865,13 +874,16 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         {
             PickSpectatorPoint(location, info);
         }
-        FindArena(location, info);
+        FindArena(location, info, scenario.ArenaOnA);
         info.Leash = Config.ArenaLeash && info.HasArena;
         return info;
     }
 
-    /// <summary>Arena = middle of side A's and side B's spawn points, radius covering both (for ORBIT's sim attractor).</summary>
-    private static void FindArena(LocationBase location, SimRaidInfo info)
+    /// <summary>
+    /// Arena = middle of side A's and side B's spawn points, radius covering both (for ORBIT's sim attractor). With
+    /// <paramref name="onA"/> (a defended building) the center is side A's zone and the radius still reaches side B.
+    /// </summary>
+    private static void FindArena(LocationBase location, SimRaidInfo info, bool onA)
     {
         var points = (location.SpawnPointParams ?? []).Where(p => p.Position.HasValue).ToList();
         Vector3? Center(string zones)
@@ -900,6 +912,13 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         float dz = ca.Z - cb.Z;
         float span = MathF.Sqrt(dx * dx + dz * dz);
         info.HasArena = true;
+        if (onA && a != null)
+        {
+            info.ArenaX = ca.X;
+            info.ArenaZ = ca.Z;
+            info.ArenaRadius = Math.Clamp(span + 40f, 80f, 450f);
+            return;
+        }
         info.ArenaX = (ca.X + cb.X) / 2f;
         info.ArenaZ = (ca.Z + cb.Z) / 2f;
         info.ArenaRadius = Math.Clamp(span / 2f + 60f, 80f, 450f);

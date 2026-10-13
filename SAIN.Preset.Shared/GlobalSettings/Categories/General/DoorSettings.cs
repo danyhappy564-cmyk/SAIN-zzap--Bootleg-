@@ -13,14 +13,14 @@ public class DoorSettings : SAINSettingsBase<DoorSettings>, ISAINSettings
     [DataMember]
     [Name("No Door Animations")]
     [Description(
-        "Bots auto open doors instead of getting stuck in an animation, if fika is loaded, this is ignored and it is always disabled."
+        "Bots auto open doors instead of getting stuck in an animation, if fika is loaded, this is ignored and it is always disabled. [zzap: no code reads this setting in this build - turning it on or off changes nothing.]"
     )]
     public bool NoDoorAnimations = true;
 
     [DataMember]
     [Name("Always Push Open Doors")]
     [Description(
-        "Only applies if No Door Animations is set to on. Bots will always push open doors to avoid getting stuck. Can cause cursed looking doors sometimes, but greatly improves their ability to navigate."
+        "Only applies if No Door Animations is set to on. Bots will always push open doors to avoid getting stuck. Can cause cursed looking doors sometimes, but greatly improves their ability to navigate. [zzap: no code reads this setting in this build - turning it on or off changes nothing.]"
     )]
     public bool InvertDoors = true;
 

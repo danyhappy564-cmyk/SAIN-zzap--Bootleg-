@@ -195,41 +195,8 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     [Description("Vanilla SAIN closes any open door its path runs into (6s grace for doors it just opened). With a door that opens toward the bot that means: open, walk into the leaf, jitter/spin, close it, open it again... and bots closing open doors all over the map. Off (default): bots only open shut doors while moving.")]
     public bool AutoCloseDoors = false;
 
-    // zzap (2026-10-13): door mod tactics. Each one only works while its mod is installed - SAIN finds the mod by itself at
-    // game start; when it isn't installed (or was removed) the setting is simply ignored, nothing else changes.
-
-    [DataMember]
-    [Name("Door Mods: Shoot Through Shut Doors")]
-    [Description("[Needs the Door Overhaul mod - detected automatically at game start, ignored without it] At the frame of a shut door with the enemy fresh (seen/heard a few seconds ago) in the room behind, the bot first fires a burst or two through the door at where he was - only when its current ammo punches through that door's material (Door Overhaul's penetration thresholds: thin wood 25, thick wood 30, thin metal 40 by default). Then it carries on with its plan (clear / trap / peek).")]
-    public bool DoorModShootThrough = true;
-
-    [DataMember]
-    [Name("Door Mods: Shoot Through Chance")]
-    [Description("[Needs Door Overhaul] Percent, rolled once per door tactic when shooting through is possible.")]
-    [MinMax(0f, 100f, 1f)]
-    public float DoorModShootThroughChance = 50f;
-
-    [DataMember]
-    [Name("Door Mods: Shoot Through Max Info Age (s)")]
-    [Description("[Needs Door Overhaul] Seconds since the room enemy was last seen/heard. Older than this the bot doesn't spend ammo (and give its spot away) shooting blind through a door.")]
-    [MinMax(2f, 30f, 1f)]
-    public float DoorModShootMaxInfoAge = 8f;
-
-    [DataMember]
-    [Name("Door Mods: Grenade Blows The Door")]
-    [Description("[Needs the Door Overhaul mod - detected automatically at game start, ignored without it] A room clear that was going to use a real grenade on a shut door throws it at the door from 6-9m back instead of opening it first: the blast tears the door apart (Door Overhaul) and the bot dashes in through the hole. If the door survives, it goes on as before (open from the side, dash). Never from closer than the bot's own blast range, never with a teammate near the door.")]
-    public bool DoorModGrenadeBreach = true;
-
-    [DataMember]
-    [Name("Door Mods: Grenade Blows The Door Chance")]
-    [Description("[Needs Door Overhaul] Percent, rolled when a room clear with a real grenade meets a shut, destructible door.")]
-    [MinMax(0f, 100f, 1f)]
-    public float DoorModGrenadeBreachChance = 50f;
-
-    [DataMember]
-    [Name("Door Mods: Bots Push Partly Open Doors")]
-    [Description("[Needs Door Overhaul] A door the player peeked or opened quietly stays partly open - 'open' for the game, but the leaf still blocks most of the doorway, so bots walked into it and got stuck. With this on, a bot that walks into such a door (or wants to peek / clear through it) pushes it the rest of the way open. Never while the player is still holding that door in a peek.")]
-    public bool DoorModPushPartlyOpen = true;
+    // zzap (2026-10-13): doordash tactics. Only work while doordash is installed - SAIN finds the mod by itself at game start;
+    // when it isn't installed (or was removed) these settings are simply ignored, nothing else changes.
 
     [DataMember]
     [Name("Door Mods: Sprint Ram Into The Room")]
@@ -243,8 +210,31 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float DoorModRamChance = 35f;
 
     [DataMember]
+    [Name("Door Mods: Sprint Ram While Running Through Doors")]
+    [Description("[Needs the doordash mod - detected automatically at game start, ignored without it] Outside door tactics too: a bot running away, rushing an enemy or searching for one whose path goes through a shut door 3-7m ahead (swinging away from it, straight lane) may sprint into it instead of stopping to open it - doordash bursts it open. The chance depends on what the bot is doing (below). If it doesn't burst (too slow, wrong angle), the bot opens the door normally.")]
+    public bool DoorModRamOnMove = true;
+
+    [DataMember]
+    [Name("Door Mods: Ram Chance - Running Away")]
+    [Description("[Needs doordash] Percent, rolled once per door: retreating / running for cover with the enemy on it (shot at or seen in the last few seconds).")]
+    [MinMax(0f, 100f, 1f)]
+    public float DoorModRamFleeChance = 60f;
+
+    [DataMember]
+    [Name("Door Mods: Ram Chance - Rushing")]
+    [Description("[Needs doordash] Percent, rolled once per door: rushing / closing in on an enemy.")]
+    [MinMax(0f, 100f, 1f)]
+    public float DoorModRamRushChance = 50f;
+
+    [DataMember]
+    [Name("Door Mods: Ram Chance - Searching")]
+    [Description("[Needs doordash] Percent, rolled once per door: searching for an enemy that might be behind it (not sure where he is). The bot speeds up for the last meters to hit the door hard.")]
+    [MinMax(0f, 100f, 1f)]
+    public float DoorModRamSearchChance = 35f;
+
+    [DataMember]
     [Name("TEST MODE: Door Mod Tactics Always")]
-    [Description("For testing only (sim). Every door mod tactic whose conditions are met is used (100% chance) - shoot through, grenade on the door, sprint ram. Still only works while the mod is installed. Turn it off for normal play.")]
+    [Description("For testing only (sim). Every doordash ram whose conditions are met is used (100% chance) - room clear and running through doors. Still only works while doordash is installed. Turn it off for normal play.")]
     public bool TestModeDoorMods = false;
 
     [DataMember]

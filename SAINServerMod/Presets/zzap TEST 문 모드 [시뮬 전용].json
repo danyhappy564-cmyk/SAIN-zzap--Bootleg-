@@ -1,7 +1,7 @@
 {
   "Info": {
     "Name": "zzap TEST 문 모드 [시뮬 전용]",
-    "Description": "[시뮬 전용] 문 모드 전술 확인용 — Door Overhaul / doordash가 설치돼 있어야 의미 있음(없으면 그냥 TEST와 같음). zzap TEST와 같고, 조건이 맞으면 문 모드 전술을 항상 씀(문 너머 사격·수류탄으로 문 날리기·몸통박치기 100%). 레이드 일지의 [DoorMod] 줄과 SUMMARY의 doormod.* 카운터, 시뮬 분석 md의 '문 모드' 줄로 확인. 일반 TEST 결과와 섞어 비교하지 말 것.",
+    "Description": "[시뮬 전용] doordash 몸통박치기 확인용 — doordash가 설치돼 있어야 의미 있음(없으면 그냥 TEST와 같음). zzap TEST와 같고, 조건이 맞으면 몸통박치기를 항상 씀(방 진입·도망·돌격·수색 중 문 박치기 100%). 레이드 일지의 [DoorMod] 줄과 SUMMARY의 doormod.* 카운터, 시뮬 분석 md의 '문 모드' 줄로 확인. 일반 TEST 결과와 섞어 비교하지 말 것.",
     "Creator": "R_F",
     "SAINVersion": "4.5.1",
     "SAINPresetVersion": "4.5.0",

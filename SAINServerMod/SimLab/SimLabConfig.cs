@@ -182,6 +182,12 @@ public sealed class SimScenario
     public string SideA = "pmcUSEC";
     public string SideB = "pmcBEAR";
 
+    /// <summary>
+    /// ORBIT's sim attractor sits on side A's zone instead of halfway between the sides - for "A holds a building" scenarios
+    /// (Customs dorms): halfway was the open ground between them, so the fights happened outside (user 2026-10-13).
+    /// </summary>
+    public bool ArenaOnA;
+
     /// <summary>Counter prefixes the analysis highlights for this map (comma separated, e.g. "door.,diamond.").</summary>
     public string Watch = string.Empty;
 }

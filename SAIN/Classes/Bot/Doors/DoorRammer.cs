@@ -1,0 +1,362 @@
+using System.Collections.Generic;
+using EFT;
+using EFT.Interactive;
+using SAIN.Components;
+using SAIN.Models.Enums;
+using SAIN.Preset.Shared.Enums;
+using SAIN.Preset.Shared.GlobalSettings;
+using SAIN.Preset.Shared.GlobalSettings.Categories.General;
+using SAIN.SAINComponent.Classes.Tactics;
+using UnityEngine;
+
+namespace SAIN.SAINComponent.Classes.Mover;
+
+/// <summary>
+/// zzap fork (2026-10-13, user: "I never saw them ram a door - running away, going in not sure if someone's there, searching;
+/// the mod has more uses than the door tactic"): doordash ram on an ordinary move. While the bot runs its path (BotPathData)
+/// away from an enemy, at an enemy, or searching for one, a shut door that swings away from it 3-7.5m ahead on a straight leg
+/// of the path gets one roll (chance per situation, F6 Door Tactics > Door Mods). On a hit the bot keeps (or starts) sprinting
+/// at the door with doordash's RaycastBreacher on it and the door opener / door slowdown held off - doordash bursts the door
+/// open. No burst (too slow, wrong angle, door opened by someone else) -> everything back to normal, the bot opens it as usual.
+/// Only while doordash is installed (DoorModInterop.RamActive); never inside a door tactic (that one has its own ram).
+/// Counters doormod.move.*, journal [DoorRam].
+/// </summary>
+public class DoorRammer(BotComponent bot)
+{
+    private enum ECtx { None, Flee, Rush, Search }
+
+    private const float SCAN_INTERVAL = 0.25f;
+    private const float SCAN_LENGTH = 7.5f;
+    private const float MIN_START_DIST = 3f;
+    private const float MIN_START_DIST_FAST = 1.8f;
+    private const float RAM_TIME = 3f;
+    private const float ROLL_MEMORY = 10f;
+    private const float BURST_FOLLOW_TIME = 0.6f;
+    private const int MAX_SEGMENTS = 4;
+    private const int MAX_ROLLED = 16;
+
+    private readonly BotComponent _bot = bot;
+    private readonly Dictionary<int, float> _rolledUntil = new();
+    private float _nextScan;
+
+    private bool _charging;
+    private Door _door;
+    private Vector3 _doorPoint;
+    private ECtx _ctx;
+    private float _until;
+    private bool _burst;
+    private float _burstTime;
+    private float _nearSince = -1f;
+    private BotPathDataManual _forcedSprintPath;
+
+    private static DoorTacticSettings Settings => GlobalSettingsClass.Instance.General.DoorTactics;
+
+    public bool Charging => _charging;
+
+    /// <summary>From BotPathDataManual.TickPath every frame of a SAIN path move. True while a ram is running: the caller keeps
+    /// sprinting and skips its door slowdown.</summary>
+    public bool TickPath(BotPathDataManual path, Vector3 botPosition)
+    {
+        float time = Time.time;
+        if (_charging)
+        {
+            TickCharge(path, botPosition, time);
+            return _charging;
+        }
+        if (time < _nextScan)
+        {
+            return false;
+        }
+        _nextScan = time + SCAN_INTERVAL;
+        if (!DoorModInterop.RamActive || Settings?.DoorModRamOnMove != true || _bot.Player == null || _bot.Player.IsYourPlayer)
+        {
+            return false;
+        }
+        ECtx ctx = Context(time);
+        if (ctx == ECtx.None)
+        {
+            return false;
+        }
+        float speed = _bot.Player.Velocity.magnitude;
+        bool fast = speed * speed >= DoorModInterop.RamSpeedSqr;
+        if (!FindDoorAhead(path, botPosition, out Door door, out Vector3 hitPoint, out float dist))
+        {
+            return false;
+        }
+        if (dist < (fast ? MIN_START_DIST_FAST : MIN_START_DIST))
+        {
+            return false;
+        }
+        int id = door.GetInstanceID();
+        if (_rolledUntil.TryGetValue(id, out float until) && until > time)
+        {
+            return false;
+        }
+        if (_rolledUntil.Count >= MAX_ROLLED)
+        {
+            _rolledUntil.Clear();
+        }
+        _rolledUntil[id] = time + ROLL_MEMORY;
+
+        string ctxName = CtxName(ctx);
+        if (DoorModInterop.WillSwingToward(door, botPosition))
+        {
+            Count($"doormod.move.skip.swingsToward.{ctxName}");
+            return false;
+        }
+        if (TeammateNear(hitPoint, 2f))
+        {
+            Count($"doormod.move.skip.teammateAtDoor.{ctxName}");
+            return false;
+        }
+        float chance = ctx switch
+        {
+            ECtx.Flee => Settings.DoorModRamFleeChance,
+            ECtx.Rush => Settings.DoorModRamRushChance,
+            _ => Settings.DoorModRamSearchChance,
+        };
+        if (!Settings.TestModeDoorMods && Random.value >= Mathf.Clamp01(chance / 100f))
+        {
+            Count($"doormod.move.skip.rollFailed.{ctxName}");
+            return false;
+        }
+        if (!DoorModInterop.StartRam(_bot.Player, RAM_TIME))
+        {
+            Count($"doormod.move.skip.noBreacher.{ctxName}");
+            return false;
+        }
+        _charging = true;
+        _door = door;
+        _doorPoint = hitPoint;
+        _ctx = ctx;
+        _until = time + RAM_TIME;
+        _burst = false;
+        _nearSince = -1f;
+        _forcedSprintPath = null;
+        _bot.DoorOpener.NoInteractUntil = _until;
+        Count($"doormod.move.start.{ctxName}");
+        Log($"[DoorRam] [{_bot.name}] [{_bot.Info.Personality}] {ctxName}: sprint ram at door {id} {dist:0.0}m ahead ({speed:0.0} m/s)");
+        EnsureSprint(path);
+        return true;
+    }
+
+    private void TickCharge(BotPathDataManual path, Vector3 botPosition, float time)
+    {
+        string ctxName = CtxName(_ctx);
+        if (_door == null || _bot.IsDead)
+        {
+            Stop("doorGone");
+            return;
+        }
+        if (!_burst && _door.DoorState != EDoorState.Shut)
+        {
+            _burst = true;
+            _burstTime = time;
+            // doordash breached it (Breaching -> Open), or someone else opened it: either way the way is open.
+            Count($"doormod.move.burst.{ctxName}");
+            Log($"[DoorRam] [{_bot.name}] {ctxName}: rammed door {_door.GetInstanceID()} ({_door.DoorState}) at {_bot.Player.Velocity.magnitude:0.0} m/s");
+        }
+        if (_burst)
+        {
+            if (time - _burstTime > BURST_FOLLOW_TIME)
+            {
+                Stop(null);
+            }
+            else
+            {
+                EnsureSprint(path);
+            }
+            return;
+        }
+        if (Context(time) != _ctx)
+        {
+            Fallback("situationChanged");
+            return;
+        }
+        Vector3 d = _doorPoint - botPosition;
+        d.y = 0f;
+        if (d.sqrMagnitude < 1.1f * 1.1f)
+        {
+            if (_nearSince < 0f)
+            {
+                _nearSince = time;
+            }
+            else if (time - _nearSince > 0.5f)
+            {
+                Fallback($"noBurst({_bot.Player.Velocity.magnitude:0.0}m/s, needs {Mathf.Sqrt(DoorModInterop.RamSpeedSqr):0.0})");
+                return;
+            }
+        }
+        if (time > _until - 0.3f)
+        {
+            Fallback("timeout");
+            return;
+        }
+        EnsureSprint(path);
+    }
+
+    private void EnsureSprint(BotPathDataManual path)
+    {
+        if (!path.WantToSprint)
+        {
+            path.RequestStartSprint(ESprintUrgency.High, "doorRam");
+            _forcedSprintPath = path;
+        }
+    }
+
+    private void Fallback(string why)
+    {
+        Count($"doormod.move.fallback.{why.Split('(')[0]}.{CtxName(_ctx)}");
+        Log($"[DoorRam] [{_bot.name}] {CtxName(_ctx)}: ram didn't happen ({why}) - opening the door normally");
+        Stop(why);
+    }
+
+    /// <summary>Ends the ram: doordash taken away, door opener back on, a sprint we started ourselves ended again.</summary>
+    public void Stop(string why)
+    {
+        if (!_charging)
+        {
+            return;
+        }
+        _charging = false;
+        DoorModInterop.StopRam(_bot.Player);
+        if (_bot.DoorOpener != null)
+        {
+            _bot.DoorOpener.NoInteractUntil = 0f;
+        }
+        if (_forcedSprintPath != null && !_burst)
+        {
+            _forcedSprintPath.RequestEndSprint(ESprintUrgency.None, "doorRamEnd");
+        }
+        _forcedSprintPath = null;
+        _door = null;
+    }
+
+    private ECtx Context(float time)
+    {
+        var decision = _bot.Decision;
+        if (decision == null)
+        {
+            return ECtx.None;
+        }
+        var enemy = _bot.GoalEnemy;
+        switch (decision.CurrentCombatDecision)
+        {
+            case ECombatDecision.Retreat:
+            case ECombatDecision.RunAway:
+            case ECombatDecision.SeekCover:
+                var memory = _bot.BotOwner?.Memory;
+                bool pressed = (memory != null && time - memory.UnderFireTime < 4f)
+                    || (enemy != null && (enemy.IsVisible || (enemy.Seen && enemy.TimeSinceSeen < 4f)));
+                return pressed ? ECtx.Flee : ECtx.None;
+
+            case ECombatDecision.RushEnemy:
+            case ECombatDecision.MoveToEngage:
+                return enemy != null ? ECtx.Rush : ECtx.None;
+
+            case ECombatDecision.Search:
+                return enemy != null && !enemy.IsVisible ? ECtx.Search : ECtx.None;
+
+            default:
+                return ECtx.None;
+        }
+    }
+
+    private static string CtxName(ECtx ctx)
+    {
+        return ctx switch
+        {
+            ECtx.Flee => "flee",
+            ECtx.Rush => "rush",
+            ECtx.Search => "search",
+            _ => "none",
+        };
+    }
+
+    /// <summary>
+    /// Casts along the next legs of the path (chest height) up to 7.5m: the first thing hit must be a shut, operatable,
+    /// unlocked door. Stops at a turn sharper than 35 deg - doordash casts along the body's forward, so the door has to sit on the
+    /// leg the bot is running straight down.
+    /// </summary>
+    private static bool FindDoorAhead(BotPathDataManual path, Vector3 botPosition, out Door door, out Vector3 hitPoint, out float dist)
+    {
+        door = null;
+        hitPoint = default;
+        dist = 0f;
+        var corners = path.PathCorners;
+        int index = path.CurrentIndex;
+        if (corners == null || index < 0 || index >= corners.Count)
+        {
+            return false;
+        }
+        Vector3 from = botPosition;
+        Vector3 lastDir = Vector3.zero;
+        float travelled = 0f;
+        int mask = LayersMaskController.PlayerStaticDoorMask | (1 << LayersMaskController.DoorLayer) | LayerMask.GetMask("DoorLowPolyCollider");
+        for (int i = index, n = 0; i < corners.Count && n < MAX_SEGMENTS && travelled < SCAN_LENGTH; i++, n++)
+        {
+            Vector3 to = corners[i].Position;
+            Vector3 leg = to - from;
+            leg.y = 0f;
+            float legLength = leg.magnitude;
+            if (legLength < 0.05f)
+            {
+                continue;
+            }
+            Vector3 dir = leg / legLength;
+            if (n > 0 && Vector3.Angle(lastDir, dir) > 35f)
+            {
+                return false;
+            }
+            float cast = Mathf.Min(legLength + 0.4f, SCAN_LENGTH - travelled);
+            if (Physics.SphereCast(from + Vector3.up * 1.2f, 0.2f, dir, out RaycastHit hit, cast, mask))
+            {
+                Door d = hit.collider != null ? hit.collider.GetComponentInParent<Door>() : null;
+                if (d == null || d.DoorState != EDoorState.Shut || !d.Operatable || !d.enabled)
+                {
+                    return false;
+                }
+                door = d;
+                hitPoint = hit.point;
+                dist = travelled + hit.distance;
+                return true;
+            }
+            travelled += legLength;
+            from = to;
+            lastDir = dir;
+        }
+        return false;
+    }
+
+    private bool TeammateNear(Vector3 point, float radius)
+    {
+        var members = _bot.Squad?.Members;
+        if (members == null)
+        {
+            return false;
+        }
+        foreach (var member in members.Values)
+        {
+            if (member == null || ReferenceEquals(member, _bot) || member.IsDead)
+            {
+                continue;
+            }
+            if ((member.Position - point).sqrMagnitude < radius * radius)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void Count(string key)
+    {
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count(key);
+    }
+
+    private static void Log(string line)
+    {
+        if (RaidJournal.IsOpen) RaidJournal.Line(line);
+        if (Settings?.DiagnosticLogs == true) Logger.LogWarning(line);
+    }
+}

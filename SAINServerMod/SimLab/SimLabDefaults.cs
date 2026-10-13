@@ -220,6 +220,8 @@ public static class SimLabDefaults
                 // ZoneGasStation dropped 2026-10-09 (first sim: "Customs bots spawned in odd places") - its spawn points are ~280m
                 // from the dorms (zone centers from SPT 4.1 data: dorms (172,166), crossroad (202,52), gas station (433,56)).
                 ZonesB = "ZoneCrossRoad",
+                // The crossroad is ~118m of open ground from the dorms: an attractor halfway pulled both sides out there.
+                ArenaOnA = true,
                 Watch = "door.,squad.,nade.,repo.",
             },
             ["interchange"] = new()

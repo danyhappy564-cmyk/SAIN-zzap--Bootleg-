@@ -260,7 +260,9 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         // Never walk off a ledge / into a wall mid-tap: if the next 0.5m is blocked, take the first open direction
         // (opposite, then across, then diagonal back). Before it only flipped and then re-rolled every frame, so in a
         // corridor the bot stood still re-picking (13th/14th sims: "blocked" 394-552 times against 340-521 starts).
-        if (NavMesh.Raycast(Bot.Position, Bot.Position + _tapDir * 0.5f, out _, -1))
+        // zzap (2026-10-13 screenshots): an open door leaf counts as a wall - the NavMesh runs on behind it (the pocket between
+        // leaf and wall), so taps used to walk the bot into it and wedge it there while it aimed at the enemy.
+        if (NavMesh.Raycast(Bot.Position, Bot.Position + _tapDir * 0.5f, out _, -1) || DoorLeafCheck.OpenLeafAhead(Bot.Position, _tapDir, 0.65f))
         {
             if (!TryOpenTapDirection(out Vector3 open))
             {
@@ -334,7 +336,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         for (int i = 0; i < _tapCandidates.Length; i++)
         {
             Vector3 dir = _tapCandidates[i];
-            if (!NavMesh.Raycast(position, position + dir * 0.5f, out _, -1))
+            if (!NavMesh.Raycast(position, position + dir * 0.5f, out _, -1) && !DoorLeafCheck.OpenLeafAhead(position, dir, 0.65f))
             {
                 open = dir;
                 if (i > 0)
