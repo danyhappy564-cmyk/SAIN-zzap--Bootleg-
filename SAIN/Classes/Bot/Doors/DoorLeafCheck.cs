@@ -42,14 +42,18 @@ public static class DoorLeafCheck
     public static bool OpenLeafNear(Vector3 point, float radius)
     {
         int count = Physics.OverlapSphereNonAlloc(point + Vector3.up * 1f, radius, _buffer, Mask, QueryTriggerInteraction.Ignore);
+        bool found = false;
         for (int i = 0; i < count && i < _buffer.Length; i++)
         {
             if (OpenLeaf(_buffer[i]))
             {
-                return true;
+                found = true;
+                break;
             }
         }
-        return false;
+        // static buffer: don't keep the raid's colliders alive into the menu (RamCleaner [leak holders] 10/14)
+        System.Array.Clear(_buffer, 0, _buffer.Length);
+        return found;
     }
 
     /// <summary>An open / opening door leaf within <paramref name="distance"/> straight ahead along <paramref name="dir"/> (knee and chest height).</summary>

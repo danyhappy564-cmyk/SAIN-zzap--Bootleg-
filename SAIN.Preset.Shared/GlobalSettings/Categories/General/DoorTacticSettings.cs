@@ -217,7 +217,7 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
 
     [DataMember]
     [Name("Bot Sprint Ram: Both Sides Of A Door")]
-    [Description("Like DualSideDoorBreach: a door rammed from the side it would swing into bursts the other way (away from the bot). Off: bots only ram doors that swing away from them, like doordash for the player. With DualSideDoorBreach installed and its direction setting on, that mod turns the door instead (never twice).")]
+    [Description("NOT USED since 10/14 (always off): a door burst the other way round ended with its leaf where EFT's pathing doesn't expect it and bots got stuck behind it. Bots only ram doors that swing away from them and that BSG marks as breachable, and SAIN keeps BSG's own direction on a bot ram even with DualSideDoorBreach installed.")]
     public bool BotRamBothSides = true;
 
     [DataMember]

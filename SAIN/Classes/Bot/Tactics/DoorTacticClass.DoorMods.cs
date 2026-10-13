@@ -44,7 +44,11 @@ public partial class DoorTacticClass
 
         if (!s.ClearReal && Settings.DoorModRam && BotDoorBreacher.Active)
         {
-            if (!BotDoorBreacher.BothSides && BotDoorBreacher.WillSwingToward(door, Bot.Position))
+            if (!door.CanBeBreached)
+            {
+                TacticDiagnostics.Count("doormod.ram.unbreakable");
+            }
+            else if (!BotDoorBreacher.BothSides && BotDoorBreacher.WillSwingToward(door, Bot.Position))
             {
                 TacticDiagnostics.Count("doormod.ram.doorSwingsToward");
             }

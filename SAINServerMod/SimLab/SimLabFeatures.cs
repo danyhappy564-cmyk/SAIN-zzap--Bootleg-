@@ -102,7 +102,7 @@ public static class SimLabFeatures
         new("remake5", "발소리 관리(30m 걷기·12m 숙여 걷기)", A("quiet.start"), A("quiet.skip.", "quiet.timeout"), A(), "[Quiet]"),
         // zzap bot sprint ram (2026-10-13): SAIN's own (BotDoorBreacher, ported from doordash + DualSideDoorBreach), no mod needed.
         // The sim preset "문 전술·박치기 점검" (door check switch) forces the rams (100%). Door Overhaul support was dropped.
-        new("doormod", "봇 박치기 문 부숨 (SAIN 자체)", A("doorram.breach"), A(), A("doorram.breachError"), "[DoorMod]", "breach=봇 반대쪽으로 열리는 문, breach.flipped=봇 쪽 문을 반대로 돌려 엶(DualSide 방식), flippedByDualSide=DualSideDoorBreach 모드가 돌림. breachError가 있으면 버그", ZeroOk: true),
+        new("doormod", "봇 박치기 문 부숨 (SAIN 자체)", A("doorram.breach"), A("doorram.skip.someoneBehind"), A("doorram.breachError"), "[DoorMod]", "봇 반대쪽으로 열리는 부술 수 있는 문만. turnUndone=다른 모드가 돌린 방향 되돌림, 거부=문짝 자리에 사람 있음. breachError가 있으면 버그", ZeroOk: true),
         new("doormod", "몸통박치기 방 진입", A("doormod.ram.burst"), A("doormod.ram.noRunUp.", "doormod.ram.fallback."), A(), "[DoorTactic] door mod", "문 전술(방 진입)이 드물면 0일 수 있음. fallback.noBurst가 많으면 봇이 문 앞에서 F6 박치기 속도(기본 2.8m/s)보다 느린 것", ZeroOk: true),
         new("doormod", "달리다가 문 몸통박치기 (도망·돌격·수색·그 밖의 전투 이동)", A("doormod.move.burst."), A("doormod.move.fallback.", "doormod.move.skip."), A(), "[DoorRam]", "move.start.<상황>=시작, burst=문 박차 열림, fallback.noBurst=문 앞 속도 부족", ZeroOk: true),
     };

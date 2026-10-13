@@ -54,7 +54,13 @@ public static class BotDoorBreacher
     /// <summary>F6 Door Tactics > "Bot Sprint Ram" on (no other mod needed).</summary>
     public static bool Active => Settings?.BotRamEnabled == true;
 
-    public static bool BothSides => Settings?.BotRamBothSides != false;
+    /// <summary>
+    /// zzap (2026-10-14, user screenshots + "with DualSideDoorBreach the ram happens but the door opens oddly and they can't get
+    /// in"): turning a breach the other way round (negated angle, DualSideDoorBreach's way) leaves the leaf on the side EFT's
+    /// door NavMesh link and obstacle don't expect - bots got shoved behind the leaf (Factory) or ran on the spot against a
+    /// door that opened the wrong way (Labs). Bots now only ram doors that swing away from them, and the F6 switch is ignored.
+    /// </summary>
+    public static bool BothSides => false;
 
     /// <summary>Bot speed (m/s) needed to burst a door - SAIN's own, not doordash's "Velocity Threshold".</summary>
     public static float MinSpeed => Mathf.Max(0.5f, Settings?.BotRamMinSpeed ?? 2.8f);
@@ -67,7 +73,8 @@ public static class BotDoorBreacher
         {
             return false;
         }
-        return BothSides || !WillSwingToward(door, position);
+        // CanBeBreached: BSG's own "this door can be kicked" (Labs glass doors etc. are not) - Interact(Breach) doesn't check it
+        return door.CanBeBreached && !WillSwingToward(door, position);
     }
 
     /// <summary>
@@ -179,16 +186,81 @@ public static class BotDoorBreacher
             return null;
         }
         Door door = hit.collider != null ? hit.collider.GetComponentInParent<Door>() : null;
-        return CanRam(door, player.Position) ? door : null;
+        if (!CanRam(door, player.Position))
+        {
+            return null;
+        }
+        if (SomeoneInSwing(door, player))
+        {
+            TacticDiagnostics.Count("doorram.skip.someoneBehind");
+            return null; // the job ends by time / DoorRammer falls back to opening it
+        }
+        return door;
+    }
+
+    /// <summary>
+    /// zzap (2026-10-14, user screenshots, Labs kitchen double doors): a ram from inside burst the leaf into a bot standing right
+    /// next to the door outside and pinned him between the leaf and the wall. Anyone (other than the rammer) on the far side
+    /// within the leaf's swing - 1.6 m along the door, 1.5 m out from it - means no ram. One pass over the alive players.
+    /// </summary>
+    public static bool SomeoneInSwing(Door door, Player rammer)
+    {
+        var world = Comfort.Common.Singleton<GameWorld>.Instance;
+        if (door == null || rammer == null || world?.AllAlivePlayersList == null)
+        {
+            return false;
+        }
+        Vector3 center;
+        Vector3 normal;
+        try
+        {
+            center = door.transform.TransformPoint(door.viewTarget1);
+            normal = door.GetDoorRotation(door.GetAngle(EDoorState.Shut)) * WorldInteractiveObject.GetRotationAxis(door.DoorForward, door.transform);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+        normal.y = 0f;
+        if (normal.sqrMagnitude < 0.0001f)
+        {
+            return false;
+        }
+        normal.Normalize();
+        Vector3 along = new Vector3(-normal.z, 0f, normal.x);
+        float rammerSide = Vector3.Dot(rammer.Position - center, normal);
+        var players = world.AllAlivePlayersList;
+        for (int i = 0; i < players.Count; i++)
+        {
+            Player other = players[i];
+            if (other == null || other == rammer || other.HealthController?.IsAlive != true)
+            {
+                continue;
+            }
+            Vector3 d = other.Position - center;
+            if (Mathf.Abs(d.y) > 2f)
+            {
+                continue;
+            }
+            float depth = Vector3.Dot(d, normal);
+            if (depth * rammerSide >= 0f || Mathf.Abs(depth) > 1.5f)
+            {
+                continue; // on the rammer's side, or well clear of the swing
+            }
+            if (Mathf.Abs(Vector3.Dot(d, along)) < 1.6f)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void Breach(Player player, Door door)
     {
-        bool towardBot = WillSwingToward(door, player.Position);
-        bool flip = towardBot && !DoorModInterop.DualSideHandlesSwing;
         try
         {
-            SwingFlip.Begin(door, flip);
+            // the door swings away from the bot (CanRam): keep BSG's own angle even if DualSideDoorBreach would turn it
+            SwingFlip.Begin(door, door.OpenAngle);
             door.LockForInteraction();
             door.SetUser(player);
             door.Interact(new InteractionResult(EInteractionType.Breach));
@@ -203,7 +275,7 @@ public static class BotDoorBreacher
         {
             SwingFlip.End();
         }
-        TacticDiagnostics.Count(towardBot ? (flip ? "doorram.breach.flipped" : "doorram.breach.flippedByDualSide") : "doorram.breach");
+        TacticDiagnostics.Count("doorram.breach");
         HurtRammer(player, door);
     }
 
@@ -233,30 +305,33 @@ public static class BotDoorBreacher
         }
     }
 
-    /// <summary>DualSideDoorBreach's BreachKickContext, for SAIN's own breaches only.</summary>
+    /// <summary>The angle SAIN's own breach must end at (BSG's OpenAngle), for the InitSmoothOpen patch below.</summary>
     internal static class SwingFlip
     {
         public static Door Door { get; private set; }
-        public static bool Flip { get; private set; }
+        public static bool Active { get; private set; }
+        public static float Angle { get; private set; }
 
-        public static void Begin(Door door, bool flip)
+        public static void Begin(Door door, float angle)
         {
             Door = door;
-            Flip = flip;
+            Angle = angle;
+            Active = true;
         }
 
         public static void End()
         {
             Door = null;
-            Flip = false;
+            Active = false;
         }
     }
 }
 
 /// <summary>
-/// Ported from DualSideDoorBreach (DoorInitSmoothOpenPatch, MIT, (c) 2026 maschine34675): while SAIN breaches a door from the
-/// side it swings into, the Breaching target angle is negated - the door bursts away from the bot. Only inside
-/// BotDoorBreacher.Breach (synchronous: Interact(Breach) -> KickOpen -> InitSmoothOpen), never for anyone else's kick.
+/// Started as a port of DualSideDoorBreach's DoorInitSmoothOpenPatch (MIT, (c) 2026 maschine34675), which negates the Breaching
+/// angle. Since 10/14 it does the opposite job: inside BotDoorBreacher.Breach only (synchronous: Interact(Breach) -> KickOpen ->
+/// InitSmoothOpen) it runs last and puts BSG's own angle back, so a bot's ram never ends with a leaf turned the wrong way
+/// (DualSideDoorBreach's prefix sees Interact(Breach)'s KickOpen(door position) and may turn it). Anyone else's kick: untouched.
 /// </summary>
 public class BotBreachSwingFlipPatch : ModulePatch
 {
@@ -267,11 +342,16 @@ public class BotBreachSwingFlipPatch : ModulePatch
     }
 
     [PatchPrefix]
+    [HarmonyPriority(Priority.Last)]
     public static void Prefix(EDoorState state, ref float resultAngle)
     {
-        if (BotDoorBreacher.SwingFlip.Flip && state == EDoorState.Breaching)
+        if (BotDoorBreacher.SwingFlip.Active && state == EDoorState.Breaching)
         {
-            resultAngle = -resultAngle;
+            if (!Mathf.Approximately(resultAngle, BotDoorBreacher.SwingFlip.Angle))
+            {
+                TacticDiagnostics.Count("doorram.turnUndone");
+            }
+            resultAngle = BotDoorBreacher.SwingFlip.Angle;
         }
     }
 }

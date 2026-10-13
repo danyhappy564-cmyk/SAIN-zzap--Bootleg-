@@ -99,9 +99,19 @@ public class DoorRammer(BotComponent bot)
         _rolledUntil[id] = time + ROLL_MEMORY;
 
         string ctxName = CtxName(ctx);
+        if (!door.CanBeBreached)
+        {
+            Count($"doormod.move.skip.unbreakable.{ctxName}");
+            return false;
+        }
         if (!BotDoorBreacher.BothSides && BotDoorBreacher.WillSwingToward(door, botPosition))
         {
             Count($"doormod.move.skip.swingsToward.{ctxName}");
+            return false;
+        }
+        if (BotDoorBreacher.SomeoneInSwing(door, _bot.Player))
+        {
+            Count($"doormod.move.skip.someoneBehind.{ctxName}");
             return false;
         }
         if (TeammateNear(hitPoint, 2f))

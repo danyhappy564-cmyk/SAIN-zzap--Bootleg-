@@ -104,7 +104,7 @@ public static class SimLabGlossary
         new("trick.", "속임수 동작 취소·건너뜀", "Tricks cancelled / skipped", "DoorTacticClass"),
         // zzap doordash (only with doordash installed)
         new("doormod.present.", "이 판에 깔려 있던 문 모드 (doordash=플레이어 전용으로 그대로, dualSide=DualSideDoorBreach가 봇 문 방향도 돌림, .directionOff=그 모드 방향 설정 꺼짐)", "Door mods installed this raid (doordash stays player-only; dualSide turns bots' doors too)", "DoorModInterop"),
-        new("doorram.", "봇 박치기 (SAIN 자체, doordash·DualSideDoorBreach 이식): on/off=설정, breach=문 부숨, breach.flipped=봇 쪽으로 열리는 문을 반대로, breach.flippedByDualSide=그 모드가 돌림, breachError=오류", "SAIN's own bot sprint ram (breach / flipped / flippedByDualSide / breachError)", "BotDoorBreacher"),
+        new("doorram.", "봇 박치기 (SAIN 자체, doordash 이식): on/off=설정, breach=문 부숨(봇 반대쪽으로 열리는 '부술 수 있는' 문만), turnUndone=다른 모드(DualSideDoorBreach)가 돌린 방향을 게임 원래 방향으로 되돌림, skip.someoneBehind=문짝이 열릴 자리에 누가 있어 안 부숨, breachError=오류", "SAIN's own bot sprint ram (breach / turnUndone / skip.someoneBehind / breachError)", "BotDoorBreacher"),
         new("doormod.ram.", "몸통박치기 방 진입 (planned, charge=돌진 시작, burst=문 박차 열림, fallback.이유=안 돼서 평소처럼 엶, doorSwingsToward=봇 쪽으로 열리는 문 — '양쪽에서' 설정 끔일 때만)", "Room-clear sprint ram (planned / charge / burst / fallback.reason)", "DoorTacticClass.DoorMods"),
         new("doormod.move.", "달리다가 문 몸통박치기 (start.상황, burst.상황=문 박차 열림, fallback.이유=안 돼서 평소처럼 엶, skip.이유=굴림 실패·봇 쪽으로 열림 등; 상황: flee=도망, rush=돌격, search=수색, move=그 밖의 전투 이동)", "Ram while running through a door (start / burst / fallback / skip, by flee / rush / search / move)", "DoorRammer"),
         // freeze / search / post combat
