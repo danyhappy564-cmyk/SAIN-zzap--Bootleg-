@@ -64,12 +64,23 @@ public static class BotDoorBreacher
     /// swinging into it.</summary>
     public static bool CanRam(Door door, Vector3 position)
     {
-        if (door == null || door.DoorState != EDoorState.Shut || !door.Operatable || !door.enabled)
+        if (door == null || door.DoorState != EDoorState.Shut || !door.Operatable || !door.enabled || IsSliding(door))
         {
             return false;
         }
         // CanBeBreached: BSG's own "this door can be kicked" (Labs glass doors etc. are not) - Interact(Breach) doesn't check it
         return door.CanBeBreached && (BothSides || !WillSwingToward(door, position));
+    }
+
+    /// <summary>
+    /// zzap (2026-10-14, user screenshots: Labs cafeteria glass doors, a bot running on the spot into them): EFT's SlidingDoor is
+    /// a Door whose "angle" is a slide - position = Lerp(shut, open, angle / OpenAngle), clamped. A reversed angle (a ram / kick
+    /// turned away from the bot, DualSideDoorBreach's or ours, or a push-open) slides it nowhere: the glass stays shut while
+    /// the door reads Open and the path runs through it. Never rammed, kicked, turned or pushed open by bots.
+    /// </summary>
+    public static bool IsSliding(Door door)
+    {
+        return door is SlidingDoor;
     }
 
     /// <summary>

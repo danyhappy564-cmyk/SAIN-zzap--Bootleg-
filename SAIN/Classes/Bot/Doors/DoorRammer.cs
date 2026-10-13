@@ -362,7 +362,7 @@ public class DoorRammer(BotComponent bot)
             if (Physics.SphereCast(from + Vector3.up * 1.2f, 0.3f, dir, out RaycastHit hit, cast, mask))
             {
                 Door d = hit.collider != null ? hit.collider.GetComponentInParent<Door>() : null;
-                if (d == null || d.DoorState != EDoorState.Shut || !d.Operatable || !d.enabled)
+                if (d == null || d.DoorState != EDoorState.Shut || !d.Operatable || !d.enabled || BotDoorBreacher.IsSliding(d))
                 {
                     return false;
                 }

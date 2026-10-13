@@ -45,7 +45,7 @@ public partial class DoorTacticClass
 
         if (!s.ClearReal && Settings.DoorModRam && BotDoorBreacher.Active)
         {
-            if (!door.CanBeBreached)
+            if (!door.CanBeBreached || BotDoorBreacher.IsSliding(door))
             {
                 TacticDiagnostics.Count("doormod.ram.unbreakable");
             }

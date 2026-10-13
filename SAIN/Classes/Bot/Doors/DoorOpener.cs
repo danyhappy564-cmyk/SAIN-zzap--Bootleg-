@@ -688,6 +688,11 @@ public class DoorOpener : BotComponentClassBase
         {
             return false;
         }
+        // SlidingDoor: a kick turned the other way (DualSideDoorBreach) is a negative "angle" = no slide at all (see BotDoorBreacher.IsSliding)
+        if (BotDoorBreacher.IsSliding(door))
+        {
+            return false;
+        }
         var breakInParameters = door.GetBreakInParameters(Bot.Position);
         return door.BreachSuccessRoll(breakInParameters.InteractionPosition);
     }

@@ -28,7 +28,7 @@ public static class BotDoorPushOpen
     public static void Begin(WorldInteractiveObject obj, EDoorState state)
     {
         Active = false;
-        if (state != EDoorState.Open || !Enabled || obj is not Door door || door.InteractingPlayer is not Player player)
+        if (state != EDoorState.Open || !Enabled || obj is not Door door || BotDoorBreacher.IsSliding(door) || door.InteractingPlayer is not Player player)
         {
             return;
         }
