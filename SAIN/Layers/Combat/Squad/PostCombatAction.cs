@@ -101,8 +101,13 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         );
     }
 
+    // 10/14 (user screenshot, Labs: "this one keeps walking backwards"): moving to a far cover spot or regrouping with a leader
+    // 25 m+ away, the steering kept the gun on the last threat behind - a long backwards walk. Those moves look ahead now.
+    private bool _regrouping;
+
     public override void Update(CustomLayer.ActionData data)
     {
+        _regrouping = false;
         if (!_reloadTried && BotOwner.WeaponManager?.Reload?.Reloading != true)
         {
             _reloadTried = true;
@@ -133,8 +138,10 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
             return;
         }
         var leader = Bot.Squad.LeaderComponent;
-        if (!Bot.Squad.IAmLeader && leader != null && !leader.IsDead && (leader.Position - Bot.Position).magnitude > 25f)
+        // heard something: stay on guard facing it (Listen) instead of walking off to the leader with the gun behind
+        if (!_heard && !Bot.Squad.IAmLeader && leader != null && !leader.IsDead && (leader.Position - Bot.Position).magnitude > 25f)
         {
+            _regrouping = true;
             LieLow(false);
             if (_nextMove < Time.time)
             {
@@ -290,6 +297,11 @@ internal class PostCombatAction(BotOwner bot) : BotAction(bot, nameof(PostCombat
         Enemy enemy = Bot.GoalEnemy;
         if (Shoot.ShootAnyVisibleEnemies(enemy))
         {
+            return;
+        }
+        if (Bot.Mover.Moving && (_regrouping || (_coverSpot != null && _coverFar && !_heard)))
+        {
+            Bot.Steering.LookToMovingDirection();
             return;
         }
         if (_heard)
