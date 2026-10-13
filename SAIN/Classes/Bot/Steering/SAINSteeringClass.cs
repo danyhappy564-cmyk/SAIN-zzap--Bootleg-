@@ -260,6 +260,12 @@ public class SAINSteeringClass : BotComponentClassBase
         if (CornerPreAim(out Vector3 preAim))
         {
             dir = preAim;
+            // 10/14 (user screenshots, Factory: a bot with the gun up, face on the door frame next to it): the corner it
+            // pre-aims at was the frame edge right beside it. Aiming into a wall 0.8 m away is never the angle to hold.
+            if (WallRightThere(preAim))
+            {
+                dir = AvoidWallStare(preAim, true);
+            }
         }
         else
         {
@@ -364,12 +370,31 @@ public class SAINSteeringClass : BotComponentClassBase
     private float _wallKeptSide;
     private int _wallClearChecks;
 
-    private Vector3 AvoidWallStare(Vector3 dir)
+    private const float WALL_IN_FACE = 0.8f;
+    private float _nextCloseWallCheck;
+    private bool _closeWall;
+
+    /// <summary>The look / aim ray hits something within 0.8 m of the eyes (checked every 0.25 s).</summary>
+    private bool WallRightThere(Vector3 dir)
+    {
+        if (Time.time >= _nextCloseWallCheck)
+        {
+            _nextCloseWallCheck = Time.time + 0.25f;
+            _closeWall = dir.sqrMagnitude > 0.01f
+                && Physics.Raycast(Bot.Transform.EyePosition, dir.normalized, WALL_IN_FACE, LayersMaskController.HighPolyWithTerrainMask);
+        }
+        return _closeWall;
+    }
+
+    /// <param name="force">10/14: also while pre-aiming a corner / aiming - only called when the wall is right in the face.</param>
+    private Vector3 AvoidWallStare(Vector3 dir, bool force = false)
     {
         var settings = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat;
         Enemy enemy = Bot.GoalEnemy;
+        // 10/14: aiming no longer blocks the fix when the aim line hits a wall right in the face (gun up into the frame)
+        bool aimingBlocks = !force && Bot.Aim.AimStatus != AimStatus.NoTarget && !WallRightThere(dir);
         if (settings == null || !settings.WallLookFix || enemy == null || enemy.IsVisible || (enemy.Seen && enemy.TimeSinceSeen < 0.5f)
-            || SightBlipHold(enemy) || Bot.Aim.AimStatus != AimStatus.NoTarget || _headDown)
+            || SightBlipHold(enemy) || aimingBlocks || _headDown)
         {
             _wallLook = null;
             _wallKept = null;
