@@ -14,7 +14,7 @@ namespace SAIN.SAINComponent.Classes.Mover;
 /// <summary>
 /// zzap fork (2026-10-13, user: "I never saw them ram a door - running away, going in not sure if someone's there, searching;
 /// the mod has more uses than the door tactic"): sprint ram on an ordinary move. While the bot runs its path (BotPathData)
-/// away from an enemy, at an enemy, searching for one, or any other fight move (10/13), a shut door 3-7.5m ahead on a straight leg
+/// away from an enemy, at an enemy, searching for one, or any other fight move (10/13), a shut door 1.5-7.5m ahead on a straight leg
 /// of the path gets one roll (chance per situation, F6 Door Tactics). On a hit the bot keeps (or starts) sprinting at the door
 /// with SAIN's ram armed (BotDoorBreacher - ported from doordash / DualSideDoorBreach, needs neither) and the door opener / door
 /// slowdown held off - the ram bursts the door open. No burst (too slow, door opened by someone else) -> everything back to
@@ -27,8 +27,10 @@ public class DoorRammer(BotComponent bot)
 
     private const float SCAN_INTERVAL = 0.25f;
     private const float SCAN_LENGTH = 7.5f;
-    private const float MIN_START_DIST = 3f;
-    private const float MIN_START_DIST_FAST = 1.8f;
+    // 10/14 (user: "too many limits for bots"): was 3 / 1.8 m and a 35 deg straight leg
+    private const float MIN_START_DIST = 1.5f;
+    private const float MIN_START_DIST_FAST = 0.9f;
+    private const float MAX_LEG_TURN = 50f;
     private const float RAM_TIME = 3f;
     private const float ROLL_MEMORY = 10f;
     private const float BURST_FOLLOW_TIME = 0.6f;
@@ -192,14 +194,22 @@ public class DoorRammer(BotComponent bot)
             {
                 _nearSince = time;
             }
-            else if (time - _nearSince > 0.5f)
+            else if (time - _nearSince > 0.8f)
             {
+                if (KickAtDoor($"slow {_bot.Player.Velocity.magnitude:0.0}m/s"))
+                {
+                    return;
+                }
                 Fallback($"noBurst({_bot.Player.Velocity.magnitude:0.0}m/s, needs {BotDoorBreacher.MinSpeed:0.0})");
                 return;
             }
         }
         if (time > _until - 0.3f)
         {
+            if (d.sqrMagnitude < 2f * 2f && KickAtDoor("timeout"))
+            {
+                return;
+            }
             Fallback("timeout");
             return;
         }
@@ -213,6 +223,24 @@ public class DoorRammer(BotComponent bot)
             path.RequestStartSprint(ESprintUrgency.High, "doorRam");
             _forcedSprintPath = path;
         }
+    }
+
+    /// <summary>
+    /// 10/14 (user: "at an angle the ram doesn't burst it, then they open it by hand, it swings into them and shoves them aside"):
+    /// at the door without a burst -> kick it (always away from the bot) instead of opening it by hand. True = kicked.
+    /// </summary>
+    private bool KickAtDoor(string why)
+    {
+        if (_door == null || _door.DoorState != EDoorState.Shut || !BotDoorBreacher.Kick(_bot.Player, _door))
+        {
+            return false;
+        }
+        string ctxName = CtxName(_ctx);
+        Count($"doormod.move.kick.{ctxName}");
+        Log($"[DoorRam] [{_bot.name}] {ctxName}: no burst ({why}) - kicked door {_door.GetInstanceID()} open at the door");
+        _burst = true;
+        _burstTime = Time.time;
+        return true;
     }
 
     private void Fallback(string why)
@@ -297,7 +325,7 @@ public class DoorRammer(BotComponent bot)
 
     /// <summary>
     /// Casts along the next legs of the path (chest height) up to 7.5m: the first thing hit must be a shut, operatable,
-    /// unlocked door. Stops at a turn sharper than 35 deg - the ram casts along the run (velocity), so the door has to sit on the
+    /// unlocked door. Stops at a turn sharper than MAX_LEG_TURN (50 deg) - the ram casts along the run (velocity), so the door has to sit on the
     /// leg the bot is running straight down.
     /// </summary>
     private static bool FindDoorAhead(BotPathDataManual path, Vector3 botPosition, out Door door, out Vector3 hitPoint, out float dist)
@@ -326,12 +354,12 @@ public class DoorRammer(BotComponent bot)
                 continue;
             }
             Vector3 dir = leg / legLength;
-            if (n > 0 && Vector3.Angle(lastDir, dir) > 35f)
+            if (n > 0 && Vector3.Angle(lastDir, dir) > MAX_LEG_TURN)
             {
                 return false;
             }
             float cast = Mathf.Min(legLength + 0.4f, SCAN_LENGTH - travelled);
-            if (Physics.SphereCast(from + Vector3.up * 1.2f, 0.2f, dir, out RaycastHit hit, cast, mask))
+            if (Physics.SphereCast(from + Vector3.up * 1.2f, 0.3f, dir, out RaycastHit hit, cast, mask))
             {
                 Door d = hit.collider != null ? hit.collider.GetComponentInParent<Door>() : null;
                 if (d == null || d.DoorState != EDoorState.Shut || !d.Operatable || !d.enabled)

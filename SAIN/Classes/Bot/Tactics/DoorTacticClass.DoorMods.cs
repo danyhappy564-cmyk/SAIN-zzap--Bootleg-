@@ -22,7 +22,8 @@ public partial class DoorTacticClass
 {
     private const float RAM_TIME = 3.5f;
     // Longest first: a bot needs a few meters of sprint to get over the ram speed (F6, default 2.8 m/s).
-    private static readonly float[] RAM_RUN_UPS = { 4.5f, 3.5f, 5.5f, 2.8f };
+    // 10/14 (user: "too many limits for bots"): shorter run-ups (was 4.5 / 3.5 / 5.5 / 2.8, at least 2.2 m, within 60% of the half width)
+    private static readonly float[] RAM_RUN_UPS = { 3.5f, 2.5f, 4.5f, 1.8f };
 
     private static float ModRoll(float percent)
     {
@@ -104,7 +105,7 @@ public partial class DoorTacticClass
             {
                 continue;
             }
-            if (Vector3.Dot(point - s.Center, s.BotSide) < 2.2f || Mathf.Abs(Vector3.Dot(point - s.Center, axis)) > s.HalfWidth * 0.6f
+            if (Vector3.Dot(point - s.Center, s.BotSide) < 1.5f || Mathf.Abs(Vector3.Dot(point - s.Center, axis)) > s.HalfWidth * 0.9f
                 || Mathf.Abs(point.y - s.Center.y) > 0.6f)
             {
                 why = "notInLine";

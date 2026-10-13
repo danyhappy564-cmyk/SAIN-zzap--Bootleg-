@@ -384,7 +384,13 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
                 }
                 EDoorState target = ResolveForcedState(watch.Door, watch.TargetState);
                 watch.Door.DoorState = target;
-                watch.Door.CurrentAngle = watch.Door.GetAngle(target);
+                float angle = watch.Door.GetAngle(target);
+                // a door pushed open the other way (bot push-open / reversed breach) is finished on the side it was going to
+                if (target == EDoorState.Open && Mathf.Abs(watch.Door.CurrentAngle) > 1f && Mathf.Sign(watch.Door.CurrentAngle) != Mathf.Sign(angle))
+                {
+                    angle = -angle;
+                }
+                watch.Door.CurrentAngle = angle;
                 SyncInteraction(watch.Door, "force-finalize");
                 _recentlyForced[watch.Door] = time;
                 GlobalEventsController.CreateEvent<InteractiveObjectInteractionResultEvent>().Invoke(watch.Door, target);

@@ -20,7 +20,7 @@ public class DoorSettings : SAINSettingsBase<DoorSettings>, ISAINSettings
     [DataMember]
     [Name("Always Push Open Doors")]
     [Description(
-        "Only applies if No Door Animations is set to on. Bots will always push open doors to avoid getting stuck. Can cause cursed looking doors sometimes, but greatly improves their ability to navigate. [zzap: no code reads this setting in this build - turning it on or off changes nothing.]"
+        "A bot opening a door by hand that would swing into it pushes it the other way instead - the leaf no longer shoves the bot aside into the gap by the wall. Not when something blocks the space the leaf would swing into. Can look odd (a door open the 'wrong' way). Bots only. [zzap 10/14: this works again - it was read by nothing before.]"
     )]
     public bool InvertDoors = true;
 

@@ -205,9 +205,9 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
 
     [DataMember]
     [Name("Bot Sprint Ram: Speed Needed (m/s)")]
-    [Description("How fast the bot must be moving when it reaches the door for it to burst. doordash's player value is 4.5 m/s - bots slow down while aiming at corners and rarely keep that, so theirs is lower. Too slow at the door -> the bot opens it normally.")]
-    [MinMax(1.5f, 6f, 0.1f)]
-    public float BotRamMinSpeed = 2.8f;
+    [Description("How fast the bot must be moving when it reaches the door for it to burst. doordash's player value is 4.5 m/s - bots slow down while aiming at corners and steer loosely, so theirs is much lower (10/14: 2.8 -> 1.6, user: too many limits for bots). Too slow at the door -> the bot opens it normally.")]
+    [MinMax(1.0f, 6f, 0.1f)]
+    public float BotRamMinSpeed = 1.6f;
 
     [DataMember]
     [Name("Bot Sprint Ram: Arm Damage")]
@@ -217,7 +217,7 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
 
     [DataMember]
     [Name("Bot Sprint Ram: Both Sides Of A Door")]
-    [Description("NOT USED since 10/14 (always off): a door burst the other way round ended with its leaf where EFT's pathing doesn't expect it and bots got stuck behind it. Bots only ram doors that swing away from them and that BSG marks as breachable, and SAIN keeps BSG's own direction on a bot ram even with DualSideDoorBreach installed.")]
+    [Description("Like DualSideDoorBreach: a door rammed from the side it would swing into bursts the other way (away from the bot). Off: bots only ram doors that swing away from them, like doordash for the player. With DualSideDoorBreach installed and its direction setting on, that mod turns the door instead (never twice).")]
     public bool BotRamBothSides = true;
 
     [DataMember]
