@@ -73,7 +73,7 @@ public partial class DoorTacticClass : BotComponentClassBase
         ClearThrow,
         ClearWait,
         ClearDash,
-        // zzap door mod (DoorModInterop): only reachable while doordash is installed.
+        // zzap sprint ram (BotDoorBreacher): only reachable while F6 Bot Sprint Ram is on.
         ModRamRunUp,
         ModRamCharge,
     }
@@ -842,7 +842,7 @@ public partial class DoorTacticClass : BotComponentClassBase
         public bool RunByBackToAngle;
         public Vector3 RunByBackTarget;
         public readonly HashSet<string> SupportIds = new();
-        // zzap door mod (doordash)
+        // zzap sprint ram
         public bool WantRam;
         public Vector3 RamRunUp;
         public bool RamStarted;

@@ -100,11 +100,11 @@ public static class SimLabFeatures
         new("remake5", "취약 순간 돌격(소리 종류별 남은 시간)", A("vuln.rush."), A("vuln.reach."), A(), "[Vuln]", "거부 칸에 yes도 섞여 있음 — md '취약 순간 반응' 절 참고"),
         new("remake5", "수류탄 꺼낸 적에게 안 달려듦", A("vuln.grenade.backOff"), A(), A(), "[Vuln]", "", ZeroOk: true),
         new("remake5", "발소리 관리(30m 걷기·12m 숙여 걷기)", A("quiet.start"), A("quiet.skip.", "quiet.timeout"), A(), "[Quiet]"),
-        // zzap doordash (2026-10-13): 0 is normal when the mod isn't installed - check the "doormod.present." counter first.
+        // zzap bot sprint ram (2026-10-13): SAIN's own (BotDoorBreacher, ported from doordash + DualSideDoorBreach), no mod needed.
         // "zzap TEST 문 모드 [시뮬 전용]" preset forces the rams (100%) for a sim check. Door Overhaul support was dropped.
-        new("doormod", "doordash 감지", A("doormod.present.doordash"), A(), A("doormod.present.doordash.bridgeFailed"), "[DoorMod]", "모드를 안 깔았으면 0이 정상. bridgeFailed는 doordash 버전이 달라 연동이 꺼졌다는 뜻", ZeroOk: true),
-        new("doormod", "몸통박치기 방 진입 (doordash)", A("doormod.ram.burst"), A("doormod.ram.noRunUp.", "doormod.ram.fallback."), A(), "[DoorTactic] door mod", "doordash 없으면 0 정상. 문 전술(방 진입)이 드물면 0일 수 있음. fallback.noBurst가 많으면 봇 달리기 속도가 doordash 기준(4.5m/s)보다 느린 것", ZeroOk: true),
-        new("doormod", "달리다가 문 몸통박치기 (doordash: 도망·돌격·수색)", A("doormod.move.burst."), A("doormod.move.fallback.", "doormod.move.skip."), A(), "[DoorRam]", "doordash 없으면 0 정상. move.start.<상황>=시작, burst=문 박차 열림, fallback.noBurst=속도 부족", ZeroOk: true),
+        new("doormod", "봇 박치기 문 부숨 (SAIN 자체)", A("doorram.breach"), A(), A("doorram.breachError"), "[DoorMod]", "breach=봇 반대쪽으로 열리는 문, breach.flipped=봇 쪽 문을 반대로 돌려 엶(DualSide 방식), flippedByDualSide=DualSideDoorBreach 모드가 돌림. breachError가 있으면 버그", ZeroOk: true),
+        new("doormod", "몸통박치기 방 진입", A("doormod.ram.burst"), A("doormod.ram.noRunUp.", "doormod.ram.fallback."), A(), "[DoorTactic] door mod", "문 전술(방 진입)이 드물면 0일 수 있음. fallback.noBurst가 많으면 봇이 문 앞에서 F6 박치기 속도(기본 2.8m/s)보다 느린 것", ZeroOk: true),
+        new("doormod", "달리다가 문 몸통박치기 (도망·돌격·수색)", A("doormod.move.burst."), A("doormod.move.fallback.", "doormod.move.skip."), A(), "[DoorRam]", "move.start.<상황>=시작, burst=문 박차 열림, fallback.noBurst=문 앞 속도 부족", ZeroOk: true),
     };
 
     /// <summary>Counters under <paramref name="prefixes"/> that are not under any of <paramref name="except"/>.</summary>

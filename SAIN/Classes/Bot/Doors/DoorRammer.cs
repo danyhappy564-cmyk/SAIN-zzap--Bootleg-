@@ -13,12 +13,12 @@ namespace SAIN.SAINComponent.Classes.Mover;
 
 /// <summary>
 /// zzap fork (2026-10-13, user: "I never saw them ram a door - running away, going in not sure if someone's there, searching;
-/// the mod has more uses than the door tactic"): doordash ram on an ordinary move. While the bot runs its path (BotPathData)
-/// away from an enemy, at an enemy, or searching for one, a shut door that swings away from it 3-7.5m ahead on a straight leg
-/// of the path gets one roll (chance per situation, F6 Door Tactics > Door Mods). On a hit the bot keeps (or starts) sprinting
-/// at the door with doordash's RaycastBreacher on it and the door opener / door slowdown held off - doordash bursts the door
-/// open. No burst (too slow, wrong angle, door opened by someone else) -> everything back to normal, the bot opens it as usual.
-/// Only while doordash is installed (DoorModInterop.RamActive); never inside a door tactic (that one has its own ram).
+/// the mod has more uses than the door tactic"): sprint ram on an ordinary move. While the bot runs its path (BotPathData)
+/// away from an enemy, at an enemy, or searching for one, a shut door 3-7.5m ahead on a straight leg
+/// of the path gets one roll (chance per situation, F6 Door Tactics). On a hit the bot keeps (or starts) sprinting at the door
+/// with SAIN's ram armed (BotDoorBreacher - ported from doordash / DualSideDoorBreach, needs neither) and the door opener / door
+/// slowdown held off - the ram bursts the door open. No burst (too slow, door opened by someone else) -> everything back to
+/// normal, the bot opens it as usual. Never inside a door tactic (that one has its own ram).
 /// Counters doormod.move.*, journal [DoorRam].
 /// </summary>
 public class DoorRammer(BotComponent bot)
@@ -68,7 +68,7 @@ public class DoorRammer(BotComponent bot)
             return false;
         }
         _nextScan = time + SCAN_INTERVAL;
-        if (!DoorModInterop.RamActive || Settings?.DoorModRamOnMove != true || _bot.Player == null || _bot.Player.IsYourPlayer)
+        if (!BotDoorBreacher.Active || Settings?.DoorModRamOnMove != true || _bot.Player == null || _bot.Player.IsYourPlayer)
         {
             return false;
         }
@@ -78,7 +78,7 @@ public class DoorRammer(BotComponent bot)
             return false;
         }
         float speed = _bot.Player.Velocity.magnitude;
-        bool fast = speed * speed >= DoorModInterop.RamSpeedSqr;
+        bool fast = speed >= BotDoorBreacher.MinSpeed;
         if (!FindDoorAhead(path, botPosition, out Door door, out Vector3 hitPoint, out float dist))
         {
             return false;
@@ -99,7 +99,7 @@ public class DoorRammer(BotComponent bot)
         _rolledUntil[id] = time + ROLL_MEMORY;
 
         string ctxName = CtxName(ctx);
-        if (DoorModInterop.WillSwingToward(door, botPosition))
+        if (!BotDoorBreacher.BothSides && BotDoorBreacher.WillSwingToward(door, botPosition))
         {
             Count($"doormod.move.skip.swingsToward.{ctxName}");
             return false;
@@ -120,7 +120,7 @@ public class DoorRammer(BotComponent bot)
             Count($"doormod.move.skip.rollFailed.{ctxName}");
             return false;
         }
-        if (!DoorModInterop.StartRam(_bot.Player, RAM_TIME))
+        if (!BotDoorBreacher.Start(_bot.Player, RAM_TIME))
         {
             Count($"doormod.move.skip.noBreacher.{ctxName}");
             return false;
@@ -152,7 +152,7 @@ public class DoorRammer(BotComponent bot)
         {
             _burst = true;
             _burstTime = time;
-            // doordash breached it (Breaching -> Open), or someone else opened it: either way the way is open.
+            // The ram breached it (Breaching -> Open), or someone else opened it: either way the way is open.
             Count($"doormod.move.burst.{ctxName}");
             Log($"[DoorRam] [{_bot.name}] {ctxName}: rammed door {_door.GetInstanceID()} ({_door.DoorState}) at {_bot.Player.Velocity.magnitude:0.0} m/s");
         }
@@ -183,7 +183,7 @@ public class DoorRammer(BotComponent bot)
             }
             else if (time - _nearSince > 0.5f)
             {
-                Fallback($"noBurst({_bot.Player.Velocity.magnitude:0.0}m/s, needs {Mathf.Sqrt(DoorModInterop.RamSpeedSqr):0.0})");
+                Fallback($"noBurst({_bot.Player.Velocity.magnitude:0.0}m/s, needs {BotDoorBreacher.MinSpeed:0.0})");
                 return;
             }
         }
@@ -211,7 +211,7 @@ public class DoorRammer(BotComponent bot)
         Stop(why);
     }
 
-    /// <summary>Ends the ram: doordash taken away, door opener back on, a sprint we started ourselves ended again.</summary>
+    /// <summary>Ends the ram: ram disarmed, door opener back on, a sprint we started ourselves ended again.</summary>
     public void Stop(string why)
     {
         if (!_charging)
@@ -219,7 +219,7 @@ public class DoorRammer(BotComponent bot)
             return;
         }
         _charging = false;
-        DoorModInterop.StopRam(_bot.Player);
+        BotDoorBreacher.Stop(_bot.Player);
         if (_bot.DoorOpener != null)
         {
             _bot.DoorOpener.NoInteractUntil = 0f;
@@ -275,7 +275,7 @@ public class DoorRammer(BotComponent bot)
 
     /// <summary>
     /// Casts along the next legs of the path (chest height) up to 7.5m: the first thing hit must be a shut, operatable,
-    /// unlocked door. Stops at a turn sharper than 35 deg - doordash casts along the body's forward, so the door has to sit on the
+    /// unlocked door. Stops at a turn sharper than 35 deg - the ram casts along the run (velocity), so the door has to sit on the
     /// leg the bot is running straight down.
     /// </summary>
     private static bool FindDoorAhead(BotPathDataManual path, Vector3 botPosition, out Door door, out Vector3 hitPoint, out float dist)

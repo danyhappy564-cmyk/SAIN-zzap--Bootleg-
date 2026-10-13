@@ -100,8 +100,9 @@ public static class SimLabGlossary
         new("ownGrenade.", "내가 던진 수류탄 위치 추적", "Tracked own grenade", "OwnGrenadeTracker"),
         new("trick.", "속임수 동작 취소·건너뜀", "Tricks cancelled / skipped", "DoorTacticClass"),
         // zzap doordash (only with doordash installed)
-        new("doormod.present.", "이 판에 감지된 doordash (.bridgeFailed=버전이 달라 연동 꺼짐, .disabled=doordash 자체 설정 꺼짐)", "doordash detected this raid (.bridgeFailed = version mismatch, bridge off)", "DoorModInterop"),
-        new("doormod.ram.", "몸통박치기 방 진입 (planned, charge=돌진 시작, burst=문 박차 열림, fallback.이유=안 돼서 평소처럼 엶, doorSwingsToward=봇 쪽으로 열리는 문)", "Room-clear sprint ram (planned / charge / burst / fallback.reason)", "DoorTacticClass.DoorMods"),
+        new("doormod.present.", "이 판에 깔려 있던 문 모드 (doordash=플레이어 전용으로 그대로, dualSide=DualSideDoorBreach가 봇 문 방향도 돌림, .directionOff=그 모드 방향 설정 꺼짐)", "Door mods installed this raid (doordash stays player-only; dualSide turns bots' doors too)", "DoorModInterop"),
+        new("doorram.", "봇 박치기 (SAIN 자체, doordash·DualSideDoorBreach 이식): on/off=설정, breach=문 부숨, breach.flipped=봇 쪽으로 열리는 문을 반대로, breach.flippedByDualSide=그 모드가 돌림, breachError=오류", "SAIN's own bot sprint ram (breach / flipped / flippedByDualSide / breachError)", "BotDoorBreacher"),
+        new("doormod.ram.", "몸통박치기 방 진입 (planned, charge=돌진 시작, burst=문 박차 열림, fallback.이유=안 돼서 평소처럼 엶, doorSwingsToward=봇 쪽으로 열리는 문 — '양쪽에서' 설정 끔일 때만)", "Room-clear sprint ram (planned / charge / burst / fallback.reason)", "DoorTacticClass.DoorMods"),
         new("doormod.move.", "달리다가 문 몸통박치기 (start.상황, burst.상황=문 박차 열림, fallback.이유=안 돼서 평소처럼 엶, skip.이유=굴림 실패·봇 쪽으로 열림 등; 상황: flee=도망, rush=돌격, search=수색)", "Ram while running through a door (start / burst / fallback / skip, by flee / rush / search)", "DoorRammer"),
         // freeze / search / post combat
         new("freeze.", "정지 및 매복: 가까이 들린 적을 기다림 (start=시작, end=끝난 이유, cornerWatch=코너 주시)", "Freeze ambush (start, end reason, corner watch)", "FreezeAction"),
@@ -111,6 +112,7 @@ public static class SimLabGlossary
         new("retreat.", "후퇴 동작 (weave=지그재그, headDown=고개 숙여 뛰기, weaveJump=꺾을 때 점프, landingJump=엄폐 앞 착지 점프)", "Retreat (weave, head down, switch hop, landing jump)", "RetreatWeave / SAINSteeringClass"),
         new("jump.airShot.", "점프 중 사격 굴림 (allowed=공중에서도 쏨, held=착지까지 참음; 봇·적마다 한 번)", "Air-shot roll per bot and enemy (allowed / held until landing)", "SAINMoverClass.TryJump"),
         new("suppress.", "제압 사격 (burstPause=점사 사이 쉼)", "Suppression (burst pause)", "SAINBotSuppressClass"),
+        new("shoot.blocked.", "안 보이는 적에게 쏘려다 막아 둔 사격 (otherFloor=다른 층이라 천장·바닥·벽에 막힘, wallInFace=총구 2.5m 앞이 벽; 뒤에 쏘려던 이유 Suppress·Blindfire·None 등)", "Shot at an unseen enemy refused: line blocked (other floor / wall in front of the muzzle), by reason", "ManualShootClass"),
         new("light.", "손전등 켜기/끄기", "Flashlight use", "BotLightController"),
         // ORBIT handoff / stuck / sim
         new("handoff.toOrbit", "교전이 끝나 ORBIT(맵 이동 모드)로 넘어감 (gap=끝나고 몇 초 뒤)", "Fight ended -> handed to ORBIT (gap = seconds after)", "LayerHandoff"),

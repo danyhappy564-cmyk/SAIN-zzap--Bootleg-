@@ -195,46 +195,68 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     [Description("Vanilla SAIN closes any open door its path runs into (6s grace for doors it just opened). With a door that opens toward the bot that means: open, walk into the leaf, jitter/spin, close it, open it again... and bots closing open doors all over the map. Off (default): bots only open shut doors while moving.")]
     public bool AutoCloseDoors = false;
 
-    // zzap (2026-10-13): doordash tactics. Only work while doordash is installed - SAIN finds the mod by itself at game start;
-    // when it isn't installed (or was removed) these settings are simply ignored, nothing else changes.
+    // zzap (2026-10-13): bot sprint ram - SAIN's own (ported from doordash + DualSideDoorBreach), no other mod needed. doordash's
+    // config only affects the player; installed or not, bots use the values below.
 
     [DataMember]
-    [Name("Door Mods: Sprint Ram Into The Room")]
-    [Description("[Needs the doordash mod - detected automatically at game start, ignored without it] A room clear that dashes in without a grenade takes a run-up and sprints through the shut door instead of opening it from the side - doordash bursts it open (the bot takes doordash's arm damage and a short stun like the player). Only shut (not locked) doors that swing away from the bot, with a straight run-up in front of them. If the ram doesn't happen (too slow, blocked), the bot opens the door normally.")]
+    [Name("Bot Sprint Ram")]
+    [Description("Bots can sprint into a shut door and burst it open (ported from the doordash and DualSideDoorBreach mods - neither needs to be installed; if they are, they keep working for the player with their own settings). Used by the room clear and by bots running away / rushing / searching through a door (chances below). The rammer burns stamina and takes arm damage. Off: bots always open doors by hand.")]
+    public bool BotRamEnabled = true;
+
+    [DataMember]
+    [Name("Bot Sprint Ram: Speed Needed (m/s)")]
+    [Description("How fast the bot must be moving when it reaches the door for it to burst. doordash's player value is 4.5 m/s - bots slow down while aiming at corners and rarely keep that, so theirs is lower. Too slow at the door -> the bot opens it normally.")]
+    [MinMax(1.5f, 6f, 0.1f)]
+    public float BotRamMinSpeed = 2.8f;
+
+    [DataMember]
+    [Name("Bot Sprint Ram: Arm Damage")]
+    [Description("Damage to the rammer's left arm per burst door (metal doors x2; EFT may fracture the arm like a fall). doordash's player default is 10. 0 = none.")]
+    [MinMax(0f, 30f, 1f)]
+    public float BotRamDamage = 5f;
+
+    [DataMember]
+    [Name("Bot Sprint Ram: Both Sides Of A Door")]
+    [Description("Like DualSideDoorBreach: a door rammed from the side it would swing into bursts the other way (away from the bot). Off: bots only ram doors that swing away from them, like doordash for the player. With DualSideDoorBreach installed and its direction setting on, that mod turns the door instead (never twice).")]
+    public bool BotRamBothSides = true;
+
+    [DataMember]
+    [Name("Sprint Ram Into The Room")]
+    [Description("A room clear that dashes in without a grenade takes a run-up and sprints through the shut door instead of opening it from the side. Only shut (not locked) doors with a straight run-up in front of them. If the ram doesn't happen (too slow, blocked), the bot opens the door normally. Needs Bot Sprint Ram.")]
     public bool DoorModRam = true;
 
     [DataMember]
-    [Name("Door Mods: Sprint Ram Chance")]
-    [Description("[Needs doordash] Percent, rolled when a grenade-less room clear meets a shut door that swings away from the bot.")]
+    [Name("Sprint Ram Into The Room: Chance")]
+    [Description("Percent, rolled when a grenade-less room clear meets a shut door.")]
     [MinMax(0f, 100f, 1f)]
     public float DoorModRamChance = 35f;
 
     [DataMember]
-    [Name("Door Mods: Sprint Ram While Running Through Doors")]
-    [Description("[Needs the doordash mod - detected automatically at game start, ignored without it] Outside door tactics too: a bot running away, rushing an enemy or searching for one whose path goes through a shut door 3-7m ahead (swinging away from it, straight lane) may sprint into it instead of stopping to open it - doordash bursts it open. The chance depends on what the bot is doing (below). If it doesn't burst (too slow, wrong angle), the bot opens the door normally.")]
+    [Name("Sprint Ram While Running Through Doors")]
+    [Description("Outside door tactics too: a bot running away, rushing an enemy or searching for one whose path goes through a shut door 3-7m ahead (straight lane) may sprint into it instead of stopping to open it. The chance depends on what the bot is doing (below). If it doesn't burst (too slow, wrong angle), the bot opens the door normally. Needs Bot Sprint Ram.")]
     public bool DoorModRamOnMove = true;
 
     [DataMember]
-    [Name("Door Mods: Ram Chance - Running Away")]
-    [Description("[Needs doordash] Percent, rolled once per door: retreating / running for cover with the enemy on it (shot at or seen in the last few seconds).")]
+    [Name("Ram Chance - Running Away")]
+    [Description("Percent, rolled once per door: retreating / running for cover with the enemy on it (shot at or seen in the last few seconds).")]
     [MinMax(0f, 100f, 1f)]
     public float DoorModRamFleeChance = 60f;
 
     [DataMember]
-    [Name("Door Mods: Ram Chance - Rushing")]
-    [Description("[Needs doordash] Percent, rolled once per door: rushing / closing in on an enemy.")]
+    [Name("Ram Chance - Rushing")]
+    [Description("Percent, rolled once per door: rushing / closing in on an enemy.")]
     [MinMax(0f, 100f, 1f)]
     public float DoorModRamRushChance = 50f;
 
     [DataMember]
-    [Name("Door Mods: Ram Chance - Searching")]
-    [Description("[Needs doordash] Percent, rolled once per door: searching for an enemy that might be behind it (not sure where he is). The bot speeds up for the last meters to hit the door hard.")]
+    [Name("Ram Chance - Searching")]
+    [Description("Percent, rolled once per door: searching for an enemy that might be behind it (not sure where he is). The bot speeds up for the last meters to hit the door hard.")]
     [MinMax(0f, 100f, 1f)]
     public float DoorModRamSearchChance = 35f;
 
     [DataMember]
-    [Name("TEST MODE: Door Mod Tactics Always")]
-    [Description("For testing only (sim). Every doordash ram whose conditions are met is used (100% chance) - room clear and running through doors. Still only works while doordash is installed. Turn it off for normal play.")]
+    [Name("TEST MODE: Bot Sprint Ram Always")]
+    [Description("For testing only (sim). Every bot sprint ram whose conditions are met is used (100% chance) - room clear and running through doors. Turn it off for normal play.")]
     public bool TestModeDoorMods = false;
 
     [DataMember]

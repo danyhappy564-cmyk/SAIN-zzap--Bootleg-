@@ -10,18 +10,18 @@ using UnityEngine.AI;
 namespace SAIN.SAINComponent.Classes.Tactics;
 
 /// <summary>
-/// zzap fork (2026-10-13): the doordash room-clear ram, added to the normal clear plan as extra steps. Planned only while
-/// doordash is installed (DoorModInterop finds it at game start) - without the mod the plans are exactly what they were.
+/// zzap fork (2026-10-13): the room-clear sprint ram, added to the normal clear plan as extra steps. Since the same evening it is
+/// SAIN's own ram (BotDoorBreacher, ported from doordash + DualSideDoorBreach) - no other mod needed.
 ///
-///   Sprint ram (doordash) - a grenade-less clear takes a 2.8-5.5m run-up in line with the door and sprints into it with
-///     doordash's RaycastBreacher on the bot for the charge only; no burst (too slow, wrong side) -> open it normally.
+///   Sprint ram - a grenade-less clear takes a 2.8-5.5m run-up in line with the door and sprints into it with the ram armed for
+///     the charge only; no burst (too slow, blocked) -> open it normally.
 /// Rams outside door tactics (retreat / rush / search through a shut door): DoorRammer. Counters: doormod.ram.*.
 /// Door Overhaul (shoot through / grenade on the door / push partly open doors) was dropped the same day - memory use.
 /// </summary>
 public partial class DoorTacticClass
 {
     private const float RAM_TIME = 3.5f;
-    // Longest first: a bot needs a few meters of sprint to get over doordash's 4.5 m/s.
+    // Longest first: a bot needs a few meters of sprint to get over the ram speed (F6, default 2.8 m/s).
     private static readonly float[] RAM_RUN_UPS = { 4.5f, 3.5f, 5.5f, 2.8f };
 
     private static float ModRoll(float percent)
@@ -42,9 +42,9 @@ public partial class DoorTacticClass
             return;
         }
 
-        if (!s.ClearReal && Settings.DoorModRam && DoorModInterop.RamActive)
+        if (!s.ClearReal && Settings.DoorModRam && BotDoorBreacher.Active)
         {
-            if (DoorModInterop.WillSwingToward(door, Bot.Position))
+            if (!BotDoorBreacher.BothSides && BotDoorBreacher.WillSwingToward(door, Bot.Position))
             {
                 TacticDiagnostics.Count("doormod.ram.doorSwingsToward");
             }
@@ -73,7 +73,7 @@ public partial class DoorTacticClass
     {
         if (s.RamStarted)
         {
-            DoorModInterop.StopRam(Player);
+            BotDoorBreacher.Stop(Player);
             Bot.DoorOpener.NoInteractUntil = 0f;
         }
     }
@@ -88,7 +88,7 @@ public partial class DoorTacticClass
         SetStep(EStep.MoveToStack, "doorModFallback");
     }
 
-    // ---------------------------------------------------------------- sprint ram (doordash)
+    // ---------------------------------------------------------------- sprint ram
 
     private bool FindRamRunUp(Session s, out string why)
     {
@@ -140,7 +140,7 @@ public partial class DoorTacticClass
         s.LookTarget = s.RushLook;
         if (!s.RamStarted)
         {
-            if (door == null || door.DoorState != EDoorState.Shut || !DoorModInterop.StartRam(Player, RAM_TIME))
+            if (door == null || door.DoorState != EDoorState.Shut || !BotDoorBreacher.Start(Player, RAM_TIME))
             {
                 RamFallback(s, door == null || door.DoorState != EDoorState.Shut ? "doorNotShut" : "noBreacher");
                 return;
@@ -153,7 +153,7 @@ public partial class DoorTacticClass
         }
         if (!s.RamBurst && door != null && door.DoorState != EDoorState.Shut)
         {
-            // doordash breached it (Interacting/Breaching -> Open), or someone else opened it: either way, through we go.
+            // The ram breached it (Breaching -> Open), or someone else opened it: either way, through we go.
             s.RamBurst = true;
             TacticDiagnostics.Count("doormod.ram.burst");
             if (LogOn) Log($"{Who()} door mod: rammed door {s.Door.Id} ({door.DoorState}) at {Player.Velocity.magnitude:0.0} m/s");
@@ -169,7 +169,7 @@ public partial class DoorTacticClass
                 }
                 else if (Time.time - s.RamNearDoorSince > 0.5f)
                 {
-                    RamFallback(s, $"noBurst({Player.Velocity.magnitude:0.0}m/s, needs {Mathf.Sqrt(DoorModInterop.RamSpeedSqr):0.0})");
+                    RamFallback(s, $"noBurst({Player.Velocity.magnitude:0.0}m/s, needs {BotDoorBreacher.MinSpeed:0.0})");
                     return;
                 }
             }
@@ -181,7 +181,7 @@ public partial class DoorTacticClass
         }
         if (MoveStep(s, s.RushPoint, true, stepTime) || (s.RamBurst && stepTime > RAM_TIME))
         {
-            DoorModInterop.StopRam(Player);
+            BotDoorBreacher.Stop(Player);
             Bot.DoorOpener.NoInteractUntil = 0f;
             TacticDiagnostics.Count("door.clear.entered");
             End("roomEntered");
@@ -190,7 +190,7 @@ public partial class DoorTacticClass
 
     private void RamFallback(Session s, string why)
     {
-        DoorModInterop.StopRam(Player);
+        BotDoorBreacher.Stop(Player);
         Bot.DoorOpener.NoInteractUntil = 0f;
         s.RamStarted = false;
         if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"doormod.ram.fallback.{why.Split('(')[0]}");

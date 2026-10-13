@@ -25,8 +25,8 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
         EnsureDoorFinalizeWatchdogInitialized(currentTime);
         TickDoorFinalizeWatches(currentTime);
         TickForcedDoorResync(currentTime);
-        // zzap: doordash rams running out.
-        DoorModInterop.Tick(currentTime);
+        // zzap: bot sprint rams (BotDoorBreacher) - door casts, running out.
+        SAIN.SAINComponent.Classes.Mover.BotDoorBreacher.Tick(currentTime);
     }
 
     // A forced door can still have BSG's smooth-open coroutine finishing its old interaction afterwards; re-check those

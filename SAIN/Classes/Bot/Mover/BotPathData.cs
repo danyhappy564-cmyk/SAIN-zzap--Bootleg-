@@ -99,7 +99,7 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
         // door in any state - running to cover under fire too. An urgent move (cover / retreat / grenade / rush while under
         // fire, just hit or the enemy seen in the last 3 s) only minds doors that aren't standing open: no sprint into
         // them, and the crawl only in the last 1.5 m.
-        // zzap (2026-10-13): doordash ram on this move (DoorRammer) - keep sprinting at the shut door, no door slowdown.
+        // zzap (2026-10-13): sprint ram on this move (DoorRammer) - keep sprinting at the shut door, no door slowdown.
         bool ramming = Bot.DoorOpener.Rammer.TickPath(this, botPosition);
         if (ramming)
         {

@@ -22,7 +22,7 @@ public class DoorOpener : BotComponentClassBase
         Rammer = new DoorRammer(sain);
     }
 
-    /// <summary>zzap: doordash ram on ordinary moves (retreat / rush / search), ticked from BotPathDataManual.TickPath.</summary>
+    /// <summary>zzap: sprint ram on ordinary moves (retreat / rush / search), ticked from BotPathDataManual.TickPath.</summary>
     public DoorRammer Rammer { get; }
 
     private const float DOOR_UPDATE_INTERVAL = 0.5f;
@@ -547,7 +547,7 @@ public class DoorOpener : BotComponentClassBase
     private const float JUST_OPENED_GRACE = 6f;
 
     /// <summary>
-    /// zzap: while a doordash ram is running the bot must not stop to open the shut door it is sprinting into (the ram needs
+    /// zzap: while a sprint ram is running the bot must not stop to open the shut door it is sprinting into (the ram needs
     /// the door still Shut when the bot hits it). Set for the length of the charge only (DoorTacticClass room clear, DoorRammer).
     /// </summary>
     public float NoInteractUntil { get; set; }
