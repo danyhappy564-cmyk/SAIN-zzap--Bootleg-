@@ -30,8 +30,9 @@ namespace SAIN.SAINComponent.Classes.Mover;
 ///
 /// Installed alongside:
 ///   - doordash: untouched - its RaycastBreacher stays on the main player only, with its own config.
-///   - DualSideDoorBreach: its KickOpen prefix already turns every kick (bots included) away from the kicker while its
-///     "Enabled" + "AdjustOpenDirection" are on. Then we leave the angle to it - flipping it here too would turn it back.
+///   - DualSideDoorBreach: its KickOpen prefix turns every kick (bots included) by its own side test. On SAIN's own breaches
+///     BotBreachSwingFlipPatch runs after it and sets the angle outright (10/14: its test reads doors rammed from beside the
+///     hinge, or left a little off shut, the wrong way round - see WillSwingToward). Everyone else's kicks are left to it.
 /// </summary>
 public static class BotDoorBreacher
 {
@@ -94,10 +95,77 @@ public static class BotDoorBreacher
     }
 
     /// <summary>
-    /// doordash's RaycastBreacher.WillDoorSwingTowardsPlayer (the same test as vanilla Door.BreachSuccessRoll, mirrored): the
-    /// door's swing (halfway between its shut and open facing) points at the position.
+    /// The position is on the side of the shut door the leaf swings into.
+    /// zzap (2026-10-14 sim, F8 mark #2 + screenshots: a bot kicked a Factory door from right in front of it and the leaf came
+    /// at it; all 11 rams that raid read "swings away", none turned): doordash's / vanilla BreachSuccessRoll's test (the same one
+    /// DualSideDoorBreach uses) took the leaf's facing from door.transform - which already carries the leaf's current angle, so
+    /// a door that sits a little off its shut angle (seen: "Shut angle=-17" after a player went through it) gets every direction
+    /// turned by that much - and split the sides along the bisector of the shut and open facings, a line tilted ~55 deg off the
+    /// door for a 111 deg door, so a bot standing at the door beside the hinge read "away". Now: the side of the shut leaf's
+    /// own plane, from the leaf's geometry with the current angle taken out. The old test only when the leaf can't be measured.
     /// </summary>
     public static bool WillSwingToward(Door door, Vector3 position)
+    {
+        if (TryLeafSides(door, out Vector3 hinge, out _, out Vector3 swingNormal, out _))
+        {
+            Vector3 d = position - hinge;
+            d.y = 0f;
+            return Vector3.Dot(d, swingNormal) > 0f;
+        }
+        return LegacySwingToward(door, position);
+    }
+
+    /// <summary>
+    /// The door's leaf at its shut angle, measured from its collider with the current angle taken out (BSG: transform.rotation =
+    /// GetDoorRotation(CurrentAngle) * parent.rotation, turning about the transform's position = the hinge). leafDir runs along the
+    /// shut leaf from the hinge, swingNormal (flat) points to the side the leaf opens into, halfLeaf = hinge to mid-leaf.
+    /// </summary>
+    public static bool TryLeafSides(Door door, out Vector3 hinge, out Vector3 leafDir, out Vector3 swingNormal, out float halfLeaf)
+    {
+        hinge = default;
+        leafDir = default;
+        swingNormal = default;
+        halfLeaf = 0f;
+        try
+        {
+            Transform t = door != null ? door.transform : null;
+            Collider leaf = t != null ? door.GetComponentInChildren<Collider>() : null;
+            if (t == null || t.parent == null || leaf == null)
+            {
+                return false;
+            }
+            hinge = t.position;
+            Vector3 local = Quaternion.Inverse(t.rotation) * (leaf.bounds.center - hinge);
+            Vector3 shut = door.GetDoorRotation(door.GetAngle(EDoorState.Shut)) * t.parent.rotation * local;
+            Vector3 open = door.GetDoorRotation(door.GetAngle(EDoorState.Open)) * t.parent.rotation * local;
+            shut.y = 0f;
+            open.y = 0f;
+            halfLeaf = shut.magnitude;
+            if (halfLeaf < 0.15f)
+            {
+                return false;
+            }
+            leafDir = shut / halfLeaf;
+            swingNormal = new Vector3(-leafDir.z, 0f, leafDir.x);
+            float side = Vector3.Dot(open, swingNormal);
+            if (Mathf.Abs(side) < 0.05f)
+            {
+                return false;
+            }
+            if (side < 0f)
+            {
+                swingNormal = -swingNormal;
+            }
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>doordash's RaycastBreacher.WillDoorSwingTowardsPlayer (vanilla Door.BreachSuccessRoll mirrored) - see WillSwingToward.</summary>
+    public static bool LegacySwingToward(Door door, Vector3 position)
     {
         try
         {
@@ -209,6 +277,8 @@ public static class BotDoorBreacher
         public Door Door;
         public float Time;
         public string Who;
+        public bool Turned;
+        public Vector3 From;
     }
 
     private static readonly List<AfterBreach> _afterBreach = new();
@@ -226,7 +296,7 @@ public static class BotDoorBreacher
         {
             return "door gone";
         }
-        return $"{door.DoorState} angle={door.CurrentAngle:0} (own open {door.GetAngle(EDoorState.Open):0}{(ReversedLeafUnjam.IsReversed(door) ? ", REVERSED" : "")})";
+        return $"{door.DoorState} angle={door.CurrentAngle:0} (own open {door.GetAngle(EDoorState.Open):0}, shut {door.GetAngle(EDoorState.Shut):0}{(ReversedLeafUnjam.IsReversed(door) ? ", REVERSED" : "")})";
     }
 
     private static void TickAfterBreach(float time)
@@ -241,7 +311,19 @@ public static class BotDoorBreacher
             _afterBreach.RemoveAt(i);
             if (TacticDiagnostics.LogOn)
             {
-                TacticDiagnostics.LogCloseCombat($"[DoorRam] door {(a.Door != null ? a.Door.GetInstanceID() : 0)} 2s after {a.Who}'s ram: {DescribeLeaf(a.Door)}");
+                // leafSideOfRammer: where the leaf ended relative to where the rammer stood - "far" is right, "rammer's side" is the bug
+                string side = "?";
+                if (a.Door != null && TryLeafSides(a.Door, out Vector3 hinge, out _, out Vector3 normal, out _))
+                {
+                    Collider leaf = a.Door.GetComponentInChildren<Collider>();
+                    if (leaf != null)
+                    {
+                        float leafSide = Vector3.Dot(leaf.bounds.center - hinge, normal);
+                        float rammerSide = Vector3.Dot(a.From - hinge, normal);
+                        side = leafSide * rammerSide > 0f ? "RAMMER'S SIDE" : "far side";
+                    }
+                }
+                TacticDiagnostics.LogCloseCombat($"[DoorRam] door {(a.Door != null ? a.Door.GetInstanceID() : 0)} 2s after {a.Who}'s ram: {DescribeLeaf(a.Door)} | turned={a.Turned} leaf ended on {side}");
             }
         }
     }
@@ -296,14 +378,23 @@ public static class BotDoorBreacher
         }
         Vector3 center;
         Vector3 normal;
-        try
+        // 10/14: the shut leaf's own plane (TryLeafSides) - the old normal also carried the leaf's current angle
+        if (TryLeafSides(door, out Vector3 hinge, out Vector3 leafDir, out Vector3 swingNormal, out float halfLeaf))
         {
-            center = door.transform.TransformPoint(door.viewTarget1);
-            normal = door.GetDoorRotation(door.GetAngle(EDoorState.Shut)) * WorldInteractiveObject.GetRotationAxis(door.DoorForward, door.transform);
+            center = hinge + leafDir * halfLeaf;
+            normal = swingNormal;
         }
-        catch (Exception)
+        else
         {
-            return false;
+            try
+            {
+                center = door.transform.TransformPoint(door.viewTarget1);
+                normal = door.GetDoorRotation(door.GetAngle(EDoorState.Shut)) * WorldInteractiveObject.GetRotationAxis(door.DoorForward, door.transform);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
         normal.y = 0f;
         if (normal.sqrMagnitude < 0.0001f)
@@ -342,11 +433,16 @@ public static class BotDoorBreacher
     private static void Breach(Player player, Door door)
     {
         bool towardBot = WillSwingToward(door, player.Position);
-        // DualSideDoorBreach turns it itself (its KickOpen(bool) prefix reads Door.InteractingPlayer = this bot via SetUser)
-        bool flip = towardBot && !DoorModInterop.DualSideHandlesSwing;
+        // 10/14: SAIN sets the direction itself even with DualSideDoorBreach installed - that mod decides with the old test
+        // (LegacySwingToward), which got doors rammed from beside the hinge / doors left a little off shut the wrong way round.
+        // BotBreachSwingFlipPatch runs after its prefix and sets the final angle outright, so nothing is turned twice.
+        if (towardBot != LegacySwingToward(door, player.Position))
+        {
+            TacticDiagnostics.Count("doorram.sideFixed");
+        }
         try
         {
-            SwingFlip.Begin(door, flip);
+            SwingFlip.Begin(door, towardBot);
             door.LockForInteraction();
             door.SetUser(player);
             door.Interact(new InteractionResult(EInteractionType.Breach));
@@ -361,11 +457,11 @@ public static class BotDoorBreacher
         {
             SwingFlip.End();
         }
-        TacticDiagnostics.Count(towardBot ? (flip ? "doorram.breach.flipped" : "doorram.breach.flippedByDualSide") : "doorram.breach");
+        TacticDiagnostics.Count(towardBot ? "doorram.breach.flipped" : "doorram.breach");
         _breachTimes[door.GetInstanceID()] = Time.time;
         if (_afterBreach.Count < 32)
         {
-            _afterBreach.Add(new AfterBreach { Door = door, Time = Time.time, Who = player.Profile?.Nickname });
+            _afterBreach.Add(new AfterBreach { Door = door, Time = Time.time, Who = player.Profile?.Nickname, Turned = towardBot, From = player.Position });
         }
         HurtRammer(player, door);
     }
@@ -429,12 +525,17 @@ public class BotBreachSwingFlipPatch : ModulePatch
             [typeof(EDoorState), typeof(float), typeof(float), typeof(AnimationCurve), typeof(bool)]);
     }
 
+    // after DualSideDoorBreach's own InitSmoothOpen prefix: on SAIN's breaches our direction is the final word (10/14)
     [PatchPrefix]
+    [HarmonyAfter(DoorModInterop.DualSideGUID)]
+    [HarmonyPriority(Priority.Last)]
     public static void Prefix(EDoorState state, ref float resultAngle)
     {
-        if (BotDoorBreacher.SwingFlip.Flip && state == EDoorState.Breaching)
+        Door door = BotDoorBreacher.SwingFlip.Door;
+        if (door != null && state == EDoorState.Breaching)
         {
-            resultAngle = -resultAngle;
+            // KickOpen passes the door's OpenAngle; DualSideDoorBreach may have negated it already - set it outright
+            resultAngle = BotDoorBreacher.SwingFlip.Flip ? -door.OpenAngle : door.OpenAngle;
         }
         // a bot's hand-open pushed away from it (BotDoorPushOpen, F6 Always Push Open Doors)
         else if (BotDoorPushOpen.Active && state == EDoorState.Open)

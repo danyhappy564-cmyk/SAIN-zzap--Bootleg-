@@ -12,7 +12,8 @@ namespace SAIN;
 ///   - doordash (bmpq, com.tarkin.doordash): only logged. Its ram stays on the main player with its own config; SAIN never adds
 ///     it to bots any more (user: "the doordash config is the player's, bots get SAIN's values").
 ///   - DualSideDoorBreach (maschine34675, com.maschine.DualSideDoorBreach): its KickOpen prefix turns every kick away from the
-///     kicker - bots' too - while its Enabled + AdjustOpenDirection are on. Then SAIN must not flip the door itself as well.
+///     kicker while its Enabled + AdjustOpenDirection are on. Only logged since 10/14: on SAIN's own bot rams SAIN sets the final
+///     angle after it (its side test misreads doors kicked from beside the hinge - BotDoorBreacher.WillSwingToward).
 /// Nothing here is referenced at compile time: found by BepInEx GUID once all plugins are loaded, members looked up by name;
 /// anything unexpected is logged once and handled the safe way.
 /// Door Overhaul support was dropped the same day (user: "it eats ~600 MB a minute").
@@ -105,6 +106,6 @@ public static class DoorModInterop
         if (DualSideInstalled) count(DualSideHandlesSwing ? "doormod.present.dualSide" : "doormod.present.dualSide.directionOff");
         line($"[DoorMod] bot sprint ram (SAIN): {(BotDoorBreacher.Active ? $"on, {BotDoorBreacher.MinSpeed:0.0} m/s, both sides {BotDoorBreacher.BothSides}" : "off")}"
             + $" | doordash: {(DoorDashInstalled ? _doorDashVersion + " (player only)" : "not installed")}"
-            + $" | DualSideDoorBreach: {(DualSideInstalled ? _dualSideVersion + (DualSideHandlesSwing ? " (turns doors)" : " (direction off)") : "not installed")}");
+            + $" | DualSideDoorBreach: {(DualSideInstalled ? _dualSideVersion + (DualSideHandlesSwing ? " (turns player kicks; bot rams set by SAIN)" : " (direction off)") : "not installed")}");
     }
 }
