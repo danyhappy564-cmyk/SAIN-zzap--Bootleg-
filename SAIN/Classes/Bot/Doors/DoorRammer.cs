@@ -14,7 +14,7 @@ namespace SAIN.SAINComponent.Classes.Mover;
 /// <summary>
 /// zzap fork (2026-10-13, user: "I never saw them ram a door - running away, going in not sure if someone's there, searching;
 /// the mod has more uses than the door tactic"): sprint ram on an ordinary move. While the bot runs its path (BotPathData)
-/// away from an enemy, at an enemy, or searching for one, a shut door 3-7.5m ahead on a straight leg
+/// away from an enemy, at an enemy, searching for one, or any other fight move (10/13), a shut door 3-7.5m ahead on a straight leg
 /// of the path gets one roll (chance per situation, F6 Door Tactics). On a hit the bot keeps (or starts) sprinting at the door
 /// with SAIN's ram armed (BotDoorBreacher - ported from doordash / DualSideDoorBreach, needs neither) and the door opener / door
 /// slowdown held off - the ram bursts the door open. No burst (too slow, door opened by someone else) -> everything back to
@@ -23,7 +23,7 @@ namespace SAIN.SAINComponent.Classes.Mover;
 /// </summary>
 public class DoorRammer(BotComponent bot)
 {
-    private enum ECtx { None, Flee, Rush, Search }
+    private enum ECtx { None, Flee, Rush, Search, Move }
 
     private const float SCAN_INTERVAL = 0.25f;
     private const float SCAN_LENGTH = 7.5f;
@@ -113,7 +113,8 @@ public class DoorRammer(BotComponent bot)
         {
             ECtx.Flee => Settings.DoorModRamFleeChance,
             ECtx.Rush => Settings.DoorModRamRushChance,
-            _ => Settings.DoorModRamSearchChance,
+            ECtx.Search => Settings.DoorModRamSearchChance,
+            _ => Settings.DoorModRamMoveChance,
         };
         if (!Settings.TestModeDoorMods && Random.value >= Mathf.Clamp01(chance / 100f))
         {
@@ -248,7 +249,7 @@ public class DoorRammer(BotComponent bot)
                 var memory = _bot.BotOwner?.Memory;
                 bool pressed = (memory != null && time - memory.UnderFireTime < 4f)
                     || (enemy != null && (enemy.IsVisible || (enemy.Seen && enemy.TimeSinceSeen < 4f)));
-                return pressed ? ECtx.Flee : ECtx.None;
+                return pressed ? ECtx.Flee : enemy != null ? ECtx.Move : ECtx.None;
 
             case ECombatDecision.RushEnemy:
             case ECombatDecision.MoveToEngage:
@@ -257,8 +258,18 @@ public class DoorRammer(BotComponent bot)
             case ECombatDecision.Search:
                 return enemy != null && !enemy.IsVisible ? ECtx.Search : ECtx.None;
 
-            default:
+            // 10/13 (user: "1-2 rams in 15 minutes is as good as none"): any other SAIN combat move through a shut door -
+            // cover runs without pressure, flanks, squad moves, repositioning (this only runs while a SAIN path is followed).
+            // sneaking / holding still on purpose, or another tactic that runs its own door handling
+            case ECombatDecision.None:
+            case ECombatDecision.CreepOnEnemy:
+            case ECombatDecision.Freeze:
+            case ECombatDecision.DoorTactic:
+            case ECombatDecision.DebugNoDecision:
                 return ECtx.None;
+
+            default:
+                return enemy != null ? ECtx.Move : ECtx.None;
         }
     }
 
@@ -269,6 +280,7 @@ public class DoorRammer(BotComponent bot)
             ECtx.Flee => "flee",
             ECtx.Rush => "rush",
             ECtx.Search => "search",
+            ECtx.Move => "move",
             _ => "none",
         };
     }

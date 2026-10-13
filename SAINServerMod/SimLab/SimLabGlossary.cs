@@ -73,7 +73,7 @@ public static class SimLabGlossary
         new("reload.pick.", "장전 판단: Reload=지금 장전, Hold=버티고 나중에 (판단할 때마다 셈)", "Reload decision: Reload now / Hold (counted every decision)", "ReloadUtility"),
         new("reload.justDucked.", "적이 방금 숨은 순간이라 장전 보류", "Held the reload: enemy just ducked", "ReloadUtility"),
         new("reload.cantReload", "장전하려 했지만 못 함 (탄창 없음 등)", "Wanted to reload but couldn't", "SelfActionDecisionClass"),
-        new("reload.noAmmo.", "탄이 아예 없을 때 대응 (melee=칼, nothing=할 수 있는 게 없음)", "Out of ammo response", "ReloadUtility"),
+        new("reload.noAmmo.", "탄창이 비었을 때 대응 (reloadInstead=장전, waitReloadInHand=든 총에 여분 탄이 있어 다른 총으로 안 바꾸고 장전 기다림, reloadStuckSwap=6초 넘게 장전 못 해 다른 총으로, melee=칼, nothing=할 수 있는 게 없음)", "Out of ammo response", "ReloadUtility"),
         new("heal.pick.", "치료 판단 (FirstAid=구급상자, Stim=주사기, Wait=나중에)", "Heal decision (FirstAid, Stim, Wait)", "HealUtility"),
         new("heal.cancel.", "위협 때문에 치료 취소", "Heal cancelled by a threat", "HealUtility"),
         new("weapon.", "무기 교체·빠른 장전 등 무기 관련", "Weapon swaps, quick reloads", "CombatWeaponClass / WeaponLog"),
@@ -103,7 +103,7 @@ public static class SimLabGlossary
         new("doormod.present.", "이 판에 깔려 있던 문 모드 (doordash=플레이어 전용으로 그대로, dualSide=DualSideDoorBreach가 봇 문 방향도 돌림, .directionOff=그 모드 방향 설정 꺼짐)", "Door mods installed this raid (doordash stays player-only; dualSide turns bots' doors too)", "DoorModInterop"),
         new("doorram.", "봇 박치기 (SAIN 자체, doordash·DualSideDoorBreach 이식): on/off=설정, breach=문 부숨, breach.flipped=봇 쪽으로 열리는 문을 반대로, breach.flippedByDualSide=그 모드가 돌림, breachError=오류", "SAIN's own bot sprint ram (breach / flipped / flippedByDualSide / breachError)", "BotDoorBreacher"),
         new("doormod.ram.", "몸통박치기 방 진입 (planned, charge=돌진 시작, burst=문 박차 열림, fallback.이유=안 돼서 평소처럼 엶, doorSwingsToward=봇 쪽으로 열리는 문 — '양쪽에서' 설정 끔일 때만)", "Room-clear sprint ram (planned / charge / burst / fallback.reason)", "DoorTacticClass.DoorMods"),
-        new("doormod.move.", "달리다가 문 몸통박치기 (start.상황, burst.상황=문 박차 열림, fallback.이유=안 돼서 평소처럼 엶, skip.이유=굴림 실패·봇 쪽으로 열림 등; 상황: flee=도망, rush=돌격, search=수색)", "Ram while running through a door (start / burst / fallback / skip, by flee / rush / search)", "DoorRammer"),
+        new("doormod.move.", "달리다가 문 몸통박치기 (start.상황, burst.상황=문 박차 열림, fallback.이유=안 돼서 평소처럼 엶, skip.이유=굴림 실패·봇 쪽으로 열림 등; 상황: flee=도망, rush=돌격, search=수색, move=그 밖의 전투 이동)", "Ram while running through a door (start / burst / fallback / skip, by flee / rush / search / move)", "DoorRammer"),
         // freeze / search / post combat
         new("freeze.", "정지 및 매복: 가까이 들린 적을 기다림 (start=시작, end=끝난 이유, cornerWatch=코너 주시)", "Freeze ambush (start, end reason, corner watch)", "FreezeAction"),
         new("peekSpot.", "피킹 자리 찾기 (none=못 찾음, step=한 걸음 옮겨 자리 잡음)", "Peek spot search (none / step)", "PeekSpot"),

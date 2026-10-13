@@ -64,6 +64,33 @@ public class CombatWeaponClass : BotComponentClassBase
             _pistolRefusedUntil = Time.time + 5f;
             TacticDiagnostics.Count("weapon.pistolBackByEft");
         }
+        // 10/13 21:47 sim (Bot161 MCX 0/30 +3 mags): the pistol drawn by the out-of-ammo fallback (not by us, so the check
+        // above missed it) was put away by EFT's reload (TryChangeToMain) and the reload utility drew it again 1.8s later,
+        // before the main gun was reloaded. Any pistol -> other gun change we didn't make gets the same 5s hold-off.
+        else if (_lastSlot == EquipmentSlot.Holster && slot != EquipmentSlot.Holster && Time.time - _ourChangeTime > 1f)
+        {
+            _pistolRefusedUntil = Mathf.Max(_pistolRefusedUntil, Time.time + 5f);
+            TacticDiagnostics.Count("weapon.pistolAwayByEft.holdOff");
+        }
+        _lastSlot = slot;
+    }
+
+    private EquipmentSlot _lastSlot = EquipmentSlot.FirstPrimaryWeapon;
+    private float _ourChangeTime = -10f;
+
+    /// <summary>
+    /// SAIN drew the DMR / sniper for a far enemy and still holds it. EFT's reload check (BotReloadMagazine.CanReload ->
+    /// TryChangeToMain) would draw the main gun back whenever the enemy is far - i.e. every time this gun needs a reload
+    /// (NoTryChangeToEmptyMainPatch skips that while this is true).
+    /// </summary>
+    public bool HoldsLongRangeByChoice
+    {
+        get
+        {
+            var wm = BotOwner?.WeaponManager;
+            return _longRangeByUs && wm?.Selector != null && wm.Selector.EquipmentSlot == EquipmentSlot.SecondPrimaryWeapon
+                && wm.SecondWeaponInfo != null && WeaponLog.HasAmmoFor(Bot.Player, wm.SecondWeaponInfo.weapon);
+        }
     }
 
     /// <summary>A loaded pistol we could switch to right now (not already in hands).</summary>
@@ -267,6 +294,7 @@ public class CombatWeaponClass : BotComponentClassBase
         var selector = BotOwner.WeaponManager.Selector;
         // BSG throttles weapon changes to one per CHANGE_WEAPON_PERIOD (25s); these swaps are deliberate.
         selector._nextChangeTime = 0f;
+        _ourChangeTime = Time.time;
         return selector.TryChangeToSlot(slot, true);
     }
 }

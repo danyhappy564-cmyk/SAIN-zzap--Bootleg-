@@ -68,6 +68,10 @@ public static class SimLabRemake5
             sb.AppendLine($"- 켜짐. 클라가 바꾼 값 {b.ZzapOverrides?.Count ?? 0}개: {string.Join(", ", b.ZzapOverrides ?? [])}");
             sb.AppendLine($"- 시뮬 프리셋이 zzap과 다른데 교차 검증이 안 덮는 곳: {(string.IsNullOrEmpty(raid.PresetDiffUncovered) ? "없음" : raid.PresetDiffUncovered)}");
         }
+        if (raid?.DoorTest == true)
+        {
+            sb.AppendLine("- **문 점검 켜짐** (시뮬 스위치): 봇 문 박치기 100%·모든 PMC 기가채드 문 전술(시작 100%). 문 관련 수치는 실제 플레이보다 훨씬 많고, 다른 판과 비교하지 말 것.");
+        }
 
         var factions = Factions(b);
         if (factions.Count > 0)

@@ -195,6 +195,26 @@ public sealed class PresetService(ModHelper modHelper, JsonFileStoreUtil jsonFil
         return true;
     }
 
+    /// <summary>
+    /// zzap: presets this mod used to ship and no longer does - an update copied over an older install leaves their files in
+    /// Presets/. "zzap TEST 문 모드 [시뮬 전용]" (2026-10-13, user: "the door preset was meant at the sim stage, not in F6") is now
+    /// the sim preset "문 전술·박치기 점검" with the sim's door check switch.
+    /// </summary>
+    private static readonly string[] RetiredBundled = ["zzap TEST 문 모드 [시뮬 전용]"];
+
+    public void RemoveRetiredBundled()
+    {
+        foreach (string name in RetiredBundled)
+        {
+            string path = CustomPathFor(name);
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+                logger.Info($"[SAIN] Removed retired bundled preset '{name}' (now a sim preset on the sim page)");
+            }
+        }
+    }
+
     public async Task<List<string>> ImportCustomDirectoriesAsync()
     {
         var imported = new List<string>();

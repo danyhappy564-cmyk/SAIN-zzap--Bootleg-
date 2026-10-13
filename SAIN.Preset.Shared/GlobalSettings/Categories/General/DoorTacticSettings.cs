@@ -229,30 +229,39 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     [Name("Sprint Ram Into The Room: Chance")]
     [Description("Percent, rolled when a grenade-less room clear meets a shut door.")]
     [MinMax(0f, 100f, 1f)]
-    public float DoorModRamChance = 35f;
+    public float DoorModRamChance = 50f;
 
     [DataMember]
     [Name("Sprint Ram While Running Through Doors")]
-    [Description("Outside door tactics too: a bot running away, rushing an enemy or searching for one whose path goes through a shut door 3-7m ahead (straight lane) may sprint into it instead of stopping to open it. The chance depends on what the bot is doing (below). If it doesn't burst (too slow, wrong angle), the bot opens the door normally. Needs Bot Sprint Ram.")]
+    [Description("Outside door tactics too: a bot in a fight (running away, rushing, searching or any other move) whose path goes through a shut door 3-7m ahead (straight lane) may sprint into it instead of stopping to open it. The chance depends on what the bot is doing (below). If it doesn't burst (too slow, wrong angle), the bot opens the door normally. Needs Bot Sprint Ram.")]
     public bool DoorModRamOnMove = true;
 
     [DataMember]
     [Name("Ram Chance - Running Away")]
     [Description("Percent, rolled once per door: retreating / running for cover with the enemy on it (shot at or seen in the last few seconds).")]
     [MinMax(0f, 100f, 1f)]
-    public float DoorModRamFleeChance = 60f;
+    public float DoorModRamFleeChance = 75f;
 
     [DataMember]
     [Name("Ram Chance - Rushing")]
     [Description("Percent, rolled once per door: rushing / closing in on an enemy.")]
     [MinMax(0f, 100f, 1f)]
-    public float DoorModRamRushChance = 50f;
+    public float DoorModRamRushChance = 65f;
 
     [DataMember]
     [Name("Ram Chance - Searching")]
     [Description("Percent, rolled once per door: searching for an enemy that might be behind it (not sure where he is). The bot speeds up for the last meters to hit the door hard.")]
     [MinMax(0f, 100f, 1f)]
-    public float DoorModRamSearchChance = 35f;
+    public float DoorModRamSearchChance = 50f;
+
+    // zzap (2026-10-13, user: "1-2 rams in 15 minutes - I barely saw it, is the ram tactic even worth having?"): the 21:47 sim
+    // had only 13 rolls in 60 minutes over 4 maps - the chance wasn't the limit, the three situations were. Every other
+    // combat move through a shut door (cover runs without pressure, flanks, squad moves, repositioning) gets this one.
+    [DataMember]
+    [Name("Ram Chance - Other Combat Moves")]
+    [Description("Percent, rolled once per door: any other move in a fight (running to cover without being shot at, flanking, squad moves, repositioning) whose path goes through a shut door.")]
+    [MinMax(0f, 100f, 1f)]
+    public float DoorModRamMoveChance = 35f;
 
     [DataMember]
     [Name("TEST MODE: Bot Sprint Ram Always")]

@@ -133,6 +133,13 @@ public static class SimLabDefaults
             Preset("근접·실내 전술",
                 "문 전술·방 진입·다이아몬드 스텝·근접 장전·코너 추격·판단 전환 직후 사망. 실내 시나리오 맵만.",
                 "", ("factory4_day", 15), ("bigmap", 15), ("shoreline", 15), ("rezervbase", 15)),
+            // user 2026-10-13: "the door preset was meant at the sim stage, not in SAIN F6" - replaces the F6 preset
+            // "zzap TEST 문 모드 [시뮬 전용]". Door-heavy arenas, attack-minded mix, door check switch on.
+            DoorCheck(Preset("문 전술·박치기 점검",
+                "봇 문 박치기(방 진입·도망·돌격·수색·그 밖의 전투 이동)와 문 전술(피킹·방 진입·문 함정)이 실제로 나오고 문이 제대로 열리는지. "
+                + "'문 점검' 스위치를 켬: 시뮬 판에서만 박치기 100%, 모든 PMC가 기가채드처럼 문 전술(시작 100%) — SAIN 프리셋은 그대로. "
+                + "문이 많은 실내 맵 4개, 돌격형 성격 위주. 카운터 doorram.*·doormod.*·door.start.*, 일지 [DoorRam]·[DoorTactic]. 일반 순회 결과와 섞어 비교하지 말 것.",
+                "GigaChad:2,Chad:3,Normal:2,Rat:1", ("factory4_day", 15), ("bigmap", 15), ("rezervbase", 15), ("laboratory", 15))),
             Preset("성격 비교 (고르게)",
                 "성격 8가지를 같은 비율로 섞어 성격별 킬/사망·정지·매복/후퇴/돌격 비율 비교. 근접(공장)과 다층 건물(세관) 두 맵.",
                 "even", ("factory4_day", 20), ("bigmap", 20)),
@@ -146,6 +153,12 @@ public static class SimLabDefaults
                 "재배치(실외 전용)·장거리 무기 전환·먼 적 상대 판단(정지·매복 거리 감점)·발소리 감지. 넓은 실외 맵.",
                 "", ("woods", 20), ("lighthouse", 20), ("sandbox", 20), ("shoreline", 20)),
         ];
+    }
+
+    private static SimPreset DoorCheck(SimPreset preset)
+    {
+        preset.DoorTest = true;
+        return preset;
     }
 
     private static SimPreset Preset(string name, string purpose, string personalities, params (string Map, float Minutes)[] picks)

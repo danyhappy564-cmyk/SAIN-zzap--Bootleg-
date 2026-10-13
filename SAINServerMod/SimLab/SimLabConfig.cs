@@ -79,6 +79,13 @@ public sealed class SimLabConfig
     /// <summary>Sim raids play with the zzap preset's behaviour values (only the logging switches stay from the sim preset).</summary>
     public bool ZzapCrossCheck = true;
 
+    /// <summary>
+    /// Door check (user 2026-10-13: "the door preset was meant as a sim preset, not a SAIN F6 preset"): in sim raids only, on
+    /// top of the cross-check, every bot sprint ram whose conditions are met is used (100%) and every PMC plans door tactics
+    /// like a GigaChad (start chance 100%). Put back when the raid ends; the SAIN preset itself is never changed.
+    /// </summary>
+    public bool DoorTestInSim;
+
     /// <summary>Mix faction squads into the refills (rogues, raiders; spawned by the game's boss spawner, ABPS leaves them alone).</summary>
     public bool FactionMix = true;
 
@@ -149,6 +156,8 @@ public sealed class SimPreset
     public int RespawnSeconds = 45;
     public string Personalities = string.Empty;
     public bool NoModItems = true;
+    /// <summary>Door check switches on for this preset's raids (SimLabConfig.DoorTestInSim).</summary>
+    public bool DoorTest;
 }
 
 public sealed class SimMapEntry

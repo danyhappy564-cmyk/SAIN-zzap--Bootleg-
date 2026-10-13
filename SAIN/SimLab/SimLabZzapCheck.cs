@@ -78,6 +78,49 @@ public static class SimLabZzapCheck
         }
     }
 
+    /// <summary>
+    /// Sim "door check" switch (user 2026-10-13: "the door preset was meant at the sim stage, not as a SAIN F6 preset"): bot
+    /// sprint rams always (TestModeDoorMods) and every PMC plans door tactics like a GigaChad (TestModeAllPmcGigaChad), on top
+    /// of the cross-check values. Backed up like the cross-check and put back by Restore.
+    /// </summary>
+    public static List<string> ApplyDoorTest()
+    {
+        var changes = new List<string>();
+        var doors = GlobalSettingsClass.Instance?.General?.DoorTactics;
+        if (doors == null)
+        {
+            changes.Add("DoorTactics 없음 - 문 점검 적용 안 됨");
+            return changes;
+        }
+        bool backedUp = false;
+        foreach (var (live, _) in _backups)
+        {
+            if (ReferenceEquals(live, doors))
+            {
+                backedUp = true;
+                break;
+            }
+        }
+        if (!backedUp)
+        {
+            object backup = Activator.CreateInstance(doors.GetType());
+            CloneSettingsClass.CopyFields(doors, backup);
+            _backups.Add((doors, backup));
+        }
+        if (!doors.TestModeDoorMods)
+        {
+            doors.TestModeDoorMods = true;
+            changes.Add("DoorTactics.TestModeDoorMods False->True");
+        }
+        if (!doors.TestModeAllPmcGigaChad)
+        {
+            doors.TestModeAllPmcGigaChad = true;
+            changes.Add("DoorTactics.TestModeAllPmcGigaChad False->True");
+        }
+        Logger.LogWarning($"[SimLab] door check on: {(changes.Count > 0 ? string.Join(", ", changes) : "already on")}");
+        return changes;
+    }
+
     /// <summary>Puts the sim preset's own values back (raid end, preset change). Safe to call any time.</summary>
     public static void Restore()
     {

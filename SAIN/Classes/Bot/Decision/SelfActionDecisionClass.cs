@@ -203,6 +203,8 @@ public class SelfActionDecisionClass : BotBase
     }
 
     private float _nextOutOfAmmoSwap;
+    private float _inHandReloadFailSince = -1f;
+    private float _inHandReloadLastFail;
 
     /// <summary>
     /// zzap: the reload utility picked Reload but there is nothing to reload with (6th sim: bots with an empty gun asked
@@ -219,15 +221,33 @@ public class SelfActionDecisionClass : BotBase
 
         // 15:34 sim (Bot1: AKM 0/30 with 4 magazines <-> empty pistol): the gun in hand is empty but has ammo to reload -
         // reload it instead of swapping to another gun.
-        if (Player.HandsController?.Item is Weapon inHand && SAIN.SAINComponent.Classes.Tactics.WeaponLog.HasAmmoFor(Player, inHand)
-            && !reload.Reloading && Time.time >= _reloadCheckBlockedUntil)
+        if (Player.HandsController?.Item is Weapon inHand && SAIN.SAINComponent.Classes.Tactics.WeaponLog.HasAmmoFor(Player, inHand))
         {
-            if (TryReload(BotOwner, reload))
+            if (!reload.Reloading && Time.time >= _reloadCheckBlockedUntil && TryReload(BotOwner, reload))
             {
+                _inHandReloadFailSince = -1f;
                 SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("reload.noAmmo.reloadInstead");
                 return;
             }
+            // 10/13 21:47 sim (Bot79 AKMS 0/30 +2 mags, Bot161 MCX 0/30 +3, Bot200 T-5000M 0/5 +3; 11 PING-PONG lines): the
+            // reload check said "not now" (EFT's 0.5s reload period, hands busy, a heal) and this went on to draw the pistol -
+            // then EFT's own reload (TryChangeToMain, enemy far) put the empty main gun back, and round it went. A gun in hand
+            // with ammo to reload is reloaded, not swapped: wait for the next check. Only after 6s of failed checks in a row
+            // is another gun allowed (never sit on an empty gun).
+            // a run of failures: the fallback is asked every 2s while the gun is dry - a gap means a new run
+            if (_inHandReloadFailSince < 0f || Time.time - _inHandReloadLastFail > 4f)
+            {
+                _inHandReloadFailSince = Time.time;
+            }
+            _inHandReloadLastFail = Time.time;
+            if (Time.time - _inHandReloadFailSince < 6f)
+            {
+                SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("reload.noAmmo.waitReloadInHand");
+                return;
+            }
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("reload.noAmmo.reloadStuckSwap");
         }
+        _inHandReloadFailSince = -1f;
 
         // Pick a gun that actually has ammo, main first (BSG's TryChangeWeapon toggles without looking at ammo).
         var selector = weaponManager.Selector;

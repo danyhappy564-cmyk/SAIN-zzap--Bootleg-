@@ -114,6 +114,8 @@ public class SimRaidInfo
     /// <summary>Behaviour sections (close combat, doors, reposition, player style, freeze, squad) run on the zzap preset's values
     /// this raid; only logging switches keep the sim preset's values (SimLabZzapCheck on the client).</summary>
     public bool ZzapBehaviour;
+    /// <summary>Door check this raid: bot sprint rams 100% + all PMCs plan door tactics like GigaChads (sim switch, not the SAIN preset).</summary>
+    public bool DoorTest;
     /// <summary>Faction squads mixed in besides the two PMC sides ("exUsec,pmcBot"). Their waves sit at FactionTimeBase and up.</summary>
     public string FactionRoles = string.Empty;
     /// <summary>Chance (0-1) that a refill calls a faction squad instead of a PMC squad.</summary>

@@ -169,10 +169,11 @@
         "GigaChadTrapFakeHealChance": 20.0,
         "RoomClearGrenadeChance": 45.0,
         "RunByChance": 35.0,
-        "DoorModRamChance": 25.0,
-        "DoorModRamFleeChance": 45.0,
-        "DoorModRamRushChance": 40.0,
-        "DoorModRamSearchChance": 25.0
+        "DoorModRamChance": 35.0,
+        "DoorModRamFleeChance": 55.0,
+        "DoorModRamRushChance": 50.0,
+        "DoorModRamSearchChance": 35.0,
+        "DoorModRamMoveChance": 25.0
       },
       "SquadCombat": {
         "SquadStormWeakness": 0.6,

@@ -557,6 +557,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             Config.RespawnSeconds = preset.RespawnSeconds;
             Config.Personalities = preset.Personalities ?? string.Empty;
             Config.NoModItemsInSim = preset.NoModItems;
+            Config.DoorTestInSim = preset.DoorTest;
             Config.ActivePreset = preset.Name;
             // a new lineup starts from its first map
             State.Step = 0;
@@ -594,6 +595,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
                 RespawnSeconds = Config.RespawnSeconds,
                 Personalities = Config.Personalities ?? string.Empty,
                 NoModItems = Config.NoModItemsInSim,
+                DoorTest = Config.DoorTestInSim,
             });
             Config.ActivePreset = name;
             SaveConfig();
@@ -630,6 +632,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
     {
         if (p.MaxAliveBots != Config.MaxAliveBots || p.SquadSizeMin != Config.SquadSizeMin || p.SquadSizeMax != Config.SquadSizeMax
             || p.RespawnSeconds != Config.RespawnSeconds || p.NoModItems != Config.NoModItemsInSim
+            || p.DoorTest != Config.DoorTestInSim
             || !string.Equals(p.Personalities ?? string.Empty, Config.Personalities ?? string.Empty, StringComparison.OrdinalIgnoreCase)
             || p.Rotation.Count != Config.Rotation.Count)
         {
@@ -757,6 +760,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             SimPreset = ActivePresetLabel(),
             Personalities = Config.Personalities ?? string.Empty,
             NoModItems = Config.NoModItemsInSim,
+            DoorTest = Config.DoorTestInSim,
         };
 
         var zones = new HashSet<string>(

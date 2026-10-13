@@ -605,6 +605,16 @@ public sealed class SimLabRunner : MonoBehaviour
         {
             SimLabZzapCheck.Restore();
         }
+        // sim "door check" switch (a sim preset's, not the SAIN preset's): rams 100% + all-PMC GigaChad door tactics
+        if (SimLab.Raid?.DoorTest == true)
+        {
+            var doorChanges = SimLabZzapCheck.ApplyDoorTest();
+            _zzapChanges.AddRange(doorChanges);
+            if (TacticDiagnostics.LogOn)
+            {
+                RaidJournal.Line("[SimLab] door check: " + (doorChanges.Count > 0 ? string.Join(", ", doorChanges) : "already on"));
+            }
+        }
         _runId = SimLab.Raid?.RunId ?? SimLab.Plan?.RunId;
         float minutes = SimLab.Raid?.Minutes ?? SimLab.Plan?.Minutes ?? 20f;
         if (minutes <= 0f)

@@ -82,6 +82,15 @@ public sealed class PresetGenerationService(
 
         try
         {
+            presetService.RemoveRetiredBundled();
+        }
+        catch (Exception ex)
+        {
+            logger.Error($"[SAIN] Failed to remove retired bundled presets: {ex.Message}");
+        }
+
+        try
+        {
             await presetService.UpgradeCustomToCurrentSchemaAsync();
         }
         catch (Exception ex)

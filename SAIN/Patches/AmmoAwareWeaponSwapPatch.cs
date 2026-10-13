@@ -125,9 +125,19 @@ public class NoTryChangeToEmptyMainPatch : ModulePatch
     public static bool PatchPrefix(BotWeaponSelector __instance, ref bool __result)
     {
         BotOwner owner = __instance._owner;
-        if (owner == null || __instance.EquipmentSlot == __instance._mainWeapon || !SAINEnableClass.GetSAIN(owner.ProfileId, out _))
+        if (owner == null || __instance.EquipmentSlot == __instance._mainWeapon || !SAINEnableClass.GetSAIN(owner.ProfileId, out BotComponent bot))
         {
             return true;
+        }
+        // 10/13 21:47 sim (Bot113 Vepr 29/30 <-> T-5000M 0/5 +4 mags 16 PING-PONG lines, Bot95 9A-91 <-> SVDS 6/10): SAIN drew
+        // the long-range gun for a far enemy, its reload check called this, the enemy was far -> main gun -> 1s later SAIN
+        // drew the long-range gun again. While SAIN holds it on purpose (and it has ammo), it gets reloaded instead; SAIN
+        // itself puts it away when the enemy closes in, is gone or it runs out (CombatWeaponClass).
+        if (bot?.CombatWeapon != null && bot.CombatWeapon.HoldsLongRangeByChoice)
+        {
+            TacticDiagnostics.Count("weapon.keptLongRange.reload");
+            __result = false;
+            return false;
         }
         var wm = owner.WeaponManager;
         if (wm?.info == null || !wm.info.TryGetValue(__instance._mainWeapon, out BotWeaponInfo main) || main == null)

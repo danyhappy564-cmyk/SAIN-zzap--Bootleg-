@@ -186,6 +186,10 @@
                     <MudSwitch T="bool" @bind-Value="Sim.Config.ZzapCrossCheck" Color="Color.Primary" />
                 </div>
                 <div class="sain-toggle-row">
+                    <MudText Typo="Typo.body2">@T("문 점검 — 시뮬 판에서만 봇 문 박치기를 조건이 맞으면 항상(100%) 쓰고, 모든 PMC가 기가채드처럼 문 전술을 계획(시작 확률 100%). zzap 값 위에 덮어씀. SAIN 프리셋은 안 바뀌고 레이드가 끝나면 원래대로. '문 전술·박치기 점검' 시뮬 프리셋이 켬", "Door check - sim raids only: every bot sprint ram whose conditions are met is used (100%) and every PMC plans door tactics like a GigaChad (start chance 100%), on top of the zzap values. The SAIN preset is untouched; restored after the raid. The 'Door tactics & ram check' sim preset turns it on")</MudText>
+                    <MudSwitch T="bool" @bind-Value="Sim.Config.DoorTestInSim" Color="Color.Primary" />
+                </div>
+                <div class="sain-toggle-row">
                     <MudText Typo="Typo.body2">@T($"팩션 분대 섞기 — 보충 분대의 {Sim.Config.FactionShare:P0}를 로그·레이더 분대로 (게임 보스 생성기로 나옴)", $"Mix faction squads - {Sim.Config.FactionShare:P0} of refills are rogue / raider squads (game's boss spawner)")</MudText>
                     <MudSwitch T="bool" @bind-Value="Sim.Config.FactionMix" Color="Color.Primary" />
                 </div>
