@@ -68,6 +68,20 @@ internal class SeekCoverAction(BotOwner bot) : BotAction(bot, nameof(SeekCoverAc
         {
             Bot.Aim.LoseAimTarget();
             Bot.Suppression.ResetSuppressing();
+            // zzap (10/14 21:07 sim, oddity backWalk 22 of 24 in SeekCover): walking (legs broken = no sprint, or the run not
+            // started yet) with the enemy out of sight 40-200 m away, the bot kept looking at the last known spot and walked
+            // backwards for seconds. The close-combat rule (enemy within 30 m seen in the last 4 s -> walk facing it) and
+            // fresh fire still keep the eyes on the enemy; anything else faces the walk.
+            if (FaceWalkNoThreat(enemy))
+            {
+                Bot.Steering.LookToMovingDirection();
+                if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn && Time.time > _nextFaceCount)
+                {
+                    _nextFaceCount = Time.time + 5f;
+                    SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("cover.faceMoveNoThreat");
+                }
+                return;
+            }
         }
         if (!Bot.Steering.SteerByPriority(enemy, false))
         {
@@ -90,6 +104,39 @@ internal class SeekCoverAction(BotOwner bot) : BotAction(bot, nameof(SeekCoverAc
             return false;
         }
         return BotOwner.WeaponManager?.Reload?.Reloading == true || BotOwner.Medecine?.Using == true;
+    }
+
+    private bool FaceWalkNoThreat(Enemy enemy)
+    {
+        if (Bot.Mover.Running || !Bot.Mover.Moving || Bot.Player.Velocity.magnitude < 0.5f)
+        {
+            return false;
+        }
+        var cover = Bot.Cover.CoverInUse;
+        if (cover != null && (cover.BotInThisCover || (cover.Position - Bot.Position).sqrMagnitude < 2f * 2f))
+        {
+            return false;
+        }
+        var memory = BotOwner.Memory;
+        if (memory != null && memory.UnderFireTime > 0f && Time.time - memory.UnderFireTime < 3f)
+        {
+            return false;
+        }
+        if (enemy == null)
+        {
+            return true;
+        }
+        if (enemy.IsVisible)
+        {
+            return false;
+        }
+        var close = GlobalSettingsClass.Instance?.General?.CloseCombat;
+        float seenWithin = close?.SeenWithin ?? 4f;
+        float distance = close?.Distance ?? 30f;
+        return !(enemy.Seen
+            && enemy.TimeSinceSeen < seenWithin
+            && enemy.KnownPlaces.LastKnownPosition is Vector3 known
+            && (known - Bot.Position).sqrMagnitude < distance * distance);
     }
 
     private void checkSetLean()

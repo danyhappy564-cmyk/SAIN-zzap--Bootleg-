@@ -53,6 +53,11 @@ public partial class DoorTacticClass
             {
                 TacticDiagnostics.Count("doormod.ram.doorSwingsToward");
             }
+            else if (!BotDoorBreacher.CanRam(door, Bot.Position))
+            {
+                // 10/14 21:07 sim: a turned leaf with no room to land is refused at the door anyway (noBurst) - don't plan it
+                TacticDiagnostics.Count("doormod.ram.noSwingRoom");
+            }
             else if (Random.value >= ModRoll(Settings.DoorModRamChance))
             {
                 TacticDiagnostics.Count("doormod.ram.rollFailed");
@@ -174,7 +179,7 @@ public partial class DoorTacticClass
                 }
                 else if (Time.time - s.RamNearDoorSince > 0.5f)
                 {
-                    RamFallback(s, $"noBurst({Player.Velocity.magnitude:0.0}m/s, needs {BotDoorBreacher.MinSpeed:0.0})");
+                    RamFallback(s, $"noBurst(at the door 0.5s, {Player.Velocity.magnitude:0.0}m/s, ram speed {BotDoorBreacher.MinSpeed:0.0}, ram allowed now {BotDoorBreacher.CanRam(door, Bot.Position)})");
                     return;
                 }
             }

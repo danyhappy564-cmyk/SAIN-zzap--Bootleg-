@@ -214,6 +214,7 @@ public static class CorpseCleanup
             DropOrbitCorpseWaypoint(corpse);
             ForgetDecals(player);
             ForgetPlayer(world, player);
+            ReleaseGunInHands(player);
             Object.Destroy(player.gameObject);
             Deleted++;
             TacticDiagnostics.Count("sim.corpseDeleted");
@@ -375,6 +376,30 @@ public static class CorpseCleanup
         catch (System.Exception ex)
         {
             Logger.LogWarning($"[SAIN zzap] deleting a deleted corpse's dropped gun failed: {ex.Message}");
+        }
+    }
+
+    // 10/14 21:07 sim (sim.corpseWeaponDeleted 0 of 70 deletes): the gun held at death is not a LootItem in GameWorld.LootList -
+    // Player.DropItemDead keeps it as the hands controller's own object, given a rigidbody and jointed to the ragdoll, so the
+    // LootList search above never finds it. Player.ReleaseHand is what EFT runs when that gun is looted off the body: it
+    // removes the joint and destroys the hands controller (gun object back to its pool).
+    private static void ReleaseGunInHands(Player player)
+    {
+        try
+        {
+            GameObject gun = player.HandsController?.ControllerGameObject;
+            if (gun == null)
+            {
+                return;
+            }
+            // nothing switched off or destroyed by hand after this: the gun object may now sit in EFT's pool for reuse (P7)
+            player.ReleaseHand();
+            TacticDiagnostics.Count("sim.corpseWeaponDeleted");
+        }
+        catch (System.Exception ex)
+        {
+            TacticDiagnostics.Count("sim.corpseWeaponDeleteFailed");
+            Logger.LogWarning($"[SAIN zzap] releasing a deleted corpse's gun failed: {ex.Message}");
         }
     }
 

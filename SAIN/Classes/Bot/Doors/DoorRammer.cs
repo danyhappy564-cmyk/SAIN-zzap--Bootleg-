@@ -106,10 +106,21 @@ public class DoorRammer(BotComponent bot)
             Count($"doormod.move.skip.unbreakable.{ctxName}");
             return false;
         }
-        if (!BotDoorBreacher.BothSides && BotDoorBreacher.WillSwingToward(door, botPosition))
+        if (BotDoorBreacher.WillSwingToward(door, botPosition))
         {
-            Count($"doormod.move.skip.swingsToward.{ctxName}");
-            return false;
+            if (!BotDoorBreacher.BothSides)
+            {
+                Count($"doormod.move.skip.swingsToward.{ctxName}");
+                return false;
+            }
+            // zzap (10/14 21:07 sim, Customs: 7 rams started, none burst, noBurst at 2.7 m/s): the leaf would have to be turned,
+            // and BotDoorBreacher.CanRam refuses a turned leaf with no room to land (dorm corridors) - so the ram and the kick
+            // at the door could never happen and the bot only sprinted at a door it then opened by hand. Same test up front.
+            if (!BotDoorPushOpen.SwingSpaceClear(door))
+            {
+                Count($"doormod.move.skip.noSwingRoom.{ctxName}");
+                return false;
+            }
         }
         if (BotDoorBreacher.SomeoneInSwing(door, _bot.Player))
         {
@@ -200,7 +211,7 @@ public class DoorRammer(BotComponent bot)
                 {
                     return;
                 }
-                Fallback($"noBurst({_bot.Player.Velocity.magnitude:0.0}m/s, needs {BotDoorBreacher.MinSpeed:0.0})");
+                Fallback($"noBurst(at the door 0.8s, {_bot.Player.Velocity.magnitude:0.0}m/s, ram speed {BotDoorBreacher.MinSpeed:0.0}, ram allowed now {BotDoorBreacher.CanRam(_door, botPosition)})");
                 return;
             }
         }

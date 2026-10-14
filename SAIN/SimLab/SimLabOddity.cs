@@ -26,8 +26,8 @@ namespace SAIN.SimLab;
 ///   slowUnderFire  - under fire (3 s), a moving decision out of cover, but only 0.3-2.3 m/s and no sprint for 4 s
 ///   doorStuck      - a moving decision, standing still within 1.5 m of a door / 1 m of an open leaf for 4 s
 ///   wallStare      - standing, enemy out of sight, the look ray hits something within 0.8 m for 4 s
-///   ignoredGunfire - outside SAIN's combat layer (ORBIT, patrol, squad / post-combat) while someone 40 m or closer in clear
-///                    line of sight fired in the last 3 s - for 4 s
+///   ignoredGunfire - outside SAIN's combat layer (ORBIT, patrol, squad / post-combat; not Avoid Threat) while an enemy 40 m
+///                    or closer in clear line of sight fired in the last 3 s - for 4 s
 /// Each episode also writes the full state line (SimLabSceneMark.Describe) to the journal.
 /// One episode per bot per kind until the state clears; sim raids only.
 /// </summary>
@@ -256,7 +256,9 @@ public static class SimLabOddity
             s = new State();
             _states[player.ProfileId] = s;
         }
-        string shooter = NearbyShooterInSight(player, now);
+        // 10/14 21:07 sim: 2 of 3 were a squadmate firing, the other a bot already dodging in SAIN's Avoid Threat layer -
+        // only hostile shooters count, and Avoid Threat is SAIN fighting (grenade / flash dodge), not ignoring
+        string shooter = layer != null && layer.Contains("Avoid Threat") ? null : NearbyShooterInSight(player, now);
         Check(s, "ignoredGunfire", shooter != null, 4f, now);
         if (!s.Flagged.Contains("ignoredGunfire") && s.Since.TryGetValue("ignoredGunfire", out float since) && now - since >= 4f)
         {
@@ -297,8 +299,11 @@ public static class SimLabOddity
             {
                 continue;
             }
-            bool hostile = player.AIData?.BotOwner?.BotsGroup?.IsPlayerEnemy(other) == true;
-            return $"{other.Profile?.Nickname} {dist:0}m {(hostile ? "hostile" : "not hostile")}";
+            if (player.AIData?.BotOwner?.BotsGroup?.IsPlayerEnemy(other) != true)
+            {
+                continue;
+            }
+            return $"{other.Profile?.Nickname} {dist:0}m hostile";
         }
         return null;
     }

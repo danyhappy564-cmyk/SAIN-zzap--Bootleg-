@@ -146,11 +146,11 @@ public class SafeCullingOnDeadPatch : ModulePatch
         }
         TacticDiagnostics.Count("deadBug.cullingOnDeadThrew");
         if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
-            $"[DeadBug] disabling culling on death threw {__exception.GetType().Name} (another mod's culling patch) - ignored, death handling continues");
+            $"[DeadBug] {SAIN.SimLab.SimLogListener.HandledTag} disabling culling on death threw {__exception.GetType().Name} (another mod's culling patch) - ignored, death handling continues");
         if (!_warned)
         {
             _warned = true;
-            Logger.LogWarning($"[SAIN zzap] BasePlayerCulling.DisableCullingOnDead threw during a death (ignored so the body still ragdolls): {__exception}");
+            Logger.LogWarning($"[SAIN zzap] {SAIN.SimLab.SimLogListener.HandledTag} BasePlayerCulling.DisableCullingOnDead threw during a death (ignored so the body still ragdolls): {__exception}");
         }
         return null;
     }

@@ -131,6 +131,7 @@ public static class SimLabGlossary
         new("handoff.gapLayer.", "교전 끝~ORBIT 사이에 잠깐 잡은 다른 레이어 (바닐라 순찰 등)", "Other layer in the gap between combat and ORBIT", "LayerHandoff"),
         new("handoff.", "레이어 넘기기 기타", "Other handoff events", "LayerHandoff"),
         new("cover.faceMoveWhileBusy", "장전·약 사용 중 걸어서 엄폐로 갈 때 적 대신 가는 방향을 봄 (뒷걸음 방지, 10/14 마크 7)", "Faces the way it walks to cover while reloading / using meds", "SeekCoverAction"),
+        new("cover.faceMoveNoThreat", "엄폐로 걸어갈 때 적이 안 보이고 가까이서 막 본 적도·맞은 지 3초도 아니면 가는 방향을 봄 (10/14 21:07판 뒷걸음 24건)", "Faces the walk to cover when no enemy is in sight, none close and seen just now, no fresh fire", "SeekCoverAction"),
         new("hands.", "수류탄을 2초 넘게 안 던지고 들고 있어 총으로 되돌림 (grenadePutAway / Refused, 10/14 마크 12)", "Grenade held 2 s+ without a throw -> previous weapon", "SAINBotUnstuckClass"),
         new("stuck.ledge.", "무릎 높이 턱에 걸려 1초 만에 넘기·점프 (vault/jump/cant)", "Knee-high edge: early vault / jump", "SAINBotUnstuckClass"),
         new("stuck.", "막힘 감지·탈출 단계 (stage1~4, freed=풀려남, layer=막힌 레이어)", "Stuck detection / escape stages", "SAINBotUnstuckClass"),

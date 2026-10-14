@@ -454,6 +454,10 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     }
 
     private const float OWN_REACT_RADIUS = 6f;
+    // zzap (10/14 21:07 sim, Factory self-kill Bot8): the dodge ended as soon as the bot got 6 m away (or a crate came between),
+    // the fall-back decision came back 1.5 s before the blast and walked it back to the grenade. Once dodging, it stays the
+    // danger within 10 m, seen or not, until it goes off.
+    private const float OWN_KEEP_RADIUS = 10f;
     private const float OWN_MIN_AGE = 0.7f;
 
     private sealed class OwnGrenade
@@ -466,7 +470,7 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
     private readonly List<OwnGrenade> _ownGrenades = new();
 
     /// <summary>The bot's own nearest live grenade lying within OWN_REACT_RADIUS with nothing solid between it and the bot's
-    /// chest. Its tracker follows the grenade (DangerPoint = where it is now). Bounded: at most 4, dropped when gone / 8 s old.</summary>
+    /// chest (one it already dodges: within OWN_KEEP_RADIUS, wall or not). Its tracker follows the grenade (DangerPoint = where it is now). Bounded: at most 4, dropped when gone / 8 s old.</summary>
     private GrenadeTrackerClass OwnGrenadeDanger(Vector3 botPosition, out float sqrDist)
     {
         sqrDist = float.MaxValue;
@@ -486,11 +490,13 @@ public class GrenadeReactionClass : BotSubClass<BotGrenadeManager>, IBotClass
             }
             Vector3 g = o.Grenade.transform.position;
             float sq = (g - botPosition).sqrMagnitude;
-            if (sq > OWN_REACT_RADIUS * OWN_REACT_RADIUS || sq >= sqrDist)
+            bool dodging = o.Tracker != null;
+            float radius = dodging ? OWN_KEEP_RADIUS : OWN_REACT_RADIUS;
+            if (sq > radius * radius || sq >= sqrDist)
             {
                 continue;
             }
-            if (Physics.Linecast(g + Vector3.up * 0.3f, botPosition + Vector3.up * 1.2f, LayersMaskController.HighPolyWithTerrainMask))
+            if (!dodging && Physics.Linecast(g + Vector3.up * 0.3f, botPosition + Vector3.up * 1.2f, LayersMaskController.HighPolyWithTerrainMask))
             {
                 continue;
             }

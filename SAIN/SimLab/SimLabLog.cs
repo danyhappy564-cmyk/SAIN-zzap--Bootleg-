@@ -157,6 +157,10 @@ public sealed class SimLogListener : ILogListener
     /// <summary>Set once the sim ends the raid: from then on errors are the game tearing the raid down (user 2026-10-09:
     /// "the NullReference and the frame drop only happen when the raid ends - keep them out"), counted apart, not as raid errors.</summary>
     public static volatile bool Ending;
+
+    /// <summary>zzap: put in a warning about an exception SAIN already caught and made harmless (another mod's patch
+    /// throwing inside a death, etc.). The sim error list skips it - it is counted by its own counter instead.</summary>
+    public const string HandledTag = "[handled]";
     public static int EndingErrors;
 
     public static void Attach()
@@ -217,6 +221,10 @@ public sealed class SimLogListener : ILogListener
                 return;
             }
             if (!error && !((level & LogLevel.Warning) != 0 && text.IndexOf("Exception", StringComparison.Ordinal) >= 0))
+            {
+                return;
+            }
+            if (!error && text.IndexOf(HandledTag, StringComparison.Ordinal) >= 0)
             {
                 return;
             }
