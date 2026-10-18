@@ -22,11 +22,15 @@
                     </div>
                     <div>
                         <MudText Typo="Typo.h5" Class="spt-title">@T("업데이트", "Updates")</MudText>
-                        <MudText Typo="Typo.caption" Class="spt-muted">@T($"지금 쓰는 버전: SAIN v{ReleaseService.CurrentVersion}", $"You are running SAIN v{ReleaseService.CurrentVersion}.")</MudText>
+                        <MudText Typo="Typo.caption" Class="spt-muted">@T($"SAIN zzap 포크 릴리즈 기록 · 지금 쓰는 릴리즈: {ZzapRelease.Label(ReleaseService.CurrentRelease)} (SAIN 내부 버전 v{ReleaseService.CurrentVersion}, 프리셋 호환용으로 고정)", $"SAIN zzap fork releases · running {ZzapRelease.Label(ReleaseService.CurrentRelease)} (SAIN internal version v{ReleaseService.CurrentVersion}, kept for preset compatibility)")</MudText>
                     </div>
                 </MudStack>
-                <MudButton OnClick="OnRefreshClicked" Disabled="@(ReleaseService.State == ReleaseFeedState.Loading)"
-                           Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh">@T("새로고침", "Refresh")</MudButton>
+                <MudStack Row Spacing="2" Wrap="Wrap.Wrap">
+                    <MudButton Href="@($"https://github.com/{ZzapRelease.Repository}/releases")" Target="_blank" Variant="Variant.Text"
+                               EndIcon="@Icons.Material.Filled.OpenInNew">@T("GitHub 릴리즈", "GitHub releases")</MudButton>
+                    <MudButton OnClick="OnRefreshClicked" Disabled="@(ReleaseService.State == ReleaseFeedState.Loading)"
+                               Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh">@T("새로고침", "Refresh")</MudButton>
+                </MudStack>
             </MudStack>
         </MudPaper>
 
@@ -37,7 +41,7 @@
                     <MudIcon Icon="@Icons.Material.Filled.SystemUpdateAlt" Color="Color.Warning" Size="Size.Large" />
                     <div class="sain-update-banner-copy">
                         <strong>@T($"{latest.DisplayTitle} 나옴", $"{latest.DisplayTitle} is available")</strong>
-                        <span class="spt-muted">@T($"지금 버전 v{ReleaseService.CurrentVersion}", $"You are running v{ReleaseService.CurrentVersion}.")</span>
+                        <span class="spt-muted">@T($"지금 쓰는 릴리즈: {ZzapRelease.Label(ReleaseService.CurrentRelease)} — 클라이언트 SAIN.dll과 서버 모드를 둘 다 바꿔 주세요", $"You are running {ZzapRelease.Label(ReleaseService.CurrentRelease)} - update both the client SAIN.dll and the server mod")</span>
                     </div>
                     @if (!string.IsNullOrEmpty(latest.HtmlUrl))
                     {
@@ -64,15 +68,17 @@
             else
             {
                 <ol class="sain-timeline">
-                    @foreach (var release in ReleaseService.Releases)
+                    @for (int i = 0; i < ReleaseService.Releases.Count; i++)
                     {
+                        var release = ReleaseService.Releases[i];
+                        bool open = i == 0 || _expanded.Contains(release.TagName);
                         <li class="@TimelineItemClass(release)">
                             <span class="sain-timeline-marker"></span>
                             <div class="sain-timeline-card spt-card">
                                 <div class="sain-timeline-header">
                                     <div>
                                         <strong>@release.DisplayTitle</strong>
-                                        <span class="spt-muted">@(release.PublishedAt?.ToString("d MMMM yyyy") ?? T("미출시", "Unreleased"))</span>
+                                        <span class="spt-muted">@(release.PublishedAt is { } at ? T(at.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), at.ToLocalTime().ToString("d MMMM yyyy")) : T("미출시", "Unreleased"))</span>
                                     </div>
                                     <div class="sain-timeline-tags">
                                         @foreach (var tag in ReleaseDirectives.ParseCompatibility(release.Body))
@@ -96,7 +102,8 @@
                                         }
                                     </div>
                                 </div>
-                                <ReleaseNotes Body="@release.Body" />
+                                <ReleaseNotes Body="@release.Body" MaxBlocks="@(open ? 400 : 6)"
+                                              OnExpand="@(() => _expanded.Add(release.TagName))" />
                             </div>
                         </li>
                     }
@@ -107,6 +114,9 @@
 </div>
 
 @code {
+    // Newest release is shown whole, older ones collapsed to their first paragraphs until "show all".
+    private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
+
     protected override async Task OnInitializedAsync()
     {
         ReleaseService.FeedChanged += OnFeedChanged;
@@ -128,10 +138,9 @@
         await ReleaseService.RefreshAsync();
     }
 
-    private bool IsRunningVersion(GitHubRelease release)
+    private static bool IsRunningVersion(GitHubRelease release)
     {
-        return GitHubReleaseService.TryParseVersion(release.TagName, out var version)
-            && version == ReleaseService.CurrentVersion;
+        return GitHubReleaseService.IsRunningRelease(release);
     }
 
     private string TimelineItemClass(GitHubRelease release)

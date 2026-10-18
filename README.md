@@ -16,9 +16,9 @@
 
 ## 변경 이력
 
-- 2026-10-14 21:59 — **Remix5.1 릴리즈 준비.** remake5(10/12) 이후 22개 커밋을 Remix5.1로 묶음 — 버그 수정 위주에 봇 몸통박치기 추가. 릴리즈 노트 3종: `changelog/RELEASE_NOTES_Remix5.1.md`(깃허브 한/영)·`_arca.txt`(아카라이브)·`_discord.md`(디스코드). README의 박치기 설명을 지금 동작에 맞춤(DualSideDoorBreach가 있어도 봇 박치기 방향은 SAIN이 정함, 박지 않는 문에 미닫이문·문짝 자리 없는 문 추가). 디버그 로그는 기본 꺼짐 그대로, SAIN 내부 버전은 프리셋 호환 때문에 4.5.1 그대로.
+- 2026-10-18 15:45 — 서버 웹 '업데이트' 페이지를 zzap 포크 릴리즈 기록으로 바꿈 — 전에는 원본 SAIN(ArchangelWTF) 릴리즈가 떠서 이 포크의 Remix·remake 소식을 볼 수 없었음. 태그 이름(remake5·remix5.1·fix7 등)으로 순서·'사용 중'·새 버전 알림을 판단하고(지금 릴리즈 Remix5.1), 페이지 언어에 맞는 변경점만 보여 줌(원작자 목록·공지문은 GitHub). 최신 릴리즈는 펼쳐 두고 예전 것은 접힘(전체 보기 버튼). 옛 캐시 파일 이름도 바꿔 업데이트 직후 원본 기록이 1시간 남던 것 방지. 프리셋 설명 문구 정정(쉬움·보통 시야 거리를 zzap 기준으로도 표기, TEST에 방 진입 60%·실수 끔 명시 — 값은 그대로)
 
-전체 변경 이력 216개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-022.md`](changelog/CHANGELOG-022.md)).
+전체 변경 이력 217개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-022.md`](changelog/CHANGELOG-022.md)).
 
 # SAIN (zzap fork)
 

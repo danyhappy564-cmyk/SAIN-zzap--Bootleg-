@@ -28,7 +28,8 @@ public sealed record GitHubRelease
     [JsonIgnore]
     public string DisplayTitle
     {
-        get { return string.IsNullOrWhiteSpace(Name) ? TagName : Name; }
+        // zzap: the tag decides the title - release names drifted ("SAIN-zzap--Bootleg- remake5.1" on tag remix5.1).
+        get { return ZzapRelease.TryParse(TagName, out _) ? ZzapRelease.Label(TagName) : string.IsNullOrWhiteSpace(Name) ? TagName : Name; }
     }
 }
 

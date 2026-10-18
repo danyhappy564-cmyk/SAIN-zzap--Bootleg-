@@ -31,12 +31,21 @@ else
             <p class="sain-release-text">@RenderInline(string.Join(' ', block.Lines))</p>
         }
     }
+    @if (Hidden > 0 && OnExpand.HasDelegate)
+    {
+        <button type="button" class="sain-release-more" @onclick="OnExpand">@T($"전체 보기 (+{Hidden}단락)", $"Show all (+{Hidden} more)")</button>
+    }
 }
 
 @code {
     [Parameter] public string? Body { get; set; }
 
     [Parameter] public int MaxBlocks { get; set; } = 12;
+
+    /// <summary>Shown as a "show all" button when blocks were cut by <see cref="MaxBlocks"/>.</summary>
+    [Parameter] public EventCallback OnExpand { get; set; }
+
+    private int Hidden;
 
     private sealed record Block(bool IsHeading, bool IsList, List<string> Lines);
 
@@ -63,7 +72,10 @@ else
 
     protected override void OnParametersSet()
     {
-        Blocks = Parse(ReleaseDirectives.Strip(Body), MaxBlocks);
+        // zzap: only the notes in the page language (ZzapRelease.Section), the credits / porting notice stay on GitHub.
+        var all = Parse(ZzapRelease.Section(ReleaseDirectives.Strip(Body), Korean));
+        Hidden = Math.Max(0, all.Count - MaxBlocks);
+        Blocks = all.Take(MaxBlocks).ToList();
     }
 
     private RenderFragment RenderInline(string line)
@@ -164,7 +176,7 @@ else
         return trimmed.Length > 52 ? $"{trimmed[..49]}..." : trimmed;
     }
 
-    private static List<Block> Parse(string? body, int maxBlocks)
+    private static List<Block> Parse(string? body)
     {
         if (string.IsNullOrWhiteSpace(body))
         {
@@ -178,13 +190,18 @@ else
         {
             var line = rawLine.Trim();
 
-            if (line.Length == 0)
+            if (line.StartsWith("> "))
+            {
+                line = line[2..].Trim();
+            }
+
+            if (line.Length == 0 || (line.Length >= 3 && line.All(c => c == '-')))
             {
                 current = null;
                 continue;
             }
 
-            if (line.StartsWith('#'))
+            if (line.StartsWith('#') || IsBoldLine(line))
             {
                 blocks.Add(new Block(true, false, [line.TrimStart('#').Trim()]));
                 current = null;
@@ -209,14 +226,15 @@ else
 
                 current.Lines.Add(line);
             }
-
-            if (blocks.Count > maxBlocks)
-            {
-                break;
-            }
         }
 
-        return blocks.Take(maxBlocks).ToList();
+        return blocks;
+    }
+
+    // zzap notes use a whole bold line ("**3. 무기 핑퐁 ...**", "**<변경점>**") as a heading.
+    private static bool IsBoldLine(string line)
+    {
+        return line.Length > 4 && line.StartsWith("**") && line.EndsWith("**") && line.IndexOf("**", 2, StringComparison.Ordinal) == line.Length - 2;
     }
 
     private static string Clean(string text)

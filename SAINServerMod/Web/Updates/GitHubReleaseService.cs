@@ -17,7 +17,8 @@ public sealed class GitHubReleaseService(
     ISptLogger<GitHubReleaseService> logger
 )
 {
-    private const string ReleasesUrl = "https://api.github.com/repos/ArchangelWTF/SAIN/releases?per_page=10";
+    // zzap fork: this fork's releases (user 2026-10-18), not ArchangelWTF/SAIN's - their tags are release names (ZzapRelease).
+    private const string ReleasesUrl = "https://api.github.com/repos/" + ZzapRelease.Repository + "/releases?per_page=15";
 
     private static readonly Version _currentVersion = new(SAINVersionInfo.SAINVersion);
     private static readonly TimeSpan _cacheLifetime = TimeSpan.FromHours(1);
@@ -36,6 +37,12 @@ public sealed class GitHubReleaseService(
     public Version CurrentVersion
     {
         get { return _currentVersion; }
+    }
+
+    /// <summary>zzap release name of this build ("Remix5.1").</summary>
+    public string CurrentRelease
+    {
+        get { return ZzapRelease.Current; }
     }
 
     /// <summary>The newest stable release that runs on this server, which the running version is compared against.</summary>
@@ -61,18 +68,20 @@ public sealed class GitHubReleaseService(
     {
         get
         {
-            if (LatestStable is null || !TryParseVersion(LatestStable.TagName, out var latest))
+            if (LatestStable is null || !ZzapRelease.TryParse(LatestStable.TagName, out var latest)
+                || !ZzapRelease.TryParse(ZzapRelease.Current, out var running))
             {
                 return false;
             }
 
-            return latest > _currentVersion;
+            return ZzapRelease.Compare(latest, running) > 0;
         }
     }
 
     private string CachePath
     {
-        get { return Path.Combine(configService.ModPath, "cache", "releases.json"); }
+        // New name: the old releases.json holds ArchangelWTF's feed and would show for up to an hour after updating.
+        get { return Path.Combine(configService.ModPath, "cache", "releases-zzap.json"); }
     }
 
     public async Task EnsureLoadedAsync(CancellationToken cancellationToken = default)
@@ -215,6 +224,13 @@ public sealed class GitHubReleaseService(
     public static bool TryParseVersion(string tag, out Version version)
     {
         return Version.TryParse(tag.TrimStart('v', 'V'), out version);
+    }
+
+    public static bool IsRunningRelease(GitHubRelease release)
+    {
+        return ZzapRelease.TryParse(release.TagName, out var tag)
+            && ZzapRelease.TryParse(ZzapRelease.Current, out var running)
+            && ZzapRelease.Compare(tag, running) == 0;
     }
 
     public static bool MatchesRunningPlatform(CompatibilityTag tag)
