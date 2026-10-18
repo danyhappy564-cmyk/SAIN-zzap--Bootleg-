@@ -738,6 +738,47 @@
 .sain-quick-toggle .mud-typography-caption { display: block; }
 .sain-diff { color: #facc15; font-size: 0.7rem; margin-left: 4px; white-space: nowrap; }
 
+/* Quick settings: reference vs current (mockup 7, 2026-10-18) */
+.sain-refbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; padding: 8px 12px;
+    border: 1px solid rgba(63, 63, 70, 0.9); border-radius: 8px; background: rgba(24, 24, 27, 0.6); }
+.sain-refbar-label { color: #facc15; font-size: 0.78rem; font-weight: 700; margin-right: 4px; }
+.sain-refchip { padding: 3px 12px; border-radius: 6px; border: 1px solid #3f3f46; background: #26262d; color: #e4e4e7; font-size: 0.8rem; cursor: pointer; }
+.sain-refchip:hover { background: #33333c; }
+.sain-refchip.on { border-color: #facc15; color: #facc15; background: #2b250d; font-weight: 700; }
+.sain-refbar-legend { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-left: 10px; font-size: 0.72rem; color: #a1a1aa; }
+.sain-refbar-legend .sw { display: inline-block; width: 26px; height: 6px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+.sain-refbar-legend .sw.tick { width: 2px; height: 14px; border-radius: 0; background: #facc15; }
+.sain-refbar-legend .sw.up { background: #f87171; }
+.sain-refbar-legend .sw.down { background: #4ade80; }
+.sain-qrow { padding: 8px 0 6px; border-bottom: 1px solid rgba(39, 39, 42, 0.6); }
+.sain-qrow:last-child { border-bottom: none; }
+.sain-qrow-top { display: grid; grid-template-columns: minmax(120px, auto) 1fr 84px 32px; gap: 10px; align-items: center; }
+.sain-qrow-name { font-weight: 700; color: #f4f4f5; font-size: 0.86rem; white-space: nowrap; }
+.sain-qrow-delta { text-align: right; font-size: 0.78rem; color: #e4e4e7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sain-qrow-delta .ref { color: #71717a; }
+.sain-qrow-delta .dir { font-weight: 700; margin-left: 6px; }
+.sain-qrow-delta .dir.up { color: #f87171; }
+.sain-qrow-delta .dir.down { color: #4ade80; }
+.sain-qrow-delta .dir.same { color: #71717a; font-weight: 400; }
+.sain-qrow-reset { width: 32px; }
+.sain-qtoggle-right { display: inline-flex; align-items: center; gap: 8px; }
+.sain-qref { font-size: 0.75rem; color: #71717a; white-space: nowrap; }
+/* The difference layer sits under the slider's own (transparent) track; thumb centres run 7px in from each end. */
+.sain-diffslider { position: relative; margin: 2px 0 0; }
+.sain-dl { position: absolute; left: 11px; right: 11px; top: 50%; height: 0; pointer-events: none; z-index: 0; }
+.sain-dl .t { position: absolute; left: 0; right: 0; top: -2px; height: 4px; border-radius: 2px; background: #2e2e36; }
+.sain-dl .b { position: absolute; left: 0; top: -2px; height: 4px; border-radius: 2px; background: #8b8fa3; }
+.sain-dl .d { position: absolute; top: -3px; height: 6px; border-radius: 1px; }
+.sain-dl .d.up { background: #f87171; }
+.sain-dl .d.down { background: #4ade80; }
+.sain-dl .r { position: absolute; top: -9px; width: 2px; height: 18px; margin-left: -1px; background: #facc15; }
+.sain-diffslider .mud-slider { position: relative; z-index: 1; }
+.sain-diffslider .mud-slider .mud-slider-filled { display: none !important; }
+.sain-diffslider .mud-slider .mud-slider-input::-webkit-slider-runnable-track { background-color: transparent !important; }
+.sain-diffslider .mud-slider .mud-slider-input::-moz-range-track { background-color: transparent !important; }
+.sain-diffslider .mud-slider .mud-slider-input::-webkit-slider-thumb { background-color: #0e0e11 !important; border: 2px solid #fff !important; height: 16px; width: 16px; margin-top: -7px; }
+.sain-diffslider .mud-slider .mud-slider-input::-moz-range-thumb { background-color: #0e0e11 !important; border: 2px solid #fff !important; height: 12px; width: 12px; }
+
 /* Tables (compare, changed values, sim rotation, analysis) */
 .sain-table-wrap { width: 100%; overflow-x: auto; }
 .sain-compare { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -820,6 +861,8 @@
 @media (max-width: 640px) {
     .sain-quick-grid { grid-template-columns: 1fr; }
     .sain-quick-row { grid-template-columns: 1fr 84px 32px; }
+    .sain-qrow-top { grid-template-columns: 1fr 84px 32px; }
+    .sain-qrow-delta { grid-column: 1 / -1; grid-row: 2; text-align: left; white-space: normal; }
     .sain-quick-row .sain-quick-slider { display: none; }
 }
 

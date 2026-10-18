@@ -134,6 +134,8 @@ public static class QuickSettingsGUI
         GUILayout.Label(T("고쳐서 저장하면 '이름 [Modified]' 복사본이 생기고, 원본은 그대로 남습니다(모드 업데이트 때 새 값으로 바뀜).",
             "Saving changes makes a 'name [Modified]' copy; the original stays as shipped (mod updates refresh it)."), _muted);
 
+        PendingSwitchBox();
+
         var customs = PresetHandler.CustomPresetOptions;
         foreach (var zzap in QuickSettings.ZzapPresets)
         {
@@ -231,11 +233,14 @@ public static class QuickSettingsGUI
         {
             Sounds.PlaySound(EUISoundType.MenuCheckBox);
             var picked = def;
-            ZzapUI.Defer(() =>
+            if (ConfigEditingTracker.UnsavedChanges)
             {
-                ConfigEditingTracker.Clear();
-                PresetHandler.ApplyDefinition(picked);
-            });
+                ZzapUI.Defer(() => _pendingSwitch = picked);
+            }
+            else
+            {
+                ZzapUI.Defer(() => SwitchTo(picked, false));
+            }
         }
         if (deletable)
         {
@@ -255,6 +260,74 @@ public static class QuickSettingsGUI
         }
         GUILayout.EndHorizontal();
         GUILayout.Space(4f);
+    }
+
+    // ---------------------------------------------------------------- switching with unsaved changes
+
+    private static SAINPresetDefinition _pendingSwitch;
+
+    // The editor changes the loaded preset's cached copy directly, so unsaved values used to survive a switch and come back
+    // looking saved. Now a switch with unsaved changes asks first, and "discard" really restores the preset as last saved.
+    private static void PendingSwitchBox()
+    {
+        if (_pendingSwitch == null)
+        {
+            return;
+        }
+        GUILayout.BeginVertical(ZzapUI.PanelBlue);
+        GUILayout.Label(
+            string.Format(
+                T("저장 안 한 변경 {0}개가 있습니다. '{1}'(으)로 바꾸기 전에 어떻게 할까요?", "{0} unsaved changes. What should happen before switching to '{1}'?"),
+                ConfigEditingTracker.EditedConfigValues.Count,
+                _pendingSwitch.Name),
+            _small);
+        GUILayout.BeginHorizontal();
+        var target = _pendingSwitch;
+        if (GUILayout.Button(new GUIContent(T("저장하고 바꾸기", "Save, then switch"), T("지금 값을 저장(zzap 프리셋이면 [Modified] 복사본)한 뒤 바꿈", "Saves first (a [Modified] copy for zzap presets), then switches")), ZzapUI.ButtonPrimary, GUILayout.Height(28f)))
+        {
+            ZzapUI.Defer(() => SwitchTo(target, true));
+        }
+        if (GUILayout.Button(new GUIContent(T("버리고 바꾸기", "Discard and switch"), T("바꾼 값을 버리고 저장된 상태로 되돌린 뒤 바꿈", "Throws the changes away (back to the saved state), then switches")), ZzapUI.Button, GUILayout.Height(28f)))
+        {
+            ZzapUI.Defer(() => SwitchTo(target, false));
+        }
+        if (GUILayout.Button(T("취소", "Cancel"), ZzapUI.Button, GUILayout.Height(28f)))
+        {
+            ZzapUI.Defer(() => _pendingSwitch = null);
+        }
+        GUILayout.EndHorizontal();
+        GUILayout.EndVertical();
+        GUILayout.Space(6f);
+    }
+
+    private static void SwitchTo(SAINPresetDefinition target, bool saveFirst)
+    {
+        _pendingSwitch = null;
+        var current = SAINPlugin.LoadedPreset?.Info;
+        if (saveFirst)
+        {
+            SAINPresetClass.ExportAll(SAINPlugin.LoadedPreset);
+            if (ConfigEditingTracker.UnsavedChanges)
+            {
+                // Not saved (editing locked by the server, or a sim cross-check is running): stay, keep the changes.
+                Sounds.PlaySound(EUISoundType.ErrorMessage);
+                return;
+            }
+        }
+        else if (current != null && ConfigEditingTracker.UnsavedChanges)
+        {
+            if (current.IsCustom)
+            {
+                PresetSync.RevertCustom(current.Name);
+            }
+            else
+            {
+                PresetSync.RefreshServerDefaults();
+            }
+        }
+        ConfigEditingTracker.Clear();
+        PresetHandler.LoadCustomPresetOptions();
+        PresetHandler.ApplyDefinition(PresetHandler.FindDefinitionByName(target.Name) ?? target);
     }
 
     private static string Short(string text)
@@ -569,15 +642,17 @@ public static class QuickSettingsGUI
         {
             return;
         }
-        _cardTitle = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 15, alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Clip };
+        // One-line styles turn wrapping off: Unity's default label wraps, and next to the "reference -> now" text the names
+        // were squeezed into two clipped lines (user's screenshot).
+        _cardTitle = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 15, alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Clip, wordWrap = false };
         SetText(_cardTitle, new Color(0.93f, 0.93f, 0.95f));
         _cardTitleLegacy = new GUIStyle(_cardTitle);
         SetText(_cardTitleLegacy, new Color(0.55f, 0.55f, 0.6f));
 
-        _title = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 15, alignment = TextAnchor.MiddleLeft };
+        _title = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 15, alignment = TextAnchor.MiddleLeft, wordWrap = false };
         SetText(_title, Color.white);
 
-        _name = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 14, alignment = TextAnchor.MiddleLeft };
+        _name = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 14, alignment = TextAnchor.MiddleLeft, wordWrap = false };
         SetText(_name, new Color(0.93f, 0.93f, 0.95f));
 
         _small = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 12, wordWrap = true, alignment = TextAnchor.UpperLeft };
@@ -585,7 +660,7 @@ public static class QuickSettingsGUI
 
         _muted = new GUIStyle(_small) { fontSize = 12 };
 
-        _section = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
+        _section = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, wordWrap = false };
         SetText(_section, new Color(0.98f, 0.8f, 0.08f));
 
         _delta = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 13, alignment = TextAnchor.MiddleRight, wordWrap = false };

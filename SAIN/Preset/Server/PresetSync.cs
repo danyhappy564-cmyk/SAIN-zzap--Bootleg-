@@ -33,6 +33,11 @@ public static class PresetSync
 
     private static readonly Dictionary<string, SAINPresetBundle> _customBundles = new(StringComparer.Ordinal);
 
+    // zzap fork (2026-10-18): each custom preset's JSON as last pulled or saved. The editor edits the cached bundle's objects
+    // directly, so values moved and never saved stayed in memory after switching presets and came back looking saved (user's
+    // screenshot: 'zzap 보통' sight 4.86, zzap fire rate 2.35). RevertCustom rebuilds the bundle from this copy.
+    private static readonly Dictionary<string, string> _customJson = new(StringComparer.Ordinal);
+
     public static IEnumerable<SAINPresetBundle> CustomBundles
     {
         get { return _customBundles.Values; }
@@ -93,6 +98,7 @@ public static class PresetSync
         try
         {
             _customBundles.Clear();
+            _customJson.Clear();
             foreach (string name in ServerPresetClient.ListCustom())
             {
                 try
@@ -108,6 +114,7 @@ public static class PresetSync
                         continue;
                     }
                     _customBundles[bundle.Info.Name] = bundle;
+                    _customJson[bundle.Info.Name] = json;
                     Logger.LogInfo($"[SAIN] Pulled custom preset '{name}' from server.");
                 }
                 catch (Exception ex)
@@ -264,6 +271,7 @@ public static class PresetSync
         }
 
         _customBundles[bundle.Info.Name] = bundle;
+        _customJson[bundle.Info.Name] = json;
         PresetHandler.LoadCustomPresetOptions();
         Logger.LogInfo($"[SAIN] Custom preset '{name}' was updated on the server.");
 
@@ -273,9 +281,36 @@ public static class PresetSync
         }
     }
 
+    /// <summary>Throw away unsaved edits of a custom preset: rebuild its cached bundle from the last pulled/saved JSON.</summary>
+    public static bool RevertCustom(string name)
+    {
+        if (name == null || !_customJson.TryGetValue(name, out string json))
+        {
+            return false;
+        }
+        try
+        {
+            var bundle = JsonConvert.DeserializeObject<SAINPresetBundle>(json, _settings);
+            PresetHandler.LoadedPreset?.MakeCurrent();
+            if (bundle?.Info == null)
+            {
+                return false;
+            }
+            _customBundles[name] = bundle;
+            Logger.LogInfo($"[SAIN] Discarded unsaved changes of preset '{name}'.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"[SAIN] Could not restore preset '{name}': {ex.Message}");
+            return false;
+        }
+    }
+
     public static void DeleteCustomPreset(string name)
     {
         _customBundles.Remove(name);
+        _customJson.Remove(name);
         try
         {
             ServerPresetClient.DeleteCustom(name);
@@ -310,6 +345,7 @@ public static class PresetSync
             _customBundles[info.Name] = bundle;
 
             string json = JsonConvert.SerializeObject(bundle, _settings);
+            _customJson[info.Name] = json;
             ServerPresetClient.SaveCustom(info.Name, json);
         }
         catch (Exception ex)

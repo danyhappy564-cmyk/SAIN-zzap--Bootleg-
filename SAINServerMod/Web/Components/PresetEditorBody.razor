@@ -3,7 +3,7 @@
 <MudTabs Elevation="0" PanelClass="pa-4" Color="Color.Transparent" SliderColor="Color.Primary" Border="false" MinimumTabWidth="0">
     @* zzap fork (2026-10-18): quick settings first, then the side-by-side and "changed only" views, the full editors after. *@
     <MudTabPanel Text="@T("빠른 설정", "Quick settings")" Icon="@Icons.Material.Filled.Star">
-        <PresetQuickSettings Bundle="Bundle" Original="Original" Zzap="Zzap" OnChanged="OnChanged" />
+        <PresetQuickSettings Bundle="Bundle" Original="Original" Zzap="Zzap" References="Columns" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("프리셋 비교", "Compare presets")" Icon="@Icons.Material.Outlined.CompareArrows">
         <PresetCompare Bundle="Bundle" CurrentName="@Bundle.Info.Name" Columns="Columns" />

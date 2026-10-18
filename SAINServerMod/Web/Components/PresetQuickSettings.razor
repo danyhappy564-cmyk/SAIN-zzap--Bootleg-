@@ -5,13 +5,14 @@
     var view = SainPresetEditService.View(Bundle);
     var zzap = Zzap == null ? null : SainPresetEditService.View(Zzap);
     var original = Original == null ? null : SainPresetEditService.View(Original);
+    var reference = ReferenceView(original, zzap);
     int lowCount = QuickSettings.LowSpecCount(view);
     int lowTotal = QuickSettings.LowSpec.Length;
 }
 
 <MudAlert Severity="Severity.Info" Dense="true" Variant="Variant.Outlined" Class="mb-3">
-    @T("자주 만지는 값만 모았습니다. 슬라이더는 모두 오른쪽으로 갈수록 봇이 강해집니다. 노란 눈금 = zzap 값, 이름 아래 글씨 = 지금 값을 쉬운 말로. 더 자세한 값은 '전역 설정 (전체)' 탭.",
-       "The values changed most often. Every slider makes bots stronger to the right. Yellow tick = zzap's value; the line under each name says what the current value means. Everything else is on 'Global settings (all)'.")
+    @T("자주 만지는 값만 모았습니다. 슬라이더는 모두 오른쪽으로 갈수록 봇이 강해집니다. 노란 선 = 비교 기준, 그 사이 색 막대 = 기준과의 차이, 아래 글씨 = 지금 값의 뜻. 더 자세한 값은 '전역 설정 (전체)' 탭.",
+       "The values changed most often. Every slider makes bots stronger to the right. Yellow line = the reference, the coloured stretch = the difference, the line below = what the value means. Everything else is on 'Global settings (all)'.")
 </MudAlert>
 
 <div class="sain-lowspec @(lowCount == lowTotal ? "sain-lowspec-on" : null)">
@@ -36,6 +37,21 @@
     </div>
 </div>
 
+<div class="sain-refbar">
+    <span class="sain-refbar-label">@T("비교 기준", "Compare with")</span>
+    @foreach (var name in ReferenceNames())
+    {
+        var n = name;
+        <button type="button" class="sain-refchip @(_reference == n ? "on" : null)" @onclick="() => _reference = n"
+                title="@(n == Saved ? T("열었을(저장된) 상태와 비교 — 바꾼 것만 막대로", "Compare with the state it was opened in - only your changes show as bars") : T("이 프리셋 값과 비교", "Compare with this preset's values"))">@RefLabel(n)</button>
+    }
+    <span class="sain-refbar-legend">
+        <span class="sw tick"></span>@T("기준 위치", "reference")
+        <span class="sw up"></span>@T("기준보다 봇 강함 = 어려워짐", "bots stronger = harder")
+        <span class="sw down"></span>@T("봇 약함 = 쉬워짐", "bots weaker = easier")
+    </span>
+</div>
+
 <div class="sain-quick-grid">
     @foreach (string group in QuickSettings.Groups)
     {
@@ -50,7 +66,6 @@
             @foreach (var q in QuickSettings.All.Where(x => x.Group == group))
             {
                 float value = q.Get(view);
-                float? zz = zzap == null ? null : q.Get(zzap);
                 float? orig = original == null ? null : q.Get(original);
                 bool changed = orig.HasValue && Math.Abs(orig.Value - value) > 0.0001f;
                 @if (q.Kind == QuickKind.Toggle)
@@ -60,32 +75,56 @@
                             <MudText Typo="Typo.body2">@q.Name(Korean) @if (changed) { <span class="sain-diff">● @T("바꿈", "changed")</span> }</MudText>
                             <MudText Typo="Typo.caption" Class="spt-muted">@q.Help(Korean)</MudText>
                         </div>
-                        <MudSwitch T="bool" Value="@(value >= 0.5f)" ValueChanged="@(v => Set(q, v ? 1f : 0f))" Color="Color.Primary" />
+                        <div class="sain-qtoggle-right">
+                            @if (reference != null)
+                            {
+                                bool refOn = q.Get(reference) >= 0.5f;
+                                <span class="sain-qref">@(refOn == (value >= 0.5f) ? RefLabel(_reference) + T("과 같음", ": same") : RefLabel(_reference) + " " + (refOn ? T("켬", "on") : T("끔", "off")) + " →")</span>
+                            }
+                            <MudSwitch T="bool" Value="@(value >= 0.5f)" ValueChanged="@(v => Set(q, v ? 1f : 0f))" Color="Color.Primary" />
+                        </div>
                     </div>
                 }
                 else
                 {
-                    <div class="sain-quick-row">
-                        <div>
+                    float refValue = reference == null ? q.ZzapValue : q.Get(reference);
+                    int direction = q.Direction(value, refValue);
+                    double valuePos = Pct(q, q.ToSlider(value));
+                    double refPos = Pct(q, q.ToSlider(refValue));
+                    <div class="sain-qrow">
+                        <div class="sain-qrow-top">
                             <MudTooltip Text="@q.Help(Korean)" Arrow="true" Placement="Placement.Top">
-                                <MudText Typo="Typo.body2">@q.Name(Korean) @if (changed) { <span class="sain-diff">● @T("바꿈", "changed")</span> }</MudText>
+                                <span class="sain-qrow-name">@q.Name(Korean)</span>
+                                @if (changed) { <span class="sain-diff">● @T("바꿈", "changed")</span> }
                             </MudTooltip>
-                            <div class="sain-quick-desc">@q.Text(value, Korean)</div>
+                            <span class="sain-qrow-delta">
+                                <span class="ref">@RefLabel(_reference) @q.Format(refValue, Korean)</span> → <b>@q.Format(value, Korean)</b>
+                                <span class="dir @(direction > 0 ? "up" : direction < 0 ? "down" : "same")">@q.DeltaText(value, refValue, Korean)</span>
+                            </span>
+                            <MudNumericField T="double" Value="Math.Round(value, 3)" ValueChanged="@(v => Set(q, (float)v))" Min="q.Min" Max="q.Max" Step="q.Step"
+                                             Variant="Variant.Outlined" Margin="Margin.Dense" Class="sain-num" HideSpinButtons="true" />
+                            <div class="sain-qrow-reset">
+                                @if (changed)
+                                {
+                                    <MudTooltip Text="@T($"원래 값 {Fmt(orig!.Value)}(으)로", $"Back to {Fmt(orig!.Value)}")">
+                                        <MudIconButton Icon="@Icons.Material.Outlined.RestartAlt" Size="Size.Small" Color="Color.Warning" OnClick="@(() => Set(q, orig!.Value))" />
+                                    </MudTooltip>
+                                }
+                            </div>
                         </div>
-                        <div class="sain-quick-slider">
-                            <MudSlider T="double" Min="q.Min" Max="q.Max" Step="q.Step" Value="Math.Round(q.ToSlider(value), 3)" ValueChanged="@(v => Set(q, q.Round(q.FromSlider((float)v))))" Color="Color.Primary" Immediate="true" />
-                            <span class="sain-quick-ref" style="left:@(Pct(q, q.ToSlider(zz ?? q.ZzapValue)))%" title="@T($"zzap {Fmt(zz ?? q.ZzapValue)}", $"zzap {Fmt(zz ?? q.ZzapValue)}")"></span>
+                        <div class="sain-quick-slider sain-diffslider">
+                            <div class="sain-dl">
+                                <span class="t"></span>
+                                <span class="b" style="width:@(Math.Min(valuePos, refPos).ToString(System.Globalization.CultureInfo.InvariantCulture))%"></span>
+                                @if (direction != 0)
+                                {
+                                    <span class="d @(direction > 0 ? "up" : "down")" style="left:@(Math.Min(valuePos, refPos).ToString(System.Globalization.CultureInfo.InvariantCulture))%;width:@(Math.Abs(valuePos - refPos).ToString(System.Globalization.CultureInfo.InvariantCulture))%"></span>
+                                }
+                                <span class="r" style="left:@(refPos.ToString(System.Globalization.CultureInfo.InvariantCulture))%" title="@(RefLabel(_reference) + " " + q.Format(refValue, Korean))"></span>
+                            </div>
+                            <MudSlider T="double" Min="q.Min" Max="q.Max" Step="q.Step" Value="Math.Round(q.ToSlider(value), 3)" ValueChanged="@(v => Set(q, q.Round(q.FromSlider((float)v))))" Color="Color.Default" Immediate="true" />
                         </div>
-                        <MudNumericField T="double" Value="Math.Round(value, 3)" ValueChanged="@(v => Set(q, (float)v))" Min="q.Min" Max="q.Max" Step="q.Step"
-                                         Variant="Variant.Outlined" Margin="Margin.Dense" Class="sain-num" HideSpinButtons="true" />
-                        <div>
-                            @if (changed)
-                            {
-                                <MudTooltip Text="@T($"원래 값 {Fmt(orig!.Value)}(으)로", $"Back to {Fmt(orig!.Value)}")">
-                                    <MudIconButton Icon="@Icons.Material.Outlined.RestartAlt" Size="Size.Small" Color="Color.Warning" OnClick="@(() => Set(q, orig!.Value))" />
-                                </MudTooltip>
-                            }
-                        </div>
+                        <div class="sain-quick-desc">@q.Text(value, Korean)</div>
                     </div>
                 }
             }
@@ -100,6 +139,50 @@
     /// <summary>The bundled zzap preset (yellow ticks).</summary>
     [Parameter] public SAINPresetBundle? Zzap { get; set; }
     [Parameter] public EventCallback OnChanged { get; set; }
+    /// <summary>The bundled zzap presets (comparison reference choices).</summary>
+    [Parameter] public IReadOnlyList<(string Name, SAINPresetBundle Bundle)> References { get; set; } = Array.Empty<(string, SAINPresetBundle)>();
+
+    // zzap fork (2026-10-18, mockup 7 adopted for F6 and the web): compare every value with a reference - zzap, easy, normal
+    // or the state the preset was opened in - as "reference -> now" text and a red (stronger) / green (weaker) stretch.
+    private const string Saved = "";
+    private static readonly string[] ReferenceOrder = { "zzap", "zzap 쉬움", "zzap 보통", Saved };
+    private string _reference = "zzap";
+
+    private IEnumerable<string> ReferenceNames()
+    {
+        foreach (var name in ReferenceOrder)
+        {
+            if (name == Saved ? Original != null : name == "zzap" ? Zzap != null || References.Any(r => r.Name == name) : References.Any(r => r.Name == name))
+            {
+                yield return name;
+            }
+        }
+    }
+
+    private QuickPresetView? ReferenceView(QuickPresetView? original, QuickPresetView? zzap)
+    {
+        if (_reference == Saved)
+        {
+            return original;
+        }
+        if (_reference == "zzap" && zzap != null)
+        {
+            return zzap;
+        }
+        var match = References.FirstOrDefault(r => r.Name == _reference);
+        return match.Bundle != null ? SainPresetEditService.View(match.Bundle) : zzap;
+    }
+
+    private static string RefLabel(string name)
+    {
+        return name switch
+        {
+            Saved => T("저장된 값", "Saved"),
+            "zzap 쉬움" => T("쉬움", "Easy"),
+            "zzap 보통" => T("보통", "Normal"),
+            _ => name,
+        };
+    }
 
     private static double Pct(QuickSetting q, float value)
     {
