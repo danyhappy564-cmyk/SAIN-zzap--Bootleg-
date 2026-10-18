@@ -48,11 +48,11 @@ public sealed class SainPresetEditService(
         return items;
     }
 
-    /// <summary>A deep copy (safe to read or edit) of a bundled default preset, or null. Used as the comparison column / reference.</summary>
-    public SAINPresetBundle? DefaultBundle(string name)
+    /// <summary>A deep copy (safe to read) of any preset - default or custom (the bundled zzap presets are custom files). Null if missing.</summary>
+    public async Task<SAINPresetBundle?> ReadOnlyCopyAsync(string name)
     {
-        var generated = presetGeneration.Presets.FirstOrDefault(p => string.Equals(p.Info.Name, name, StringComparison.OrdinalIgnoreCase));
-        return generated == null ? null : Clone(generated.ToBundle());
+        var opened = await OpenAsync(name);
+        return opened == null ? null : Clone(opened.Bundle);
     }
 
     public static SAINPresetBundle Clone(SAINPresetBundle bundle)

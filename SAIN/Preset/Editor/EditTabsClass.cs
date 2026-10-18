@@ -11,9 +11,14 @@ internal class EditTabsClass
     {
         TabClasses = new Dictionary<EEditorTab, TabClass>
         {
+            // zzap fork (2026-10-18, mockup 5): quick settings first, the full global settings next.
+            {
+                EEditorTab.Quick,
+                new TabClass { Name = "★ Quick Settings", ToolTip = "Pick a preset, the low-spec switch and the most changed values in plain words." }
+            },
             {
                 EEditorTab.Home,
-                new TabClass { Name = "Home", ToolTip = "Select preset and modify global SAIN settings." }
+                new TabClass { Name = "Global Settings (all)", ToolTip = "Every global SAIN setting, one group at a time (pick a group on the left or search)." }
             },
             {
                 EEditorTab.BotSettings,
@@ -127,7 +132,7 @@ internal class EditTabsClass
         return SelectedTab == tab;
     }
 
-    public static EEditorTab SelectedTab = EEditorTab.Home;
+    public static EEditorTab SelectedTab = EEditorTab.Quick;
     public static readonly string[] Tabs;
     public static readonly string[] TabTooltips;
     public static readonly Dictionary<EEditorTab, TabClass> TabClasses;
@@ -142,6 +147,7 @@ public sealed class TabClass
 
 public enum EEditorTab
 {
+    Quick,
     Home,
     BotSettings,
     Personalities,

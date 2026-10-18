@@ -1,8 +1,12 @@
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 using EFT.UI;
 using SAIN.Attributes;
 using SAIN.Plugin;
+using SAIN.Preset.Shared.GlobalSettings;
+using UnityEngine;
 using static SAIN.Editor.SAINLayout;
 
 namespace SAIN.Editor.GUISections;
@@ -49,11 +53,140 @@ public static class BotSettingsEditor
 
         EndHorizontal();
 
+        // zzap fork (2026-10-18, mockup 5): without a search, a group list on the left and only the picked group on the right
+        // (the old page unfolded every group into one long list). A search still lists every match, as before.
+        if (string.IsNullOrEmpty(container.SearchPattern))
+        {
+            GroupedView(container, settings, out wasEdited);
+            return;
+        }
+
         container.Scroll = BeginScrollView(container.Scroll);
 
         CategoryOpenable(container.Categories, settings, out wasEdited, container.SearchPattern);
 
         EndScrollView();
+    }
+
+    private sealed class GroupEntry
+    {
+        public string Key;
+        public Category Category;
+        public FieldInfo SubField;
+        public ConfigInfoClass SubInfo;
+        public int Count;
+        public int Depth;
+    }
+
+    private static readonly Dictionary<SettingsContainer, List<GroupEntry>> _groups = new();
+    private static readonly Dictionary<SettingsContainer, string> _selectedGroup = new();
+
+    // Top-level groups, plus the zzap sections inside "General" (door tactics, close combat, freeze ambush...) as their own rows.
+    private static List<GroupEntry> Groups(SettingsContainer container)
+    {
+        if (_groups.TryGetValue(container, out var list))
+        {
+            return list;
+        }
+        list = new List<GroupEntry>();
+        foreach (var category in container.Categories)
+        {
+            if (category.OptionCount(out _) == 0)
+            {
+                continue;
+            }
+            list.Add(new GroupEntry { Key = category.CategoryInfo.EnglishName, Category = category, Count = category.OptionCount(out _) });
+            foreach (FieldInfo field in category.CategoryInfo.ValueType.GetFields(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (!typeof(ISAINSettings).IsAssignableFrom(field.FieldType))
+                {
+                    continue;
+                }
+                var info = AttributesGUI.GetAttributeInfo(field);
+                if (info == null || info.Hidden)
+                {
+                    continue;
+                }
+                var sub = new Category(info);
+                list.Add(new GroupEntry
+                {
+                    Key = category.CategoryInfo.EnglishName + "/" + field.Name,
+                    Category = category,
+                    SubField = field,
+                    SubInfo = info,
+                    Count = sub.OptionCount(out _),
+                    Depth = 1,
+                });
+            }
+        }
+        _groups[container] = list;
+        return list;
+    }
+
+    private static void GroupedView(SettingsContainer container, object settings, out bool wasEdited)
+    {
+        wasEdited = false;
+        var groups = Groups(container);
+        if (groups.Count == 0)
+        {
+            return;
+        }
+        if (!_selectedGroup.TryGetValue(container, out string selectedKey) || groups.All(g => g.Key != selectedKey))
+        {
+            selectedKey = groups[0].Key;
+        }
+
+        BeginHorizontal();
+
+        BeginVertical();
+        Label(EditorText.UI("Groups"), Width(280f), Height(24f));
+        foreach (var group in groups)
+        {
+            if (group.SubInfo != null && group.SubInfo.DoNotShowGUI)
+            {
+                continue;
+            }
+            string name = group.SubInfo != null ? "    " + group.SubInfo.Name : group.Category.CategoryInfo.Name;
+            bool selected = group.Key == selectedKey;
+            bool picked = Toggle(selected, new GUIContent($"{name}  ({group.Count})", group.SubInfo?.Description ?? group.Category.CategoryInfo.Description),
+                EUISoundType.MenuDropdown, Width(280f), Height(26f));
+            if (picked && !selected)
+            {
+                selectedKey = group.Key;
+            }
+        }
+        EndVertical();
+
+        Space(12f);
+
+        BeginVertical();
+        var current = groups.First(g => g.Key == selectedKey);
+        string title = current.SubInfo != null ? $"{current.Category.CategoryInfo.Name} › {current.SubInfo.Name}" : current.Category.CategoryInfo.Name;
+        Box(title, current.SubInfo?.Description ?? current.Category.CategoryInfo.Description, Height(30f));
+        container.Scroll = BeginScrollView(container.Scroll);
+        object categoryObject = current.Category.GetValue(settings);
+        if (current.SubField != null)
+        {
+            object subObject = current.SubField.GetValue(categoryObject);
+            if (subObject != null)
+            {
+                AttributesGUI.EditAllValuesInObj(subObject, out wasEdited);
+            }
+        }
+        else
+        {
+            AttributesGUI.EditAllValuesInObj(current.Category, categoryObject, out wasEdited);
+        }
+        EndScrollView();
+        EndVertical();
+
+        EndHorizontal();
+
+        if (_selectedGroup.TryGetValue(container, out string old) && old != selectedKey)
+        {
+            container.Scroll = UnityEngine.Vector2.zero;
+        }
+        _selectedGroup[container] = selectedKey;
     }
 
     public static bool CheckIfOpen(SettingsContainer container, float height = 30f)

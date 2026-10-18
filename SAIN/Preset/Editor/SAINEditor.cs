@@ -141,7 +141,8 @@ public static class SAINEditor
         GUI.DrawTexture(DragRect, DragBackgroundTexture, ScaleMode.StretchToFill, true, 0);
         GUI.Box(
             DragRect,
-            $"SAIN {SAINVersionInfo.SAINVersion} {EditorText.UI("GUI Editor")} | {EditorText.UI("Preset")}: {SAINPlugin.LoadedPreset.Info.Name}",
+            $"SAIN {SAINVersionInfo.SAINVersion} {EditorText.UI("GUI Editor")} | {EditorText.UI("Preset")}: {SAINPlugin.LoadedPreset.Info.Name}"
+                + (ConfigEditingTracker.UnsavedChanges ? "   |   " + string.Format(EditorText.UI("Unsaved changes: {0}"), ConfigEditingTracker.EditedConfigValues.Count) : string.Empty),
             GetStyle(Style.dragBar)
         );
         GUI.DragWindow(DragRect);

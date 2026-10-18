@@ -20,8 +20,16 @@ internal static class KoreanUIText
 
         // Tabs
         { "Home", "홈" },
+        { "★ Quick Settings", "★ 빠른 설정" },
+        { "Pick a preset, the low-spec switch and the most changed values in plain words.", "프리셋 고르기, 저사양 PC 스위치, 자주 바꾸는 값을 쉬운 말로." },
+        { "Global Settings (all)", "전역 설정 (전체)" },
+        { "Every global SAIN setting, one group at a time (pick a group on the left or search).", "SAIN 전역 설정 전부를 묶음별로(왼쪽에서 묶음을 고르거나 검색)." },
+        { "Preset management (rename, description, delete)", "프리셋 관리 (이름·설명 바꾸기, 삭제)" },
+        { "Presets are picked on the Quick Settings tab. Here: rename, change the description, save as new, delete.", "프리셋 고르기는 '빠른 설정' 탭에서. 여기서는 이름·설명 바꾸기, 새로 저장, 삭제." },
+        { "Groups", "묶음" },
+        { "Unsaved changes: {0}", "저장 안 한 변경 {0}개" },
         { "Select preset and modify global SAIN settings.", "프리셋을 고르고 SAIN 전역 설정을 수정합니다." },
-        { "Bot Settings", "봇 설정" },
+        { "Bot Settings", "봇 종류별" },
         {
             "Modify Settings that are unique to particular bot types for individual difficulties. Difficulty is determined on spawn by EFT, and is changed by selecting the Difficulty value when starting a raid. As Online is a mix of all difficulties.",
             "봇 종류별·난이도별 고유 설정을 수정합니다. 난이도는 봇이 생성될 때 EFT가 정하고, 레이드 시작 시 난이도 선택으로 바뀝니다. '온라인'은 모든 난이도가 섞여 있습니다."
@@ -31,9 +39,9 @@ internal static class KoreanUIText
             "Modify Individual Personality settings for how they are assigned to bots, and what each personality does for a bot's behavior.",
             "성격이 봇에게 배정되는 조건과, 각 성격이 봇 행동에 주는 영향을 수정합니다."
         },
-        { "Equipment Stealth", "장비 은신" },
+        { "Equipment Stealth", "장비 은밀성" },
         { "Modify the stealth value that certain pieces of equipment provide.", "장비별 은신 값을 수정합니다." },
-        { "Advanced Options", "고급 옵션" },
+        { "Advanced Options", "고급" },
         { "Edit at your own risk. Enable additional advanced config options here", "수정은 본인 책임입니다. 추가 고급 설정을 여기서 켭니다" },
 
         // Save / unsaved

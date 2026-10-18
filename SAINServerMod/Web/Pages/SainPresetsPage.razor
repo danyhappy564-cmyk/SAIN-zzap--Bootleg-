@@ -83,11 +83,11 @@
                         }
                     }
                     <MudText Typo="Typo.overline" Class="sain-sec">@T("내 프리셋", "MY PRESETS")</MudText>
-                    @if (!_items.Any(i => i.IsCustom))
+                    @if (!_items.Any(i => i.IsCustom && !IsZzap(i.Name)))
                     {
                         <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">@T("아직 없음 — 기본 프리셋을 고쳐 저장하면 여기에 복사본이 생깁니다.", "None yet - saving an edited default puts a copy here.")</MudText>
                     }
-                    @foreach (var item in _items.Where(i => i.IsCustom))
+                    @foreach (var item in _items.Where(i => i.IsCustom && !IsZzap(i.Name)))
                     {
                         @PresetCard(item)
                     }
@@ -100,7 +100,7 @@
                                       Margin="Margin.Dense" />
                         <MudSelect T="string" @bind-Value="_baseName" Label="@T("바탕 프리셋", "Based on")" Variant="Variant.Outlined"
                                    Margin="Margin.Dense" Dense="true">
-                            @foreach (var def in _items.Where(i => !i.IsCustom))
+                            @foreach (var def in ZzapItems().Concat(SainItems()))
                             {
                                 <MudSelectItem T="string" Value="@def.Name">@def.Name</MudSelectItem>
                             }
@@ -142,38 +142,36 @@
     private int _changed;
     private bool _showSain;
 
-    // zzap fork: bundled zzap presets in difficulty order, with a level (1-3), a tag and a one-line summary.
-    private static readonly (string Name, int Level, string? TagKo, string? TagEn, string Ko, string En)[] ZzapPresets =
-    {
-        ("zzap 쉬움", 1, null, null, "처음 하거나 편하게. 조준 2초 · 시야 SAIN의 ½ · 반동 큼", "New or relaxed. Aim 2 s · sight ½ of SAIN · heavy recoil"),
-        ("zzap 보통", 2, null, null, "쉬움과 zzap의 중간. 조준 0.6초 · 시야 1.4배 · 연사 zzap의 75%", "Halfway to zzap. Aim 0.6 s · sight 1.4x · 75% of zzap's fire rate"),
-        ("zzap", 3, "추천", "pick", "하드코어. 조준 0.3초 · 시야 2배 · 반동 거의 없음 · 전술 전부", "Hardcore. Aim 0.3 s · sight 2x · almost no recoil · every tactic"),
-        ("zzap 저사양 [테스트]", 2, "테스트", "test", "보통 + 성능 설정. 이제 '빠른 설정 › 저사양 PC' 스위치로 어느 난이도든 같은 효과", "Normal + performance settings. Now any difficulty can do this with 'Quick settings › Low-spec PC'"),
-        ("zzap TEST [시뮬 전용]", 3, "시뮬 전용", "sim only", "봇끼리 시뮬레이션용. 실제 플레이엔 쓰지 마세요", "For bot-vs-bot simulation. Not for real raids"),
-    };
+    private static IEnumerable<ZzapPresetCard> ZzapPresets => QuickSettings.ZzapPresets;
 
     private List<PresetListItem> ZzapItems()
     {
-        return ZzapPresets.Select(z => _items.FirstOrDefault(i => !i.IsCustom && i.Name == z.Name)).Where(i => i != null).Select(i => i!).ToList();
+        // The bundled zzap presets are files in the server mod's Presets folder, so they list as custom presets.
+        return ZzapPresets.Select(z => _items.FirstOrDefault(i => i.Name == z.Name)).Where(i => i != null).Select(i => i!).ToList();
     }
 
     private List<PresetListItem> SainItems()
     {
-        return _items.Where(i => !i.IsCustom && !ZzapPresets.Any(z => z.Name == i.Name)).ToList();
+        return _items.Where(i => !i.IsCustom && !IsZzap(i.Name)).ToList();
+    }
+
+    private static bool IsZzap(string name)
+    {
+        return ZzapPresets.Any(z => z.Name == name);
     }
 
     private RenderFragment PresetCard(PresetListItem item) => __builder =>
     {
-        var z = ZzapPresets.FirstOrDefault(x => x.Name == item.Name);
-        bool isZzap = z.Name != null;
-        string desc = isZzap ? T(z.Ko, z.En) : Short(item.Description);
-        <div class="sain-pcard @(item.Name == _selectedName ? "sain-pcard-sel" : null) @(item.Disabled ? "sain-preset-disabled" : null)" @onclick="@(() => SelectAsync(item.Name))">
+        var z = QuickSettings.FindZzap(item.Name);
+        bool isZzap = z != null;
+        string desc = isZzap ? z!.Summary(Korean) : Short(item.Description);
+        <div class="sain-pcard @(item.Name == _selectedName ? "sain-pcard-sel" : null) @(item.Disabled || z?.Legacy == true ? "sain-preset-disabled" : null)" @onclick="@(() => SelectAsync(item.Name))">
             <div class="sain-pcard-top">
                 <span class="sain-pcard-name">
                     @item.Name
-                    @if (isZzap && z.TagKo != null)
+                    @if (isZzap && z!.TagKo != null)
                     {
-                        <span class="sain-tagchip @(z.Level == 3 && z.TagEn == "pick" ? "sain-tag-y" : z.TagEn == "sim only" ? "sain-tag-p" : "sain-tag-b")">@T(z.TagKo, z.TagEn!)</span>
+                        <span class="sain-tagchip @(z.TagEn == "pick" ? "sain-tag-y" : z.TagEn == "sim only" ? "sain-tag-p" : null)">@z.Tag(Korean)</span>
                     }
                     @if (item.Disabled)
                     {
@@ -183,12 +181,12 @@
                 <span class="sain-pcard-actions" @onclick:stopPropagation="true">
                     @if (isZzap)
                     {
-                        <span class="sain-lv" style="margin-right:4px;">@for (int i = 1; i <= 3; i++) { <i class="@(i <= z.Level ? "on" : null)"></i> }</span>
+                        <span class="sain-lv" style="margin-right:4px;">@for (int i = 1; i <= 3; i++) { <i class="@(i <= z!.Level ? "on" : null)"></i> }</span>
                     }
                         <MudTooltip Text="@T("복제", "Duplicate")">
                             <MudIconButton Icon="@Icons.Material.Outlined.ContentCopy" Size="Size.Small" OnClick="@(() => DuplicateAsync(item.Name))" OnClick:stopPropagation="true" />
                         </MudTooltip>
-                        @if (item.IsCustom)
+                        @if (item.IsCustom && !isZzap)
                         {
                             @if (_pendingDelete == item.Name)
                             {
@@ -255,21 +253,23 @@
     private void Reload()
     {
         _items = Presets.ListAll();
-        _zzap ??= Presets.DefaultBundle("zzap");
-        if (_columns.Count == 0)
-        {
-            foreach (var z in ZzapPresets.Where(z => z.Level > 0 && z.Name != "zzap 저사양 [테스트]"))
-            {
-                var bundle = Presets.DefaultBundle(z.Name);
-                if (bundle != null)
-                {
-                    _columns.Add((z.Name, bundle));
-                }
-            }
-        }
         if (string.IsNullOrEmpty(_baseName))
         {
-            _baseName = _items.FirstOrDefault(i => !i.IsCustom)?.Name ?? string.Empty;
+            _baseName = ZzapItems().FirstOrDefault(i => i.Name == "zzap")?.Name ?? _items.FirstOrDefault(i => !i.IsCustom)?.Name ?? string.Empty;
+        }
+    }
+
+    // The comparison columns / zzap reference load once (deep copies, never edited).
+    protected override async Task OnInitializedAsync()
+    {
+        _zzap = await Presets.ReadOnlyCopyAsync("zzap");
+        foreach (var z in ZzapPresets.Where(z => !z.Legacy))
+        {
+            var bundle = await Presets.ReadOnlyCopyAsync(z.Name);
+            if (bundle != null)
+            {
+                _columns.Add((z.Name, bundle));
+            }
         }
     }
 

@@ -2,8 +2,8 @@
 
 @* zzap fork (2026-10-18): the quick values side by side for the bundled zzap presets and the one being edited. *@
 <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
-    @T("빠른 설정 항목을 zzap 기본 프리셋끼리 나란히 봅니다. 파란 열 = 지금 편집 중인 프리셋(저장 안 한 변경 포함).",
-       "The quick values of the bundled zzap presets side by side. Blue column = the preset being edited (unsaved changes included).")
+    @T("빠른 설정 항목을 zzap 기본 프리셋끼리 나란히 봅니다. 파란 열 = 지금 편집 중인 프리셋(저장 안 한 변경 포함, 아래 작은 글씨가 쉬운 말 풀이). 다른 칸은 마우스를 올리면 풀이가 나옵니다.",
+       "The quick values of the bundled zzap presets side by side. Blue column = the preset being edited (unsaved changes included, with the plain-words reading). Hover other cells for theirs.")
 </MudText>
 <div class="sain-table-wrap">
     <table class="sain-compare">
@@ -26,10 +26,10 @@
             {
                 <tr>
                     <td>@q.Name(Korean)</td>
-                    <td class="sain-compare-me">@Show(q, q.Get(me))</td>
+                    <td class="sain-compare-me" title="@q.Text(q.Get(me), Korean)">@Show(q, q.Get(me))<div class="sain-quick-desc">@q.Text(q.Get(me), Korean)</div></td>
                     @foreach (var v in views)
                     {
-                        <td>@Show(q, q.Get(v))</td>
+                        <td title="@q.Text(q.Get(v), Korean)">@Show(q, q.Get(v))</td>
                     }
                 </tr>
             }

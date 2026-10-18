@@ -17,6 +17,10 @@ public static class GUITabs
         EditTabsClass.BeginScrollView();
         switch (selectedTab)
         {
+            case EEditorTab.Quick:
+                QuickSettingsGUI.Draw();
+                break;
+
             case EEditorTab.Home:
                 Home();
                 break;
@@ -43,10 +47,23 @@ public static class GUITabs
         EditTabsClass.EndScrollView();
     }
 
+    private static bool _presetManagerOpen;
+
     public static void Home()
     {
-        PresetSelection.PresetSelectionMenu();
-        Space(20f);
+        // zzap fork (2026-10-18): presets are picked on the Quick Settings tab; the old manager (rename, description, delete,
+        // save as new) stays here folded.
+        _presetManagerOpen = BuilderClass.ExpandableMenu(
+            EditorText.UI("Preset management (rename, description, delete)"),
+            _presetManagerOpen,
+            EditorText.UI("Presets are picked on the Quick Settings tab. Here: rename, change the description, save as new, delete."),
+            28f
+        );
+        if (_presetManagerOpen)
+        {
+            PresetSelection.PresetSelectionMenu();
+        }
+        Space(10f);
 
         BotSettingsEditor.ShowAllSettingsGUI(
             SAINPlugin.LoadedPreset.GlobalSettings,
