@@ -45,8 +45,43 @@ public sealed class QuickSetting
     /// <summary>False when a bigger number makes bots weaker (recoil, aim time, scatter): sliders are drawn reversed so that
     /// right always means "stronger bots" (user 2026-10-18: "the numbers are too hard to read").</summary>
     public bool HigherIsStronger = true;
-    /// <summary>The value in plain words, e.g. "noticeable kick · 8x zzap".</summary>
+    /// <summary>The value in plain words, measured against SAIN's default where there is one (user's tester 2026-10-18: "'same as
+    /// zzap' only helps if you know zzap's value - fire rate and scatter are hard to judge").</summary>
     public Func<float, bool, string> Describe;
+    /// <summary>Unit after a number ("초", "°", "%", "배"); empty = plain number.</summary>
+    public string UnitKo = string.Empty;
+    public string UnitEn = string.Empty;
+    /// <summary>How far the value moved from a reference in its own unit, without direction ("25% slower", "0.3 s slower").</summary>
+    public Func<float, float, bool, string> Change;
+
+    public string Format(float value, bool korean)
+    {
+        string unit = korean ? UnitKo : UnitEn;
+        return Math.Round(value, 2).ToString("0.##") + unit;
+    }
+
+    /// <summary>+1 = bots stronger than the reference, -1 = weaker, 0 = the same.</summary>
+    public int Direction(float value, float reference)
+    {
+        if (Math.Abs(value - reference) < 0.001f)
+        {
+            return 0;
+        }
+        return (value > reference) == HigherIsStronger ? 1 : -1;
+    }
+
+    /// <summary>"▼ 약하게 · 25% 느림" / "▲ 강하게 · 15%p 더" / "변화 없음" (user 2026-10-18, slider mockup 7).</summary>
+    public string DeltaText(float value, float reference, bool korean)
+    {
+        int direction = Direction(value, reference);
+        if (direction == 0)
+        {
+            return korean ? "변화 없음" : "no change";
+        }
+        string head = direction > 0 ? (korean ? "▲ 강하게" : "▲ stronger") : (korean ? "▼ 약하게" : "▼ weaker");
+        string change = Change?.Invoke(value, reference, korean);
+        return string.IsNullOrEmpty(change) ? head : head + " · " + change;
+    }
 
     public string Name(bool korean) => korean ? NameKo : NameEn;
 
@@ -196,23 +231,47 @@ public static class QuickSettings
 
     private static string Num(float v) => Math.Round(v, 2).ToString("0.##");
 
-    /// <summary>"zzap의 75%" / "zzap과 같음" / "zzap의 8배".</summary>
-    private static string VsZzap(float v, float zzap, bool korean)
+    private static string Pct(float ratio) => Math.Round(ratio * 100f).ToString("0");
+
+    /// <summary>Change of a multiplier: "25% 느림" / "30% 김" / "8배" (from 2x up the ratio reads better than a percent).</summary>
+    private static Func<float, float, bool, string> Ratio(string moreKo, string lessKo, string moreEn, string lessEn, string nounKo = "", string nounEn = "")
     {
-        if (zzap <= 0f)
+        return (v, r, k) =>
         {
-            return string.Empty;
-        }
-        float r = v / zzap;
-        if (Math.Abs(r - 1f) < 0.03f)
+            if (r <= 0.0001f)
+            {
+                return (k ? "기준 0에서 " : "from 0 to ") + Num(v);
+            }
+            float ratio = v / r;
+            if (ratio >= 1.95f)
+            {
+                return k ? $"{nounKo} {Num(ratio)}배".Trim() : $"{Num(ratio)}x {nounEn}".Trim();
+            }
+            return ratio >= 1f
+                ? (k ? $"{Pct(ratio - 1f)}% {moreKo}" : $"{Pct(ratio - 1f)}% {moreEn}")
+                : (k ? $"{Pct(1f - ratio)}% {lessKo}" : $"{Pct(1f - ratio)}% {lessEn}");
+        };
+    }
+
+    /// <summary>Change in the setting's own unit: "0.3초 느림", "20° 좁음", "15%p 더".</summary>
+    private static Func<float, float, bool, string> Diff(string unitKo, string unitEn, string moreKo, string lessKo, string moreEn, string lessEn)
+    {
+        return (v, r, k) =>
         {
-            return korean ? "zzap과 같음" : "same as zzap";
-        }
-        if (r >= 1.5f)
+            float d = v - r;
+            string amount = Num(Math.Abs(d));
+            return d > 0f ? (k ? $"{amount}{unitKo} {moreKo}" : $"{amount}{unitEn} {moreEn}") : (k ? $"{amount}{unitKo} {lessKo}" : $"{amount}{unitEn} {lessEn}");
+        };
+    }
+
+    /// <summary>A multiplier against SAIN's default: "SAIN 기본의 80%" / "SAIN 기본의 2.25배" / "SAIN 기본과 같음".</summary>
+    private static string VsSain(float v, bool k)
+    {
+        if (Math.Abs(v - 1f) < 0.03f)
         {
-            return korean ? $"zzap의 {Num(r)}배" : $"{Num(r)}x zzap";
+            return k ? "SAIN 기본과 같음" : "same as SAIN default";
         }
-        return korean ? $"zzap의 {r * 100f:0}%" : $"{r * 100f:0}% of zzap";
+        return v >= 1f ? (k ? $"SAIN 기본의 {Num(v)}배" : $"{Num(v)}x SAIN default") : (k ? $"SAIN 기본의 {Pct(v)}%" : $"{Pct(v)}% of SAIN default");
     }
 
     private static string Recoil(float v, bool k)
@@ -222,18 +281,40 @@ public static class QuickSettings
             : v <= 1.2f ? (k ? "꽤 튐" : "noticeable kick")
             : v <= 2f ? (k ? "많이 튐" : "strong kick")
             : (k ? "아주 많이 튐" : "very strong kick");
-        return word + " · " + VsZzap(v, 0.1f, k);
+        return word + (k ? " — 반동이 " : " - recoil is ") + VsSain(v, k) + (k ? " (zzap 0.1 = 거의 안 튐)" : " (zzap 0.1 = barely kicks)");
     }
 
     private static string Scatter(float v, bool k)
     {
         if (Math.Abs(v - 1f) < 0.03f)
         {
-            return k ? "기본 퍼짐 (zzap과 같음)" : "normal spread (same as zzap)";
+            return k ? "SAIN 기본만큼 퍼짐 — 숫자가 작을수록 탄이 좁게 모임 (zzap 1)" : "SAIN default spread - lower numbers group shots tighter (zzap 1)";
         }
         return v > 1f
-            ? (k ? $"{Num(v)}배 더 퍼짐 (덜 맞음)" : $"{Num(v)}x wider (fewer hits)")
-            : (k ? $"덜 퍼짐 ({v * 100f:0}%, 더 잘 맞음)" : $"tighter ({v * 100f:0}%, more hits)");
+            ? (k ? $"SAIN 기본보다 {Num(v)}배 넓게 퍼짐 — 덜 맞음 (zzap 1)" : $"{Num(v)}x wider than SAIN default - fewer hits (zzap 1)")
+            : (k ? $"SAIN 기본의 {Pct(v)}% 범위로 모임 — 더 잘 맞음 (zzap 1)" : $"groups in {Pct(v)}% of SAIN default spread - more hits (zzap 1)");
+    }
+
+    private static string FireRate(float v, bool k)
+    {
+        if (Math.Abs(v - 1f) < 0.03f)
+        {
+            return k ? "SAIN 기본 속도로 쏨 (zzap 3배)" : "fires at SAIN default speed (zzap 3x)";
+        }
+        return v > 1f
+            ? (k ? $"SAIN 기본보다 {Num(v)}배 빨리 방아쇠를 당김 — 점사 간격이 짧음 (zzap 3배)" : $"pulls the trigger {Num(v)}x faster than SAIN default - shorter gaps (zzap 3x)")
+            : (k ? $"SAIN 기본의 {Pct(v)}% 속도로 쏨 (zzap 3배)" : $"fires at {Pct(v)}% of SAIN default speed (zzap 3x)");
+    }
+
+    private static string Spotting(float v, bool k)
+    {
+        if (Math.Abs(v - 1f) < 0.03f)
+        {
+            return k ? "시야에 들어온 적을 SAIN 기본 속도로 알아챔 (zzap = SAIN 기본)" : "notices a visible enemy at SAIN default speed (zzap = SAIN default)";
+        }
+        return v < 1f
+            ? (k ? $"시야에 들어온 적을 SAIN 기본보다 {Pct(1f - v)}% 늦게 알아챔 (zzap = SAIN 기본)" : $"notices a visible enemy {Pct(1f - v)}% later than SAIN default (zzap = SAIN default)")
+            : (k ? $"시야에 들어온 적을 SAIN 기본보다 {Pct(v - 1f)}% 빨리 알아챔 (zzap = SAIN 기본)" : $"notices a visible enemy {Pct(v - 1f)}% sooner than SAIN default (zzap = SAIN default)");
     }
 
     public static readonly QuickSetting[] All =
@@ -242,6 +323,7 @@ public static class QuickSettings
         {
             Id = "recoil", Group = "aim", Kind = QuickKind.Number, Min = 0.01f, Max = 3f, Step = 0.05f,
             ZzapValue = 0.1f, HigherIsStronger = false, Describe = Recoil,
+            Change = (v, r, k) => r <= 0.0001f ? Num(v) : (k ? $"반동 {Num(v / r)}배" : $"{Num(v / r)}x the recoil"),
             NameKo = "반동 크기", NameEn = "Recoil",
             HelpKo = "전역 반동 배율. 클수록 봇 총이 많이 튐 (zzap 0.1, 쉬움 3.0)", HelpEn = "Global recoil multiplier. Higher = bots' guns kick more (zzap 0.1, easy 3.0)",
             Get = v => v.Global.Shoot.BOT_RECOIL_COEF, Set = (v, x) => v.Global.Shoot.BOT_RECOIL_COEF = x,
@@ -249,7 +331,9 @@ public static class QuickSettings
         new()
         {
             Id = "aimTime", Group = "aim", Kind = QuickKind.Number, Min = 0.1f, Max = 3f, Step = 0.05f,
-            ZzapValue = 0.3f, HigherIsStronger = false, Describe = (v, k) => (k ? $"{Num(v)}초 만에 조준 끝 · " : $"aims in {Num(v)} s · ") + (k ? "zzap 0.3초" : "zzap 0.3 s"),
+            ZzapValue = 0.3f, HigherIsStronger = false, UnitKo = "초", UnitEn = " s",
+            Describe = (v, k) => k ? $"적을 보고 {Num(v)}초 뒤 조준을 끝내고 쏘기 시작 (zzap 0.3초)" : $"settles its aim {Num(v)} s after seeing you, then fires (zzap 0.3 s)",
+            Change = Diff("초", " s", "느림", "빠름", "slower", "faster"),
             NameKo = "조준 시간 (PMC, 초)", NameEn = "Aim time (PMC, s)",
             HelpKo = "PMC가 조준을 끝내는 최대 시간. 작을수록 빨리 맞힘 — 모든 PMC 종류·난이도에 같이 적용", HelpEn = "Longest time a PMC takes to settle its aim. Lower = hits sooner - written to every PMC type and difficulty",
             Get = v => FirstPmc(v, s => s.Aiming.MAX_AIM_TIME, 1f),
@@ -258,7 +342,8 @@ public static class QuickSettings
         new()
         {
             Id = "fireRate", Group = "aim", Kind = QuickKind.Number, Min = 0.25f, Max = 3f, Step = 0.05f,
-            ZzapValue = 3f, Describe = (v, k) => (k ? "연사 속도 " : "fire rate ") + VsZzap(v, 3f, k),
+            ZzapValue = 3f, UnitKo = "배", UnitEn = "x", Describe = FireRate,
+            Change = Ratio("빠름", "느림", "faster", "slower", "연사", "the fire rate"),
             NameKo = "연사 속도 (PMC)", NameEn = "Fire rate (PMC)",
             HelpKo = "PMC 발사 간격 배율(점사 길이도 같이). 클수록 빨리 쏨 — 모든 PMC 종류·난이도에 같이 적용", HelpEn = "PMC fire rate multiplier (burst length follows). Higher = faster - written to every PMC type and difficulty",
             Get = v => FirstPmc(v, s => s.Shoot.FireratMulti, 1.5f),
@@ -268,6 +353,7 @@ public static class QuickSettings
         {
             Id = "scatter", Group = "aim", Kind = QuickKind.Number, Min = 0.1f, Max = 3f, Step = 0.05f,
             ZzapValue = 1f, HigherIsStronger = false, Describe = Scatter,
+            Change = Ratio("더 퍼짐", "덜 퍼짐", "wider", "tighter", "퍼짐", "the spread"),
             NameKo = "탄 퍼짐", NameEn = "Bullet scatter",
             HelpKo = "전역 탄 퍼짐 배율. 클수록 빗나감", HelpEn = "Global scatter multiplier. Higher = more misses",
             Get = v => v.Global.Difficulty.ScatteringCoef, Set = (v, x) => v.Global.Difficulty.ScatteringCoef = x,
@@ -275,7 +361,9 @@ public static class QuickSettings
         new()
         {
             Id = "sight", Group = "sense", Kind = QuickKind.Number, Min = 0.25f, Max = 3f, Step = 0.05f,
-            ZzapValue = 2f, Describe = (v, k) => (k ? $"SAIN 기본의 {Num(v)}배 거리 · " : $"{Num(v)}x SAIN default range · ") + VsZzap(v, 2f, k),
+            ZzapValue = 2f, UnitKo = "배", UnitEn = "x",
+            Describe = (v, k) => (k ? "보는 거리: " : "sight range: ") + VsSain(v, k) + (k ? " (zzap 2배)" : " (zzap 2x)"),
+            Change = Ratio("김", "짧음", "farther", "shorter", "거리", "the range"),
             NameKo = "시야 거리 배율", NameEn = "Sight distance",
             HelpKo = "봇이 볼 수 있는 거리 (SAIN 기본 1, zzap 2)", HelpEn = "How far bots can see (SAIN default 1, zzap 2)",
             Get = v => v.Global.Difficulty.VisibleDistCoef, Set = (v, x) => v.Global.Difficulty.VisibleDistCoef = x,
@@ -283,7 +371,8 @@ public static class QuickSettings
         new()
         {
             Id = "gainSight", Group = "sense", Kind = QuickKind.Number, Min = 0.2f, Max = 2f, Step = 0.05f,
-            ZzapValue = 1f, Describe = (v, k) => (k ? "적을 알아채는 속도 " : "spots enemies at ") + VsZzap(v, 1f, k),
+            ZzapValue = 1f, Describe = Spotting,
+            Change = Ratio("빨리", "늦게", "sooner", "later", "발견 속도", "the spotting speed"),
             NameKo = "발견 속도 배율", NameEn = "Spotting speed",
             HelpKo = "보인 적을 알아채는 속도. 작을수록 늦게 발견", HelpEn = "How fast a visible enemy is noticed. Lower = later",
             Get = v => v.Global.Difficulty.GainSightCoef, Set = (v, x) => v.Global.Difficulty.GainSightCoef = x,
@@ -291,7 +380,9 @@ public static class QuickSettings
         new()
         {
             Id = "hearing", Group = "sense", Kind = QuickKind.Number, Min = 0.2f, Max = 2f, Step = 0.05f,
-            ZzapValue = 1f, Describe = (v, k) => (k ? "소리 듣는 거리 " : "hearing range ") + VsZzap(v, 1f, k),
+            ZzapValue = 1f,
+            Describe = (v, k) => (k ? "발소리·총소리를 듣는 거리: " : "hears steps and shots at ") + VsSain(v, k) + (k ? " (zzap = SAIN 기본)" : " (zzap = SAIN default)"),
+            Change = Ratio("김", "짧음", "farther", "shorter", "청각 거리", "the hearing range"),
             NameKo = "청각 거리 배율", NameEn = "Hearing distance",
             HelpKo = "발소리·총소리를 듣는 거리", HelpEn = "How far footsteps and shots are heard",
             Get = v => v.Global.Difficulty.HearingDistanceCoef, Set = (v, x) => v.Global.Difficulty.HearingDistanceCoef = x,
@@ -299,7 +390,11 @@ public static class QuickSettings
         new()
         {
             Id = "fov", Group = "sense", Kind = QuickKind.Number, Min = 90f, Max = 180f, Step = 5f,
-            ZzapValue = 180f, Describe = (v, k) => k ? $"좌우 {v:0}°를 봄 (zzap 180°)" : $"sees {v:0}° side to side (zzap 180°)",
+            ZzapValue = 180f, UnitKo = "°", UnitEn = "°",
+            Describe = (v, k) => v >= 179.5f
+                ? (k ? "좌우 180°를 봄 — 바로 옆까지 (zzap 180°)" : "sees 180° - right up to its sides (zzap 180°)")
+                : (k ? $"좌우 {v:0}°를 봄 — 바로 옆(어깨 너머)은 못 봄 (zzap 180°)" : $"sees {v:0}° - misses what is right beside it (zzap 180°)"),
+            Change = Diff("°", "°", "넓음", "좁음", "wider", "narrower"),
             NameKo = "시야각 (도)", NameEn = "Field of view (deg)",
             HelpKo = "봇이 보는 좌우 범위 — 모든 봇 종류·난이도에 같이 적용", HelpEn = "Bots' left-right view - written to every bot type and difficulty",
             Get = v => FirstPmc(v, s => s.Core.VisibleAngle, 160f),
@@ -308,7 +403,11 @@ public static class QuickSettings
         new()
         {
             Id = "doorMulti", Group = "tactics", Kind = QuickKind.Number, Min = 0f, Max = 2f, Step = 0.05f,
-            ZzapValue = 1f, Describe = (v, k) => (k ? "문 전술 빈도 " : "door tactics ") + (v <= 0.001f ? (k ? "안 씀" : "never") : VsZzap(v, 1f, k)),
+            ZzapValue = 1f, UnitKo = "배", UnitEn = "x",
+            Describe = (v, k) => v <= 0.001f
+                ? (k ? "문 전술을 안 씀" : "no door tactics")
+                : (k ? $"문 피킹·방 진입·가두기를 zzap 기본 빈도의 {Pct(v)}%로 씀" : $"door peeks, room clears and traps at {Pct(v)}% of zzap's frequency"),
+            Change = Ratio("더 자주", "덜", "more often", "less often"),
             NameKo = "문 전술 배율", NameEn = "Door tactic multiplier",
             HelpKo = "문 피킹·방 진입·가두기 시작 확률에 곱함", HelpEn = "Multiplies the start chance of door peeks, room clears and traps",
             Get = v => v.Global.General.DoorTactics.ChanceMultiplier, Set = (v, x) => v.Global.General.DoorTactics.ChanceMultiplier = x,
@@ -316,7 +415,9 @@ public static class QuickSettings
         new()
         {
             Id = "ramClear", Group = "tactics", Kind = QuickKind.Number, Min = 0f, Max = 100f, Step = 5f,
-            ZzapValue = 50f, Describe = (v, k) => k ? $"방에 들어갈 때 {v:0}% 확률로 문을 박차 엶 (zzap {50}%)" : $"rams the door on {v:0}% of room entries (zzap 50%)",
+            ZzapValue = 50f, UnitKo = "%", UnitEn = "%",
+            Describe = (v, k) => k ? $"방에 들어갈 때 {v:0}% 확률로 문을 박차 엶 (zzap 50%)" : $"rams the door on {v:0}% of room entries (zzap 50%)",
+            Change = Diff("%p", " pts", "더", "덜", "more", "less"),
             NameKo = "문 박치기 (방 진입 %)", NameEn = "Door ram (room clear %)",
             HelpKo = "방에 들어갈 때 닫힌 문을 달려서 박차 열 확률", HelpEn = "Chance to sprint-ram a closed door when clearing a room",
             Get = v => v.Global.General.DoorTactics.DoorModRamChance, Set = (v, x) => v.Global.General.DoorTactics.DoorModRamChance = x,
@@ -324,7 +425,9 @@ public static class QuickSettings
         new()
         {
             Id = "prefire", Group = "tactics", Kind = QuickKind.Number, Min = 0f, Max = 100f, Step = 5f,
-            ZzapValue = 60f, Describe = (v, k) => k ? $"코너 돌기 전 {v:0}% 확률로 미리 쏨 (zzap {60}%)" : $"fires before the corner {v:0}% of the time (zzap 60%)",
+            ZzapValue = 60f, UnitKo = "%", UnitEn = "%",
+            Describe = (v, k) => k ? $"코너 돌기 전 {v:0}% 확률로 미리 쏨 (zzap 60%)" : $"fires before the corner {v:0}% of the time (zzap 60%)",
+            Change = Diff("%p", " pts", "더", "덜", "more", "less"),
             NameKo = "코너 프리파이어 %", NameEn = "Corner prefire %",
             HelpKo = "코너를 돌기 전에 미리 쏠 확률", HelpEn = "Chance to fire before rounding a corner",
             Get = v => v.Global.General.CloseCombat.CornerChasePrefireChance, Set = (v, x) => v.Global.General.CloseCombat.CornerChasePrefireChance = x,

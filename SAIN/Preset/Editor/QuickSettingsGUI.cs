@@ -19,9 +19,6 @@ namespace SAIN.Editor.GUISections;
 public static class QuickSettingsGUI
 {
     private const float LEFT_WIDTH = 360f;
-    private const float NAME_WIDTH = 330f;
-    private const float SLIDER_WIDTH = 220f;
-    private const float VALUE_WIDTH = 60f;
     private const float RESET_WIDTH = 74f;
 
     private static GUIStyle _cardTitle;
@@ -32,6 +29,7 @@ public static class QuickSettingsGUI
     private static GUIStyle _section;
     private static GUIStyle _value;
     private static GUIStyle _small;
+    private static GUIStyle _delta;
 
     // The values as last saved (or as loaded): a value differing from these is "changed" and gets a reset button.
     private static readonly Dictionary<string, float> _saved = new();
@@ -73,6 +71,9 @@ public static class QuickSettingsGUI
         GUILayout.BeginVertical();
         LowSpec(view);
         GUILayout.Space(10f);
+        _refValues = ReferenceValues(preset);
+        ReferenceBar();
+        GUILayout.Space(8f);
         GUILayout.BeginHorizontal();
         GUILayout.BeginVertical();
         Group("aim", view);
@@ -88,8 +89,8 @@ public static class QuickSettingsGUI
         GUILayout.EndHorizontal();
         GUILayout.Space(6f);
         GUILayout.Label(
-            T("노란 눈금 = zzap 값 · 슬라이더는 오른쪽일수록 봇이 강함 · 위쪽 '저장'을 눌러야 게임과 봇에 적용됩니다. 나머지 설정은 '전역 설정 (전체)' 탭.",
-              "Yellow tick = zzap's value · sliders make bots stronger to the right · press 'Save' at the top to apply to the game and bots. Everything else is on 'Global settings (all)'."),
+            T("위쪽 '저장'을 눌러야 게임과 봇에 적용됩니다. 나머지 설정은 '전역 설정 (전체)' 탭.",
+              "Press 'Save' at the top to apply to the game and bots. Everything else is on 'Global settings (all)'."),
             _muted);
         GUILayout.EndVertical();
 
@@ -343,6 +344,105 @@ public static class QuickSettingsGUI
 
     // ---------------------------------------------------------------- value rows
 
+    // ---------------------------------------------------------------- comparison reference (mockup 7)
+
+    private const string SAVED = "";
+    private static readonly string[] _referenceNames = { "zzap", "zzap 쉬움", "zzap 보통", SAVED };
+    private static string _reference = "zzap";
+    private static Dictionary<string, float> _refValues = new();
+
+    private static string ReferenceLabel(string name)
+    {
+        if (name == SAVED)
+        {
+            return T("저장된 값", "Saved");
+        }
+        return name switch
+        {
+            "zzap 쉬움" => T("쉬움", "Easy"),
+            "zzap 보통" => T("보통", "Normal"),
+            _ => name,
+        };
+    }
+
+    // The reference preset's quick values. The preset being edited and "Saved" both use the snapshot taken when it was
+    // loaded or last saved, so the bars show exactly what changed since then.
+    private static int _refFrame = -1;
+    private static string _refFor;
+
+    private static Dictionary<string, float> ReferenceValues(SAINPresetClass preset)
+    {
+        // Several GUI events run per frame; read the reference preset once per frame.
+        if (_refFrame == Time.frameCount && _refFor == _reference)
+        {
+            return _refValues;
+        }
+        _refFrame = Time.frameCount;
+        _refFor = _reference;
+        if (_reference == SAVED || _reference == preset.Info.Name || !PresetSync.TryGetCustomBundle(_reference, out var bundle) || bundle?.GlobalSettings == null)
+        {
+            return _saved;
+        }
+        var bots = bundle.BotSettings.Select(kv => new KeyValuePair<string, SAINSettingsGroupClass>(kv.Key.ToString(), kv.Value)).ToList();
+        var view = new QuickPresetView(bundle.GlobalSettings, bots);
+        var values = new Dictionary<string, float>();
+        foreach (var q in QuickSettings.All)
+        {
+            values[q.Id] = q.Get(view);
+        }
+        return values;
+    }
+
+    private static float RefValue(QuickSetting q, float fallback)
+    {
+        return _refValues.TryGetValue(q.Id, out float value) ? value : fallback;
+    }
+
+    private static void ReferenceBar()
+    {
+        GUILayout.BeginHorizontal(ZzapUI.Panel1);
+        GUILayout.Label(T("비교 기준", "Compare with"), _section, GUILayout.Height(28f));
+        foreach (string name in _referenceNames)
+        {
+            if (name != SAVED && !PresetSync.TryGetCustomBundle(name, out _))
+            {
+                continue;
+            }
+            bool selected = _reference == name;
+            string tip = name == SAVED ? T("불러오거나 저장한 뒤 바꾼 것만 막대로 보기", "Bars show only what changed since the preset was loaded or saved") : T("이 프리셋 값과 비교", "Compare with this preset's values");
+            if (GUILayout.Button(new GUIContent(ReferenceLabel(name), tip), selected ? ZzapUI.Pill : ZzapUI.Button, GUILayout.Height(28f), GUILayout.MinWidth(70f)))
+            {
+                Sounds.PlaySound(EUISoundType.MenuCheckBox);
+                string picked = name;
+                ZzapUI.Defer(() => _reference = picked);
+            }
+        }
+        GUILayout.Space(16f);
+        Swatch(ZzapUI.Yellow, 3f, 16f);
+        GUILayout.Label(T("기준 위치", "reference"), _muted, GUILayout.Height(28f));
+        Swatch(ZzapUI.Red, 30f, 6f);
+        GUILayout.Label(T("기준보다 봇 강함 = 어려워짐", "bots stronger = harder"), _muted, GUILayout.Height(28f));
+        Swatch(ZzapUI.Green, 30f, 6f);
+        GUILayout.Label(T("봇 약함 = 쉬워짐", "bots weaker = easier"), _muted, GUILayout.Height(28f));
+        GUILayout.Label(T("· 슬라이더는 오른쪽 = 봇 강함", "· right = stronger bots"), _muted, GUILayout.Height(28f));
+        GUILayout.FlexibleSpace();
+        GUILayout.EndHorizontal();
+    }
+
+    private static void Swatch(Color color, float width, float height)
+    {
+        Rect rect = GUILayoutUtility.GetRect(width + 8f, 28f, GUILayout.Width(width + 8f), GUILayout.Height(28f));
+        if (Event.current.type == EventType.Repaint)
+        {
+            ZzapUI.Fill(new Rect(rect.x + 4f, rect.center.y - height / 2f, width, height), color);
+        }
+    }
+
+    private static string DeltaColor(int direction)
+    {
+        return direction > 0 ? "#f87171" : direction < 0 ? "#4ade80" : "#71717a";
+    }
+
     private static void Group(string group, QuickPresetView view)
     {
         GUILayout.BeginVertical(ZzapUI.Panel1);
@@ -382,41 +482,46 @@ public static class QuickSettingsGUI
         return changed ? "  <color=#facc15><size=11>● " + T("바꿈", "changed") + "</size></color>" : string.Empty;
     }
 
+    // Mockup 7: name and "reference → now  ▼ weaker · 25% slower" on top, the difference slider under it, the meaning below.
     private static void NumberRow(QuickSetting q, QuickPresetView view)
     {
         float value = q.Get(view);
         bool changed = Changed(q, value, out float saved);
+        float reference = RefValue(q, q.ZzapValue);
+        int direction = q.Direction(value, reference);
 
+        GUILayout.Space(6f);
         GUILayout.BeginHorizontal();
-        GUILayout.BeginVertical(GUILayout.Width(NAME_WIDTH));
-        GUILayout.Label(new GUIContent(q.Name(Korean) + ChangedMark(changed), q.Help(Korean)), _name);
-        GUILayout.Label(q.Text(value, Korean), _small);
-        GUILayout.EndVertical();
-
-        GUILayout.BeginVertical(GUILayout.Width(SLIDER_WIDTH));
-        GUILayout.Space(12f);
-        float position = ZzapUI.Slider(q.ToSlider(value), q.Min, q.Max, GUILayout.Width(SLIDER_WIDTH), GUILayout.Height(20f));
-        ZzapUI.DrawTick(GUILayoutUtility.GetLastRect(), Mathf.InverseLerp(q.Min, q.Max, q.ToSlider(q.ZzapValue)), ZzapUI.Yellow);
-        GUILayout.EndVertical();
-
-        GUILayout.Label(Format(value), _value, GUILayout.Width(VALUE_WIDTH), GUILayout.Height(36f));
-
-        // Only a moved slider writes: rounding an untouched value to the slider step would change presets on its own
-        // (e.g. easy's 0.33 spotting speed).
-        float newValue = Mathf.Abs(position - q.ToSlider(value)) > 0.0001f ? q.Round(Mathf.Clamp(q.FromSlider(position), q.Min, q.Max)) : value;
+        GUILayout.Label(new GUIContent("<b>" + q.Name(Korean) + "</b>" + ChangedMark(changed), q.Help(Korean)), _name, GUILayout.Height(24f));
+        GUILayout.FlexibleSpace();
+        string delta = $"<color=#71717a>{ReferenceLabel(_reference)} {q.Format(reference, Korean)}</color>  →  <b>{q.Format(value, Korean)}</b>   "
+            + $"<color={DeltaColor(direction)}><b>{q.DeltaText(value, reference, Korean)}</b></color>";
+        GUILayout.Label(delta, _delta, GUILayout.Height(24f));
+        float newValue = value;
         if (changed)
         {
-            if (GUILayout.Button(new GUIContent(T("되돌리기", "Undo"), string.Format(T("저장된 값 {0}(으)로", "Back to the saved {0}"), Format(saved))), ZzapUI.Button, GUILayout.Width(RESET_WIDTH), GUILayout.Height(28f)))
+            if (GUILayout.Button(new GUIContent(T("되돌리기", "Undo"), string.Format(T("저장된 값 {0}(으)로", "Back to the saved {0}"), q.Format(saved, Korean))), ZzapUI.Button, GUILayout.Width(RESET_WIDTH), GUILayout.Height(24f)))
             {
                 newValue = saved;
             }
         }
         else
         {
-            GUILayout.Space(RESET_WIDTH + 4f);
+            GUILayout.Space(RESET_WIDTH + 8f);
         }
         GUILayout.EndHorizontal();
 
+        float position = ZzapUI.DiffSlider(q.ToSlider(value), q.Min, q.Max, q.ToSlider(reference), direction, GUILayout.Height(24f), GUILayout.ExpandWidth(true));
+        GUILayout.Label(q.Text(value, Korean), _small);
+        GUILayout.Space(4f);
+        ZzapUI.Separator();
+
+        // Only a moved slider writes: rounding an untouched value to the slider step would change presets on its own
+        // (e.g. easy's 0.33 spotting speed).
+        if (newValue == value && Mathf.Abs(position - q.ToSlider(value)) > 0.0001f)
+        {
+            newValue = q.Round(Mathf.Clamp(q.FromSlider(position), q.Min, q.Max));
+        }
         if (Mathf.Abs(newValue - value) > 0.0001f)
         {
             q.Set(view, newValue);
@@ -429,25 +534,30 @@ public static class QuickSettingsGUI
         float value = q.Get(view);
         bool on = value >= 0.5f;
         bool changed = Changed(q, value, out _);
+        bool referenceOn = RefValue(q, q.ZzapValue) >= 0.5f;
 
+        GUILayout.Space(6f);
         GUILayout.BeginHorizontal();
-        GUILayout.BeginVertical(GUILayout.Width(NAME_WIDTH + SLIDER_WIDTH));
-        GUILayout.Label(new GUIContent(q.Name(Korean) + ChangedMark(changed), q.Help(Korean)), _name);
+        GUILayout.BeginVertical();
+        GUILayout.Label(new GUIContent("<b>" + q.Name(Korean) + "</b>" + ChangedMark(changed), q.Help(Korean)), _name, GUILayout.Height(24f));
         GUILayout.Label(q.Help(Korean), _small);
         GUILayout.EndVertical();
+        GUILayout.FlexibleSpace();
+        string state = referenceOn ? T("켬", "on") : T("끔", "off");
+        string note = referenceOn == on
+            ? $"<color=#71717a>{ReferenceLabel(_reference)}{T("과 같음", ": same")}</color>"
+            : $"<color=#71717a>{ReferenceLabel(_reference)} {state} →</color>";
+        GUILayout.Label(note, _delta, GUILayout.Height(36f));
         bool newOn = ZzapUI.Switch(on, 36f);
         GUILayout.EndHorizontal();
+        GUILayout.Space(4f);
+        ZzapUI.Separator();
 
         if (newOn != on)
         {
             q.Set(view, newOn ? 1f : 0f);
             ConfigEditingTracker.Add(q.NameEn, newOn);
         }
-    }
-
-    private static string Format(float value)
-    {
-        return System.Math.Round(value, 2).ToString("0.##");
     }
 
     // ---------------------------------------------------------------- styles
@@ -467,7 +577,7 @@ public static class QuickSettingsGUI
         _title = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 15, alignment = TextAnchor.MiddleLeft };
         SetText(_title, Color.white);
 
-        _name = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 14, alignment = TextAnchor.LowerLeft };
+        _name = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 14, alignment = TextAnchor.MiddleLeft };
         SetText(_name, new Color(0.93f, 0.93f, 0.95f));
 
         _small = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 12, wordWrap = true, alignment = TextAnchor.UpperLeft };
@@ -477,6 +587,9 @@ public static class QuickSettingsGUI
 
         _section = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
         SetText(_section, new Color(0.98f, 0.8f, 0.08f));
+
+        _delta = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 13, alignment = TextAnchor.MiddleRight, wordWrap = false };
+        SetText(_delta, new Color(0.89f, 0.89f, 0.91f));
 
         _value = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight };
         SetText(_value, Color.white);

@@ -31,6 +31,8 @@ public static class ZzapUI
     public static readonly Color YellowTint = Hex(0x2b250d);
     public static readonly Color Track = Hex(0x3f3f46);
     public static readonly Color Green = Hex(0x4ade80);
+    public static readonly Color Red = Hex(0xf87171);
+    public static readonly Color Base = Hex(0x8b8fa3);
 
     public const float ROW_HEIGHT = 30f;
     public const float PANEL_HEIGHT = 900f;
@@ -326,6 +328,42 @@ public static class ZzapUI
         Fill(new Rect(track.x, track.y, width * progress, track.height), Blue);
         float size = hover ? thumb + 2f : thumb;
         Disc(new Rect(left + width * progress - size / 2f, rect.center.y - size / 2f, size, size), hover ? Color.white : Blue);
+    }
+
+    /// <summary>
+    /// Quick settings slider (user 2026-10-18, mockup 7): grey up to the lower of reference/value, the stretch between them in
+    /// red (bots stronger than the reference) or green (weaker), a yellow line at the reference and a ring at the value.
+    /// Positions are 0..1 along the slider (right = stronger bots).
+    /// </summary>
+    public static float DiffSlider(float position, float min, float max, float referencePosition, int direction, params GUILayoutOption[] options)
+    {
+        float newPosition = SAINLayout.HorizontalSlider(position, min, max, null, options);
+        if (Event.current.type != EventType.Repaint)
+        {
+            return newPosition;
+        }
+        Rect rect = GUILayoutUtility.GetLastRect();
+        const float thumb = 16f;
+        float left = rect.x + thumb / 2f;
+        float width = Mathf.Max(1f, rect.width - thumb);
+        float t = max > min ? Mathf.Clamp01(Mathf.InverseLerp(min, max, newPosition)) : 0f;
+        float r = max > min ? Mathf.Clamp01(Mathf.InverseLerp(min, max, referencePosition)) : 0f;
+        float y = rect.center.y;
+        Fill(new Rect(left, y - 2f, width, 4f), Track);
+        Fill(new Rect(left, y - 2f, width * Mathf.Min(t, r), 4f), Base);
+        if (direction != 0)
+        {
+            float from = Mathf.Min(t, r);
+            float to = Mathf.Max(t, r);
+            Fill(new Rect(left + width * from, y - 3f, width * (to - from), 6f), direction > 0 ? Red : Green);
+        }
+        Fill(new Rect(left + width * r - 1f, y - 10f, 2f, 20f), Yellow);
+        bool hover = rect.Contains(Event.current.mousePosition);
+        float size = hover ? thumb + 2f : thumb;
+        var ring = new Rect(left + width * t - size / 2f, y - size / 2f, size, size);
+        Disc(ring, Color.white);
+        Disc(new Rect(ring.x + 2.5f, ring.y + 2.5f, ring.width - 5f, ring.height - 5f), Panel);
+        return newPosition;
     }
 
     /// <summary>A thin mark on a slider (the zzap value on Quick settings).</summary>
