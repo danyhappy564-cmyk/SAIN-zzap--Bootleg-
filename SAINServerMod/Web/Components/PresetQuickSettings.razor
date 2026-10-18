@@ -1,0 +1,143 @@
+@namespace SAINServerMod.Web.Components
+
+@* zzap fork (2026-10-18): the values people change most, one screen. Same list as the F6 editor (SAIN.Preset.Shared QuickSettings). *@
+@{
+    var view = SainPresetEditService.View(Bundle);
+    var zzap = Zzap == null ? null : SainPresetEditService.View(Zzap);
+    var original = Original == null ? null : SainPresetEditService.View(Original);
+    int lowCount = QuickSettings.LowSpecCount(view);
+    int lowTotal = QuickSettings.LowSpec.Length;
+}
+
+<MudAlert Severity="Severity.Info" Dense="true" Variant="Variant.Outlined" Class="mb-3">
+    @T("자주 만지는 값만 모았습니다. 노란 눈금 = zzap 기본값, 오른쪽 회색 글씨 = 비교 기준(바꾼 값이면 이 프리셋의 원래 값). 더 자세한 값은 '전역 설정 (전체)' 탭.",
+       "The values changed most often. Yellow tick = zzap default; grey text on the right = reference (the preset's own value once changed). Everything else is on 'Global settings (all)'.")
+</MudAlert>
+
+<div class="sain-lowspec @(lowCount == lowTotal ? "sain-lowspec-on" : null)">
+    <div class="sain-lowspec-head">
+        <div>
+            <MudText Typo="Typo.subtitle2" Class="spt-title">@T("저사양 PC — 한 번에 맞추기", "Low-spec PC — one switch")</MudText>
+            <MudText Typo="Typo.caption" Class="spt-muted">@T("난이도는 그대로 두고 프레임을 잡아먹는 계산만 줄입니다. 아무 난이도에나 켤 수 있습니다.", "Keeps the difficulty, only cuts the costly calculations. Works on any difficulty.")</MudText>
+        </div>
+        <div class="sain-lowspec-ctl">
+            <MudSwitch T="bool" Value="@(lowCount == lowTotal)" ValueChanged="SetLowSpec" Color="Color.Info" />
+            <MudText Typo="Typo.caption" Class="@(lowCount > 0 ? "sain-blue" : "spt-muted")">
+                @(lowCount == lowTotal ? T("켬", "On") : lowCount == 0 ? T("끔", "Off") : T("일부", "Partly")) (@T($"{lowTotal}개 중 {lowCount}개", $"{lowCount} of {lowTotal}"))
+            </MudText>
+        </div>
+    </div>
+    <div class="sain-lowspec-items">
+        @foreach (var item in QuickSettings.LowSpec)
+        {
+            bool on = item.IsLowSpec(view);
+            <span class="@(on ? "sain-lowspec-item-on" : "spt-muted")">@(on ? "✓" : "·") @item.Name(Korean)</span>
+        }
+    </div>
+</div>
+
+<div class="sain-quick-grid">
+    @foreach (string group in QuickSettings.Groups)
+    {
+        <div class="sain-quick-card">
+            <MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@QuickSettings.GroupName(group, Korean)</MudText>
+            @foreach (var q in QuickSettings.All.Where(x => x.Group == group))
+            {
+                float value = q.Get(view);
+                float? zz = zzap == null ? null : q.Get(zzap);
+                float? orig = original == null ? null : q.Get(original);
+                bool changed = orig.HasValue && Math.Abs(orig.Value - value) > 0.0001f;
+                @if (q.Kind == QuickKind.Toggle)
+                {
+                    <div class="sain-quick-toggle">
+                        <div>
+                            <MudText Typo="Typo.body2">@q.Name(Korean) @if (changed) { <span class="sain-diff">● @T("바꿈", "changed")</span> }</MudText>
+                            <MudText Typo="Typo.caption" Class="spt-muted">@q.Help(Korean)</MudText>
+                        </div>
+                        <MudSwitch T="bool" Value="@(value >= 0.5f)" ValueChanged="@(v => Set(q, v ? 1f : 0f))" Color="Color.Primary" />
+                    </div>
+                }
+                else
+                {
+                    <div class="sain-quick-row">
+                        <MudTooltip Text="@q.Help(Korean)" Arrow="true" Placement="Placement.Top">
+                            <MudText Typo="Typo.body2">@q.Name(Korean) @if (changed) { <span class="sain-diff">● @T("바꿈", "changed")</span> }</MudText>
+                        </MudTooltip>
+                        <div class="sain-quick-slider">
+                            <MudSlider T="double" Min="q.Min" Max="q.Max" Step="q.Step" Value="Math.Round(value, 3)" ValueChanged="@(v => Set(q, (float)v))" Color="Color.Primary" Immediate="true" />
+                            @if (zz.HasValue)
+                            {
+                                <span class="sain-quick-ref" style="left:@(Pct(q, zz.Value))%" title="@T($"zzap {Fmt(zz.Value)}", $"zzap {Fmt(zz.Value)}")"></span>
+                            }
+                        </div>
+                        <MudNumericField T="double" Value="Math.Round(value, 3)" ValueChanged="@(v => Set(q, (float)v))" Min="q.Min" Max="q.Max" Step="q.Step"
+                                         Variant="Variant.Outlined" Margin="Margin.Dense" Class="sain-num" HideSpinButtons="true" />
+                        <MudText Typo="Typo.caption" Class="sain-quick-refnum">
+                            @if (changed)
+                            {
+                                @T($"원래 {Fmt(orig!.Value)}", $"was {Fmt(orig!.Value)}")
+                            }
+                            else if (zz.HasValue)
+                            {
+                                <text>zzap @Fmt(zz.Value)</text>
+                            }
+                        </MudText>
+                        <div>
+                            @if (changed)
+                            {
+                                <MudTooltip Text="@T("이 프리셋의 원래 값으로", "Back to this preset's value")">
+                                    <MudIconButton Icon="@Icons.Material.Outlined.RestartAlt" Size="Size.Small" Color="Color.Warning" OnClick="@(() => Set(q, orig!.Value))" />
+                                </MudTooltip>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public SAINPresetBundle Bundle { get; set; } = default!;
+    /// <summary>The preset as it was opened (yellow "changed" marks and the reset arrow).</summary>
+    [Parameter] public SAINPresetBundle? Original { get; set; }
+    /// <summary>The bundled zzap preset (yellow ticks).</summary>
+    [Parameter] public SAINPresetBundle? Zzap { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private static double Pct(QuickSetting q, float value)
+    {
+        return Math.Round(Math.Clamp((value - q.Min) / Math.Max(0.0001f, q.Max - q.Min), 0f, 1f) * 100f, 2);
+    }
+
+    private static string Fmt(float value)
+    {
+        return Math.Round(value, 2).ToString("0.##");
+    }
+
+    private Task Set(QuickSetting q, float value)
+    {
+        var view = SainPresetEditService.View(Bundle);
+        value = Math.Clamp(value, q.Min, q.Max);
+        if (Math.Abs(q.Get(view) - value) < 0.0001f)
+        {
+            return Task.CompletedTask;
+        }
+        q.Set(view, value);
+        return OnChanged.InvokeAsync();
+    }
+
+    private Task SetLowSpec(bool on)
+    {
+        var view = SainPresetEditService.View(Bundle);
+        if (on)
+        {
+            QuickSettings.ApplyLowSpec(view);
+        }
+        else
+        {
+            QuickSettings.RestoreLowSpec(view, Original == null ? null : SainPresetEditService.View(Original));
+        }
+        return OnChanged.InvokeAsync();
+    }
+}

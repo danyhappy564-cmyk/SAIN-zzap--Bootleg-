@@ -1,0 +1,58 @@
+@namespace SAINServerMod.Web.Components
+
+@* zzap fork (2026-10-18): "changed only" view - every value that differs from the saved state or from the zzap preset. *@
+<MudStack Row AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-2">
+    <MudText Typo="Typo.body2">@T("비교 기준", "Compare with"):</MudText>
+    <MudButtonGroup Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+        <MudButton Variant="@(_vsZzap ? Variant.Outlined : Variant.Filled)" OnClick="@(() => _vsZzap = false)">@T("열었을 때 (저장 안 한 변경)", "As opened (unsaved changes)")</MudButton>
+        <MudButton Variant="@(_vsZzap ? Variant.Filled : Variant.Outlined)" Disabled="@(Zzap == null)" OnClick="@(() => _vsZzap = true)">@T("zzap 기본 프리셋", "The zzap preset")</MudButton>
+    </MudButtonGroup>
+</MudStack>
+@{
+    var reference = _vsZzap ? Zzap : Original;
+    var diffs = reference == null ? new List<SainDiffEntry>() : SainDiff.Compare(Bundle, reference);
+}
+@if (diffs.Count == 0)
+{
+    <div class="sain-empty-inline">
+        <MudText Typo="Typo.body2" Class="spt-muted">@(_vsZzap ? T("zzap 기본 프리셋과 같습니다.", "Same as the zzap preset.") : T("바꾼 값이 없습니다.", "Nothing changed."))</MudText>
+    </div>
+}
+else
+{
+    <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
+        @T($"{diffs.Count}개 다름{(diffs.Count >= 500 ? " (500개까지만 표시)" : "")}. ↺ = 비교 기준 값으로 되돌리기(저장해야 남음).", $"{diffs.Count} differ{(diffs.Count >= 500 ? " (first 500 shown)" : "")}. ↺ = back to the reference value (save to keep).")
+    </MudText>
+    <div class="sain-table-wrap">
+        <table class="sain-compare sain-changes">
+            <thead><tr><th>@T("위치", "Where")</th><th>@T("항목", "Setting")</th><th>@(_vsZzap ? "zzap" : T("원래", "Was"))</th><th>@T("지금", "Now")</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var d in diffs)
+                {
+                    <tr>
+                        <td class="spt-muted">@d.Where</td>
+                        <td>@d.Name</td>
+                        <td class="spt-muted">@d.Before</td>
+                        <td class="sain-compare-me">@d.After</td>
+                        <td><MudIconButton Icon="@Icons.Material.Outlined.RestartAlt" Size="Size.Small" OnClick="@(() => Revert(d))" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public SAINPresetBundle Bundle { get; set; } = default!;
+    [Parameter] public SAINPresetBundle? Original { get; set; }
+    [Parameter] public SAINPresetBundle? Zzap { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private bool _vsZzap;
+
+    private Task Revert(SainDiffEntry d)
+    {
+        d.Revert();
+        return OnChanged.InvokeAsync();
+    }
+}

@@ -4,6 +4,8 @@ namespace SAINServerMod.Web.Reflection;
 
 public sealed class SainMember
 {
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<MemberInfo, SainMeta> MetaCache = new();
+
     private readonly FieldInfo? _field;
     private readonly PropertyInfo? _property;
 
@@ -17,7 +19,8 @@ public sealed class SainMember
     {
         Owner = owner;
         Member = member;
-        Meta = SainMeta.Read(member);
+        // Attribute reads are the slow part; the preset diff walks tens of thousands of members, so cache per field.
+        Meta = MetaCache.GetOrAdd(member, SainMeta.Read);
 
         _field = member as FieldInfo;
         _property = member as PropertyInfo;

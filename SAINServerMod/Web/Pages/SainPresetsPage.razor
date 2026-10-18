@@ -51,7 +51,8 @@
                     {
                         @if (_dirty)
                         {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">@T("저장 안 한 변경", "Unsaved changes")</MudChip>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">@(_changed > 0 ? T($"저장 안 한 변경 {_changed}개", $"{_changed} unsaved changes") : T("저장 안 한 변경", "Unsaved changes"))</MudChip>
+                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Undo" OnClick="RevertAsync">@T("되돌리기", "Revert")</MudButton>
                         }
                         <MudSwitch T="bool" @bind-Value="_showAdvanced" Color="Color.Primary" Label="@T("고급", "Advanced")" />
                         <MudSwitch T="bool" @bind-Value="_showDeveloper" Color="Color.Secondary" Label="@T("개발자", "Developer")" />
@@ -65,66 +66,31 @@
         <div class="sain-shell">
             <div class="sain-shell-nav">
                 <MudPaper Elevation="0" Class="spt-panel pa-4">
-                    <MudList T="string" SelectedValue="_selectedName" SelectedValueChanged="SelectAsync" Dense="true" Color="Color.Primary">
-                        <MudListSubheader>
-                            <MudText Typo="Typo.overline" Class="spt-muted">@T("기본", "Default")</MudText>
-                        </MudListSubheader>
-                        @foreach (var item in _items.Where(i => !i.IsCustom))
+                    @* zzap fork (2026-10-18): preset cards - zzap presets by difficulty with a level bar, SAIN's originals folded. *@
+                    <MudText Typo="Typo.overline" Class="sain-sec">@T("ZZAP 기본 프리셋 — 난이도 순", "ZZAP PRESETS — BY DIFFICULTY")</MudText>
+                    @foreach (var item in ZzapItems())
+                    {
+                        @PresetCard(item)
+                    }
+                    <div class="sain-sec sain-sec-toggle" @onclick="@(() => _showSain = !_showSain)">
+                        @T($"원본 SAIN 기본 프리셋 ({SainItems().Count})", $"SAIN's original presets ({SainItems().Count})") <span class="spt-muted">@(_showSain ? "▾" : "▸")</span>
+                    </div>
+                    @if (_showSain)
+                    {
+                        @foreach (var item in SainItems())
                         {
-                            <MudListItem T="string" Value="@item.Name" Class="@(item.Disabled ? "sain-preset-disabled" : null)">
-                                <div class="sain-preset-item">
-                                    <div class="sain-preset-name">
-                                        <MudText Typo="Typo.body2">@item.Name</MudText>
-                                        @if (item.Disabled)
-                                        {
-                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">@T("숨김", "Hidden")</MudChip>
-                                        }
-                                    </div>
-                                    <MudTooltip Text="@T("복제", "Duplicate")">
-                                        <MudIconButton Icon="@Icons.Material.Outlined.ContentCopy" Size="Size.Small"
-                                                       OnClick="@(() => DuplicateAsync(item.Name))" OnClick:stopPropagation="true" />
-                                    </MudTooltip>
-                                </div>
-                            </MudListItem>
+                            @PresetCard(item)
                         }
-                        <MudListSubheader>
-                            <MudText Typo="Typo.overline" Class="spt-muted">@T("사용자", "Custom")</MudText>
-                        </MudListSubheader>
-                        @if (!_items.Any(i => i.IsCustom))
-                        {
-                            <MudListItem T="string" Disabled="true">
-                                <MudText Typo="Typo.caption" Class="spt-muted">@T("아직 없음", "None yet")</MudText>
-                            </MudListItem>
-                        }
-                        @foreach (var item in _items.Where(i => i.IsCustom))
-                        {
-                            <MudListItem T="string" Value="@item.Name">
-                                <div class="sain-preset-item">
-                                    <MudText Typo="Typo.body2">@item.Name</MudText>
-                                    <span>
-                                        <MudTooltip Text="@T("복제", "Duplicate")">
-                                            <MudIconButton Icon="@Icons.Material.Outlined.ContentCopy" Size="Size.Small"
-                                                           OnClick="@(() => DuplicateAsync(item.Name))" OnClick:stopPropagation="true" />
-                                        </MudTooltip>
-                                        @if (_pendingDelete == item.Name)
-                                        {
-                                            <MudIconButton Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Error"
-                                                           OnClick="@(() => DeleteAsync(item.Name))" OnClick:stopPropagation="true" />
-                                            <MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small"
-                                                           OnClick="@(() => _pendingDelete = null)" OnClick:stopPropagation="true" />
-                                        }
-                                        else
-                                        {
-                                            <MudTooltip Text="@T("삭제", "Delete")">
-                                                <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
-                                                               OnClick="@(() => _pendingDelete = item.Name)" OnClick:stopPropagation="true" />
-                                            </MudTooltip>
-                                        }
-                                    </span>
-                                </div>
-                            </MudListItem>
-                        }
-                    </MudList>
+                    }
+                    <MudText Typo="Typo.overline" Class="sain-sec">@T("내 프리셋", "MY PRESETS")</MudText>
+                    @if (!_items.Any(i => i.IsCustom))
+                    {
+                        <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">@T("아직 없음 — 기본 프리셋을 고쳐 저장하면 여기에 복사본이 생깁니다.", "None yet - saving an edited default puts a copy here.")</MudText>
+                    }
+                    @foreach (var item in _items.Where(i => i.IsCustom))
+                    {
+                        @PresetCard(item)
+                    }
 
                     <MudDivider Class="my-4" />
 
@@ -151,7 +117,7 @@
                     {
                         <CascadingValue Name="ShowAdvanced" Value="_showAdvanced">
                         <CascadingValue Name="ShowDeveloper" Value="_showDeveloper">
-                            <PresetEditorBody Bundle="_bundle" OnChanged="MarkDirty" />
+                            <PresetEditorBody Bundle="_bundle" OnChanged="MarkDirty" Original="_original" Zzap="_zzap" Columns="_columns" ChangedCount="_changed" />
                         </CascadingValue>
                         </CascadingValue>
                     }
@@ -170,6 +136,89 @@
 
 @code {
     private IReadOnlyList<PresetListItem> _items = Array.Empty<PresetListItem>();
+    private SAINPresetBundle? _original;
+    private SAINPresetBundle? _zzap;
+    private List<(string Name, SAINPresetBundle Bundle)> _columns = new();
+    private int _changed;
+    private bool _showSain;
+
+    // zzap fork: bundled zzap presets in difficulty order, with a level (1-3), a tag and a one-line summary.
+    private static readonly (string Name, int Level, string? TagKo, string? TagEn, string Ko, string En)[] ZzapPresets =
+    {
+        ("zzap 쉬움", 1, null, null, "처음 하거나 편하게. 조준 2초 · 시야 SAIN의 ½ · 반동 큼", "New or relaxed. Aim 2 s · sight ½ of SAIN · heavy recoil"),
+        ("zzap 보통", 2, null, null, "쉬움과 zzap의 중간. 조준 0.6초 · 시야 1.4배 · 연사 zzap의 75%", "Halfway to zzap. Aim 0.6 s · sight 1.4x · 75% of zzap's fire rate"),
+        ("zzap", 3, "추천", "pick", "하드코어. 조준 0.3초 · 시야 2배 · 반동 거의 없음 · 전술 전부", "Hardcore. Aim 0.3 s · sight 2x · almost no recoil · every tactic"),
+        ("zzap 저사양 [테스트]", 2, "테스트", "test", "보통 + 성능 설정. 이제 '빠른 설정 › 저사양 PC' 스위치로 어느 난이도든 같은 효과", "Normal + performance settings. Now any difficulty can do this with 'Quick settings › Low-spec PC'"),
+        ("zzap TEST [시뮬 전용]", 3, "시뮬 전용", "sim only", "봇끼리 시뮬레이션용. 실제 플레이엔 쓰지 마세요", "For bot-vs-bot simulation. Not for real raids"),
+    };
+
+    private List<PresetListItem> ZzapItems()
+    {
+        return ZzapPresets.Select(z => _items.FirstOrDefault(i => !i.IsCustom && i.Name == z.Name)).Where(i => i != null).Select(i => i!).ToList();
+    }
+
+    private List<PresetListItem> SainItems()
+    {
+        return _items.Where(i => !i.IsCustom && !ZzapPresets.Any(z => z.Name == i.Name)).ToList();
+    }
+
+    private RenderFragment PresetCard(PresetListItem item) => __builder =>
+    {
+        var z = ZzapPresets.FirstOrDefault(x => x.Name == item.Name);
+        bool isZzap = z.Name != null;
+        string desc = isZzap ? T(z.Ko, z.En) : Short(item.Description);
+        <div class="sain-pcard @(item.Name == _selectedName ? "sain-pcard-sel" : null) @(item.Disabled ? "sain-preset-disabled" : null)" @onclick="@(() => SelectAsync(item.Name))">
+            <div class="sain-pcard-top">
+                <span class="sain-pcard-name">
+                    @item.Name
+                    @if (isZzap && z.TagKo != null)
+                    {
+                        <span class="sain-tagchip @(z.Level == 3 && z.TagEn == "pick" ? "sain-tag-y" : z.TagEn == "sim only" ? "sain-tag-p" : "sain-tag-b")">@T(z.TagKo, z.TagEn!)</span>
+                    }
+                    @if (item.Disabled)
+                    {
+                        <span class="sain-tagchip">@T("숨김", "Hidden")</span>
+                    }
+                </span>
+                <span class="sain-pcard-actions" @onclick:stopPropagation="true">
+                    @if (isZzap)
+                    {
+                        <span class="sain-lv" style="margin-right:4px;">@for (int i = 1; i <= 3; i++) { <i class="@(i <= z.Level ? "on" : null)"></i> }</span>
+                    }
+                        <MudTooltip Text="@T("복제", "Duplicate")">
+                            <MudIconButton Icon="@Icons.Material.Outlined.ContentCopy" Size="Size.Small" OnClick="@(() => DuplicateAsync(item.Name))" OnClick:stopPropagation="true" />
+                        </MudTooltip>
+                        @if (item.IsCustom)
+                        {
+                            @if (_pendingDelete == item.Name)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteAsync(item.Name))" OnClick:stopPropagation="true" />
+                                <MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small" OnClick="@(() => _pendingDelete = null)" OnClick:stopPropagation="true" />
+                            }
+                            else
+                            {
+                                <MudTooltip Text="@T("삭제", "Delete")">
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => _pendingDelete = item.Name)" OnClick:stopPropagation="true" />
+                                </MudTooltip>
+                            }
+                        }
+                </span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(desc))
+            {
+                <div class="sain-pcard-desc">@desc</div>
+            }
+        </div>
+    };
+
+    private static string Short(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+        return text.Length <= 90 ? text : text[..90] + "…";
+    }
     private string? _selectedName;
     private OpenedPreset? _opened;
     private SAINPresetBundle? _bundle;
@@ -188,6 +237,7 @@
 
     public void Dispose()
     {
+        _countCts?.Cancel();
         PresetService.CustomPresetsChanged -= OnPresetsChangedExternally;
     }
 
@@ -205,6 +255,18 @@
     private void Reload()
     {
         _items = Presets.ListAll();
+        _zzap ??= Presets.DefaultBundle("zzap");
+        if (_columns.Count == 0)
+        {
+            foreach (var z in ZzapPresets.Where(z => z.Level > 0 && z.Name != "zzap 저사양 [테스트]"))
+            {
+                var bundle = Presets.DefaultBundle(z.Name);
+                if (bundle != null)
+                {
+                    _columns.Add((z.Name, bundle));
+                }
+            }
+        }
         if (string.IsNullOrEmpty(_baseName))
         {
             _baseName = _items.FirstOrDefault(i => !i.IsCustom)?.Name ?? string.Empty;
@@ -224,13 +286,45 @@
         _selectedName = name;
         _opened = await Presets.OpenAsync(name);
         _bundle = _opened?.Bundle;
+        _original = _bundle == null ? null : SainPresetEditService.Clone(_bundle);
+        _changed = 0;
         _dirty = false; // defaults stay untouched until an actual edit; the working copy is deep-cloned
         _pendingDelete = null;
     }
 
+    private CancellationTokenSource? _countCts;
+
+    // The diff walks every preset field (all bot types / difficulties), so a dragged slider only recounts after it settles.
     private void MarkDirty()
     {
         _dirty = true;
+        _countCts?.Cancel();
+        var cts = _countCts = new CancellationTokenSource();
+        _ = Task.Delay(400, cts.Token).ContinueWith(t =>
+        {
+            if (t.IsCanceled || _bundle == null || _original == null)
+            {
+                return;
+            }
+            _ = InvokeAsync(() =>
+            {
+                if (!cts.IsCancellationRequested && _bundle != null && _original != null)
+                {
+                    _changed = SainDiff.Count(_bundle, _original);
+                    StateHasChanged();
+                }
+            });
+        }, TaskScheduler.Default);
+    }
+
+    private async Task RevertAsync()
+    {
+        _dirty = false;
+        if (_selectedName != null)
+        {
+            await SelectAsync(_selectedName);
+        }
+        Snackbar.Add(T("저장 안 한 변경을 버렸습니다.", "Discarded unsaved changes."), Severity.Info);
     }
 
     private async Task SaveAsync()

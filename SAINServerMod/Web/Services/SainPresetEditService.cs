@@ -1,4 +1,5 @@
 using SAIN.Preset.Shared.Models.WS;
+using SAIN.Preset.Shared.BotSettings.SAINSettings;
 using SAIN.Preset.Shared.Preset;
 using SAINServerMod.Generators;
 using SAINServerMod.Models.Preset;
@@ -45,6 +46,26 @@ public sealed class SainPresetEditService(
         }
 
         return items;
+    }
+
+    /// <summary>A deep copy (safe to read or edit) of a bundled default preset, or null. Used as the comparison column / reference.</summary>
+    public SAINPresetBundle? DefaultBundle(string name)
+    {
+        var generated = presetGeneration.Presets.FirstOrDefault(p => string.Equals(p.Info.Name, name, StringComparison.OrdinalIgnoreCase));
+        return generated == null ? null : Clone(generated.ToBundle());
+    }
+
+    public static SAINPresetBundle Clone(SAINPresetBundle bundle)
+    {
+        return SAINJsonUtil.Deserialize<SAINPresetBundle>(SAINJsonUtil.Serialize(bundle))!;
+    }
+
+    public static QuickPresetView View(SAINPresetBundle bundle)
+    {
+        return new QuickPresetView(
+            bundle.GlobalSettings,
+            bundle.BotSettings.Select(kv => new KeyValuePair<string, SAINSettingsGroupClass>(kv.Key.ToString(), kv.Value)).ToList()
+        );
     }
 
     public bool CustomExists(string name)

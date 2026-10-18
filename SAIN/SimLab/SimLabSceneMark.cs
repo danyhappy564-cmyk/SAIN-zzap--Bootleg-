@@ -124,7 +124,9 @@ public static class SimLabSceneMark
             {
                 Write($"  #{_count} {x.dist:0}m from camera: DEAD {Time.time - x.d.Time:0}s ago: {x.d.Line}");
             }
-            Notify($"장면 표시 #{_count} — 봇 {Math.Min(picked.Count, MAX_BOTS)}명{(dead.Count > 0 ? $", 방금 죽은 봇 {Math.Min(dead.Count, MAX_BOTS)}명" : "")} 기록 (일지 [Mark])");
+            Notify(SAIN.Editor.EditorText.Korean
+            ? $"장면 표시 #{_count} — 봇 {Math.Min(picked.Count, MAX_BOTS)}명{(dead.Count > 0 ? $", 방금 죽은 봇 {Math.Min(dead.Count, MAX_BOTS)}명" : "")} 기록 (일지 [Mark])"
+            : $"Scene mark #{_count} - {Math.Min(picked.Count, MAX_BOTS)} bots{(dead.Count > 0 ? $", {Math.Min(dead.Count, MAX_BOTS)} just died" : "")} recorded (journal [Mark])");
         }
         catch (Exception ex)
         {

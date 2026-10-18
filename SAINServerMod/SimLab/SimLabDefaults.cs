@@ -120,36 +120,36 @@ public static class SimLabDefaults
     {
         return
         [
-            Preset("기본 순회 (전 맵 점검)",
+            Preset("기본 순회 (전 맵 점검)", "Full rotation (every map)",
                 "README 기능 전체가 맵마다 실제로 나오는지(기능 점검 표), 오류·성능·메모리. 성격은 SAIN 프리셋 그대로.",
                 "", ("factory4_day", 20), ("bigmap", 20), ("interchange", 20), ("rezervbase", 20), ("shoreline", 20), ("woods", 20),
                 ("lighthouse", 20), ("tarkovstreets", 20), ("sandbox", 20)),
-            Preset("릴리즈 전 점검 (공장 30분 + 연구소 30분)",
+            Preset("릴리즈 전 점검 (공장 30분 + 연구소 30분)", "Pre-release check (Factory 30 + Labs 30)",
                 "켜 두고 자는 약 1시간: 실내 전투 데이터가 가장 확실한 두 맵. 공장(근접 난전·문·코너)과 연구소(복도·계단·층 사이 대치) 30분씩. 새 오류, 근접 판단·후퇴·점프, 판단 전환 직후 사망, 모드 아이템 금지. 성격은 SAIN 기본. 연구소는 Blackout 정전 끔(시뮬 판만), 출입 카드 없이 자동 시작(메뉴 검사를 안 거침, 미검증).",
                 "", ("factory4_day", 30), ("laboratory", 30)),
-            Preset("빠른 점검 (공장 10분)",
+            Preset("빠른 점검 (공장 10분)", "Quick check (Factory 10 min)",
                 "빌드 직후: 오류가 새로 생겼는지, 분대가 제때 나오는지, 기본 전투가 도는지만 빠르게.",
                 "", ("factory4_day", 10)),
-            Preset("근접·실내 전술",
+            Preset("근접·실내 전술", "Close-range / indoor tactics",
                 "문 전술·방 진입·다이아몬드 스텝·근접 장전·코너 추격·판단 전환 직후 사망. 실내 시나리오 맵만.",
                 "", ("factory4_day", 15), ("bigmap", 15), ("shoreline", 15), ("rezervbase", 15)),
             // user 2026-10-13: "the door preset was meant at the sim stage, not in SAIN F6" - replaces the F6 preset
             // "zzap TEST 문 모드 [시뮬 전용]". Door-heavy arenas, attack-minded mix, door check switch on.
-            DoorCheck(Preset("문 전술·박치기 점검",
+            DoorCheck(Preset("문 전술·박치기 점검", "Door tactics & ram check",
                 "봇 문 박치기(방 진입·도망·돌격·수색·그 밖의 전투 이동)와 문 전술(피킹·방 진입·문 함정)이 실제로 나오고 문이 제대로 열리는지. "
                 + "'문 점검' 스위치를 켬: 시뮬 판에서만 박치기 100%, 모든 PMC가 기가채드처럼 문 전술(시작 100%) — SAIN 프리셋은 그대로. "
                 + "문이 많은 실내 맵 4개, 돌격형 성격 위주. 카운터 doorram.*·doormod.*·door.start.*, 일지 [DoorRam]·[DoorTactic]. 일반 순회 결과와 섞어 비교하지 말 것.",
                 "GigaChad:2,Chad:3,Normal:2,Rat:1", ("factory4_day", 15), ("bigmap", 15), ("rezervbase", 15), ("laboratory", 15))),
-            Preset("성격 비교 (고르게)",
+            Preset("성격 비교 (고르게)", "Personality comparison (even)",
                 "성격 8가지를 같은 비율로 섞어 성격별 킬/사망·정지·매복/후퇴/돌격 비율 비교. 근접(공장)과 다층 건물(세관) 두 맵.",
                 "even", ("factory4_day", 20), ("bigmap", 20)),
-            Preset("방어형 성격 (Rat·Coward·SnappingTurtle)",
+            Preset("방어형 성격 (Rat·Coward·SnappingTurtle)", "Defensive personalities (Rat, Coward, SnappingTurtle)",
                 "매복·후퇴·버티기 성격이 멍때리지 않고 자연스러운지(정지·매복 비율, 후퇴 정지, 치료). 문 옆 매복(Rat)까지 보려면 SAIN TEST 프리셋의 문 전술 '테스트 모드: 모든 PMC가 기가채드 전술 사용'을 끌 것.",
                 "Rat:3,Coward:2,SnappingTurtle:3,Normal:1", ("factory4_day", 15), ("bigmap", 15), ("rezervbase", 15)),
-            Preset("공격형 성격 (GigaChad·Chad·Wreckless)",
+            Preset("공격형 성격 (GigaChad·Chad·Wreckless)", "Aggressive personalities (GigaChad, Chad, Wreckless)",
                 "돌격·코너 추격·일제 돌격·점프샷이 무리하지 않는지(돌격 중 사망, 판단 전환 사망).",
                 "GigaChad:3,Chad:3,Wreckless:2,Normal:1", ("factory4_day", 15), ("bigmap", 15), ("interchange", 15)),
-            Preset("실외·장거리",
+            Preset("실외·장거리", "Outdoor / long range",
                 "재배치(실외 전용)·장거리 무기 전환·먼 적 상대 판단(정지·매복 거리 감점)·발소리 감지. 넓은 실외 맵.",
                 "", ("woods", 20), ("lighthouse", 20), ("sandbox", 20), ("shoreline", 20)),
         ];
@@ -161,7 +161,20 @@ public static class SimLabDefaults
         return preset;
     }
 
-    private static SimPreset Preset(string name, string purpose, string personalities, params (string Map, float Minutes)[] picks)
+    private static readonly Dictionary<string, string> PurposeEn = new()
+    {
+        ["기본 순회 (전 맵 점검)"] = "Whether every README feature really shows up on each map (feature check table), errors, performance, memory. Personalities as in the SAIN preset.",
+        ["릴리즈 전 점검 (공장 30분 + 연구소 30분)"] = "About an hour to leave running overnight: the two maps with the most reliable indoor fight data. Factory (close brawls, doors, corners) and Labs (corridors, stairs, floor-to-floor standoffs), 30 minutes each. New errors, close-range decisions, retreats and jumps, deaths right after a decision change, no mod items. SAIN default personalities. Labs runs without the Blackout power cut (sim raids only) and starts without a keycard (skips the menu check, unverified).",
+        ["빠른 점검 (공장 10분)"] = "Right after a build: any new errors, do squads arrive on time, does basic combat run.",
+        ["근접·실내 전술"] = "Door tactics, room clears, diamond steps, close-range reloads, corner chases, deaths right after a decision change. Indoor scenario maps only.",
+        ["문 전술·박치기 점검"] = "Whether bot door rams (room clear, flee, rush, search, other combat moves) and door tactics (peek, room clear, door trap) really happen and doors open properly. Turns the 'door check' switch on: in sim raids only, rams 100% and every PMC plans door tactics like a GigaChad (start 100%) - the SAIN preset is untouched. 4 indoor maps with many doors, attack-minded personalities. Counters doorram.* / doormod.* / door.start.*, journal [DoorRam] / [DoorTactic]. Don't mix its results with normal rotations.",
+        ["성격 비교 (고르게)"] = "All 8 personalities in equal shares to compare kills/deaths, freezes and ambush / retreat / rush rates per personality. Close range (Factory) and a multi-floor building (Customs).",
+        ["방어형 성격 (Rat·Coward·SnappingTurtle)"] = "Whether ambush / retreat / holding personalities act naturally instead of zoning out (freeze and ambush rates, stalled retreats, healing). To see Rats ambushing next to doors, switch off the TEST preset's door tactic 'test mode: every PMC uses GigaChad tactics'.",
+        ["공격형 성격 (GigaChad·Chad·Wreckless)"] = "Whether rushes, corner chases, squad storms and jump shots stay sensible (deaths while rushing, deaths right after a switch).",
+        ["실외·장거리"] = "Repositioning (outdoor only), switching to a long-range weapon, decisions against far enemies (freeze / ambush distance penalty), footstep detection. Large outdoor maps.",
+    };
+
+    private static SimPreset Preset(string name, string nameEn, string purpose, string personalities, params (string Map, float Minutes)[] picks)
     {
         var rotation = new List<SimMapEntry>();
         foreach (var (map, minutes) in picks)
@@ -178,7 +191,16 @@ public static class SimLabDefaults
                 rotation.Add(entry);
             }
         }
-        return new SimPreset { Name = name, Purpose = purpose, BuiltIn = true, Rotation = rotation, Personalities = personalities };
+        return new SimPreset
+        {
+            Name = name,
+            NameEn = nameEn,
+            Purpose = purpose,
+            PurposeEn = PurposeEn.TryGetValue(name, out string? en) ? en : string.Empty,
+            BuiltIn = true,
+            Rotation = rotation,
+            Personalities = personalities,
+        };
     }
 
     private static SimMapEntry Paced(string map, bool enabled = true)

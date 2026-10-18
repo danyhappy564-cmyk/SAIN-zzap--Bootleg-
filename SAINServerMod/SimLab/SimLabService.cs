@@ -41,6 +41,8 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
     public DateTime LastHello { get; private set; }
     public SimRaidInfo? LastRaid { get; private set; }
     public SimBeat? LastBeat { get; private set; }
+    /// <summary>When <see cref="LastBeat"/> arrived (server clock) - the web page shows a raid as live only while beats keep coming.</summary>
+    public DateTime LastBeatAt { get; private set; }
 
     private string ConfigPath => Path.Combine(_dir, "config.json");
     private string StatePath => Path.Combine(_dir, "state.json");
@@ -378,7 +380,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         {
             return scenario;
         }
-        return new SimScenario { Name = $"{SimLabDefaults.NameOf(map)} 무작위", Focus = "맵 전체 무작위 스폰 (시나리오 없음)" };
+        return new SimScenario { Name = $"{SimLabDefaults.NameOf(map)} 무작위", Focus = "맵 전체 무작위 스폰 (시나리오 없음)", NameEn = $"{(SimLabDefaults.MapNamesEn.TryGetValue(map, out string? mapEn) ? mapEn : map)} random", FocusEn = "Random spawns over the whole map (no scenario)" };
     }
 
     public float MinutesFor(string map)
@@ -574,14 +576,14 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         name = (name ?? string.Empty).Trim();
         if (name.Length == 0)
         {
-            return "이름이 비어 있습니다.";
+            return Web.Services.WebText.T("이름이 비어 있습니다.", "The name is empty.");
         }
         lock (_lock)
         {
             var old = FindPreset(name);
             if (old is { BuiltIn: true })
             {
-                return "기본 프리셋과 같은 이름은 쓸 수 없습니다.";
+                return Web.Services.WebText.T("기본 프리셋과 같은 이름은 쓸 수 없습니다.", "A built-in preset already has that name.");
             }
             Config.Presets.RemoveAll(x => !x.BuiltIn && string.Equals(x.Name, name, StringComparison.Ordinal));
             Config.Presets.Add(new SimPreset
@@ -626,6 +628,13 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             return string.Empty;
         }
         return PresetMatches(preset) ? preset.Name : preset.Name + " (수정됨)";
+    }
+
+    /// <summary>The active preset (null when none) and whether the live settings were changed since it was applied.</summary>
+    public (SimPreset? Preset, bool Modified) ActivePreset()
+    {
+        var preset = string.IsNullOrEmpty(Config.ActivePreset) ? null : FindPreset(Config.ActivePreset);
+        return (preset, preset != null && !PresetMatches(preset));
     }
 
     private bool PresetMatches(SimPreset p)
@@ -1110,6 +1119,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         lock (_lock)
         {
             LastBeat = beat;
+            LastBeatAt = DateTime.Now;
             string runId = string.IsNullOrEmpty(beat.RunId) ? State.RunId : beat.RunId;
             if (string.IsNullOrEmpty(runId))
             {

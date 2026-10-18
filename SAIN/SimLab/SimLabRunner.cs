@@ -24,6 +24,9 @@ namespace SAIN.SimLab;
 /// </summary>
 public sealed class SimLabRunner : MonoBehaviour
 {
+    // zzap fork (2026-10-18): in-game sim messages follow the F6 language switch (한/EN).
+    private static string L(string korean, string english) => SAIN.Editor.EditorText.Korean ? korean : english;
+
     private const float TICK = 2f;
     private const float LOCAL_BEAT = 10f;
     private const float SERVER_BEAT = 60f;
@@ -161,7 +164,7 @@ public sealed class SimLabRunner : MonoBehaviour
         if (_startRequestedAt > 0f && now - _startRequestedAt > START_TIMEOUT)
         {
             _startRequestedAt = -1f;
-            Notify($"[시뮬] {_autoStartMap} 자동 시작이 {START_TIMEOUT:0}초 안에 안 됐습니다. 직접 시작하거나 게임을 재시작해 주세요.", true);
+            Notify(L($"[시뮬] {_autoStartMap} 자동 시작이 {START_TIMEOUT:0}초 안에 안 됐습니다. 직접 시작하거나 게임을 재시작해 주세요.", $"[Sim] {_autoStartMap} did not auto-start within {START_TIMEOUT:0} s. Start it yourself or restart the game."), true);
             Logger.LogError($"[SimLab] auto start of {_autoStartMap} did not reach a raid within {START_TIMEOUT:0}s");
         }
         if (SimLab.MenuReadyTime < 0f)
@@ -182,7 +185,7 @@ public sealed class SimLabRunner : MonoBehaviour
         {
             _startFailed = false;
             _startRequestedAt = -1f;
-            Notify("[시뮬] 자동 시작 실패 — LogOutput.log의 [SimLab] raid start failed 줄을 보내 주세요. 웹에서 '시뮬 정지'를 눌러 멈출 수 있습니다", true);
+            Notify(L("[시뮬] 자동 시작 실패 — LogOutput.log의 [SimLab] raid start failed 줄을 보내 주세요. 웹에서 '시뮬 정지'를 눌러 멈출 수 있습니다", "[Sim] Auto start failed - please send the [SimLab] raid start failed line of LogOutput.log. 'Stop sim' on the web page stops it"), true);
             _nextPoll = Time.realtimeSinceStartup + 60f; // don't hammer a failing start
         }
         if (_startRequestedAt > 0f)
@@ -215,14 +218,14 @@ public sealed class SimLabRunner : MonoBehaviour
                 // user 2026-10-10: say it when a cycle is over instead of looping forever (logs and RAM keep piling up)
                 _completedNoted = plan.RunId;
                 _pausedNoted = true;
-                Notify($"[시뮬] 수고했습니다. 시뮬레이션 완료됨 ({plan.MapsDone}맵 한 바퀴, 실행 {plan.RunId}) — 결과는 웹 /sain/sim/analysis", false);
-                ShowBanner($"수고했습니다. 시뮬레이션 완료됨 ({plan.MapsDone}맵)");
+                Notify(L($"[시뮬] 수고했습니다. 시뮬레이션 완료됨 ({plan.MapsDone}맵 한 바퀴, 실행 {plan.RunId}) — 결과는 웹 /sain/sim/analysis", $"[Sim] Well done - simulation complete ({plan.MapsDone} maps, run {plan.RunId}) - results on the web at /sain/sim/analysis"), false);
+                ShowBanner(L($"수고했습니다. 시뮬레이션 완료됨 ({plan.MapsDone}맵)", $"Well done - simulation complete ({plan.MapsDone} maps)"));
                 return;
             }
             if (!_pausedNoted)
             {
                 _pausedNoted = true;
-                Notify("[시뮬] 대기 중 — 웹 https://127.0.0.1:6969/sain/sim 에서 '시뮬 시작'을 누르면 시작합니다", false);
+                Notify(L("[시뮬] 대기 중 — 웹 https://127.0.0.1:6969/sain/sim 에서 '시뮬 시작'을 누르면 시작합니다", "[Sim] Waiting - press 'Start sim' on https://127.0.0.1:6969/sain/sim"), false);
             }
             return;
         }
@@ -231,7 +234,7 @@ public sealed class SimLabRunner : MonoBehaviour
             if (!_pausedNoted)
             {
                 _pausedNoted = true;
-                Notify("[시뮬] " + (plan.Message ?? "다음 맵 없음"), true);
+                Notify(L("[시뮬] " + (plan.Message ?? "다음 맵 없음"), "[Sim] No map in the rotation is switched on (turn maps on at /sain/sim)."), true);
             }
             return;
         }
@@ -312,14 +315,14 @@ public sealed class SimLabRunner : MonoBehaviour
         {
             float left = Mathf.Max(0f, _plannedSeconds - (Time.realtimeSinceStartup - _raidStart));
             var plan = SimLab.Plan;
-            text = $"시뮬 {SimLab.Raid.MapName}  남은 시간 {(int)(left / 60f):00}:{(int)(left % 60f):00}"
+            text = L($"시뮬 {SimLab.Raid.MapName}  남은 시간 {(int)(left / 60f):00}:{(int)(left % 60f):00}", $"Sim {SimLab.Raid.MapName}  time left {(int)(left / 60f):00}:{(int)(left % 60f):00}")
                 + (plan != null && plan.StepCount > 0 ? $"  ({plan.Step + 1}/{plan.StepCount})" : string.Empty)
-                + $"\n봇 {_alive}명 · 분대 {_activated}";
+                + L($"\n봇 {_alive}명 · 분대 {_activated}", $"\nbots {_alive} · squads {_activated}");
         }
         else if (!_inRaid && _autoStartAt > 0f && SimLab.Plan?.ShowTimer != false)
         {
             float left = Mathf.Max(0f, _autoStartAt - Time.realtimeSinceStartup);
-            text = $"시뮬 다음 맵 {SimLab.Plan?.NextMapName ?? _autoStartMap}  {(int)(left / 60f):00}:{(int)(left % 60f):00} 뒤 시작";
+            text = L($"시뮬 다음 맵 {SimLab.Plan?.NextMapName ?? _autoStartMap}  {(int)(left / 60f):00}:{(int)(left % 60f):00} 뒤 시작", $"Sim next map {SimLab.Plan?.NextMapName ?? _autoStartMap}  starts in {(int)(left / 60f):00}:{(int)(left % 60f):00}");
         }
         else if (!_inRaid && _bannerText != null && Time.realtimeSinceStartup < _bannerUntil)
         {
@@ -342,7 +345,7 @@ public sealed class SimLabRunner : MonoBehaviour
         {
             _nextCountdownNote = now + (left > 30f ? 15f : 5f);
             var plan = SimLab.Plan;
-            Notify($"[시뮬] {left:0}초 후 {plan?.NextMapName ?? _autoStartMap} 시작 ({(plan?.Step ?? 0) + 1}/{plan?.StepCount}, {plan?.Minutes:0}분) — 멈추려면 웹 /sain/sim에서 '시뮬 정지'", false);
+            Notify(L($"[시뮬] {left:0}초 후 {plan?.NextMapName ?? _autoStartMap} 시작 ({(plan?.Step ?? 0) + 1}/{plan?.StepCount}, {plan?.Minutes:0}분) — 멈추려면 웹 /sain/sim에서 '시뮬 정지'", $"[Sim] {plan?.NextMapName ?? _autoStartMap} starts in {left:0} s ({(plan?.Step ?? 0) + 1}/{plan?.StepCount}, {plan?.Minutes:0} min) - 'Stop sim' on /sain/sim stops it"), false);
         }
         if (left > 0f)
         {
@@ -381,7 +384,7 @@ public sealed class SimLabRunner : MonoBehaviour
         var location = app.Session.LocationSettings.locations.Values.FirstOrDefault(l => string.Equals(l.Id, map, StringComparison.OrdinalIgnoreCase));
         if (location == null)
         {
-            Notify($"[시뮬] 맵 '{map}'을 찾지 못했습니다.", true);
+            Notify(L($"[시뮬] 맵 '{map}'을 찾지 못했습니다.", $"[Sim] Map '{map}' not found."), true);
             Logger.LogError($"[SimLab] location '{map}' not in the session's location list");
             return;
         }
@@ -421,7 +424,7 @@ public sealed class SimLabRunner : MonoBehaviour
         Logger.LogWarning(
             $"[SimLab] auto start: {map} ({location.Name}, id {location.Id}), side {raid.Side}, mode {raid.RaidMode}, pveOffline {raid.IsPveOffline}, run {SimLab.Plan?.RunId}"
         );
-        Notify($"[시뮬] {SimLab.Plan?.NextMapName ?? map} 시작", false);
+        Notify(L($"[시뮬] {SimLab.Plan?.NextMapName ?? map} 시작", $"[Sim] starting {SimLab.Plan?.NextMapName ?? map}"), false);
         try
         {
             var task = app.OnReadyToStartMatchingAsync();
@@ -441,7 +444,7 @@ public sealed class SimLabRunner : MonoBehaviour
         catch (Exception ex)
         {
             _startRequestedAt = -1f;
-            Notify($"[시뮬] 자동 시작 실패: {ex.Message}", true);
+            Notify(L($"[시뮬] 자동 시작 실패: {ex.Message}", $"[Sim] Auto start failed: {ex.Message}"), true);
             Logger.LogError($"[SimLab] raid start threw: {ex}");
         }
     }
@@ -686,7 +689,7 @@ public sealed class SimLabRunner : MonoBehaviour
         var start = BuildBeat("start");
         SimLabFile.Write(start);
         SimLab.PostInBackground("/sain/sim/beat", start);
-        Notify($"[시뮬] {SimLab.Raid?.MapName ?? _map}: {SimLab.Raid?.ScenarioName ?? "시뮬 스폰 없음"} — {_plannedSeconds / 60f:0}분", false);
+        Notify(L($"[시뮬] {SimLab.Raid?.MapName ?? _map}: {SimLab.Raid?.ScenarioName ?? "시뮬 스폰 없음"} — {_plannedSeconds / 60f:0}분", $"[Sim] {SimLab.Raid?.MapName ?? _map}: {SimLab.Raid?.ScenarioName ?? "no sim spawns"} - {_plannedSeconds / 60f:0} min"), false);
     }
 
     private void ApplyGodMode()

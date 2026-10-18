@@ -11,10 +11,12 @@
     <link rel="stylesheet" href="/SAIN/css/sain.css" />
 </HeadContent>
 
+@* zzap fork (2026-10-18, user: "make the sim analysis as readable as the sim page"): run totals on top, a map table on the left,
+   the picked map's details in tabs on the right, the six header buttons folded into a summary button and a manage menu. *@
 <div class="spt-page">
     <MudContainer MaxWidth="MaxWidth.False" Class="sain-container pa-4">
         <SainNav Current="simAnalysis" />
-        <MudPaper Elevation="0" Class="spt-panel sain-hero pa-4 mb-4">
+        <MudPaper Elevation="0" Class="spt-panel sain-hero pa-4 mb-4" Style="overflow:visible;">
             <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="3">
                 <MudStack Row AlignItems="AlignItems.Center" Spacing="3">
                     <div class="sain-hero-icon">
@@ -22,24 +24,48 @@
                     </div>
                     <div>
                         <MudText Typo="Typo.h5" Class="spt-title">@T("시뮬 분석", "Sim Analysis")</MudText>
-                        <MudText Typo="Typo.caption" Class="spt-muted">@T("맵마다 무엇이 문제였는지. 게임이 1분마다 보낸 기록이라 강제 종료된 판도 마지막 1분까지 남아 있습니다.", "What went wrong on each map. The game reports every minute, so even a killed game keeps everything up to its last minute.")</MudText>
+                        <MudText Typo="Typo.caption" Class="spt-muted">@T("맵마다 무엇이 문제였는지 · 1분마다 받은 기록이라 강제 종료된 판도 남습니다.", "What went wrong on each map · reported every minute, so even a killed game keeps its record.")</MudText>
                     </div>
                 </MudStack>
                 <MudStack Row Spacing="2" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center">
-                    <MudSelect T="string" Value="_runId" ValueChanged="SelectRun" Label="@T("실행", "Run")" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width:260px;">
+                    <MudSelect T="string" Value="_runId" ValueChanged="SelectRun" Label="@T("실행", "Run")" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width:250px;">
                         @foreach (var r in _runs)
                         {
                             <MudSelectItem T="string" Value="@r.RunId">@r.RunId (@T($"맵 {r.Maps.Count}개", $"{r.Maps.Count} maps"))</MudSelectItem>
                         }
                     </MudSelect>
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="Reload">@T("새로고침", "Refresh")</MudButton>
+                    <MudTooltip Text="@T("새로고침", "Refresh")">
+                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Variant="Variant.Outlined" OnClick="Reload" />
+                    </MudTooltip>
                     @if (_run != null)
                     {
-                        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Description" OnClick="@(() => MakeSummary(false))">@T("Claude용 요약 만들기", "Make summary for Claude")</MudButton>
-                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.LibraryBooks" OnClick="@(() => MakeSummary(true))">@T("요약 + 레이드 일지 합쳐 받기 (심층 분석용)", "Summary + raid journals merged (deep analysis)")</MudButton>
-                        <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteRun">@T("이 실행 삭제", "Delete this run")</MudButton>
+                        <div class="sain-menu-wrap">
+                            <MudButtonGroup Variant="Variant.Filled" Color="Color.Warning">
+                                <MudButton StartIcon="@Icons.Material.Filled.Description" OnClick="@(() => MakeSummary(false))">@T("Claude용 요약", "Summary for Claude")</MudButton>
+                                <MudIconButton Icon="@Icons.Material.Filled.ArrowDropDown" OnClick="@(() => ToggleMenu("summary"))" />
+                            </MudButtonGroup>
+                            @if (_menu == "summary")
+                            {
+                                <div class="sain-menu">
+                                    <div class="sain-menu-it" @onclick="@(() => { _menu = null; MakeSummary(false); })">@T("요약만 (짧게)", "Summary only (short)")</div>
+                                    <div class="sain-menu-it" @onclick="@(() => { _menu = null; MakeSummary(true); })">@T("요약 + 레이드 일지 합쳐 받기", "Summary + raid journals merged")<small>@T("심층 분석용", "for deep analysis")</small></div>
+                                </div>
+                            }
+                        </div>
                     }
-                    <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteSweep" OnClick="@(() => _showBulk = !_showBulk)">@T("기록 일괄 삭제", "Bulk delete")</MudButton>
+                    <div class="sain-menu-wrap">
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.MoreHoriz" OnClick="@(() => ToggleMenu("manage"))">@T("관리", "Manage")</MudButton>
+                        @if (_menu == "manage")
+                        {
+                            <div class="sain-menu">
+                                @if (_run != null)
+                                {
+                                    <div class="sain-menu-it" style="color:#f87171;" @onclick="@(() => { _menu = null; DeleteRun(); })">@T($"이 실행 삭제 ({_run.RunId})", $"Delete this run ({_run.RunId})")</div>
+                                }
+                                <div class="sain-menu-it" style="color:#f87171;" @onclick="@(() => { _menu = null; _showBulk = true; })">@T("기록 일괄 삭제…", "Bulk delete…")</div>
+                            </div>
+                        }
+                    </div>
                 </MudStack>
             </MudStack>
         </MudPaper>
@@ -69,6 +95,7 @@
             </MudPaper>
         }
 
+
         @if (_run == null)
         {
             <MudAlert Severity="Severity.Info">@T("아직 기록된 시뮬이 없습니다. 게임에서 시뮬 프리셋으로 레이드를 하면 여기에 쌓입니다.", "No sim recorded yet. Raids played with the sim preset show up here.")</MudAlert>
@@ -93,85 +120,160 @@
                 </MudPaper>
             }
 
+
+                var findings = _run.Maps.ToDictionary(x => x, x => SimLabAnalyzer.Findings(x));
+                int high = findings.Values.Sum(f => f.Count(x => x.Severity == SimLabAnalyzer.HIGH));
+                int warn = findings.Values.Sum(f => f.Count(x => x.Severity == SimLabAnalyzer.WARN));
+                int deaths = _run.Maps.Sum(x => x.Last?.BotDeaths ?? 0);
+                int botKills = _run.Maps.Sum(x => x.Last?.BotKillsByBots ?? 0);
+                var fpsMap = _run.Maps.Where(x => x.Last != null && x.Last.FpsMin > 0).OrderBy(x => x.Last!.FpsMin).FirstOrDefault();
+                int errTotal = _run.Maps.Sum(SimLabAnalyzer.ErrorTotal);
+                int errKinds = _run.Maps.Sum(x => x.Last?.Errors?.Count ?? 0);
+                float played = _run.Maps.Sum(SimLabAnalyzer.PlayedMinutes);
+                float planned = _run.Maps.Sum(x => x.PlannedMinutes);
+                int done = _run.Maps.Count(x => x.Status == "done");
+                int running = _run.Maps.Count(x => x.Status == "running");
+                var m = SelectedMap();
             <MudPaper Elevation="0" Class="spt-panel pa-4 mb-4">
-                <MudText Typo="Typo.subtitle1" Class="spt-title mb-2">@T("한눈에 보기", "Overview")</MudText>
-                <MudSimpleTable Dense="true" Hover="true">
-                    <thead>
-                        <tr><th>#</th><th>@T("맵", "Map")</th><th>@T("시나리오", "Scenario")</th><th>@T("상태", "Status")</th><th>@T("진행(분)", "Played (min)")</th><th>@T("봇 사망", "Bot deaths")</th><th>@T("최저 fps", "Min fps")</th><th>@T("오류", "Errors")</th><th>@T("문제", "Problems")</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var m in _run.Maps)
-                        {
-                            var findings = SimLabAnalyzer.Findings(m);
-                            <tr>
-                                <td>@(m.Index + 1)</td>
-                                <td>@SimLabDefaults.DisplayName(m.Map)</td>
-                                <td>@ScenarioOf(m)</td>
-                                <td><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@StatusColor(m.Status)">@SimLabAnalyzer.StatusText(m.Status)</MudChip></td>
-                                <td>@(SimLabAnalyzer.PlayedMinutes(m).ToString("0.0"))/@(m.PlannedMinutes.ToString("0"))</td>
-                                <td>@(m.Last?.BotDeaths ?? 0)</td>
-                                <td>@((m.Last?.FpsMin ?? 0f).ToString("0"))</td>
-                                <td>@SimLabAnalyzer.ErrorTotal(m)</td>
-                                <td>@(findings.Count(f => f.Severity == SimLabAnalyzer.HIGH)) @T("심각", "severe") / @(findings.Count(f => f.Severity == SimLabAnalyzer.WARN)) @T("주의", "warning")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </MudSimpleTable>
+                <div class="sain-kpis">
+                    <div class="sain-kpi"><div class="sain-kpi-l">@T("맵", "Maps")</div><div class="sain-kpi-v">@_run.Maps.Count</div><div class="sain-kpi-s">@T($"끝남 {done} · 진행 중 {running}", $"done {done} · running {running}")</div></div>
+                    <div class="sain-kpi"><div class="sain-kpi-l">@T("진행 시간", "Played")</div><div class="sain-kpi-v">@played.ToString("0")<small>/@planned.ToString("0")@T("분", " min")</small></div><div class="sain-kpi-s">@(string.IsNullOrEmpty(_run.Preset) ? T("직접 설정", "manual settings") : _run.Preset)</div></div>
+                    <div class="sain-kpi @(high > 0 ? "sain-kpi-r" : null)"><div class="sain-kpi-l">@T("심각", "Severe")</div><div class="sain-kpi-v">@high</div><div class="sain-kpi-s">@T("바로 볼 것", "look first")</div></div>
+                    <div class="sain-kpi @(warn > 0 ? "sain-kpi-y" : null)"><div class="sain-kpi-l">@T("주의", "Warnings")</div><div class="sain-kpi-v">@warn</div><div class="sain-kpi-s">@T("고치기 전 확인", "check before fixing")</div></div>
+                    <div class="sain-kpi"><div class="sain-kpi-l">@T("봇 사망", "Bot deaths")</div><div class="sain-kpi-v">@deaths</div><div class="sain-kpi-s">@T($"봇끼리 {botKills}", $"by bots {botKills}")</div></div>
+                    <div class="sain-kpi @(fpsMap == null ? null : fpsMap.Last!.FpsMin < 30 ? "sain-kpi-r" : "sain-kpi-g")"><div class="sain-kpi-l">@T("최저 FPS", "Lowest FPS")</div><div class="sain-kpi-v">@(fpsMap == null ? "-" : fpsMap.Last!.FpsMin.ToString("0"))</div><div class="sain-kpi-s">@(fpsMap == null ? "" : SimLabDefaults.DisplayName(fpsMap.Map))</div></div>
+                    <div class="sain-kpi @(errTotal > 0 ? "sain-kpi-y" : null)"><div class="sain-kpi-l">@T("오류", "Errors")</div><div class="sain-kpi-v">@errTotal</div><div class="sain-kpi-s">@T($"{errKinds}종", $"{errKinds} kinds")</div></div>
+                </div>
             </MudPaper>
 
-            @foreach (var m in _run.Maps.AsEnumerable().Reverse())
-            {
-                var b = m.Last;
-                <MudPaper Elevation="0" Class="spt-panel pa-4 mb-4">
-                    <MudStack Row AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap" Class="mb-1">
-                        <MudText Typo="Typo.h6" Class="spt-title">@(m.Index + 1). @SimLabDefaults.DisplayName(m.Map) — @ScenarioOf(m)</MudText>
-                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@StatusColor(m.Status)">@SimLabAnalyzer.StatusText(m.Status)</MudChip>
-                    </MudStack>
-                    <MudText Typo="Typo.caption" Class="spt-muted d-block">
-                        @m.Started.ToString("MM-dd HH:mm") @T("시작", "start") · @(SimLabAnalyzer.PlayedMinutes(m).ToString("0.0"))/@(m.PlannedMinutes.ToString("0"))@T("분", " min") · @T("게임 시각", "game clock") @SimLabAnalyzer.DayNight(m.Last) · @T("목적", "Focus"): @FocusOf(m)
-                    </MudText>
-                    @if (m.Raid != null)
-                    {
-                        <MudText Typo="Typo.caption" Class="d-block">
-                            @T("시뮬 프리셋", "Sim preset"): @(string.IsNullOrEmpty(m.Raid.SimPreset) ? T("없음(직접 설정)", "none (manual)") : m.Raid.SimPreset) · @T("성격", "Personalities"): @SimLabAnalyzer.PersonalityLabel(m.Raid.Personalities) · @T("모드 아이템", "Mod items"): @SimLabAnalyzer.ModItemsLabel(m.Raid)
-                        </MudText>
-                        <MudText Typo="Typo.caption" Class="spt-muted d-block">
-                            @T("스폰", "Spawns"): A @m.Raid.SideA [@m.Raid.ZonesA] vs B @m.Raid.SideB [@m.Raid.ZonesB] · @T("동시 최대", "max alive") @m.Raid.MaxAliveBots · @T("지운 웨이브", "removed waves") @(m.Raid.RemovedBossWaves)+@(m.Raid.RemovedWaves)
-                        </MudText>
-                    }
-                    @{ var style = SimLabAnalyzer.StyleSummary(m); }
-                    @if (style.Count > 0)
-                    {
-                        <MudPaper Elevation="0" Class="pa-3 mt-2" Style="border-left:3px solid var(--mud-palette-warning);">
-                            <MudText Typo="Typo.subtitle2" Class="mb-1">@T("이 맵에서는 이렇게 싸웠습니다", "How they fought on this map")</MudText>
-                            @foreach (string line in style)
-                            {
-                                <MudText Typo="Typo.body2">• @line</MudText>
-                            }
-                        </MudPaper>
-                    }
-                    <div class="mt-2">
-                        @foreach (var f in SimLabAnalyzer.Findings(m))
-                        {
-                            <MudAlert Severity="@Sev(f.Severity)" Dense="true" Variant="Variant.Outlined" Class="mb-1">
-                                <b>@f.Title</b> — @f.Detail
-                            </MudAlert>
-                        }
+            <div class="sain-split">
+                <MudPaper Elevation="0" Class="spt-panel pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="spt-title mb-1">@T("맵별 한눈에", "Maps at a glance")</MudText>
+                    <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">@T("줄을 누르면 오른쪽에 자세히 나옵니다.", "Click a row for its details on the right.")</MudText>
+                    <div class="sain-table-wrap">
+                        <table class="sain-compare sain-changes sain-rows">
+                            <thead><tr><th>#</th><th>@T("맵", "Map")</th><th>@T("상태", "Status")</th><th>@T("분", "Min")</th><th>@T("사망", "Deaths")</th><th>fps</th><th>@T("문제", "Problems")</th></tr></thead>
+                            <tbody>
+                                @foreach (var row in _run.Maps)
+                                {
+                                    var f = findings[row];
+                                    int h = f.Count(x => x.Severity == SimLabAnalyzer.HIGH);
+                                    int w = f.Count(x => x.Severity == SimLabAnalyzer.WARN);
+                                    <tr class="sain-row-click @(ReferenceEquals(row, m) ? "sain-row-sel" : null)" @onclick="@(() => _mapIndex = row.Index)">
+                                        <td>@(row.Index + 1)</td>
+                                        <td>@SimLabDefaults.DisplayName(row.Map)</td>
+                                        <td><span class="sain-tagchip @StatusTag(row.Status)">@SimLabAnalyzer.StatusText(row.Status)</span></td>
+                                        <td>@(SimLabAnalyzer.PlayedMinutes(row).ToString("0"))/@(row.PlannedMinutes.ToString("0"))</td>
+                                        <td>@(row.Last?.BotDeaths ?? 0)</td>
+                                        <td>@((row.Last?.FpsMin ?? 0f).ToString("0"))</td>
+                                        <td style="white-space:nowrap;">
+                                            @if (h > 0) { <span class="sain-dot sain-dot-r"></span>@h }
+                                            @if (w > 0) { <span class="sain-dot sain-dot-y"></span>@w }
+                                            @if (h == 0 && w == 0) { <span class="spt-muted">-</span> }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
                     </div>
-                    @if (b != null)
-                    {
-                        <MudText Typo="Typo.body2" Class="mt-2">
-                            @T("본 봇", "Bots seen") @(b.BotsSeen) · @T("봇 사망", "bot deaths") @(b.BotDeaths) (@T("봇에게", "by bots") @(b.BotKillsByBots), @T("기타", "other") @(b.OtherKills)@(SimLabAnalyzer.SpectatorKills(b) > 0 ? T($" — 관전자 {SimLabAnalyzer.SpectatorKills(b)}", $" - spectator {SimLabAnalyzer.SpectatorKills(b)}") : ""), @T("아군", "team") @(b.TeamKills)) · @T("분대 호출", "squads called") @(b.SimWavesActivated) ·
-                            @T("마지막", "last") @(b.Fps.ToString("0")) fps / @T("최저", "min") @(b.FpsMin.ToString("0")) · @T("멈춤", "stalls") @(b.Stalls) · @T("관리 메모리", "managed memory") @(b.MonoUsedMB) MB
-                        </MudText>
-                        @if (!string.IsNullOrEmpty(b.JournalFile))
-                        {
-                            <MudText Typo="Typo.caption" Class="spt-muted d-block">@T("일지", "Journal"): <code>@b.JournalFile</code></MudText>
-                        }
-                        <MudExpansionPanels Elevation="0" Class="sain-panels mt-2" MultiExpansion="true">
+                </MudPaper>
+
+                @if (m != null)
+                {
+                    var b = m.Last;
+                    var mapFindings = findings[m];
+                    <MudPaper Elevation="0" Class="spt-panel pa-4">
+                        <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+                            <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText Typo="Typo.h6" Class="spt-title">@(m.Index + 1). @SimLabDefaults.DisplayName(m.Map) — @ScenarioOf(m)</MudText>
+                                <span class="sain-tagchip @StatusTag(m.Status)">@SimLabAnalyzer.StatusText(m.Status)</span>
+                            </MudStack>
+                            <MudText Typo="Typo.caption" Class="spt-muted">@m.Started.ToString("MM-dd HH:mm") @T("시작", "start") · @T("게임 시각", "game clock") @SimLabAnalyzer.DayNight(m.Last)</MudText>
+                        </MudStack>
+                        <div class="sain-chiprow mt-1 mb-2">
+                            @if (m.Raid != null)
+                            {
+                                <span class="sain-tagchip">@T("시뮬 프리셋", "Sim preset"): @(string.IsNullOrEmpty(m.Raid.SimPreset) ? T("없음(직접 설정)", "none (manual)") : m.Raid.SimPreset)</span>
+                                <span class="sain-tagchip">A @m.Raid.SideA [@m.Raid.ZonesA] vs B @m.Raid.SideB [@m.Raid.ZonesB]</span>
+                                <span class="sain-tagchip">@T("동시 최대", "max alive") @m.Raid.MaxAliveBots</span>
+                                <span class="sain-tagchip">@T("지운 웨이브", "removed waves") @(m.Raid.RemovedBossWaves)+@(m.Raid.RemovedWaves)</span>
+                                <span class="sain-tagchip">@T("성격", "Personalities"): @SimLabAnalyzer.PersonalityLabel(m.Raid.Personalities)</span>
+                                <span class="sain-tagchip">@T("모드 아이템", "Mod items"): @SimLabAnalyzer.ModItemsLabel(m.Raid)</span>
+                            }
+                        </div>
+                        <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">@T("목적", "Focus"): @FocusOf(m)</MudText>
+
+                        <MudTabs Elevation="0" Color="Color.Transparent" SliderColor="Color.Primary" Border="false" MinimumTabWidth="0" PanelClass="pt-3">
+                            <MudTabPanel Text="@T("요약", "Summary")">
+                                <div class="sain-quick-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+                                    <div>
+                                        <MudText Typo="Typo.overline" Class="sain-sec">@T("가장 먼저 볼 것", "LOOK AT FIRST")</MudText>
+                                        @{ var top = mapFindings.Where(x => x.Severity is SimLabAnalyzer.HIGH or SimLabAnalyzer.WARN).Take(3).ToList(); }
+                                        @if (top.Count == 0)
+                                        {
+                                            <div class="sain-alert sain-alert-g">@T("심각·주의 항목이 없습니다.", "No severe or warning items.")</div>
+                                        }
+                                        @foreach (var f in top)
+                                        {
+                                            <div class="sain-alert @(f.Severity == SimLabAnalyzer.HIGH ? "sain-alert-r" : "sain-alert-y")"><b>@f.Title</b> — @f.Detail</div>
+                                        }
+                                        @if (mapFindings.Count > top.Count)
+                                        {
+                                            <MudText Typo="Typo.caption" Class="spt-muted">@T($"나머지 {mapFindings.Count - top.Count}건은 '문제 목록' 탭", $"{mapFindings.Count - top.Count} more on the 'Problems' tab")</MudText>
+                                        }
+                                    </div>
+                                    <div class="sain-style-card">
+                                        @{ var style = SimLabAnalyzer.StyleSummary(m); }
+                                        <MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T("이 맵에서는 이렇게 싸웠습니다", "How they fought on this map")</MudText>
+                                        @if (style.Count == 0)
+                                        {
+                                            <MudText Typo="Typo.body2" Class="spt-muted">@T("아직 요약할 교전이 없습니다.", "No fights to summarise yet.")</MudText>
+                                        }
+                                        @foreach (string line in style)
+                                        {
+                                            <MudText Typo="Typo.body2">• @line</MudText>
+                                        }
+                                        @if (b != null)
+                                        {
+                                            <div class="sain-chiprow mt-2">
+                                                <span class="sain-tagchip">@T("본 봇", "Bots seen") @b.BotsSeen</span>
+                                                <span class="sain-tagchip">@T("봇 사망", "Bot deaths") @b.BotDeaths (@T("봇에게", "by bots") @b.BotKillsByBots@(SimLabAnalyzer.SpectatorKills(b) > 0 ? T($", 관전자 {SimLabAnalyzer.SpectatorKills(b)}", $", spectator {SimLabAnalyzer.SpectatorKills(b)}") : ""))</span>
+                                                <span class="sain-tagchip">@T("아군 킬", "Team kills") @b.TeamKills</span>
+                                                <span class="sain-tagchip">@T("분대 호출", "Squads called") @b.SimWavesActivated</span>
+                                                <span class="sain-tagchip">fps @b.Fps.ToString("0") / @T("최저", "min") @b.FpsMin.ToString("0")</span>
+                                                <span class="sain-tagchip">@T("멈춤", "Stalls") @b.Stalls</span>
+                                                <span class="sain-tagchip">@T("관리 메모리", "Managed memory") @b.MonoUsedMB MB</span>
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(b.JournalFile))
+                                            {
+                                                <MudText Typo="Typo.caption" Class="spt-muted d-block mt-2">@T("일지", "Journal"): <code>@b.JournalFile</code></MudText>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+                            </MudTabPanel>
+                            <MudTabPanel Text="@T("문제 목록", "Problems")" BadgeData="@(mapFindings.Count > 0 ? mapFindings.Count : null)" BadgeColor="@(mapFindings.Any(x => x.Severity == SimLabAnalyzer.HIGH) ? Color.Error : Color.Warning)">
+                                @if (mapFindings.Count == 0)
+                                {
+                                    <div class="sain-alert sain-alert-g">@T("문제 없음.", "No problems.")</div>
+                                }
+                                @foreach (var f in mapFindings)
+                                {
+                                    <MudAlert Severity="@Sev(f.Severity)" Dense="true" Variant="Variant.Outlined" Class="mb-1">
+                                        <b>@f.Title</b> — @f.Detail
+                                    </MudAlert>
+                                }
+                            </MudTabPanel>
+                            @if (b != null)
+                            {
+                                <MudTabPanel Text="@T("오류", "Errors")" BadgeData="@((b.Errors?.Count ?? 0) > 0 ? b.Errors!.Count : null)" BadgeColor="Color.Warning">
+                                    @if ((b.Errors?.Count ?? 0) == 0)
+                                    {
+                                        <div class="sain-alert sain-alert-g">@T("오류 없음.", "No errors.")</div>
+                                    }
                             @if (b.Errors?.Count > 0)
                             {
-                                <MudExpansionPanel Text="@T($"오류 {b.Errors.Count}종", $"{b.Errors.Count} kinds of errors")" Class="sain-subpanel">
+                                <div class="mb-4"><MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T($"오류 {b.Errors.Count}종", $"{b.Errors.Count} kinds of errors")</MudText>
                                     <MudSimpleTable Dense="true">
                                         <thead><tr><th>@T("횟수", "Count")</th><th>@T("종류", "Kind")</th><th>@T("처음(t초)", "First (t s)")</th><th>@T("내용", "Text")</th></tr></thead>
                                         <tbody>
@@ -186,9 +288,12 @@
                                             }
                                         </tbody>
                                     </MudSimpleTable>
-                                </MudExpansionPanel>
+                                </div>
                             }
-                            <MudExpansionPanel Text="@T($"카운터 {b.Counters?.Count ?? 0}개 (★ = 이 맵에서 볼 것)", $"{b.Counters?.Count ?? 0} counters (★ = watch on this map)")" Class="sain-subpanel">
+
+                                </MudTabPanel>
+                                <MudTabPanel Text="@T("카운터", "Counters")" BadgeData="@(b.Counters?.Count ?? 0)" BadgeColor="Color.Dark">
+                            <div class="mb-4"><MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T($"카운터 {b.Counters?.Count ?? 0}개 (★ = 이 맵에서 볼 것)", $"{b.Counters?.Count ?? 0} counters (★ = watch on this map)")</MudText>
                                 <MudStack Row Wrap="Wrap.Wrap" Spacing="1">
                                     @foreach (var kv in SimLabAnalyzer.OrderedCounters(m))
                                     {
@@ -199,8 +304,8 @@
                                         </MudTooltip>
                                     }
                                 </MudStack>
-                            </MudExpansionPanel>
-                            <MudExpansionPanel Text="@T("카운터 설명 (이 맵에 나온 것만)", "What the counters mean (only those in this map)")" Class="sain-subpanel">
+                            </div>
+                            <div class="mb-4"><MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T("카운터 설명 (이 맵에 나온 것만)", "What the counters mean (only those in this map)")</MudText>
                                 <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
                                     @T("카운터는 봇이 그 행동을 '판단하거나 실행한 횟수'입니다. reject·pick·do처럼 판단마다 세는 것은 수천 단위가 정상이고, start·thrown·arrived처럼 실제로 한 것만 세는 것이 실제 횟수입니다. 칩에 마우스를 올려도 설명이 나옵니다.",
                                        "Counters count how often a bot decided or did something. Per-decision counters (reject, pick, do) are normally in the thousands; start / thrown / arrived count real actions. Hover a chip for its meaning.")
@@ -214,8 +319,11 @@
                                         }
                                     </tbody>
                                 </MudSimpleTable>
-                            </MudExpansionPanel>
-                            <MudExpansionPanel Text="@T("성격별 · 판단 이유별 킬/사망", "Kills/deaths by personality and decision")" Class="sain-subpanel">
+                            </div>
+
+                                </MudTabPanel>
+                                <MudTabPanel Text="@T("성격·판단별 킬/사망", "Kills/deaths by personality")">
+                            <div class="mb-4"><MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T("성격별 · 판단 이유별 킬/사망", "Kills/deaths by personality and decision")</MudText>
                                 <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
                                     @T("킬/사망은 봇끼리 싸운 결과입니다. '전환 직후 사망' = 하던 판단을 바꾼 지 1.5초 안에 죽음 — 많으면 판단이 늦거나 흔들린다는 뜻.",
                                        "Kills/deaths between bots. 'Died switching' = died within 1.5 s of changing decision - many of these mean late or wobbly decisions.")
@@ -225,10 +333,13 @@
                                     @RowTable(T("죽을 때 하던 판단", "Decision when dying"), b.ByReason, SimLabGlossary.Reasons)
                                     @RowTable(T("전투 행동", "Combat action"), b.ByCombat, null)
                                 </MudStack>
-                            </MudExpansionPanel>
+                            </div>
+
+                                </MudTabPanel>
+                                <MudTabPanel Text="@T("스폰 · 레이어 · ORBIT", "Spawns · layers · ORBIT")">
                             @if (b.SpawnInZone + b.SpawnOffZone > 0)
                             {
-                                <MudExpansionPanel Text="@T($"스폰 위치 검사: 정한 구역 {b.SpawnInZone} / 밖 {b.SpawnOffZone}", $"Spawn check: in zone {b.SpawnInZone} / outside {b.SpawnOffZone}")" Class="sain-subpanel">
+                                <div class="mb-4"><MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T($"스폰 위치 검사: 정한 구역 {b.SpawnInZone} / 밖 {b.SpawnOffZone}", $"Spawn check: in zone {b.SpawnInZone} / outside {b.SpawnOffZone}")</MudText>
                                     <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
                                         @T("새 봇이 실제로 태어난 구역(게임이 정한 BotZone) — A/B = 진영. 밖으로 나온 봇은 위치와 '정한 구역의 가장 가까운 스폰 지점까지 거리'를 보여 줍니다.",
                                            "Zone each new bot really spawned in (A/B = side). Bots outside show their position and the distance to the nearest wanted spawn point.")
@@ -246,12 +357,13 @@
                                             </tbody>
                                         </MudSimpleTable>
                                     }
-                                </MudExpansionPanel>
+                                </div>
                             }
+
                             @if ((b.LayerSeconds?.Count ?? 0) > 0)
                             {
                                 var layerTotal = b.LayerSeconds!.Values.Sum();
-                                <MudExpansionPanel Text="@T("레이어 시간 (ORBIT / SAIN / 기타)", "Layer time (ORBIT / SAIN / other)")" Class="sain-subpanel">
+                                <div class="mb-4"><MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T("레이어 시간 (ORBIT / SAIN / 기타)", "Layer time (ORBIT / SAIN / other)")</MudText>
                                     <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
                                         @T("봇들이 어느 '두뇌 레이어'에 있었는지 시간 합계(2초마다 표본). SAIN 전투가 적고 ORBIT가 길면, ORBIT 이동 목표가 봇을 싸움터 밖으로 데려가는 것일 수 있습니다.",
                                            "Total time bots spent in each brain layer (sampled every 2 s). Little SAIN combat and much ORBIT may mean ORBIT's goals pull bots away from the arena.")
@@ -265,11 +377,11 @@
                                             }
                                         </tbody>
                                     </MudSimpleTable>
-                                </MudExpansionPanel>
+                                </div>
                             }
                             @if (m.Raid != null || b.OrbitGhostSeconds > 0f || (b.OrbitObjectiveSeconds?.Count ?? 0) > 0)
                             {
-                                <MudExpansionPanel Text="@T("ORBIT (설정 덮어쓰기 / 잠듦 / 목적지)", "ORBIT (overrides / asleep / objectives)")" Class="sain-subpanel">
+                                <div class="mb-4"><MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T("ORBIT (설정 덮어쓰기 / 잠듦 / 목적지)", "ORBIT (overrides / asleep / objectives)")</MudText>
                                     <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
                                         @T("서버가 이번 판에 ORBIT에 보낸 설정을 어떻게 바꿨는지, 봇이 ORBIT 고스트 모드로 잠든 시간, ORBIT이 봇을 어디로 보냈는지(봇 시간 합, 2초 표본). '싸움 구역 밖'이 크면 ORBIT이 봇을 우리가 만든 싸움터 밖으로 데려간 것입니다.",
                                            "How the server changed ORBIT's settings for this raid, bot time asleep in ORBIT Ghost Mode, and where ORBIT sent bots (bot time, 2 s samples). A large 'outside arena' means ORBIT walked bots out of the arena.")
@@ -292,9 +404,12 @@
                                             </tbody>
                                         </MudSimpleTable>
                                     }
-                                </MudExpansionPanel>
+                                </div>
                             }
-                            <MudExpansionPanel Text="@T("기능 점검 (README 추가한 기능·버그 수정이 이 판에서 돌았는지)", "Feature check (did each README feature / bug fix run here)")" Class="sain-subpanel">
+
+                                </MudTabPanel>
+                                <MudTabPanel Text="@T("기능 점검", "Feature check")">
+                            <div class="mb-4"><MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T("기능 점검 (README 추가한 기능·버그 수정이 이 판에서 돌았는지)", "Feature check (did each README feature / bug fix run here)")</MudText>
                                 <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
                                     @T("✅ 발동함 · ⚠️ 한 번도 안 나옴(맵 특성상 안 나올 수도 있음) · ❌ 버그 수정의 나쁜 신호 · ➖ 따로 세는 카운터 없음. 자세한 장면은 일지 태그 줄.",
                                        "✅ fired · ⚠️ never fired (may not apply on this map) · ❌ bad signal on a bug fix · ➖ no own counter. Scenes: the journal tag lines.")
@@ -306,14 +421,17 @@
                                         {
                                             var (fired, refused, bad) = SimLabFeatures.Measure(f, b);
                                             string state = f.Fired.Length == 0 ? "➖" : bad > 0 && f.Group is "fix" or "remake5" ? "❌" : fired > 0 ? "✅" : f.ZeroFine(m) ? "➖" : "⚠️";
-                                            <tr><td>@state @f.Name</td><td>@(f.Fired.Length == 0 ? "-" : fired.ToString())</td><td>@(f.Refused.Length == 0 ? "-" : refused.ToString())</td><td>@(f.Bad.Length == 0 ? "-" : bad.ToString())</td><td>@f.Journal</td></tr>
+                                            <tr><td>@state @SimLabFeatures.DisplayName(f)</td><td>@(f.Fired.Length == 0 ? "-" : fired.ToString())</td><td>@(f.Refused.Length == 0 ? "-" : refused.ToString())</td><td>@(f.Bad.Length == 0 ? "-" : bad.ToString())</td><td>@f.Journal</td></tr>
                                         }
                                     </tbody>
                                 </MudSimpleTable>
-                            </MudExpansionPanel>
+                            </div>
+
+                                </MudTabPanel>
+                                <MudTabPanel Text="@T("기타", "More")">
                             @if (b.CombatSamples > 0)
                             {
-                                <MudExpansionPanel Text="@T($"벽 보기 {(float)b.WallStareSamples / Math.Max(1, b.CombatSamples):P0} (전투 중)", $"Wall stare {(float)b.WallStareSamples / Math.Max(1, b.CombatSamples):P0} (in combat)")" Class="sain-subpanel">
+                                <div class="mb-4"><MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T($"벽 보기 {(float)b.WallStareSamples / Math.Max(1, b.CombatSamples):P0} (전투 중)", $"Wall stare {(float)b.WallStareSamples / Math.Max(1, b.CombatSamples):P0} (in combat)")</MudText>
                                     <MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
                                         @T($"SAIN 전투 중인 봇의 눈 바로 앞 1m에 벽이 있던 비율 (표본 {b.CombatSamples}개 중 {b.WallStareSamples}). 그중 목표 적 방향(30° 안)으로 벽 너머를 보고 있던 것 {b.WallStareTowardEnemy}. 피킹 자리를 못 찾고 적 방향만 보고 있으면 이 수가 큽니다.",
                                            $"Share of SAIN-combat samples with a wall within 1 m in front of the eyes ({b.WallStareSamples} of {b.CombatSamples}); {b.WallStareTowardEnemy} of them toward the goal enemy (through the wall).")
@@ -327,17 +445,17 @@
                                             }
                                         </tbody>
                                     </MudSimpleTable>
-                                </MudExpansionPanel>
+                                </div>
                             }
                             @if (b.SpawnedRoles?.Count > 0)
                             {
-                                <MudExpansionPanel Text="@T("등장한 봇 역할", "Bot roles seen")" Class="sain-subpanel">
+                                <div class="mb-4"><MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T("등장한 봇 역할", "Bot roles seen")</MudText>
                                     @string.Join(", ", b.SpawnedRoles.Select(kv => $"{kv.Key} ×{kv.Value}"))
-                                </MudExpansionPanel>
+                                </div>
                             }
                             @if (m.Samples.Count > 0)
                             {
-                                <MudExpansionPanel Text="@T($"시간대별 기록 {m.Samples.Count}개", $"{m.Samples.Count} timeline samples")" Class="sain-subpanel">
+                                <div class="mb-4"><MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T($"시간대별 기록 {m.Samples.Count}개", $"{m.Samples.Count} timeline samples")</MudText>
                                     <MudSimpleTable Dense="true">
                                         <thead><tr><th>@T("t(분)", "t (min)")</th><th>@T("생존 봇", "Alive")</th><th>@T("누적 사망", "Deaths")</th><th>fps</th><th>@T("메모리 MB", "Memory MB")</th><th>@T("누적 오류", "Errors")</th></tr></thead>
                                         <tbody>
@@ -347,21 +465,24 @@
                                             }
                                         </tbody>
                                     </MudSimpleTable>
-                                </MudExpansionPanel>
+                                </div>
                             }
                             @if (b.Notes?.Count > 0)
                             {
-                                <MudExpansionPanel Text="@T("메모", "Notes")" Class="sain-subpanel">
+                                <div class="mb-4"><MudText Typo="Typo.subtitle2" Class="spt-title mb-1">@T("메모", "Notes")</MudText>
                                     @foreach (string n in b.Notes)
                                     {
                                         <MudText Typo="Typo.body2">• @n</MudText>
                                     }
-                                </MudExpansionPanel>
+                                </div>
                             }
-                        </MudExpansionPanels>
-                    }
-                </MudPaper>
-            }
+
+                                </MudTabPanel>
+                            }
+                        </MudTabs>
+                    </MudPaper>
+                }
+            </div>
         }
     </MudContainer>
 </div>
@@ -374,6 +495,36 @@
     private string? _summaryPath;
     private System.Threading.Timer? _timer;
     private bool _showBulk;
+    private int _mapIndex = -1;
+    private string? _menu;
+
+    private void ToggleMenu(string name)
+    {
+        _menu = _menu == name ? null : name;
+    }
+
+    /// <summary>The map shown on the right: the clicked one, else the running one, else the last.</summary>
+    private SimMapRecord? SelectedMap()
+    {
+        if (_run == null || _run.Maps.Count == 0)
+        {
+            return null;
+        }
+        return _run.Maps.FirstOrDefault(x => x.Index == _mapIndex)
+            ?? _run.Maps.LastOrDefault(x => x.Status == "running")
+            ?? _run.Maps[^1];
+    }
+
+    private static string StatusTag(string status)
+    {
+        return status switch
+        {
+            "done" => "sain-tag-g",
+            "running" => "sain-tag-b",
+            "interrupted" => "sain-tag-r",
+            _ => "sain-tag-y",
+        };
+    }
     private bool _confirmBulk;
     private bool _delServer = true;
     private bool _delPc = true;
@@ -427,6 +578,7 @@
     {
         _runId = runId;
         _summary = null;
+        _mapIndex = -1;
         _run = _runs.FirstOrDefault(r => r.RunId == runId);
     }
 

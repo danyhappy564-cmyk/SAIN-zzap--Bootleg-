@@ -6,7 +6,7 @@ zzap fork: builds the difficulty / low-spec variants of the bundled "zzap" prese
 
 Reads SAINServerMod/Presets/zzap.json (TwitchPlayers hardcore aim/shoot values + zzap tactics) and writes
   zzap 쉬움.json            - SAIN "easy" tuning on top of zzap (same tactics, much weaker aim/sight/hearing)
-  zzap 보통.json            - SAIN "normal"-like tuning on top of zzap
+  zzap 보통.json            - halfway between easy and zzap
   zzap 저사양 [테스트].json  - zzap 보통 + performance settings (performance mode, AI-vs-AI limits)
 The tuning mirrors SAINServerMod/Extensions/PresetTunerExtensions.cs (ApplyEasy / ApplyNormal) but scales zzap's own
 per-bot values (zzap fires 3x faster than SAIN defaults, aims in 0.3s), so easy/normal stay in the same order relative
@@ -26,9 +26,11 @@ LEVELS = {
         base="easy", recoil=3.0, scatter=2.0, precision=0.33, accuracy=2.0, visible=0.5, gain=0.33, hearing=0.4,
         modifier=0.5, angle=120.0, firerate=0.3, burst=0.3, aim_min=2.0, upgrade_min=0.4, strafe_max=0.6, mistakes=2.0,
     ),
+    # normal (2026-10-18, user picked "B"): a true middle between easy and zzap. It used to be SAIN's own "normal"
+    # (recoil 1.6 = 16x zzap, aim 1.0s, sight 1.0), which made the gap to zzap much bigger than the gap to easy.
     "normal": dict(
-        base="lesshard", recoil=1.6, scatter=1.0, precision=0.75, accuracy=1.0, visible=1.0, gain=0.75, hearing=0.75,
-        modifier=0.85, angle=150.0, firerate=0.6, burst=0.6, aim_min=1.0, upgrade_min=0.3, strafe_max=0.8, mistakes=1.5,
+        base="lesshard", recoil=0.8, scatter=1.0, precision=0.85, accuracy=1.0, visible=1.4, gain=0.85, hearing=0.85,
+        modifier=0.9, angle=160.0, firerate=0.75, burst=0.75, aim_min=0.6, upgrade_min=0.3, strafe_max=0.9, mistakes=1.25,
     ),
 }
 
@@ -137,11 +139,12 @@ def main():
           "청각 약함, 시야각 120°, 연사 느림, 조준 최소 2초, 사람 같은 실수 2배. 문 전술 ×0.5(봇 문 박치기: 방 진입 25%·도망 40%·돌격 35%·수색 25%·그 밖의 전투 이동 15%), 페이크·미끼·코너 흔들기 크게 줄임, 분대 일제 돌격 없음, 수류탄 30m까지, 스텝 중 쏠 때 멈추기 없음.")
     normal = tune(zzap, "normal")
     write(normal, "zzap 보통",
-          "zzap 난이도 2/3 (보통). " + tactics + " 원본 SAIN '보통' 보정: 반동·탄 퍼짐 중간, 시야 거리 SAIN 기본(zzap의 절반), 발견·청각 약간 약함, "
-          "시야각 150°, 연사 중간, 조준 최소 1초, 사람 같은 실수 1.5배. 문 전술 ×0.75(봇 문 박치기: 방 진입 35%·도망 55%·돌격 50%·수색 35%·그 밖의 전투 이동 25%), 페이크·미끼·코너 흔들기 조금 줄임, 수류탄 38m까지, 스텝 중 쏠 때 멈추기는 12m 이상에서만.")
+          "zzap 난이도 2/3 (보통). " + tactics + " 쉬움과 zzap의 중간: 반동 zzap의 8배(쉬움 30배), 시야 거리 SAIN 기본의 1.4배(zzap의 70%), 발견·청각 약간 약함, "
+          "시야각 160°, 연사 zzap의 75%, PMC 조준 최소 0.6초(zzap 0.3초), 사람 같은 실수 1.25배. 문 전술 ×0.75(봇 문 박치기: 방 진입 35%·도망 55%·돌격 50%·수색 35%·그 밖의 전투 이동 25%), 페이크·미끼·코너 흔들기 조금 줄임, 수류탄 38m까지, 스텝 중 쏠 때 멈추기는 12m 이상에서만.")
     write(lowspec(normal), "zzap 저사양 [테스트]",
           "[테스트] 저사양 PC용. zzap 보통 + 성능 설정(성능 모드 켬, 멀리 있는 봇끼리의 업데이트·시야·청각 제한 켬, 조준선 자리 찾기 범위 축소). "
-          "프레임은 조금 나아질 수 있지만, 멀리서 벌어지는 봇끼리의 싸움은 덜 정교해질 수 있음. 의도한 전투 경험과 다를 수 있는 시험용.")
+          "프레임은 조금 나아질 수 있지만, 멀리서 벌어지는 봇끼리의 싸움은 덜 정교해질 수 있음. 의도한 전투 경험과 다를 수 있는 시험용. "
+          "같은 설정을 다른 난이도에 쓰려면 웹 프리셋 화면 '빠른 설정 › 저사양 PC' 스위치.")
 
     # The door check is no longer an F6 preset (user 2026-10-13: "I meant a preset at the sim stage"): sim preset
     # "문 전술·박치기 점검" + the sim page's door check switch (SimLabDefaults / SimLabZzapCheck.ApplyDoorTest).

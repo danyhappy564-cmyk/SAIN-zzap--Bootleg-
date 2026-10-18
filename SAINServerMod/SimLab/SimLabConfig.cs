@@ -148,6 +148,9 @@ public sealed class SimPreset
     public string Name = string.Empty;
     /// <summary>What a run with this preset is for (shown under the picker and in the analysis).</summary>
     public string Purpose = string.Empty;
+    /// <summary>English name / purpose for the web page's English mode (built-ins only; Name stays the key).</summary>
+    public string NameEn = string.Empty;
+    public string PurposeEn = string.Empty;
     public bool BuiltIn;
     public List<SimMapEntry> Rotation = [];
     public int MaxAliveBots = 12;

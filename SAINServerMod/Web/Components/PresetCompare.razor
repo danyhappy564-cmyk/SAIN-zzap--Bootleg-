@@ -1,0 +1,61 @@
+@namespace SAINServerMod.Web.Components
+
+@* zzap fork (2026-10-18): the quick values side by side for the bundled zzap presets and the one being edited. *@
+<MudText Typo="Typo.caption" Class="spt-muted d-block mb-2">
+    @T("빠른 설정 항목을 zzap 기본 프리셋끼리 나란히 봅니다. 파란 열 = 지금 편집 중인 프리셋(저장 안 한 변경 포함).",
+       "The quick values of the bundled zzap presets side by side. Blue column = the preset being edited (unsaved changes included).")
+</MudText>
+<div class="sain-table-wrap">
+    <table class="sain-compare">
+        <thead>
+            <tr>
+                <th>@T("항목", "Setting")</th>
+                <th class="sain-compare-me">@T("편집 중", "Editing")<br /><span class="spt-muted">@CurrentName</span></th>
+                @foreach (var col in Columns)
+                {
+                    <th>@col.Name</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                var me = SainPresetEditService.View(Bundle);
+                var views = Columns.Select(c => SainPresetEditService.View(c.Bundle)).ToList();
+            }
+            @foreach (var q in QuickSettings.All)
+            {
+                <tr>
+                    <td>@q.Name(Korean)</td>
+                    <td class="sain-compare-me">@Show(q, q.Get(me))</td>
+                    @foreach (var v in views)
+                    {
+                        <td>@Show(q, q.Get(v))</td>
+                    }
+                </tr>
+            }
+            <tr>
+                <td>@T("저사양 설정", "Low-spec settings")</td>
+                <td class="sain-compare-me">@QuickSettings.LowSpecCount(me)/@QuickSettings.LowSpec.Length</td>
+                @foreach (var v in views)
+                {
+                    <td>@QuickSettings.LowSpecCount(v)/@QuickSettings.LowSpec.Length</td>
+                }
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public SAINPresetBundle Bundle { get; set; } = default!;
+    [Parameter] public string CurrentName { get; set; } = string.Empty;
+    [Parameter] public IReadOnlyList<(string Name, SAINPresetBundle Bundle)> Columns { get; set; } = Array.Empty<(string, SAINPresetBundle)>();
+
+    private static string Show(QuickSetting q, float value)
+    {
+        if (q.Kind == QuickKind.Toggle)
+        {
+            return value >= 0.5f ? T("켬", "On") : T("끔", "Off");
+        }
+        return Math.Round(value, 2).ToString("0.##");
+    }
+}
