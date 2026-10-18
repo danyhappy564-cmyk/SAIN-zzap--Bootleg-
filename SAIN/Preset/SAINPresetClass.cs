@@ -1,4 +1,5 @@
 using System;
+using EFT.Communications;
 using SAIN.Extensions;
 using SAIN.Plugin;
 using SAIN.Preset.BotSettings;
@@ -99,11 +100,23 @@ public class SAINPresetClass
 
         ConfigEditingTracker.Clear();
 
-        if (preset.Info.IsCustom == false)
+        // zzap (user 2026-10-18 "make a copy"): a bundled zzap preset saves as "name [Modified]" like SAIN's defaults do - a mod
+        // update replaces the bundled files and used to wipe the player's changes. Not while the server forces that preset: the
+        // forced name is what loads next time, so the edits have to stay in it.
+        bool bundledZzap = preset.Info.IsCustom && QuickSettings.FindZzap(preset.Info.Name) != null && !ServerConfigClient.ForcedActive;
+
+        if (preset.Info.IsCustom == false || bundledZzap)
         {
             SAINPresetDefinition newPreset = preset.Info.Clone();
 
-            newPreset.Name += " [Modified]";
+            if (bundledZzap)
+            {
+                newPreset.Name = QuickSettings.ModifiedCopyName(preset.Info.Name, name => PresetSync.TryGetCustomBundle(name, out _));
+            }
+            else
+            {
+                newPreset.Name += " [Modified]";
+            }
             newPreset.Creator = "user";
             newPreset.Description = "[Modified] " + newPreset.Description;
             newPreset.DateCreated = DateTime.Today.ToString();
@@ -111,11 +124,30 @@ public class SAINPresetClass
             PresetHandler.SavePresetDefinition(newPreset);
             PresetHandler.InitPresetFromDefinition(newPreset, true);
             PresetHandler.UpdateExistingBots();
+            if (bundledZzap)
+            {
+                Logger.LogInfo($"[SAIN] Bundled preset '{preset.Info.Name}' kept as shipped - your changes were saved as '{newPreset.Name}'.");
+                NotifyCopy(string.Format(
+                    SAIN.Editor.EditorText.Korean ? "'{0}'은(는) 그대로 두고 '{1}'(으)로 저장했습니다." : "'{0}' left as shipped - saved as '{1}'.",
+                    preset.Info.Name, newPreset.Name));
+            }
             return;
         }
 
         PresetSync.PushCustomPreset(preset);
         PresetHandler.UpdateExistingBots();
+    }
+
+    private static void NotifyCopy(string message)
+    {
+        try
+        {
+            NotificationManager.DisplayMessageNotification(message, ENotificationDurationType.Long, ENotificationIconType.Default, null);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning($"[SAIN] Could not show the saved-copy message: {ex.Message}");
+        }
     }
 }
 

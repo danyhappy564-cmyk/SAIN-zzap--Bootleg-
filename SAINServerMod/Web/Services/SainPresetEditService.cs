@@ -101,6 +101,12 @@ public sealed class SainPresetEditService(
         return new OpenedPreset(deep, IsNewCustom: true, OriginalName: generated.Info.Name);
     }
 
+    /// <summary>The server's forced preset: saving it keeps the name (the forced name is what loads), even for a bundled zzap preset.</summary>
+    public bool IsForced(string name)
+    {
+        return string.Equals(serverConfig.Config.ForcedPresetName, name, StringComparison.Ordinal);
+    }
+
     public async Task SaveAsync(SAINPresetBundle bundle, string? renamedFrom = null)
     {
         bundle.Info ??= new SAINPresetDefinition();

@@ -307,7 +307,9 @@ public static class SimLabFactions
                 return string.Empty;
             }
             var files = Directory.GetFiles(presetsDir, "*.json");
-            string? test = files.FirstOrDefault(f => Path.GetFileName(f).Contains("TEST", StringComparison.Ordinal));
+            // The bundled file first: saving it from the web/F6 now makes "... [Modified].json" copies that also contain "TEST".
+            string? test = files.FirstOrDefault(f => string.Equals(Path.GetFileName(f), "zzap TEST [시뮬 전용].json", StringComparison.Ordinal))
+                ?? files.FirstOrDefault(f => Path.GetFileName(f).Contains("TEST", StringComparison.Ordinal));
             string? zzap = files.FirstOrDefault(f => string.Equals(Path.GetFileName(f), "zzap.json", StringComparison.OrdinalIgnoreCase));
             if (test == null || zzap == null)
             {

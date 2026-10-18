@@ -131,6 +131,29 @@ public static class QuickSettings
 
     public static ZzapPresetCard FindZzap(string name) => ZzapPresets.FirstOrDefault(z => z.Name == name);
 
+    /// <summary>
+    /// zzap (user 2026-10-18 "make a copy"): saving a bundled zzap preset writes "name [Modified]" instead of the file itself -
+    /// a mod update replaces the bundled files, which used to wipe the player's changes. Next free name: [Modified], [Modified 2] ... [Modified 99].
+    /// Web and F6 both use this so the copy gets the same name either way.
+    /// </summary>
+    public static string ModifiedCopyName(string name, Func<string, bool> taken)
+    {
+        string first = name + " [Modified]";
+        if (!taken(first))
+        {
+            return first;
+        }
+        for (int i = 2; i < 100; i++)
+        {
+            string next = name + $" [Modified {i}]";
+            if (!taken(next))
+            {
+                return next;
+            }
+        }
+        return name + " [Modified " + DateTime.Now.ToString("MMdd-HHmmss") + "]";
+    }
+
     public static string GroupName(string group, bool korean)
     {
         return group switch

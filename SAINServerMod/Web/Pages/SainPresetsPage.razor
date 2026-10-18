@@ -30,6 +30,10 @@
                                 {
                                     <span>@T(" (기본 프리셋 — 저장하면 편집 가능한 복사본이 만들어짐)", " (a default, saving creates an editable copy)")</span>
                                 }
+                                else if (IsZzap(_opened.OriginalName) && !Presets.IsForced(_opened.OriginalName))
+                                {
+                                    <span>@T(" (zzap 기본 프리셋 — 저장하면 '[Modified]' 복사본으로 저장, 원본은 그대로)", " (bundled zzap preset, saving makes a '[Modified]' copy and leaves the original as shipped)")</span>
+                                }
                             }
                             else
                             {
@@ -346,10 +350,42 @@
             _bundle.Info.Name = $"{_opened.OriginalName} [Modified]";
         }
 
-        var renamedFrom = _opened.IsNewCustom ? null : _opened.OriginalName;
+        // zzap (user 2026-10-18 "make a copy"): a bundled zzap preset saves as "name [Modified]" (same name F6 picks) and its file
+        // stays as shipped - a mod update replaces those files and used to wipe the changes. A renamed one is a new copy too
+        // (never delete the bundled file). The server's forced preset keeps its name: that name is what the game loads.
+        bool zzapCopy = !_opened.IsNewCustom && IsZzap(_opened.OriginalName) && !Presets.IsForced(_opened.OriginalName);
+        bool renamed = !string.Equals(_bundle.Info.Name, _opened.OriginalName, StringComparison.Ordinal);
+        if (renamed && IsZzap(_bundle.Info.Name))
+        {
+            Snackbar.Add(T("zzap 기본 프리셋 이름은 쓸 수 없습니다. 다른 이름을 넣어 주세요.", "That name belongs to a bundled zzap preset. Pick another name."), Severity.Warning);
+            return;
+        }
+        if (zzapCopy)
+        {
+            if (!renamed)
+            {
+                _bundle.Info.Name = QuickSettings.ModifiedCopyName(_opened.OriginalName, Presets.CustomExists);
+            }
+            else if (Presets.CustomExists(_bundle.Info.Name))
+            {
+                Snackbar.Add(T($"'{_bundle.Info.Name}' 이름의 사용자 프리셋이 이미 있습니다.", $"A custom preset named '{_bundle.Info.Name}' already exists."), Severity.Warning);
+                return;
+            }
+            _bundle.Info.Creator = "user";
+            _bundle.Info.DateCreated = DateTime.Today.ToString();
+            if (_bundle.Info.Description?.StartsWith("[Modified]", StringComparison.Ordinal) != true)
+            {
+                _bundle.Info.Description = "[Modified] " + _bundle.Info.Description;
+            }
+        }
+
+        var renamedFrom = _opened.IsNewCustom || zzapCopy ? null : _opened.OriginalName;
         var savedName = _bundle.Info.Name;
         await Presets.SaveAsync(_bundle, renamedFrom);
-        Snackbar.Add(T($"'{savedName}' 저장. 접속 중인 게임이 다시 불러옵니다.", $"Saved '{savedName}'. Connected game clients will reload it."), Severity.Success);
+        Snackbar.Add(zzapCopy
+            ? T($"'{_opened.OriginalName}'은(는) 그대로 두고 '{savedName}'(으)로 저장했습니다. 게임에서 쓰려면 F6에서 이 프리셋을 고르세요.",
+                $"'{_opened.OriginalName}' left as shipped - saved as '{savedName}'. Pick it in F6 to use it in game.")
+            : T($"'{savedName}' 저장. 접속 중인 게임이 다시 불러옵니다.", $"Saved '{savedName}'. Connected game clients will reload it."), Severity.Success);
 
         Reload();
         await SelectAsync(savedName); // re-open as an existing custom so further edits don't re-clone

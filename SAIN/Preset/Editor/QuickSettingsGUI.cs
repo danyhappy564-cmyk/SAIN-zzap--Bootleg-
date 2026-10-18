@@ -134,6 +134,8 @@ public static class QuickSettingsGUI
                 _muted);
             return;
         }
+        GUILayout.Label(T("고쳐서 저장하면 '이름 [Modified]' 복사본이 생기고, 원본은 그대로 남습니다(모드 업데이트 때 새 값으로 바뀜).",
+            "Saving changes makes a 'name [Modified]' copy; the original stays as shipped (mod updates refresh it)."), _muted);
 
         var customs = PresetHandler.CustomPresetOptions;
         foreach (var zzap in QuickSettings.ZzapPresets)
