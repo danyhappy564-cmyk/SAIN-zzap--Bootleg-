@@ -763,9 +763,10 @@
 .sain-qrow-reset { width: 32px; }
 .sain-qtoggle-right { display: inline-flex; align-items: center; gap: 8px; }
 .sain-qref { font-size: 0.75rem; color: #71717a; white-space: nowrap; }
-/* The difference layer sits under the slider's own (transparent) track; thumb centres run 7px in from each end. */
+/* The difference layer sits under the slider's own (transparent) track. MudBlazor's medium thumb is a 4px dot scaled 5x,
+   so thumb centres run 2px in from each end of the input (plus the 4px padding of .sain-quick-slider). */
 .sain-diffslider { position: relative; margin: 2px 0 0; }
-.sain-dl { position: absolute; left: 11px; right: 11px; top: 50%; height: 0; pointer-events: none; z-index: 0; }
+.sain-dl { position: absolute; left: 6px; right: 6px; top: 50%; height: 0; pointer-events: none; z-index: 0; }
 .sain-dl .t { position: absolute; left: 0; right: 0; top: -2px; height: 4px; border-radius: 2px; background: #2e2e36; }
 .sain-dl .b { position: absolute; left: 0; top: -2px; height: 4px; border-radius: 2px; background: #8b8fa3; }
 .sain-dl .d { position: absolute; top: -3px; height: 6px; border-radius: 1px; }
@@ -776,8 +777,9 @@
 .sain-diffslider .mud-slider .mud-slider-filled { display: none !important; }
 .sain-diffslider .mud-slider .mud-slider-input::-webkit-slider-runnable-track { background-color: transparent !important; }
 .sain-diffslider .mud-slider .mud-slider-input::-moz-range-track { background-color: transparent !important; }
-.sain-diffslider .mud-slider .mud-slider-input::-webkit-slider-thumb { background-color: #0e0e11 !important; border: 2px solid #fff !important; height: 16px; width: 16px; margin-top: -7px; }
-.sain-diffslider .mud-slider .mud-slider-input::-moz-range-thumb { background-color: #0e0e11 !important; border: 2px solid #fff !important; height: 12px; width: 12px; }
+/* Keep Mud's size and 5x scale; only colour it (a 0.4px border becomes a 2px white ring after the scale). */
+.sain-diffslider .mud-slider .mud-slider-input::-webkit-slider-thumb { background-color: #0e0e11 !important; border: 0.4px solid #fff !important; box-sizing: border-box; box-shadow: none !important; }
+.sain-diffslider .mud-slider .mud-slider-input::-moz-range-thumb { background-color: #0e0e11 !important; border: 0.4px solid #fff !important; box-sizing: border-box; box-shadow: none !important; }
 
 /* Tables (compare, changed values, sim rotation, analysis) */
 .sain-table-wrap { width: 100%; overflow-x: auto; }
