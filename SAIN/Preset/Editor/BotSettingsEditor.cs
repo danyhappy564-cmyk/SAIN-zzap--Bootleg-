@@ -15,57 +15,14 @@ public static class BotSettingsEditor
 {
     private static readonly StringBuilder _stringBuilder = new();
 
+    // zzap fork (2026-10-18, mockup 5): left panel = search box + group list, right panel = the picked group (or the search hits).
+    // Save lives in the header now, so the old top row (name box, search label, red "unsaved" bar, second Save button) is gone.
     public static void ShowAllSettingsGUI(object settings, out bool wasEdited, string name, string savePath, float height, out bool Saved)
     {
-        BeginHorizontal();
-
-        Box(EditorText.UI(name), Height(height));
-
-        Space(10);
-
-        Label(EditorText.UI("Search"), Width(125f), Height(height));
-
+        Saved = false;
+        ZzapUI.EnsureStyles();
         var container = SettingsContainers.GetContainer(settings.GetType(), name);
-        container.SearchPattern = TextField(container.SearchPattern, null, Width(250), Height(height));
-
-        if (Button(EditorText.UI("Clear"), EUISoundType.MenuContextMenu, Width(80), Height(height)))
-        {
-            container.SearchPattern = string.Empty;
-        }
-
-        Space(10);
-
-        if (ConfigEditingTracker.UnsavedChanges)
-        {
-            BuilderClass.Alert(
-                EditorText.UI("Click Save to export changes, and send changes to bots if in-game"),
-                EditorText.UI("YOU HAVE UNSAVED CHANGES!"),
-                height,
-                ColorNames.DarkRed
-            );
-        }
-        else
-        {
-            BuilderClass.Alert(null, null, height, null);
-        }
-
-        Saved = Button(EditorText.UI("Save and Export"), ConfigEditingTracker.GetUnsavedValuesString(), EUISoundType.InsuranceInsured, Height(height));
-
-        EndHorizontal();
-
-        // zzap fork (2026-10-18, mockup 5): without a search, a group list on the left and only the picked group on the right
-        // (the old page unfolded every group into one long list). A search still lists every match, as before.
-        if (string.IsNullOrEmpty(container.SearchPattern))
-        {
-            GroupedView(container, settings, out wasEdited);
-            return;
-        }
-
-        container.Scroll = BeginScrollView(container.Scroll);
-
-        CategoryOpenable(container.Categories, settings, out wasEdited, container.SearchPattern);
-
-        EndScrollView();
+        GroupedView(container, settings, out wasEdited);
     }
 
     private sealed class GroupEntry
@@ -123,6 +80,8 @@ public static class BotSettingsEditor
         return list;
     }
 
+    private static readonly Dictionary<SettingsContainer, UnityEngine.Vector2> _listScroll = new();
+
     private static void GroupedView(SettingsContainer container, object settings, out bool wasEdited)
     {
         wasEdited = false;
@@ -134,59 +93,76 @@ public static class BotSettingsEditor
         if (!_selectedGroup.TryGetValue(container, out string selectedKey) || groups.All(g => g.Key != selectedKey))
         {
             selectedKey = groups[0].Key;
+            _selectedGroup[container] = selectedKey;
         }
+        // What the right panel shows is decided before this frame's clicks/typing (they apply next frame, see ZzapUI.Defer).
+        string search = container.SearchPattern ?? string.Empty;
+        bool searching = search.Length > 0;
 
         BeginHorizontal();
 
-        BeginVertical();
-        Label(EditorText.UI("Groups"), Width(280f), Height(24f));
+        GUILayout.BeginVertical(ZzapUI.Panel1, Width(ZzapUI.SIDE_WIDTH), Height(ZzapUI.PANEL_HEIGHT));
+        container.SearchPattern = ZzapUI.Search(container.SearchPattern, EditorText.UI("Search settings (Korean or English)"));
+        Space(8f);
+        _listScroll.TryGetValue(container, out var listScroll);
+        _listScroll[container] = BeginScrollView(listScroll, GUILayout.ExpandHeight(true));
         foreach (var group in groups)
         {
             if (group.SubInfo != null && group.SubInfo.DoNotShowGUI)
             {
                 continue;
             }
-            string name = group.SubInfo != null ? "    " + group.SubInfo.Name : group.Category.CategoryInfo.Name;
-            bool selected = group.Key == selectedKey;
-            bool picked = Toggle(selected, new GUIContent($"{name}  ({group.Count})", group.SubInfo?.Description ?? group.Category.CategoryInfo.Description),
-                EUISoundType.MenuDropdown, Width(280f), Height(26f));
-            if (picked && !selected)
+            string label = group.SubInfo != null ? group.SubInfo.Name : group.Category.CategoryInfo.Name;
+            string tip = group.SubInfo?.Description ?? group.Category.CategoryInfo.Description;
+            bool selected = !searching && group.Key == selectedKey;
+            if (ZzapUI.ListItem(label, group.Count.ToString(), selected, tip, group.Depth * 16f, 30f))
             {
-                selectedKey = group.Key;
+                string key = group.Key;
+                ZzapUI.Defer(() =>
+                {
+                    _selectedGroup[container] = key;
+                    container.SearchPattern = string.Empty;
+                    container.Scroll = UnityEngine.Vector2.zero;
+                });
             }
         }
-        EndVertical();
+        EndScrollView();
+        GUILayout.EndVertical();
 
         Space(12f);
 
-        BeginVertical();
-        var current = groups.First(g => g.Key == selectedKey);
-        string title = current.SubInfo != null ? $"{current.Category.CategoryInfo.Name} › {current.SubInfo.Name}" : current.Category.CategoryInfo.Name;
-        Box(title, current.SubInfo?.Description ?? current.Category.CategoryInfo.Description, Height(30f));
-        container.Scroll = BeginScrollView(container.Scroll);
-        object categoryObject = current.Category.GetValue(settings);
-        if (current.SubField != null)
+        GUILayout.BeginVertical(ZzapUI.Panel1, Height(ZzapUI.PANEL_HEIGHT), GUILayout.ExpandWidth(true));
+        if (searching)
         {
-            object subObject = current.SubField.GetValue(categoryObject);
-            if (subObject != null)
-            {
-                AttributesGUI.EditAllValuesInObj(subObject, out wasEdited);
-            }
+            ZzapUI.PanelHeading(string.Format(EditorText.UI("Search: '{0}'"), search), EditorText.UI("Every setting whose name or description matches. Clear the box to go back to the groups."));
+            container.Scroll = BeginScrollView(container.Scroll, GUILayout.ExpandHeight(true));
+            CategoryOpenable(container.Categories, settings, out wasEdited, search.ToLowerInvariant());
+            EndScrollView();
         }
         else
         {
-            AttributesGUI.EditAllValuesInObj(current.Category, categoryObject, out wasEdited);
+            var current = groups.First(g => g.Key == selectedKey);
+            string title = current.SubInfo != null ? $"{current.Category.CategoryInfo.Name} › {current.SubInfo.Name}" : current.Category.CategoryInfo.Name;
+            ZzapUI.PanelHeading(title, current.SubInfo?.Description ?? current.Category.CategoryInfo.Description);
+            container.Scroll = BeginScrollView(container.Scroll, GUILayout.ExpandHeight(true));
+            object categoryObject = current.Category.GetValue(settings);
+            if (current.SubField != null)
+            {
+                object subObject = current.SubField.GetValue(categoryObject);
+                if (subObject != null)
+                {
+                    AttributesGUI.EditAllValuesInObj(subObject, out wasEdited);
+                }
+            }
+            else
+            {
+                AttributesGUI.EditAllValuesInObj(current.Category, categoryObject, out wasEdited);
+            }
+            EndScrollView();
         }
-        EndScrollView();
-        EndVertical();
+        GUILayout.EndVertical();
 
         EndHorizontal();
-
-        if (_selectedGroup.TryGetValue(container, out string old) && old != selectedKey)
-        {
-            container.Scroll = UnityEngine.Vector2.zero;
-        }
-        _selectedGroup[container] = selectedKey;
     }
 
     public static bool CheckIfOpen(SettingsContainer container, float height = 30f)
@@ -216,6 +192,11 @@ public static class BotSettingsEditor
             {
                 continue;
             }
+            // zzap fork: while searching, skip groups with no hit (they used to show as empty headings).
+            if (!string.IsNullOrEmpty(search) && categoryClass.FieldAttributesList.All(f => f.DoNotShowGUI || AttributesGUI.SkipForSearch(f, search)))
+            {
+                continue;
+            }
 
             var attributes = categoryClass.CategoryInfo;
             object categoryObject = categoryClass.GetValue(settingsObject);
@@ -235,7 +216,7 @@ public static class BotSettingsEditor
             }
             else
             {
-                Box(attributes.Name, attributes.Description, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
+                Label(new GUIContent(attributes.Name, attributes.Description), ZzapUI.Section, Height(24f));
             }
 
             EndHorizontal(30);

@@ -28,21 +28,26 @@ public static class RectLayout
 
     public static Rect MainWindow = new(0, 0, 1920, 1080);
 
-    private const float RectHeight = 30f;
-    private const float ExitWidth = 30f;
-    private const float SaveAllWidth = 175f;
-    private const float AdvWidth = 225f;
-    private const float LangWidth = 90f;
+    // zzap fork (2026-10-18, mockup 5): a taller header, the buttons inset from the edges with gaps, a wide yellow Save button.
+    private const float RectHeight = 44f;
+    private const float ButtonHeight = 32f;
+    private const float ButtonY = (RectHeight - ButtonHeight) / 2f;
+    private const float Gap = 8f;
+    private const float ExitWidth = 40f;
+    private const float SaveAllWidth = 260f;
+    private const float AdvWidth = 170f;
+    private const float LangWidth = 84f;
 
-    private static readonly float ExitStartX = MainWindow.width - ExitWidth;
-    private static readonly float SaveAllStartX = ExitStartX - SaveAllWidth - 5;
-    private static readonly float AdvRectStartX = SaveAllStartX - AdvWidth - 5;
-    private static readonly float LangRectStartX = AdvRectStartX - LangWidth - 5;
-    private static readonly float DragWidth = LangRectStartX - 5;
+    private static readonly float ExitStartX = MainWindow.width - ExitWidth - 12f;
+    private static readonly float SaveAllStartX = ExitStartX - SaveAllWidth - Gap;
+    private static readonly float AdvRectStartX = SaveAllStartX - AdvWidth - Gap;
+    private static readonly float LangRectStartX = AdvRectStartX - LangWidth - Gap;
+    private static readonly float DragWidth = LangRectStartX - Gap;
 
-    public static Rect ExitRect = new(ExitStartX, 0, ExitWidth, RectHeight);
+    public static Rect ExitRect = new(ExitStartX, ButtonY, ExitWidth, ButtonHeight);
     public static Rect DragRect = new(0, 0, DragWidth, RectHeight);
-    public static Rect SaveAllRect = new(SaveAllStartX, 0, SaveAllWidth, RectHeight);
-    public static Rect AdvRect = new(AdvRectStartX, 0, AdvWidth, RectHeight);
-    public static Rect LangRect = new(LangRectStartX, 0, LangWidth, RectHeight);
+    public static Rect SaveAllRect = new(SaveAllStartX, ButtonY, SaveAllWidth, ButtonHeight);
+    public static Rect AdvRect = new(AdvRectStartX, ButtonY, AdvWidth, ButtonHeight);
+    public static Rect LangRect = new(LangRectStartX, ButtonY, LangWidth, ButtonHeight);
+    public static Rect HeaderRect = new(0, 0, MainWindow.width, RectHeight);
 }

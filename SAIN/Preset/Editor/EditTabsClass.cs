@@ -63,16 +63,20 @@ internal class EditTabsClass
         TabTooltips = tooltips.ToArray();
     }
 
-    private const float TabMenuHeight = 60f;
-    private const float TabMenuVerticalMargin = 2f;
+    private const float TabMenuHeight = 42f;
 
+    // zzap fork (2026-10-18, mockup 5): flat tabs sized to their text, the selected one in yellow with a yellow underline
+    // (was equal-width red blocks that grew on hover). A click switches on the next layout pass, so the old tab and the new
+    // one never mix in one frame (IMGUI complains when a frame's controls change between its layout and draw passes).
     public static EEditorTab TabSelectMenu(float minHeight = 30, float speed = 3, float closeSpeedMulti = 0.66f)
     {
-        if (TabMenuRect == null || TabRects == null)
+        ZzapUI.EnsureStyles();
+        if (_pendingTab.HasValue && Event.current.type == EventType.Layout)
         {
-            TabMenuRect = new Rect(0, ExitRect.height + TabMenuVerticalMargin, MainWindow.width, TabMenuHeight);
-            TabRects = BuilderClass.HorizontalGridRects(TabMenuRect, Tabs.Length, minHeight);
+            SelectedTab = _pendingTab.Value;
+            _pendingTab = null;
         }
+        TabMenuRect = new Rect(0, HeaderRect.height, MainWindow.width, TabMenuHeight);
 
         // zzap fork: tab names/tooltips go through EditorText so the Korean/English switch applies right away.
         bool korean = EditorText.Korean;
@@ -88,32 +92,51 @@ internal class EditTabsClass
             }
         }
 
-        string openTabString = BuilderClass.SelectionGridExpandHeight(
-            TabMenuRect,
-            _localizedTabs,
-            EditorText.UI(TabClasses[SelectedTab].Name),
-            TabRects,
-            minHeight,
-            speed,
-            closeSpeedMulti,
-            _localizedTooltips
-        );
+        bool repaint = Event.current.type == EventType.Repaint;
+        if (repaint)
+        {
+            ZzapUI.Fill(TabMenuRect, ZzapUI.Bg);
+            ZzapUI.Fill(new Rect(TabMenuRect.x, TabMenuRect.yMax - 1f, TabMenuRect.width, 1f), ZzapUI.Line);
+        }
 
+        float x = 16f;
+        int index = 0;
         foreach (var tab in TabClasses)
         {
-            if (EditorText.UI(tab.Value.Name) == openTabString)
+            bool selected = tab.Key == SelectedTab;
+            var style = selected ? ZzapUI.TabTextSelected : ZzapUI.TabText;
+            var label = new GUIContent(_localizedTabs[index]);
+            float width = style.CalcSize(label).x + 40f;
+            var rect = new Rect(x, TabMenuRect.y, width, TabMenuRect.height);
+            if (repaint)
             {
-                SelectedTab = tab.Key;
+                if (selected)
+                {
+                    ZzapUI.Fill(rect, ZzapUI.Panel);
+                    ZzapUI.Fill(new Rect(rect.x, rect.yMax - 3f, rect.width, 3f), ZzapUI.Yellow);
+                }
+                else if (rect.Contains(Event.current.mousePosition))
+                {
+                    ZzapUI.Fill(rect, ZzapUI.PanelHover);
+                }
             }
+            GUI.Label(rect, label, style);
+            if (GUI.Button(rect, new GUIContent(string.Empty, _localizedTooltips[index]), GUIStyle.none) && !selected)
+            {
+                Sounds.PlaySound(EFT.UI.EUISoundType.ButtonClick);
+                _pendingTab = tab.Key;
+            }
+            x += width + 2f;
+            index++;
         }
         return SelectedTab;
     }
 
-    private static Rect[] TabRects;
+    private static EEditorTab? _pendingTab;
     private static string[] _localizedTabs;
     private static string[] _localizedTooltips;
     private static bool _localizedFor;
-    public static Rect TabMenuRect;
+    public static Rect TabMenuRect = new(0, 44f, 1920f, TabMenuHeight);
 
     public static void BeginScrollView()
     {

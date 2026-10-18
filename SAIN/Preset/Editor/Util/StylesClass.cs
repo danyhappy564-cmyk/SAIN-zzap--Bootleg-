@@ -194,76 +194,48 @@ public static class StylesClass
             fontStyle = FontStyle.Bold,
         };
 
-        Texture2D TexMidGray = TexturesClass.GetTexture(EGraynessLevel.Mid);
-        Texture2D TexDarkGray = TexturesClass.GetTexture(EGraynessLevel.Dark);
-        Texture2D TexVeryDarkGray = TexturesClass.GetTexture(EGraynessLevel.VeryDark);
-        Texture2D TexMidRed = TexturesClass.GetTexture(ColorNames.MidRed);
-        Texture2D TexDarkRed = TexturesClass.GetTexture(ColorNames.DarkRed);
+        // zzap fork (2026-10-18, mockup 5): dark panels, yellow tint + yellow text for "selected", grey controls - no more red
+        // blocks (user after the first in-game test: "nothing like the mockup outside Quick settings").
+        Texture2D texControl = ZzapUI.Tex(ZzapUI.Control);
+        Texture2D texControlHover = ZzapUI.Tex(ZzapUI.ControlHover);
+        Texture2D texSelected = ZzapUI.Tex(ZzapUI.YellowTint);
+        Texture2D texPanel = ZzapUI.Tex(ZzapUI.Panel);
+        Texture2D texPanelHover = ZzapUI.Tex(ZzapUI.PanelHover);
+        Texture2D texField = ZzapUI.Tex(ZzapUI.Field);
+        Texture2D texWindow = ZzapUI.Tex(ZzapUI.Bg);
+        Texture2D texTrack = ZzapUI.Tex(ZzapUI.Track);
 
-        Color ColorGold = ColorsClass.GetColor(ColorNames.Gold);
-        Color fadedWhite = new(0.9f, 0.9f, 0.9f, 0.9f);
+        Color text = ZzapUI.Text;
+        Color selectedText = ZzapUI.Yellow;
 
-        TextColorAllStates(
-            fadedWhite,
-            ColorGold,
-            WindowStyle,
-            ListStyle,
-            ButtonStyle,
-            ToggleStyle,
-            TextFieldStyle,
-            TextAreaStyle,
-            AlertStyle
-        );
+        TextColorAllStates(text, selectedText, WindowStyle, ListStyle, ButtonStyle, ToggleStyle, TextFieldStyle, TextAreaStyle);
+        TextColorHover(Color.white, selectedText, ListStyle, ButtonStyle, ToggleStyle);
+        TextColorHover(Color.white, TextFieldStyle, TextAreaStyle, WindowStyle);
 
-        TextColorHover(Color.white, WindowStyle, ListStyle, ButtonStyle, ToggleStyle, TextFieldStyle, TextAreaStyle, AlertStyle);
+        TextColorAllStates(selectedText, AlertStyle);
+        BackgroundAllStates(texSelected, AlertStyle);
 
-        BackgroundAllStates(null, BlankBackgroundStyle);
-
-        TextColorAllStates(fadedWhite, BlankBackgroundStyle, ToolTipStyle, BoxStyle, LabelStyle);
-
+        BackgroundAllStates(null, BlankBackgroundStyle, LabelStyle);
+        TextColorAllStates(text, BlankBackgroundStyle, ToolTipStyle, BoxStyle, LabelStyle);
         TextColorHover(Color.white, BlankBackgroundStyle, ToolTipStyle, BoxStyle, LabelStyle);
 
-        BackgroundAllStates(TexMidRed, AlertStyle);
+        GUIStyle[] ToggleStyles = [ToggleStyle, ButtonStyle, ListStyle];
+        BackgroundNormal(texControl, texSelected, ToggleStyles);
+        BackgroundActive(texControlHover, texSelected, ToggleStyles);
+        BackgroundHover(texControlHover, texSelected, ToggleStyles);
+        BackgroundFocused(texControl, texSelected, ToggleStyles);
 
-        BackgroundAllStates(TexMidGray, TexDarkRed, ListStyle);
-
-        GUIStyle[] ToggleStyles = [ToggleStyle, ButtonStyle];
-
-        BackgroundNormal(TexMidGray, TexDarkRed, ToggleStyles);
-
-        BackgroundActive(TexMidRed, TexDarkRed, ToggleStyles);
-
-        BackgroundHover(TexMidRed, TexDarkRed, ToggleStyles);
-
-        BackgroundFocused(TexMidRed, TexDarkRed, ToggleStyles);
-
-        BackgroundAllStates(TexDarkGray, TexMidGray, TextFieldStyle, TextAreaStyle);
+        BackgroundAllStates(texField, TextFieldStyle, TextAreaStyle);
 
         BackgroundAllStates(null, HorizontalSliderStyle, HorizontalSliderThumbStyle, ScrollViewStyle);
 
-        BackgroundAllStates(TexVeryDarkGray, WindowStyle);
+        BackgroundAllStates(texWindow, WindowStyle);
 
-        BackgroundAllStates(
-            TexDarkGray,
-            VerticalScrollbarStyle,
-            VerticalScrollbarUpButtonStyle,
-            VerticalScrollbarDownButtonStyle,
-            BoxStyle,
-            LabelStyle,
-            ToolTipStyle
-        );
+        BackgroundAllStates(texPanel, VerticalScrollbarStyle, VerticalScrollbarUpButtonStyle, VerticalScrollbarDownButtonStyle, BoxStyle);
+        BackgroundHover(texPanelHover, VerticalScrollbarStyle, VerticalScrollbarUpButtonStyle, VerticalScrollbarDownButtonStyle, BoxStyle);
+        BackgroundAllStates(texControl, ToolTipStyle);
 
-        BackgroundHover(
-            TexturesClass.GetTexture(EGraynessLevel.DarkMid),
-            VerticalScrollbarStyle,
-            VerticalScrollbarUpButtonStyle,
-            VerticalScrollbarDownButtonStyle,
-            BoxStyle,
-            LabelStyle,
-            ToolTipStyle
-        );
-
-        BackgroundAllStates(TexDarkRed, VerticalScrollbarThumbStyle);
+        BackgroundAllStates(texTrack, VerticalScrollbarThumbStyle);
 
         GUIStyle selectGridStyle = new(ToggleStyle) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Normal };
 

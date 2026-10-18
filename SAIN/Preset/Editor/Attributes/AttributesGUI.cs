@@ -148,9 +148,9 @@ public class AttributesGUI
     )
     {
         CreateLabelStyle();
-        float height = PresetHandler.EditorDefaults.ConfigEntryHeight;
+        float height = RowHeight - 4f;
         StartConfigEntry(listDepth, config, info);
-        Box(new GUIContent(info.Name, info.Description), _labelStyle, Width(450f), Height(height));
+        RowLabel(new GUIContent(info.Name, info.Description));
 
         EHeardFromPeaceBehavior selected = current;
         foreach (EHeardFromPeaceBehavior option in EnumValues.GetEnum<EHeardFromPeaceBehavior>())
@@ -161,7 +161,8 @@ public class AttributesGUI
                 selected = option;
             }
         }
-        EndHorizontal(100f);
+        FlexibleSpace();
+        EndConfigEntry();
 
         wasEdited = selected != current;
         return selected;
@@ -237,10 +238,10 @@ public class AttributesGUI
         BeginVertical(5f);
         foreach (KeyValuePair<ESuppressionState, SuppressionConfig> kvp in suppDict)
         {
-            BeginHorizontal(150f);
+            BeginHorizontal(24f);
             string suppStateString = $"{EditorText.UI("Suppression State")}: {EditorText.Value(kvp.Key)}";
             if (ExpandableList(suppStateString, null, PresetHandler.EditorDefaults.ConfigEntryHeight, 1, _defaultEntryConfig)) { }
-            EndHorizontal(150f);
+            EndHorizontal(ROW_INDENT);
         }
         EndVertical(5f);
     }
@@ -251,9 +252,10 @@ public class AttributesGUI
         {
             entryConfig ??= _defaultEntryConfig;
             StartConfigEntry(listDepth, entryConfig, info);
-            Label($"{info.Name}: ", Width(80), Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
-            Box(value, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
-            EndHorizontal(100f);
+            RowLabel(new GUIContent(info.Name, info.Description));
+            Label(value, ZzapUI.Small, Height(RowHeight));
+            FlexibleSpace();
+            EndConfigEntry();
         }
     }
 
@@ -271,7 +273,7 @@ public class AttributesGUI
                 heightOverride = entryConfig.EntryHeight;
             }
             Box(value, Height(heightOverride));
-            EndHorizontal(100f);
+            EndHorizontal(ROW_INDENT);
         }
     }
 
@@ -385,10 +387,10 @@ public class AttributesGUI
 
         foreach (KeyValuePair<string, EPersonality> kvp in persDictionary)
         {
-            BeginHorizontal(150f);
+            BeginHorizontal(24f);
             string outputNickname = TextArea(kvp.Key, null, Width(300f), Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
             string outputPers = TextArea(kvp.Value.ToString(), null, Width(300f), Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
-            EndHorizontal(150f);
+            EndHorizontal(ROW_INDENT);
         }
         EndVertical(5f);
     }
@@ -408,7 +410,7 @@ public class AttributesGUI
 
         foreach (KeyValuePair<WildSpawnType, EPersonality> kvp in _tempBossPersDict)
         {
-            BeginHorizontal(150f);
+            BeginHorizontal(24f);
             string bossPerString = $"{EditorText.UI("Boss Personality")}: {kvp.Key}";
             if (ExpandableList(bossPerString, null, 25f, 1, entryConfig))
             {
@@ -418,7 +420,7 @@ public class AttributesGUI
                     persDictionary[kvp.Key] = newSelection;
                 }
             }
-            EndHorizontal(150f);
+            EndHorizontal(ROW_INDENT);
         }
 
         EndVertical(5f);
@@ -489,36 +491,58 @@ public class AttributesGUI
         }
     }
 
+    // zzap fork (2026-10-18, mockup 5): a setting row is name | slider (takes the room left) | number | "Reset" (only when the
+    // value differs from the default). The old row gave the slider 59% of the whole window, so next to the group list the name
+    // was squeezed into two clipped lines and the number and Reset fell off the right edge (user's in-game screenshot).
+    private const float ROW_INDENT = 8f;
+    private const float DEPTH_INDENT = 18f;
+    private const float BADGE_WIDTH = 52f;
+
+    private static float _rowNameWidth = ZzapUI.NAME_WIDTH;
+
+    public static float RowHeight
+    {
+        get { return Mathf.Max(ZzapUI.ROW_HEIGHT, PresetHandler.EditorDefaults.ConfigEntryHeight); }
+    }
+
     private static void StartConfigEntry(float listDepth, GUIEntryConfig entryConfig, ConfigInfoClass info)
     {
-        entryConfig ??= _defaultEntryConfig;
-        float horizDepth = listDepth;
-        if (entryConfig != null)
+        ZzapUI.EnsureStyles();
+        float indent = ROW_INDENT + listDepth * DEPTH_INDENT;
+        BeginHorizontal(indent);
+        _rowNameWidth = Mathf.Max(160f, ZzapUI.NAME_WIDTH - listDepth * DEPTH_INDENT);
+        if (info != null && (info.AdvancedOption || info.DeveloperOption))
         {
-            horizDepth *= entryConfig.SubList_Indent_Horizontal;
-        }
-        else
-        {
-            horizDepth *= 25f;
-        }
-        if (info != null && (info.AdvancedOption || info.DeveloperOption) && _labelStyle != null)
-        {
-            BeginHorizontal(25f);
-            var oldAlignment = _labelStyle.alignment;
-            _labelStyle.alignment = TextAnchor.MiddleCenter;
-            Space(horizDepth);
-            Box(
-                EditorText.UI(info.AdvancedOption ? "Advanced" : "Developer"),
-                _labelStyle,
-                Width(70f),
-                Height(PresetHandler.EditorDefaults.ConfigEntryHeight)
+            GUILayout.Label(
+                new GUIContent(EditorText.UI(info.AdvancedOption ? "Advanced" : "Developer"), EditorText.UI("Shown because 'Advanced Settings' is on.")),
+                ZzapUI.Badge,
+                Width(BADGE_WIDTH - 8f),
+                Height(RowHeight - 12f)
             );
-            _labelStyle.alignment = oldAlignment;
+            _rowNameWidth -= BADGE_WIDTH;
         }
-        else
+    }
+
+    private static void EndConfigEntry()
+    {
+        EndHorizontal(ROW_INDENT);
+        ZzapUI.Separator();
+    }
+
+    /// <summary>The name column of a row: fixed width so the sliders line up, wraps instead of clipping.</summary>
+    private static void RowLabel(GUIContent content)
+    {
+        ZzapUI.EnsureStyles();
+        GUILayout.Label(content, ZzapUI.Name, Width(_rowNameWidth), GUILayout.MinHeight(RowHeight));
+    }
+
+    private static bool SameValue(object a, object b)
+    {
+        if (a is float fa && b is float fb)
         {
-            BeginHorizontal(100f + horizDepth);
+            return Mathf.Abs(fa - fb) < 0.0001f;
         }
+        return Equals(a, b);
     }
 
     public static object EditFloatBoolInt(
@@ -543,61 +567,35 @@ public class AttributesGUI
             StartConfigEntry(listDepth, entryConfig, info);
         }
 
-        GUILayoutOption[] layoutParams;
+        float height = RowHeight;
         bool useSimpleLayout = info.SimpleValueEdit || !PresetHandler.EditorDefaults.SliderToggle;
 
         if (showLabel)
         {
-            CreateLabelStyle();
-            if (useSimpleLayout)
-            {
-                layoutParams = [GUILayout.Width(450f), GUILayout.Height(PresetHandler.EditorDefaults.ConfigEntryHeight)];
-            }
-            else
-            {
-                layoutParams = [GUILayout.Height(PresetHandler.EditorDefaults.ConfigEntryHeight)];
-            }
-            Box(new GUIContent(info.Name, info.Description), _labelStyle, layoutParams);
+            RowLabel(new GUIContent(info.Name, info.Description));
         }
 
         object originalValue = value;
-        string result = string.Empty;
+        var defaultValue = info.GetDefault(settingsObject);
+        bool atDefault = defaultValue == null || SameValue(value, defaultValue);
 
         if (info.ValueType == typeof(bool))
         {
-            if (!useSimpleLayout)
-            {
-                value = Toggle((bool)value, EditorText.UI((bool)value ? "On" : "Off"), EUISoundType.MenuCheckBox, entryConfig.Toggle);
-            }
-            result = value.ToString();
-        }
-        else if (info.ValueType == typeof(float))
-        {
-            float flValue = (float)value;
-            if (!useSimpleLayout)
-            {
-                flValue = BuilderClass.CreateSlider(flValue, info.Min, info.Max, info.Rounding, entryConfig.Toggle);
-            }
-            value = flValue;
-            result = flValue.Round(info.Rounding).ToString();
-        }
-
-        if (useSimpleLayout)
-        {
-            layoutParams = [GUILayout.Width(100), GUILayout.Height(PresetHandler.EditorDefaults.ConfigEntryHeight)];
+            value = ZzapUI.Switch((bool)value, height);
+            GUILayout.FlexibleSpace();
         }
         else
         {
-            layoutParams = entryConfig.Result;
-        }
-
-        if (useSimpleLayout && info.ValueType == typeof(bool))
-        {
-            value = Toggle((bool)value, EditorText.UI((bool)value ? "On" : "Off"), EUISoundType.MenuCheckBox, layoutParams);
-        }
-        else
-        {
-            string dirtyString = TextField(result, null, layoutParams);
+            if (!useSimpleLayout && info.ValueType == typeof(float))
+            {
+                value = BuilderClass.CreateSlider((float)value, info.Min, info.Max, info.Rounding, Height(height), GUILayout.MinWidth(160f), GUILayout.ExpandWidth(true));
+            }
+            else
+            {
+                GUILayout.FlexibleSpace();
+            }
+            string result = value is float flValue ? flValue.Round(info.Rounding).ToString() : value.ToString();
+            string dirtyString = TextField(result, null, Width(ZzapUI.VALUE_WIDTH), Height(height - 4f));
             if (dirtyString != result)
             {
                 value = BuilderClass.CleanString(dirtyString, value);
@@ -608,19 +606,10 @@ public class AttributesGUI
             }
         }
 
-        if (useSimpleLayout)
+        if (!atDefault)
         {
-            layoutParams = [GUILayout.Width(100), GUILayout.Height(PresetHandler.EditorDefaults.ConfigEntryHeight)];
-        }
-        else
-        {
-            layoutParams = entryConfig.Reset;
-        }
-
-        var defaultValue = info.GetDefault(settingsObject);
-        if (defaultValue != null)
-        {
-            if (Button(EditorText.UI("Reset"), EditorText.UI("Reset To Default Value"), EUISoundType.ButtonClick, layoutParams))
+            string tip = string.Format(EditorText.UI("Back to the default ({0})"), defaultValue is float df ? df.Round(info.Rounding).ToString() : defaultValue.ToString());
+            if (Button(new GUIContent(EditorText.UI("Reset"), tip), ZzapUI.Button, EUISoundType.ButtonClick, Width(ZzapUI.RESET_WIDTH), Height(height - 4f)))
             {
                 value = defaultValue;
                 ConfigEditingTracker.Remove(info);
@@ -628,12 +617,12 @@ public class AttributesGUI
         }
         else
         {
-            Box(" ", EditorText.UI("No Default Value is assigned to this option."), layoutParams);
+            Space(ZzapUI.RESET_WIDTH + 8f);
         }
 
         if (beginHoriz)
         {
-            EndHorizontal(100f);
+            EndConfigEntry();
         }
 
         wasEdited = originalValue.ToString() != value.ToString();
@@ -663,6 +652,15 @@ public class AttributesGUI
         }
 
         EndVertical(5f);
+    }
+
+    /// <summary>zzap fork (2026-10-18): the stealth rows of one equipment type (the tab picks the type from a list now).</summary>
+    public static void EditStealthType(GearStealthValuesClass stealthClass, EEquipmentType type)
+    {
+        if (stealthClass.ItemStealthValues.TryGetValue(type, out var list))
+        {
+            EditStealthValueList(list, stealthClass.Defaults);
+        }
     }
 
     private static void EditStealthValueList(List<ItemStealthValue> list, List<ItemStealthValue> defaults)
@@ -701,7 +699,7 @@ public class AttributesGUI
 
     private static void EditStealthValue(ItemStealthValue stealthValue, ItemStealthValue defaultValue)
     {
-        BeginHorizontal(150);
+        BeginHorizontal(24f);
         string name = stealthValue.Name;
         string description = string.Format(EditorText.UI("The Stealth Value for {0}"), name);
         float fvalue = stealthValue.StealthValue;
@@ -719,7 +717,7 @@ public class AttributesGUI
             stealthValue.StealthValue = fvalue;
             ConfigEditingTracker.Add(name, fvalue);
         }
-        EndHorizontal(150);
+        EndConfigEntry();
     }
 
     private static bool ExpandableList(ConfigInfoClass info, float height, int listDepth, GUIEntryConfig config)
@@ -729,7 +727,7 @@ public class AttributesGUI
 
     private static bool ExpandableList(string name, string description, float height, int listDepth, GUIEntryConfig config)
     {
-        BeginHorizontal(100f + (listDepth * config.SubList_Indent_Horizontal));
+        BeginHorizontal(ROW_INDENT + listDepth * DEPTH_INDENT);
 
         if (!_listOpen.ContainsKey(name))
         {
@@ -739,7 +737,7 @@ public class AttributesGUI
         isOpen = BuilderClass.ExpandableMenu(name, isOpen, description, height);
         _listOpen[name] = isOpen;
 
-        EndHorizontal(100f);
+        EndHorizontal(ROW_INDENT);
         return isOpen;
     }
 
@@ -758,12 +756,15 @@ public class AttributesGUI
 
         for (int i = 0; i < list.Count; i++)
         {
-            BeginHorizontal(150f);
+            BeginHorizontal(24f);
 
             var item = list[i];
             var name = item.ToString();
-            Box(new GUIContent(EditorText.Value(item)), _labelStyle, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
-            if (Toggle(dictionary[item], EditorText.UI(dictionary[item] ? "On" : "Off"), EUISoundType.MenuCheckBox, _defaultEntryConfig.Toggle))
+            _rowNameWidth = ZzapUI.NAME_WIDTH;
+            RowLabel(new GUIContent(EditorText.Value(item)));
+            bool switchedOn = ZzapUI.Switch(dictionary[item], RowHeight);
+            FlexibleSpace();
+            if (switchedOn)
             {
                 // Option was selected, set all other values to false, other than the 1 selected
                 for (int j = 0; j < list.Count; j++)
@@ -793,7 +794,7 @@ public class AttributesGUI
                 dictionary[item] = false;
                 edited = true;
             }
-            EndHorizontal(150f);
+            EndHorizontal(ROW_INDENT);
         }
 
         list.Clear();
@@ -859,9 +860,9 @@ public class AttributesGUI
                 continue;
             }
 
-            BeginHorizontal(100f + (listDepth * config.SubList_Indent_Horizontal));
+            BeginHorizontal(ROW_INDENT + listDepth * DEPTH_INDENT);
             Label(name, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
-            EndHorizontal(100f);
+            EndHorizontal(ROW_INDENT);
 
             int subListDepth = listDepth + 1;
             EditAllValuesInObj(originalValue, out bool newEdit, search, config, subListDepth);
@@ -893,7 +894,7 @@ public class AttributesGUI
             {
                 continue;
             }
-            BeginHorizontal(200f);
+            BeginHorizontal(24f);
 
             string name = EditorText.Value(limitSetting);
             string description = "";
@@ -913,7 +914,7 @@ public class AttributesGUI
                 dictionary[limitSetting] = newValue;
                 wasEdited = true;
             }
-            EndHorizontal(200f);
+            EndHorizontal(ROW_INDENT);
         }
         EndVertical(5f);
     }
@@ -928,12 +929,12 @@ public class AttributesGUI
         wasEdited = false;
 
         BeginVertical(2f);
-        BeginHorizontal(150);
+        BeginHorizontal(24f);
 
-        Box(new GUIContent(EditorText.Value(soundType)), _labelStyle, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
+        Label(EditorText.Value(soundType), ZzapUI.Section, Height(RowHeight));
 
-        EndHorizontal(150);
-        BeginHorizontal(200f);
+        EndHorizontal(ROW_INDENT);
+        BeginHorizontal(24f);
 
         string name = EditorText.UI(nameof(values.DistanceModifier));
         string description = EditorText.UI("How much to randomize the distance that a bot thinks a sound originated from.");
@@ -953,8 +954,8 @@ public class AttributesGUI
             wasEdited = true;
         }
 
-        EndHorizontal(200f);
-        BeginHorizontal(200f);
+        EndHorizontal(ROW_INDENT);
+        BeginHorizontal(24f);
 
         name = EditorText.UI(nameof(values.MinAngle));
         description = "";
@@ -974,8 +975,8 @@ public class AttributesGUI
             wasEdited = true;
         }
 
-        EndHorizontal(200f);
-        BeginHorizontal(200f);
+        EndHorizontal(ROW_INDENT);
+        BeginHorizontal(24f);
 
         name = EditorText.UI(nameof(values.MaxAngle));
         description = "";
@@ -995,8 +996,8 @@ public class AttributesGUI
             wasEdited = true;
         }
 
-        EndHorizontal(200f);
-        BeginHorizontal(200f);
+        EndHorizontal(ROW_INDENT);
+        BeginHorizontal(24f);
 
         name = EditorText.UI(nameof(values.VerticalModifier));
         description = "";
@@ -1016,21 +1017,22 @@ public class AttributesGUI
             wasEdited = true;
         }
 
-        EndHorizontal(200f);
+        EndHorizontal(ROW_INDENT);
 
         EndVertical(2f);
     }
 
     private static bool ResetButton()
     {
-        return Button(EditorText.UI("Reset"), EUISoundType.ButtonClick, _defaultEntryConfig.Reset);
+        return Button(new GUIContent(EditorText.UI("Reset"), EditorText.UI("Reset To Default Value")), ZzapUI.Button, EUISoundType.ButtonClick, Width(ZzapUI.RESET_WIDTH), Height(RowHeight - 4f));
     }
 
     private static float Slider(string name, string description, float value, float min, float max, float rounding)
     {
-        Box(new GUIContent(name, description), _labelStyle, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
-        value = BuilderClass.CreateSlider(value, min, max, rounding, _defaultEntryConfig.Toggle).Round(100f);
-        Box(value.Round(rounding).ToString(), _defaultEntryConfig.Result);
+        _rowNameWidth = ZzapUI.NAME_WIDTH;
+        RowLabel(new GUIContent(name, description));
+        value = BuilderClass.CreateSlider(value, min, max, rounding, Height(RowHeight), GUILayout.MinWidth(160f), GUILayout.ExpandWidth(true)).Round(100f);
+        Label(value.Round(rounding).ToString(), ZzapUI.Value, Width(ZzapUI.VALUE_WIDTH), Height(RowHeight));
         return value;
     }
 
@@ -1060,15 +1062,13 @@ public class AttributesGUI
         wasEdited = false;
         for (int i = 0; i < list.Count; i++)
         {
-            BeginHorizontal(150f);
+            BeginHorizontal(24f);
 
             var item = list[i];
             float originalValue = dictionary[item];
             float floatValue = originalValue;
 
-            Box(new GUIContent(EditorText.Value(item)), _labelStyle, Height(PresetHandler.EditorDefaults.ConfigEntryHeight));
-            floatValue = BuilderClass.CreateSlider(floatValue, min, max, rounding, _defaultEntryConfig.Toggle);
-            Box(floatValue.Round(rounding).ToString(), _defaultEntryConfig.Result);
+            floatValue = Slider(EditorText.Value(item), string.Empty, floatValue, min, max, rounding);
 
             if (ResetButton())
             {
@@ -1080,7 +1080,7 @@ public class AttributesGUI
                 wasEdited = true;
                 dictionary[item] = floatValue;
             }
-            EndHorizontal(150f);
+            EndHorizontal(ROW_INDENT);
         }
         list.Clear();
         EndVertical(5f);
@@ -1228,14 +1228,17 @@ public class AttributesGUI
         }
     }
 
+    // zzap fork (2026-10-18, mockup 5): a small yellow heading ("Start chances") instead of a grey "Category: X" box.
     private static void DrawCategory(ConfigParams configParams, ConfigInfoClass configInfo, string category)
     {
         if (category == "None")
         {
             return;
         }
-        BeginHorizontal(0f);
-        DisplayString($"    {EditorText.UI("Category")}: {EditorText.Setting(category)}    ", configParams.ListDepth, configParams.EntryConfig, 15f);
+        ZzapUI.EnsureStyles();
+        Space(6f);
+        BeginHorizontal(ROW_INDENT + configParams.ListDepth * DEPTH_INDENT);
+        Label(EditorText.Setting(category), ZzapUI.Section, Height(22f));
         FlexibleSpace();
         EndHorizontal();
     }

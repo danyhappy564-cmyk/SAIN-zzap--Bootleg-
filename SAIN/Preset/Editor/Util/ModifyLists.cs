@@ -218,8 +218,8 @@ public static class ModifyLists
         BeginVertical();
         BeginHorizontal();
         Space(5);
-        float width = (gridWidth / optionsPerLine).Round10();
-        dimensions = [Height(PresetHandler.EditorDefaults.ConfigEntryHeight), Width(width)];
+        // zzap fork (2026-10-18): share the row's width instead of a fixed 1875 px split (the new side panels are narrower).
+        dimensions = [Height(Mathf.Max(28f, PresetHandler.EditorDefaults.ConfigEntryHeight)), GUILayout.MinWidth(80f), GUILayout.ExpandWidth(true)];
         return 0;
     }
 

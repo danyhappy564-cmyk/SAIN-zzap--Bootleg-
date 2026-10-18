@@ -121,6 +121,7 @@ public static class SAINEditor
     private static void MainWindowFunc(int TWCWindowID)
     {
         GUI.FocusWindow(TWCWindowID);
+        ZzapUI.RunDeferred();
         CheckKeys();
         if (ToggleKeyPressed || EscapeKeyPressed)
         {
@@ -131,20 +132,33 @@ public static class SAINEditor
         CreateTopBarOptions();
         EEditorTab selectedTab = EditTabsClass.TabSelectMenu(35f, 3f, 0.5f);
         float space = DragRect.height + EditTabsClass.TabMenuRect.height;
-        Space(space);
+        Space(space + 10f);
         GUITabs.CreateTabs(selectedTab);
         DrawTooltip();
     }
 
+    // zzap fork (2026-10-18, mockup 5): header = name, preset in yellow, a yellow "N unsaved changes" pill; on the right the
+    // language, advanced and a wide yellow Save button.
     private static void CreateDragBar()
     {
-        GUI.DrawTexture(DragRect, DragBackgroundTexture, ScaleMode.StretchToFill, true, 0);
-        GUI.Box(
-            DragRect,
-            $"SAIN {SAINVersionInfo.SAINVersion} {EditorText.UI("GUI Editor")} | {EditorText.UI("Preset")}: {SAINPlugin.LoadedPreset.Info.Name}"
-                + (ConfigEditingTracker.UnsavedChanges ? "   |   " + string.Format(EditorText.UI("Unsaved changes: {0}"), ConfigEditingTracker.EditedConfigValues.Count) : string.Empty),
-            GetStyle(Style.dragBar)
-        );
+        ZzapUI.EnsureStyles();
+        if (Event.current.type == EventType.Repaint)
+        {
+            ZzapUI.Fill(HeaderRect, ZzapUI.Panel);
+            ZzapUI.Fill(new Rect(0, HeaderRect.yMax - 1f, HeaderRect.width, 1f), ZzapUI.Line);
+        }
+        string title =
+            $"<b>{EditorText.UI("SAIN zzap settings (F6)")}</b>  <color=#71717a>{SAINVersionInfo.SAINVersion}</color>   |   "
+            + $"{EditorText.UI("Preset")}: <color=#facc15><b>{SAINPlugin.LoadedPreset.Info.Name}</b></color>";
+        var content = new GUIContent(title);
+        float titleWidth = Mathf.Min(ZzapUI.Header.CalcSize(content).x + 4f, DragRect.width - 230f);
+        GUI.Label(new Rect(DragRect.x, DragRect.y, titleWidth, DragRect.height), content, ZzapUI.Header);
+        if (ConfigEditingTracker.UnsavedChanges)
+        {
+            string pill = string.Format(EditorText.UI("Unsaved changes: {0}"), ConfigEditingTracker.EditedConfigValues.Count);
+            float pillWidth = ZzapUI.Pill.CalcSize(new GUIContent(pill)).x + 8f;
+            GUI.Box(new Rect(DragRect.x + titleWidth + 10f, DragRect.center.y - 13f, pillWidth, 26f), new GUIContent(pill, ConfigEditingTracker.GetUnsavedValuesString()), ZzapUI.Pill);
+        }
         GUI.DragWindow(DragRect);
     }
 
@@ -157,32 +171,26 @@ public static class SAINEditor
 
     private static void CreateTopBarOptions()
     {
-        SaveContent.text = EditorText.UI("Save All Changes");
-        SaveContent.tooltip = ConfigEditingTracker.GetUnsavedValuesString();
-
-        var style = GetStyle(Style.botTypeGrid);
-        var oldAlignment = style.alignment;
-        style.alignment = TextAnchor.MiddleCenter;
+        SaveContent.text = EditorText.UI("Save (applies to the game and bots)");
+        SaveContent.tooltip = ConfigEditingTracker.UnsavedChanges ? ConfigEditingTracker.GetUnsavedValuesString() : EditorText.UI("Nothing to save yet.");
 
         bool advancedEnabled = PresetHandler.EditorDefaults.AdvancedBotConfigs;
         string status = EditorText.UI(advancedEnabled ? "ON" : "OFF");
-        bool newValue = GUI.Toggle(
-            AdvRect,
-            advancedEnabled,
+        var advContent = new GUIContent(
             string.Format(EditorText.UI("Advanced Settings: [{0}]"), status),
-            GetStyle(Style.botTypeGrid)
+            EditorText.UI("Also show the settings marked 'Advanced' (for experienced users).")
         );
-        if (advancedEnabled != newValue)
+        if (GUI.Button(AdvRect, advContent, advancedEnabled ? ZzapUI.Pill : ZzapUI.Button))
         {
             PlaySound(EUISoundType.MenuEscape);
-            PresetHandler.EditorDefaults.AdvancedBotConfigs = newValue;
+            PresetHandler.EditorDefaults.AdvancedBotConfigs = !advancedEnabled;
             PresetHandler.ExportEditorDefaults();
         }
 
         // zzap fork: Korean / English switch for the whole editor.
         bool korean = EditorText.Korean;
         var langContent = new GUIContent(korean ? "[한] / EN" : "한 / [EN]", EditorText.UI("Language: Korean / English"));
-        if (GUI.Button(LangRect, langContent, GetStyle(Style.botTypeGrid)))
+        if (GUI.Button(LangRect, langContent, ZzapUI.Button))
         {
             PlaySound(EUISoundType.MenuEscape);
             PresetHandler.EditorDefaults.KoreanUI = !korean;
@@ -190,19 +198,18 @@ public static class SAINEditor
         }
 
         GUI.enabled = PresetHandler.CanEditCurrentPreset;
-        if (GUI.Button(SaveAllRect, SaveContent, GetStyle(Style.botTypeGrid)))
+        if (GUI.Button(SaveAllRect, SaveContent, ZzapUI.ButtonPrimary))
         {
             PlaySound(EUISoundType.InsuranceInsured);
             SAINPresetClass.ExportAll(SAINPlugin.LoadedPreset);
         }
         GUI.enabled = true;
 
-        if (GUI.Button(ExitRect, "X", GetStyle(Style.botTypeGrid)))
+        if (GUI.Button(ExitRect, new GUIContent("X", EditorText.UI("Close (F6)")), ZzapUI.Button))
         {
             PlaySound(EUISoundType.MenuEscape);
             ToggleGUI();
         }
-        style.alignment = oldAlignment;
     }
 
     private static void DrawTooltip()
@@ -240,8 +247,4 @@ public static class SAINEditor
 
     public static Rect OpenTabRect = new(0, 0, MainWindow.width, 1000f);
 
-    private static Texture2D DragBackgroundTexture
-    {
-        get { return TexturesClass.GetTexture(EGraynessLevel.Mid); }
-    }
 }

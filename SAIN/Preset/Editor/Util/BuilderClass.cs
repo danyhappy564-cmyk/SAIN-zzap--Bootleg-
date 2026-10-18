@@ -219,11 +219,6 @@ public static class BuilderClass
         }
 
         GUIStyle style = GetStyle(Style.alert);
-        if (colorName != null)
-        {
-            style = new GUIStyle(style);
-            ApplyToStyle.BackgroundAllStates(TexturesClass.GetTexture(colorName.Value), style);
-        }
         text = text ?? "";
         var content = new GUIContent(text, toolTip);
         Box(content, style, Height(height), Width(width));
@@ -238,11 +233,6 @@ public static class BuilderClass
         }
 
         GUIStyle style = GetStyle(Style.alert);
-        if (colorName != null)
-        {
-            style = new GUIStyle(style);
-            ApplyToStyle.BackgroundAllStates(TexturesClass.GetTexture(colorName.Value), style);
-        }
         text = text ?? string.Empty;
         var content = new GUIContent(text, toolTip);
         Box(content, style, Height(height));
@@ -379,9 +369,9 @@ public static class BuilderClass
 
     private static int StartSelection(int optionsCount, float height, out GUILayoutOption[] options)
     {
+        // zzap fork (2026-10-18): options share the row's width (was 1850 px / count, wider than the new side panels).
         BeginHorizontalSpace();
-        float width = 1850f / optionsCount;
-        options = [Height(height), Width(width)];
+        options = [Height(height), GUILayout.MinWidth(80f), GUILayout.ExpandWidth(true)];
         return 0;
     }
 
@@ -459,20 +449,8 @@ public static class BuilderClass
     public static GUIStyle StyleHandler(bool selected, bool hovering)
     {
         var style = StylesClass.GetFontStyleDynamic(Style.selectionGrid, selected);
-        Texture2D texture;
-        if (selected)
-        {
-            texture = TexturesClass.GetTexture(ColorNames.DarkRed);
-        }
-        else if (hovering)
-        {
-            texture = TexturesClass.GetTexture(ColorNames.LightRed);
-        }
-        else
-        {
-            texture = TexturesClass.GetTexture(EGraynessLevel.Mid);
-        }
-        ApplyToStyle.BackgroundAllStates(texture, style);
+        Color color = selected ? ZzapUI.YellowTint : hovering ? ZzapUI.ControlHover : ZzapUI.Control;
+        ApplyToStyle.BackgroundAllStates(ZzapUI.Tex(color), style);
         return style;
     }
 
@@ -644,18 +622,26 @@ public static class BuilderClass
         return current;
     }
 
+    // zzap fork (2026-10-18, mockup 5): one full-width row "▸ name" (was a "+" button and a red name bar).
     public static bool ExpandableMenu(string name, bool value, string description = null, float height = 20f)
     {
-        BeginHorizontal();
-        value = Toggle(
-            value,
-            new GUIContent(value ? "-" : "+", EditorText.UI(value ? "Collapse" : "Expand")),
-            EUISoundType.MenuDropdown,
-            Width(17.5f),
-            Height(height)
-        );
-        value = Toggle(value, new GUIContent(name, description), EUISoundType.MenuDropdown, Height(height));
-        EndHorizontal();
+        ZzapUI.EnsureStyles();
+        height = Mathf.Max(height, 28f);
+        Rect rect = GUILayoutUtility.GetRect(10f, height, GUILayout.Height(height), GUILayout.ExpandWidth(true));
+        if (Event.current.type == EventType.Repaint)
+        {
+            ZzapUI.Fill(rect, rect.Contains(Event.current.mousePosition) ? ZzapUI.PanelHover : ZzapUI.Panel);
+            if (value)
+            {
+                ZzapUI.Fill(new Rect(rect.x, rect.y, 3f, rect.height), ZzapUI.Yellow);
+            }
+        }
+        GUI.Label(new Rect(rect.x + 10f, rect.y, rect.width - 14f, rect.height), (value ? "▾  " : "▸  ") + name, value ? ZzapUI.ListTextSelected : ZzapUI.ListText);
+        if (GUI.Button(rect, new GUIContent(string.Empty, description), GUIStyle.none))
+        {
+            Sounds.PlaySound(EUISoundType.MenuDropdown);
+            value = !value;
+        }
         return value;
     }
 

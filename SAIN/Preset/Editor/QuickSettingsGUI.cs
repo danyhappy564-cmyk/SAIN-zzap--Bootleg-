@@ -24,18 +24,14 @@ public static class QuickSettingsGUI
     private const float VALUE_WIDTH = 60f;
     private const float RESET_WIDTH = 74f;
 
-    private static GUIStyle _card;
-    private static GUIStyle _cardSelected;
-    private static GUIStyle _cardLegacy;
-    private static GUIStyle _panel;
-    private static GUIStyle _panelBlue;
+    private static GUIStyle _cardTitle;
+    private static GUIStyle _cardTitleLegacy;
     private static GUIStyle _title;
     private static GUIStyle _name;
     private static GUIStyle _muted;
     private static GUIStyle _section;
     private static GUIStyle _value;
     private static GUIStyle _small;
-    private static Texture2D _tickTexture;
 
     // The values as last saved (or as loaded): a value differing from these is "changed" and gets a reset button.
     private static readonly Dictionary<string, float> _saved = new();
@@ -152,7 +148,7 @@ public static class QuickSettingsGUI
         if (GUILayout.Button(T($"원본 SAIN 프리셋 ({defaults.Count}) ", $"SAIN's original presets ({defaults.Count}) ") + (_showSainPresets ? "▾" : "▸"), _section))
         {
             Sounds.PlaySound(EUISoundType.MenuDropdown);
-            _showSainPresets = !_showSainPresets;
+            ZzapUI.Defer(() => _showSainPresets = !_showSainPresets);
         }
         if (_showSainPresets)
         {
@@ -181,47 +177,83 @@ public static class QuickSettingsGUI
 
         GUILayout.Space(8f);
         GUILayout.BeginHorizontal();
-        _newName = GUILayout.TextField(_newName ?? string.Empty, 40, GUILayout.Height(28f));
-        if (GUILayout.Button(new GUIContent(T("+ 만들기", "+ Create"), T("지금 프리셋(바꾼 값 포함)을 이 이름으로 복사", "Copy the current preset (with its changes) under this name")), GUILayout.Width(90f), GUILayout.Height(28f)))
+        _newName = GUILayout.TextField(_newName ?? string.Empty, 40, ZzapUI.FieldStyle, GUILayout.Height(30f));
+        if (GUILayout.Button(new GUIContent(T("+ 만들기", "+ Create"), T("지금 프리셋(바꾼 값 포함)을 이 이름으로 복사", "Copy the current preset (with its changes) under this name")), ZzapUI.ButtonPrimary, GUILayout.Width(90f), GUILayout.Height(30f)))
         {
-            CreateCopy();
+            ZzapUI.Defer(CreateCopy);
         }
         GUILayout.EndHorizontal();
         GUILayout.Label(T("카드를 누르면 바로 그 프리셋으로 바뀝니다.", "Click a card to switch to that preset."), _muted);
     }
 
+    // zzap fork (2026-10-18): drawn by hand so the card grows with its text (the first version was a button with a fixed
+    // minimum height, and "zzap 저사양 [테스트]" spilled out of it in game). Level = three small bars at the top right.
     private static void Card(SAINPresetDefinition def, ZzapPresetCard zzap)
     {
         bool selected = SAINPlugin.LoadedPreset.Info.Name == def.Name;
-        string level = zzap == null ? string.Empty : "   " + new string('●', zzap.Level) + new string('○', 3 - zzap.Level);
-        string tag = zzap?.TagKo == null ? string.Empty : $"  [{zzap.Tag(Korean)}]";
+        bool deletable = def.IsCustom && zzap == null;
+        string tagText = zzap?.TagKo == null ? null : zzap.Tag(Korean);
+        bool showTag = tagText != null && def.Name.IndexOf("[" + tagText + "]", System.StringComparison.Ordinal) < 0;
         string summary = zzap != null ? zzap.Summary(Korean) : Short(def.Description);
-        var style = selected ? _cardSelected : zzap?.Legacy == true ? _cardLegacy : _card;
-        string text = $"<b>{def.Name}</b>{tag}{level}" + (string.IsNullOrEmpty(summary) ? string.Empty : "\n<size=12>" + summary + "</size>");
+        bool legacy = zzap?.Legacy == true;
+
+        float width = LEFT_WIDTH - (deletable ? (_pendingDelete == def.Name ? 62f : 34f) : 0f);
+        float summaryHeight = string.IsNullOrEmpty(summary) ? 0f : _small.CalcHeight(new GUIContent(summary), width - 24f);
+        float height = 34f + summaryHeight + 8f;
 
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button(new GUIContent(text, def.Description), style, GUILayout.MinHeight(46f)) && !selected)
+        Rect rect = GUILayoutUtility.GetRect(width, height, GUILayout.Width(width), GUILayout.Height(height));
+        if (Event.current.type == EventType.Repaint)
+        {
+            bool hover = rect.Contains(Event.current.mousePosition);
+            ZzapUI.Fill(rect, selected ? ZzapUI.YellowTint : hover ? ZzapUI.PanelHover : ZzapUI.Panel);
+            Color border = selected ? ZzapUI.Yellow : ZzapUI.Line;
+            ZzapUI.Fill(new Rect(rect.x, rect.y, rect.width, 1f), border);
+            ZzapUI.Fill(new Rect(rect.x, rect.yMax - 1f, rect.width, 1f), border);
+            ZzapUI.Fill(new Rect(rect.x, rect.y, 1f, rect.height), border);
+            ZzapUI.Fill(new Rect(rect.xMax - 1f, rect.y, 1f, rect.height), border);
+            if (zzap != null)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    ZzapUI.Fill(new Rect(rect.xMax - 12f - (3 - i) * 20f, rect.y + 15f, 16f, 5f), i < zzap.Level ? ZzapUI.Yellow : ZzapUI.Track);
+                }
+            }
+        }
+        string title = "<b>" + def.Name + "</b>" + (showTag ? "  <color=#facc15>[" + tagText + "]</color>" : string.Empty);
+        GUI.Label(new Rect(rect.x + 12f, rect.y + 6f, rect.width - 24f - (zzap != null ? 70f : 0f), 24f), title, legacy ? _cardTitleLegacy : _cardTitle);
+        if (summaryHeight > 0f)
+        {
+            GUI.Label(new Rect(rect.x + 12f, rect.y + 32f, rect.width - 24f, summaryHeight), summary, _small);
+        }
+        if (GUI.Button(rect, new GUIContent(string.Empty, def.Description), GUIStyle.none) && !selected)
         {
             Sounds.PlaySound(EUISoundType.MenuCheckBox);
-            ConfigEditingTracker.Clear();
-            PresetHandler.ApplyDefinition(def);
+            var picked = def;
+            ZzapUI.Defer(() =>
+            {
+                ConfigEditingTracker.Clear();
+                PresetHandler.ApplyDefinition(picked);
+            });
         }
-        bool deletable = def.IsCustom && zzap == null;
         if (deletable)
         {
             if (_pendingDelete == def.Name)
             {
-                if (GUILayout.Button(new GUIContent(T("삭제!", "Delete!"), T("한 번 더 누르면 지웁니다", "Click again to delete")), GUILayout.Width(56f), GUILayout.MinHeight(46f)))
+                if (GUILayout.Button(new GUIContent(T("삭제!", "Delete!"), T("한 번 더 누르면 지웁니다", "Click again to delete")), ZzapUI.ButtonPrimary, GUILayout.Width(56f), GUILayout.Height(height)))
                 {
-                    Delete(def);
+                    var target = def;
+                    ZzapUI.Defer(() => Delete(target));
                 }
             }
-            else if (GUILayout.Button(new GUIContent("X", T("이 프리셋 삭제", "Delete this preset")), GUILayout.Width(28f), GUILayout.MinHeight(46f)))
+            else if (GUILayout.Button(new GUIContent("X", T("이 프리셋 삭제", "Delete this preset")), ZzapUI.Button, GUILayout.Width(28f), GUILayout.Height(height)))
             {
-                _pendingDelete = def.Name;
+                string name = def.Name;
+                ZzapUI.Defer(() => _pendingDelete = name);
             }
         }
         GUILayout.EndHorizontal();
+        GUILayout.Space(4f);
     }
 
     private static string Short(string text)
@@ -272,7 +304,7 @@ public static class QuickSettingsGUI
     {
         int on = QuickSettings.LowSpecCount(view);
         int total = QuickSettings.LowSpec.Length;
-        GUILayout.BeginVertical(on == total ? _panelBlue : _panel);
+        GUILayout.BeginVertical(on == total ? ZzapUI.PanelBlue : ZzapUI.Panel1);
         GUILayout.BeginHorizontal();
         GUILayout.Label(
             "<b>" + T("저사양 PC — 한 번에 맞추기", "Low-spec PC — one switch") + "</b>  <size=12>"
@@ -280,7 +312,7 @@ public static class QuickSettingsGUI
             _title);
         GUILayout.FlexibleSpace();
         string state = on == total ? T("켬", "On") : on == 0 ? T("끔", "Off") : T("일부", "Partly");
-        bool newValue = SAINLayout.Toggle(on == total, new GUIContent($"{state} ({on}/{total})"), EUISoundType.MenuCheckBox, GUILayout.Width(150f), GUILayout.Height(28f));
+        bool newValue = ZzapUI.Switch(on == total, 30f, $"{state} ({on}/{total})", $"{state} ({on}/{total})");
         if (newValue != (on == total))
         {
             if (newValue)
@@ -313,7 +345,7 @@ public static class QuickSettingsGUI
 
     private static void Group(string group, QuickPresetView view)
     {
-        GUILayout.BeginVertical(_panel);
+        GUILayout.BeginVertical(ZzapUI.Panel1);
         GUILayout.BeginHorizontal();
         GUILayout.Label("<b>" + QuickSettings.GroupName(group, Korean) + "</b>", _title);
         GUILayout.FlexibleSpace();
@@ -363,8 +395,8 @@ public static class QuickSettingsGUI
 
         GUILayout.BeginVertical(GUILayout.Width(SLIDER_WIDTH));
         GUILayout.Space(12f);
-        float position = SAINLayout.HorizontalSlider(q.ToSlider(value), q.Min, q.Max, null, GUILayout.Width(SLIDER_WIDTH), GUILayout.Height(18f));
-        DrawZzapTick(q);
+        float position = ZzapUI.Slider(q.ToSlider(value), q.Min, q.Max, GUILayout.Width(SLIDER_WIDTH), GUILayout.Height(20f));
+        ZzapUI.DrawTick(GUILayoutUtility.GetLastRect(), Mathf.InverseLerp(q.Min, q.Max, q.ToSlider(q.ZzapValue)), ZzapUI.Yellow);
         GUILayout.EndVertical();
 
         GUILayout.Label(Format(value), _value, GUILayout.Width(VALUE_WIDTH), GUILayout.Height(36f));
@@ -374,7 +406,7 @@ public static class QuickSettingsGUI
         float newValue = Mathf.Abs(position - q.ToSlider(value)) > 0.0001f ? q.Round(Mathf.Clamp(q.FromSlider(position), q.Min, q.Max)) : value;
         if (changed)
         {
-            if (GUILayout.Button(new GUIContent(T("되돌리기", "Undo"), string.Format(T("저장된 값 {0}(으)로", "Back to the saved {0}"), Format(saved))), GUILayout.Width(RESET_WIDTH), GUILayout.Height(26f)))
+            if (GUILayout.Button(new GUIContent(T("되돌리기", "Undo"), string.Format(T("저장된 값 {0}(으)로", "Back to the saved {0}"), Format(saved))), ZzapUI.Button, GUILayout.Width(RESET_WIDTH), GUILayout.Height(28f)))
             {
                 newValue = saved;
             }
@@ -403,7 +435,7 @@ public static class QuickSettingsGUI
         GUILayout.Label(new GUIContent(q.Name(Korean) + ChangedMark(changed), q.Help(Korean)), _name);
         GUILayout.Label(q.Help(Korean), _small);
         GUILayout.EndVertical();
-        bool newOn = SAINLayout.Toggle(on, new GUIContent(on ? T("켬", "On") : T("끔", "Off")), EUISoundType.MenuCheckBox, GUILayout.Width(VALUE_WIDTH + RESET_WIDTH), GUILayout.Height(28f));
+        bool newOn = ZzapUI.Switch(on, 36f);
         GUILayout.EndHorizontal();
 
         if (newOn != on)
@@ -411,19 +443,6 @@ public static class QuickSettingsGUI
             q.Set(view, newOn ? 1f : 0f);
             ConfigEditingTracker.Add(q.NameEn, newOn);
         }
-    }
-
-    // A thin yellow mark on the slider where zzap's own value sits.
-    private static void DrawZzapTick(QuickSetting q)
-    {
-        if (Event.current.type != EventType.Repaint)
-        {
-            return;
-        }
-        Rect rect = GUILayoutUtility.GetLastRect();
-        float t = Mathf.InverseLerp(q.Min, q.Max, q.ToSlider(q.ZzapValue));
-        float x = rect.x + 6f + (rect.width - 12f) * t;
-        GUI.DrawTexture(new Rect(x - 1f, rect.y - 3f, 2f, rect.height + 6f), _tickTexture);
     }
 
     private static string Format(float value)
@@ -435,40 +454,15 @@ public static class QuickSettingsGUI
 
     private static void EnsureStyles()
     {
-        if (_card != null)
+        ZzapUI.EnsureStyles();
+        if (_cardTitle != null)
         {
             return;
         }
-        _tickTexture = Solid(new Color(0.98f, 0.8f, 0.08f, 1f));
-
-        _card = new GUIStyle(GUI.skin.button)
-        {
-            alignment = TextAnchor.MiddleLeft,
-            wordWrap = true,
-            richText = true,
-            fontSize = 14,
-            padding = new RectOffset(12, 10, 7, 7),
-            margin = new RectOffset(0, 0, 3, 3),
-        };
-        SetBackground(_card, new Color(0.09f, 0.09f, 0.11f, 0.95f), new Color(0.14f, 0.14f, 0.17f, 0.98f));
-        SetText(_card, new Color(0.89f, 0.89f, 0.91f));
-
-        _cardSelected = new GUIStyle(_card);
-        SetBackground(_cardSelected, new Color(0.05f, 0.25f, 0.33f, 0.95f), new Color(0.07f, 0.3f, 0.4f, 0.98f));
-        SetText(_cardSelected, Color.white);
-
-        _cardLegacy = new GUIStyle(_card);
-        SetText(_cardLegacy, new Color(0.55f, 0.55f, 0.6f));
-
-        _panel = new GUIStyle(GUI.skin.box)
-        {
-            padding = new RectOffset(12, 12, 8, 10),
-            margin = new RectOffset(0, 0, 0, 0),
-        };
-        SetBackground(_panel, new Color(0.08f, 0.08f, 0.1f, 0.92f), new Color(0.08f, 0.08f, 0.1f, 0.92f));
-
-        _panelBlue = new GUIStyle(_panel);
-        SetBackground(_panelBlue, new Color(0.04f, 0.16f, 0.22f, 0.95f), new Color(0.04f, 0.16f, 0.22f, 0.95f));
+        _cardTitle = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 15, alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Clip };
+        SetText(_cardTitle, new Color(0.93f, 0.93f, 0.95f));
+        _cardTitleLegacy = new GUIStyle(_cardTitle);
+        SetText(_cardTitleLegacy, new Color(0.55f, 0.55f, 0.6f));
 
         _title = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 15, alignment = TextAnchor.MiddleLeft };
         SetText(_title, Color.white);
@@ -486,28 +480,6 @@ public static class QuickSettingsGUI
 
         _value = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight };
         SetText(_value, Color.white);
-    }
-
-    private static Texture2D Solid(Color color)
-    {
-        var texture = new Texture2D(1, 1) { hideFlags = HideFlags.HideAndDontSave };
-        texture.SetPixel(0, 0, color);
-        texture.Apply();
-        return texture;
-    }
-
-    private static void SetBackground(GUIStyle style, Color normal, Color hover)
-    {
-        var normalTexture = Solid(normal);
-        var hoverTexture = Solid(hover);
-        style.normal.background = normalTexture;
-        style.onNormal.background = normalTexture;
-        style.hover.background = hoverTexture;
-        style.onHover.background = hoverTexture;
-        style.active.background = hoverTexture;
-        style.onActive.background = hoverTexture;
-        style.focused.background = normalTexture;
-        style.onFocused.background = normalTexture;
     }
 
     private static void SetText(GUIStyle style, Color color)

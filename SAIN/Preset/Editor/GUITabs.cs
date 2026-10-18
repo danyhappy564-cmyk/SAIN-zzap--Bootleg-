@@ -6,6 +6,7 @@ using SAIN.Helpers;
 using SAIN.Plugin;
 using SAIN.Preset;
 using SAIN.Preset.Shared.Enums;
+using SAIN.Preset.Shared.GearStealthValues;
 using static SAIN.Editor.SAINLayout;
 
 namespace SAIN.Editor;
@@ -15,6 +16,8 @@ public static class GUITabs
     public static void CreateTabs(EEditorTab selectedTab)
     {
         EditTabsClass.BeginScrollView();
+        BeginHorizontal(12f);
+        BeginVertical();
         switch (selectedTab)
         {
             case EEditorTab.Quick:
@@ -44,6 +47,8 @@ public static class GUITabs
             default:
                 break;
         }
+        EndVertical();
+        EndHorizontal(12f);
         EditTabsClass.EndScrollView();
     }
 
@@ -63,7 +68,7 @@ public static class GUITabs
         {
             PresetSelection.PresetSelectionMenu();
         }
-        Space(10f);
+        Space(8f);
 
         BotSettingsEditor.ShowAllSettingsGUI(
             SAINPlugin.LoadedPreset.GlobalSettings,
@@ -91,34 +96,62 @@ public static class GUITabs
         BotPersonalityEditor.PersonalityMenu();
     }
 
+    private static EEquipmentType? _stealthType;
+    private static UnityEngine.Vector2 _stealthScroll;
+
+    // zzap fork (2026-10-18, mockup 5): equipment types on the left, that type's items on the right (was two fold-out rows).
     private static void Stealth()
     {
-        BeginVertical();
+        ZzapUI.EnsureStyles();
+        var stealth = SAINPlugin.LoadedPreset.GearStealthValuesClass;
+        var types = new System.Collections.Generic.List<EEquipmentType>();
+        foreach (var type in EnumValues.GetEnum<EEquipmentType>())
+        {
+            if (stealth.ItemStealthValues.ContainsKey(type))
+            {
+                types.Add(type);
+            }
+        }
+        if (types.Count == 0)
+        {
+            Label(EditorText.UI("No equipment stealth values in this preset."), ZzapUI.Small);
+            return;
+        }
+        if (!_stealthType.HasValue || !types.Contains(_stealthType.Value))
+        {
+            _stealthType = types[0];
+        }
+        EEquipmentType current = _stealthType.Value;
 
         BeginHorizontal();
-        if (ConfigEditingTracker.UnsavedChanges)
+        UnityEngine.GUILayout.BeginVertical(ZzapUI.Panel1, Width(ZzapUI.SIDE_WIDTH), Height(ZzapUI.PANEL_HEIGHT));
+        Label(EditorText.UI("EQUIPMENT"), ZzapUI.Section);
+        Label(EditorText.UI("Modify the stealth value that certain pieces of equipment provide."), ZzapUI.Small);
+        Space(6f);
+        foreach (var type in types)
         {
-            BuilderClass.Alert(
-                EditorText.UI("Click Save to export changes, and send changes to bots if in-game"),
-                EditorText.UI("YOU HAVE UNSAVED CHANGES!"),
-                35f,
-                ColorNames.DarkRed
-            );
+            var captured = type;
+            if (ZzapUI.ListItem(EditorText.Value(type), stealth.ItemStealthValues[type].Count.ToString(), type == current))
+            {
+                ZzapUI.Defer(() =>
+                {
+                    _stealthType = captured;
+                    _stealthScroll = UnityEngine.Vector2.zero;
+                });
+            }
         }
-        else
-        {
-            BuilderClass.Alert(null, null, 25f, null);
-        }
+        FlexibleSpace();
+        UnityEngine.GUILayout.EndVertical();
 
-        if (Button(EditorText.UI("Save and Export"), ConfigEditingTracker.GetUnsavedValuesString(), EUISoundType.InsuranceInsured, Height(25f)))
-        {
-            SAINPresetClass.ExportAll(SAINPlugin.LoadedPreset);
-        }
+        Space(12f);
 
+        UnityEngine.GUILayout.BeginVertical(ZzapUI.Panel1, Height(ZzapUI.PANEL_HEIGHT), UnityEngine.GUILayout.ExpandWidth(true));
+        ZzapUI.PanelHeading(EditorText.Value(current), EditorText.UI("Modify the stealth value that certain pieces of equipment provide."));
+        _stealthScroll = BeginScrollView(_stealthScroll, UnityEngine.GUILayout.ExpandHeight(true));
+        AttributesGUI.EditStealthType(stealth, current);
+        EndScrollView();
+        UnityEngine.GUILayout.EndVertical();
         EndHorizontal();
-
-        AttributesGUI.EditAllStealthValues(SAINPlugin.LoadedPreset.GearStealthValuesClass);
-        EndVertical();
     }
 
     private static void ForceDecisions(int spacing)
@@ -192,7 +225,11 @@ public static class GUITabs
 
     public static void Advanced()
     {
+        ZzapUI.EnsureStyles();
+        UnityEngine.GUILayout.BeginVertical(ZzapUI.Panel1);
+        ZzapUI.PanelHeading(EditorText.UI("F6 editor settings"), EditorText.UI("How this editor looks and behaves (saved on this PC, not in the preset)."));
         AttributesGUI.EditAllValuesInObj(PresetHandler.EditorDefaults, out bool newEdit);
+        UnityEngine.GUILayout.EndVertical();
         if (newEdit)
         {
             PresetHandler.ExportEditorDefaults();

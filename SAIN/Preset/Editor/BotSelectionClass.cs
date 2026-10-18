@@ -27,77 +27,276 @@ public static class BotSelectionClass
 
         Sections = sections.ToArray();
         SectionOpens = new bool[Sections.Length];
+        if (SectionOpens.Length > 0)
+        {
+            SectionOpens[0] = true;
+        }
     }
 
-    private static GUIStyle botTypeSectionStyle;
     private static bool[] SectionOpens;
+    private static UnityEngine.Vector2 _botScroll;
+    private static UnityEngine.Vector2 _groupScroll;
+    private static UnityEngine.Vector2 _valueScroll;
+    private static string _selectedCategory;
+    private const float GROUP_WIDTH = 270f;
+    private const float COMBO_WIDTH = 240f;
 
+    // zzap fork (2026-10-18, mockup 5): three columns - bot types and difficulties | setting groups | the values. The old page
+    // was a row of section buttons, a difficulty row, then every group and every setting behind its own fold-out button, and
+    // showed "no bot types selected" until all of that was clicked through. Save is in the header now.
     public static void Menu()
     {
+        ZzapUI.EnsureStyles();
+        var container = SettingsContainers.GetContainer(typeof(SAINSettingsClass), "Select Options to Edit");
+        string search = container.SearchPattern ?? string.Empty;
+
         BeginHorizontal();
-        FlexibleSpace();
-        string toolTip =
-            $"Apply Values set below to selected Bot Type. "
-            + $"Saves edited values to the SAIN server for preset '{SAINPlugin.LoadedPreset.Info.Name}'";
-        if (BuilderClass.SaveChanges(ConfigEditingTracker.GetUnsavedValuesString(), 35f))
-        {
-            SAINPresetClass.ExportAll(SAINPlugin.LoadedPreset);
-        }
-        FlexibleSpace();
+        BotColumn();
+        Space(12f);
+        GroupColumn(container, search.Length > 0);
+        Space(12f);
+        ValueColumn(container, search.ToLowerInvariant());
         EndHorizontal();
-        BeginHorizontal();
-        FlexibleSpace();
-        Space(3);
-        float sectionWidth = 1850f / Sections.Length;
+    }
+
+    private static void BotColumn()
+    {
+        GUILayout.BeginVertical(ZzapUI.Panel1, Width(ZzapUI.SIDE_WIDTH), Height(ZzapUI.PANEL_HEIGHT));
+        Label(EditorText.UI("BOT TYPES"), ZzapUI.Section);
+        Label(EditorText.UI("Pick one or more. Values on the right change for every bot type and difficulty picked here."), ZzapUI.Small);
+        Space(4f);
+        _botScroll = BeginScrollView(_botScroll, GUILayout.ExpandHeight(true));
         for (int i = 0; i < Sections.Length; i++)
         {
-            BeginVertical();
-            if (botTypeSectionStyle == null)
-            {
-                botTypeSectionStyle = new GUIStyle(GetStyle(Style.toggle))
-                {
-                    alignment = TextAnchor.MiddleLeft,
-                    padding = new RectOffset(5, 5, 0, 0),
-                    margin = new RectOffset(5, 5, 0, 0),
-                    border = new RectOffset(5, 5, 0, 0),
-                    fontStyle = FontStyle.Bold,
-                };
-            }
             string section = Sections[i];
-            SectionOpens[i] = Toggle(
-                SectionOpens[i],
-                new GUIContent(section),
-                botTypeSectionStyle,
-                EUISoundType.MenuDropdown,
-                Height(35),
-                Width(sectionWidth)
-            );
-            if (SectionOpens[i])
+            int picked = 0;
+            foreach (var bot in SelectedBotTypes)
             {
-                ModifyLists.AddOrRemove(SelectedBotTypes, section, 27.5f, sectionWidth);
+                if (bot.Section == section)
+                {
+                    picked++;
+                }
             }
-            EndVertical();
+            int index = i;
+            if (ZzapUI.ListItem((SectionOpens[i] ? "▾  " : "▸  ") + section, picked > 0 ? string.Format(EditorText.UI("{0} picked"), picked) : null, false))
+            {
+                ZzapUI.Defer(() => SectionOpens[index] = !SectionOpens[index]);
+            }
+            if (!SectionOpens[i])
+            {
+                continue;
+            }
+            foreach (var bot in BotTypeDefinitions.BotTypes.Values)
+            {
+                if (bot.Section != section)
+                {
+                    continue;
+                }
+                bool selected = SelectedBotTypes.Contains(bot);
+                var captured = bot;
+                if (ZzapUI.ListItem(bot.Name, null, selected, bot.Description, 22f, 28f))
+                {
+                    ZzapUI.Defer(() =>
+                    {
+                        if (!SelectedBotTypes.Remove(captured))
+                        {
+                            SelectedBotTypes.Add(captured);
+                        }
+                    });
+                }
+            }
         }
-        FlexibleSpace();
-        EndHorizontal();
-        Space(3f);
-        if (Button(EditorText.UI("Clear Bot Types"), EditorText.UI("Clear all selected bot types"), EUISoundType.ButtonBottomBarClick))
-        {
-            SelectedBotTypes.Clear();
-        }
-        Space(3f);
+        EndScrollView();
+
+        Space(8f);
+        Label(EditorText.UI("DIFFICULTY"), ZzapUI.Section);
         BeginHorizontal();
-        Label(EditorText.UI("Difficulties"), EditorText.UI("Select which difficulties you wish to modify."), Height(25));
-        Space(3f);
-        ModifyLists.AddOrRemove(SelectedDifficulties, out bool newEdit, 4, 1200f, 35f);
-        Space(3f);
-        if (Button(EditorText.UI("Clear Difficulties"), EditorText.UI("Clear all selected difficulties"), null, Height(25f), Width(150f)))
+        foreach (var difficulty in BotDifficultyOptions)
         {
-            SelectedDifficulties.Clear();
+            bool selected = SelectedDifficulties.Contains(difficulty);
+            var captured = difficulty;
+            if (GUILayout.Button(EditorText.Value(difficulty), selected ? ZzapUI.Pill : ZzapUI.Button, Height(30f)))
+            {
+                Sounds.PlaySound(EUISoundType.MenuCheckBox);
+                ZzapUI.Defer(() =>
+                {
+                    if (!SelectedDifficulties.Remove(captured))
+                    {
+                        SelectedDifficulties.Add(captured);
+                    }
+                });
+            }
         }
         EndHorizontal();
-        Space(5);
-        SelectProperties();
+        Space(4f);
+        if (GUILayout.Button(new GUIContent(EditorText.UI("Clear selection"), EditorText.UI("Clear all selected bot types and difficulties")), ZzapUI.Button, Height(28f)))
+        {
+            Sounds.PlaySound(EUISoundType.ButtonBottomBarClick);
+            ZzapUI.Defer(() =>
+            {
+                SelectedBotTypes.Clear();
+                SelectedDifficulties.Clear();
+            });
+        }
+        GUILayout.EndVertical();
+    }
+
+    private static void GroupColumn(SettingsContainer container, bool searching)
+    {
+        GUILayout.BeginVertical(ZzapUI.Panel1, Width(GROUP_WIDTH), Height(ZzapUI.PANEL_HEIGHT));
+        container.SearchPattern = ZzapUI.Search(container.SearchPattern, EditorText.UI("Search settings"));
+        Space(8f);
+        if (_selectedCategory == null && container.Categories.Count > 0)
+        {
+            _selectedCategory = container.Categories[0].CategoryInfo.EnglishName;
+        }
+        _groupScroll = BeginScrollView(_groupScroll, GUILayout.ExpandHeight(true));
+        foreach (var category in container.Categories)
+        {
+            int count = category.OptionCount(out _);
+            if (count == 0)
+            {
+                continue;
+            }
+            string key = category.CategoryInfo.EnglishName;
+            bool selected = !searching && key == _selectedCategory;
+            if (ZzapUI.ListItem(category.CategoryInfo.Name, count.ToString(), selected, category.CategoryInfo.Description))
+            {
+                ZzapUI.Defer(() =>
+                {
+                    _selectedCategory = key;
+                    container.SearchPattern = string.Empty;
+                    _valueScroll = UnityEngine.Vector2.zero;
+                });
+            }
+        }
+        EndScrollView();
+        GUILayout.EndVertical();
+    }
+
+    private static void ValueColumn(SettingsContainer container, string search)
+    {
+        GUILayout.BeginVertical(ZzapUI.Panel1, Height(ZzapUI.PANEL_HEIGHT), GUILayout.ExpandWidth(true));
+        if (SelectedBotTypes.Count == 0 || SelectedDifficulties.Count == 0)
+        {
+            ZzapUI.PanelHeading(
+                EditorText.UI("Pick bot types and difficulties"),
+                SelectedBotTypes.Count == 0
+                    ? EditorText.UI("No bot type picked yet - pick at least one on the left.")
+                    : EditorText.UI("No difficulty picked yet - pick at least one on the left, under the bot types.")
+            );
+            Label(
+                EditorText.UI("1. Open a section on the left (PMC, Scav...) and click the bot types. 2. Click one or more difficulties under them. 3. Pick a group in the middle; its values show here, one row per bot type and difficulty."),
+                ZzapUI.Small
+            );
+            FlexibleSpace();
+            GUILayout.EndVertical();
+            return;
+        }
+
+        bool searching = search.Length > 0;
+        Category shown = null;
+        if (!searching)
+        {
+            foreach (var category in container.Categories)
+            {
+                if (category.CategoryInfo.EnglishName == _selectedCategory)
+                {
+                    shown = category;
+                }
+            }
+            shown ??= container.Categories.Count > 0 ? container.Categories[0] : null;
+        }
+        string combos = string.Format(EditorText.UI("{0} bot types × {1} difficulties"), SelectedBotTypes.Count, SelectedDifficulties.Count);
+        if (searching)
+        {
+            ZzapUI.PanelHeading(string.Format(EditorText.UI("Search: '{0}'"), search), combos);
+        }
+        else if (shown != null)
+        {
+            ZzapUI.PanelHeading(shown.CategoryInfo.Name, string.IsNullOrEmpty(shown.CategoryInfo.Description) ? combos : shown.CategoryInfo.Description + "   ·   " + combos);
+        }
+
+        _valueScroll = BeginScrollView(_valueScroll, GUILayout.ExpandHeight(true));
+        try
+        {
+            foreach (var category in container.Categories)
+            {
+                if (searching ? false : category != shown)
+                {
+                    continue;
+                }
+                foreach (var fieldAtt in category.FieldAttributesList)
+                {
+                    if (fieldAtt.DoNotShowGUI)
+                    {
+                        continue;
+                    }
+                    if (searching && !fieldAtt.Name.ToLower().Contains(search) && fieldAtt.EnglishName?.ToLower().Contains(search) != true)
+                    {
+                        continue;
+                    }
+                    EditField(category, fieldAtt);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex);
+        }
+        EndScrollView();
+        GUILayout.EndVertical();
+    }
+
+    // One setting: its name, then one row per picked bot type × difficulty (a single row when only one is picked).
+    private static void EditField(Category category, ConfigInfoClass fieldAtt)
+    {
+        entryConfig ??= new GUIEntryConfig();
+        bool single = SelectedBotTypes.Count * SelectedDifficulties.Count == 1;
+        if (!single)
+        {
+            Space(6f);
+            Label(new GUIContent(fieldAtt.Name, fieldAtt.Description), ZzapUI.Name);
+            if (!string.IsNullOrEmpty(fieldAtt.Description))
+            {
+                Label(fieldAtt.Description, ZzapUI.Small);
+            }
+        }
+        for (int k = 0; k < SelectedBotTypes.Count; k++)
+        {
+            var bot = SelectedBotTypes[k];
+            if (!SAINPlugin.LoadedPreset.BotSettings.SAINSettings.TryGetValue(bot.WildSpawnType, out var settings))
+            {
+                continue;
+            }
+            for (int t = 0; t < SelectedDifficulties.Count; t++)
+            {
+                var difficulty = SelectedDifficulties[t];
+                if (!settings.Settings.TryGetValue(difficulty.ToESain(), out var SAINSettings))
+                {
+                    continue;
+                }
+                object categoryValue = category.GetValue(SAINSettings);
+                object value = fieldAtt.GetValue(categoryValue);
+                BeginHorizontal(single ? 8f : 24f);
+                if (single)
+                {
+                    Label(new GUIContent(fieldAtt.Name, fieldAtt.Description), ZzapUI.Name, Width(ZzapUI.NAME_WIDTH), GUILayout.MinHeight(AttributesGUI.RowHeight));
+                }
+                else
+                {
+                    Label($"{bot.Name} · {EditorText.Value(difficulty)}", ZzapUI.Small, Width(COMBO_WIDTH), Height(AttributesGUI.RowHeight));
+                }
+                value = AttributesGUI.EditFloatBoolInt(ref value, categoryValue, fieldAtt, entryConfig, 0, out bool newEdit, false, false);
+                if (newEdit)
+                {
+                    ConfigEditingTracker.Add(fieldAtt.Name, value);
+                }
+                fieldAtt.SetValue(categoryValue, value);
+                EndHorizontal(8f);
+            }
+        }
+        ZzapUI.Separator(4f);
     }
 
     public static readonly string[] Sections;
@@ -116,116 +315,4 @@ public static class BotSelectionClass
     public static bool BotSettingsWereEdited;
 
     private static GUIEntryConfig entryConfig;
-
-    private static void SelectProperties()
-    {
-        if (SelectedBotTypes.Count == 0 || SelectedDifficulties.Count == 0)
-        {
-            if (SelectedBotTypes.Count == 0)
-            {
-                Box(EditorText.UI("No Bot Types Selected, please select at least one above."));
-            }
-            else
-            {
-                Box(EditorText.UI("No Bot Difficulties Selected, please select at least one above."));
-            }
-            return;
-        }
-
-        var container = SettingsContainers.GetContainer(typeof(SAINSettingsClass), "Select Options to Edit");
-        string search = BuilderClass.SearchBox(container);
-
-        try
-        {
-            foreach (var category in container.Categories)
-            {
-                var toggleStyle = GetStyle(Style.toggle);
-                var oldAlignment = toggleStyle.alignment;
-                toggleStyle.alignment = TextAnchor.MiddleLeft;
-                category.CategoryInfo.MenuOpen = Toggle(
-                    category.CategoryInfo.MenuOpen,
-                    category.CategoryInfo.Name,
-                    null,
-                    Height(PresetHandler.EditorDefaults.ConfigEntryHeight)
-                );
-                toggleStyle.alignment = oldAlignment;
-                if (!category.CategoryInfo.MenuOpen)
-                {
-                    continue;
-                }
-                // Get the fields in this category
-                for (int i = 0; i < category.FieldAttributesList.Count; i++)
-                {
-                    var fieldAtt = category.FieldAttributesList[i];
-                    // Check if the user is searching
-                    if (!string.IsNullOrEmpty(search) && !fieldAtt.Name.ToLower().Contains(search))
-                    {
-                        continue;
-                    }
-                    BeginHorizontal();
-                    Space(30f);
-                    toggleStyle.alignment = TextAnchor.MiddleLeft;
-                    fieldAtt.MenuOpen = Toggle(
-                        fieldAtt.MenuOpen,
-                        fieldAtt.Name,
-                        fieldAtt.Description,
-                        null,
-                        Height(PresetHandler.EditorDefaults.ConfigEntryHeight),
-                        Width(500f)
-                    );
-                    toggleStyle.alignment = oldAlignment;
-                    EndHorizontal();
-                    if (!fieldAtt.MenuOpen)
-                    {
-                        continue;
-                    }
-                    for (int k = 0; k < SelectedBotTypes.Count; k++)
-                    {
-                        var bot = SelectedBotTypes[k];
-                        if (SAINPlugin.LoadedPreset.BotSettings.SAINSettings.TryGetValue(bot.WildSpawnType, out var settings))
-                        {
-                            if (entryConfig == null)
-                            {
-                                entryConfig = new GUIEntryConfig();
-                            }
-
-                            for (int t = 0; t < SelectedDifficulties.Count; t++)
-                            {
-                                var difficulty = SelectedDifficulties[t];
-                                if (settings.Settings.TryGetValue(difficulty.ToESain(), out var SAINSettings))
-                                {
-                                    BeginHorizontal();
-                                    Space(60);
-                                    object categoryValue = category.GetValue(SAINSettings);
-                                    object value = fieldAtt.GetValue(categoryValue);
-                                    Label($"{bot.Name} : {difficulty}", Height(PresetHandler.EditorDefaults.ConfigEntryHeight), Width(200));
-                                    value = AttributesGUI.EditFloatBoolInt(
-                                        ref value,
-                                        categoryValue,
-                                        fieldAtt,
-                                        entryConfig,
-                                        0,
-                                        out bool newEdit,
-                                        false,
-                                        false
-                                    );
-                                    if (newEdit)
-                                    {
-                                        ConfigEditingTracker.Add(fieldAtt.Name, value);
-                                    }
-
-                                    fieldAtt.SetValue(categoryValue, value);
-                                    EndHorizontal();
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex);
-        }
-    }
 }
