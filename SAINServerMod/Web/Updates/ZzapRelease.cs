@@ -9,8 +9,8 @@ namespace SAINServerMod.Web.Updates;
 /// </summary>
 public static class ZzapRelease
 {
-    /// <summary>Release this build belongs to. Bump together with the README / release notes on every release.</summary>
-    public const string Current = "Remix5.1";
+    /// <summary>Release this build belongs to - shared with F6 (SAINVersionInfo.ZzapRelease), bumped there on every release.</summary>
+    public const string Current = SAIN.Preset.Shared.SAINVersionInfo.ZzapRelease;
 
     public const string Repository = "danyhappy564-cmyk/SAIN-zzap--Bootleg-";
 

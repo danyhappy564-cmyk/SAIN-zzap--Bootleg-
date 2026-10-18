@@ -16,9 +16,9 @@
 
 ## 변경 이력
 
-- 2026-10-19 02:45 — **웹 빠른 설정 슬라이더 손잡이가 엄청 크게 나오던 문제.** 웹 화면 부품(MudBlazor)은 손잡이를 4px로 그린 뒤 5배로 키워 보여 주는데, 손잡이를 16px로 지정해서 80px짜리 원이 됐음. 크기는 원래대로 두고 색(흰 테두리 원)만 바꿈, 차이 막대 위치도 그 손잡이에 맞춤. 같은 CSS를 넣은 시험 페이지로 크기·위치 확인함(실제 웹 화면은 미검증).
+- 2026-10-19 02:57 — **remake6 릴리즈 준비.** ① F6 왼쪽 위에 SAIN 내부 번호 4.5.1 대신 릴리즈 이름(remake6)이 나오게 함(사용자: '왼쪽 위 버전이 4.5.1') — 이름은 한 곳(공용 코드)에만 두고 F6·BepInEx 로그 첫 줄·웹 업데이트 페이지가 같이 씀. 내부 번호 4.5.1은 프리셋 호환 때문에 그대로. ② 서버 모드 릴리즈 zip에 웹 화면 디자인 파일(wwwroot/css/sain.css)이 빠져 있었음 — 빌드가 그 파일을 개발용 폴더에만 복사해서, zip으로 설치한 분은 웹 화면이 꾸밈 없이 보였을 수 있음. 이제 zip에 들어감. 서버 빌드 오류 0, 클라이언트 컴파일 확인(새 오류 0).
 
-전체 변경 이력 224개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-023.md`](changelog/CHANGELOG-023.md)).
+전체 변경 이력 225개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-023.md`](changelog/CHANGELOG-023.md)).
 
 # SAIN (zzap fork)
 
@@ -37,7 +37,7 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 
 변경 이력은 [`changelog/`](changelog/), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
 
-**최근 변경 (2026-10-14, Remix5.1 릴리즈):** 봇 몸통박치기(달려서 문 박차 열기 — 다른 모드 없이 SAIN 자체 기능), 문에 끼는 버그들(반대로 열린 문짝·미닫이문·문짝 틈), 무기 핑퐁 세 경로, 뒷걸음질·벽 보기·자기 수류탄·보이는 곳 치료 등 시뮬·스크린샷 제보 수정, F8 장면 표시와 이상 행동 자동 감지. 상세는 [`Remix5.1 릴리즈 노트`](changelog/RELEASE_NOTES_Remix5.1.md)와 [전체 이력](changelog/). (시뮬로 확인, 사람 상대 체감은 미검증)
+**최근 변경 (2026-10-19, remake6 릴리즈):** 설정 화면 대개편 — 게임 안 F6 설정 창을 새 모양으로 다시 그림(첫 탭 '빠른 설정': 프리셋 카드, 저사양 PC 스위치, 자주 바꾸는 값 14개를 쉬운 말과 '기준 → 지금' 색 막대로), 서버 웹 화면(프리셋·시뮬·시뮬 분석·업데이트) 개편, 프리셋 '보통'을 쉬움과 zzap의 진짜 중간으로 조정, zzap 프리셋을 고쳐 저장하면 '[Modified]' 복사본으로 저장(업데이트해도 안 날아감). 봇 행동은 Remix5.1과 같음. 상세는 [`remake6 릴리즈 노트`](changelog/RELEASE_NOTES_remake6.md)와 [전체 이력](changelog/). (화면은 사용자 게임·웹 스크린샷으로 맞춤, 마지막 수정분은 미검증)
 
 릴리즈별 변경 요약: [`remake5`](changelog/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](changelog/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](changelog/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
 

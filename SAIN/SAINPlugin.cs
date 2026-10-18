@@ -89,7 +89,8 @@ public class SAINPlugin : BaseUnityPlugin
         {
             string dllPath = typeof(SAINPlugin).Assembly.Location;
             Logger.LogInfo(
-                $"[SAIN] Loaded DLL {System.IO.Path.GetFileName(dllPath)} built/modified at "
+                $"[SAIN] zzap {SAIN.Preset.Shared.SAINVersionInfo.ZzapRelease} (SAIN {SAIN.Preset.Shared.SAINVersionInfo.SAINVersion}) - "
+                    + $"loaded DLL {System.IO.Path.GetFileName(dllPath)} built/modified at "
                     + $"{System.IO.File.GetLastWriteTime(dllPath):yyyy-MM-dd HH:mm:ss} (local time)"
             );
         }

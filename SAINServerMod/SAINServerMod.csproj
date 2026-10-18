@@ -69,10 +69,15 @@
     </PropertyGroup>
     <ItemGroup>
       <PackageFiles Include="$(OutputPath)**\*" Exclude="$(OutputPath)**\*.pdb;$(OutputPath)**\*.deps.json" />
+      <!-- zzap fork (2026-10-19): the web pages' stylesheet (/SAIN/css/sain.css) is served from wwwroot next to the DLL. It was
+           only copied to the local test folder, so release zips shipped the web pages unstyled. -->
+      <PackageWebFiles Include="$(ProjectDir)wwwroot\**\*.*" />
     </ItemGroup>
     <RemoveDir Directories="$(PackageStageDir)" />
     <Copy SourceFiles="@(PackageFiles)"
           DestinationFiles="@(PackageFiles->'$(PackageStageDir)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(PackageWebFiles)"
+          DestinationFiles="@(PackageWebFiles->'$(PackageStageDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')" />
     <MakeDir Directories="$(PackageZipDir)" />
     <Delete Files="$(PackageZipPath)" />
     <ZipDirectory SourceDirectory="$(PackageStageDir)" DestinationFile="$(PackageZipPath)" Overwrite="true" />

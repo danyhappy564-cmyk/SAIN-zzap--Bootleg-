@@ -148,7 +148,7 @@ public static class SAINEditor
             ZzapUI.Fill(new Rect(0, HeaderRect.yMax - 1f, HeaderRect.width, 1f), ZzapUI.Line);
         }
         string title =
-            $"<b>{EditorText.UI("SAIN zzap settings (F6)")}</b>  <color=#71717a>{SAINVersionInfo.SAINVersion}</color>   |   "
+            $"<b>{EditorText.UI("SAIN zzap settings (F6)")}</b>  <color=#facc15>{SAINVersionInfo.ZzapRelease}</color>   |   "
             + $"{EditorText.UI("Preset")}: <color=#facc15><b>{SAINPlugin.LoadedPreset.Info.Name}</b></color>";
         var content = new GUIContent(title);
         float titleWidth = Mathf.Min(ZzapUI.Header.CalcSize(content).x + 4f, DragRect.width - 230f);
