@@ -165,13 +165,17 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
         Vector3 startSlowDestination = slowAtCorners ? currentCorner.Position : Destination;
         float startSlowDist = slowAtCorners ? 2f : 0.85f;
         float stopSprintDist = slowAtCorners ? 2f : 1.1f;
+        // zzap (2026-10-19): corner slowing keeps at least CORNER_SLOW_MIN of the search speed - slow round the corner, not a
+        // crawl into it (the arrival slowdown at the final destination is unchanged)
+        float minSlowFraction = slowAtCorners ? CORNER_SLOW_MIN : 0f;
 
         Bot.PlayerComponent.CharacterController.SetTargetMoveDirection(
             currentCorner.Position - Bot.Position,
             startSlowDestination,
             Bot.PlayerComponent,
             startSlowDist,
-            stopSprintDist
+            stopSprintDist,
+            minSlowFraction
         );
 
         if (!CheckSprintSteering(currentCorner))
@@ -804,6 +808,9 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
     /// If a bot is not sprinting right now, and the current corner is less than this distance away (meters), the bot will not start sprinting yet.
     /// </summary>
     private const float START_SPRINT_CORNER_MIN_DIST = 0.25f;
+
+    /// <summary>Slowest a SlowAtCorners search walks near a path corner, as a fraction of its search speed.</summary>
+    private const float CORNER_SLOW_MIN = 0.35f;
 
     /// <summary>
     /// Angle from the direction a bot is looking to the direction of the corner, if the angle is greater than this, the bot is "turning" and stops sprinting.
