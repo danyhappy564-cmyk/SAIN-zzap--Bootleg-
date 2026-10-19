@@ -64,7 +64,7 @@ public class PlayerMovementController
         }
     }
 
-    private void SetPlayerSpeed(Player player, float magnitude, float playerSpeed, float START_SLOW_DIST, bool shallSprint, float minSlowFraction)
+    private void SetPlayerSpeed(Player player, float magnitude, float playerSpeed, float START_SLOW_DIST, bool shallSprint)
     {
         const float SLOW_COEF = 10f;
         if (shallSprint || player.IsSprintEnabled)
@@ -76,10 +76,7 @@ public class PlayerMovementController
             float targetSpeed = _targetMoveSpeed;
             if (magnitude <= START_SLOW_DIST)
             {
-                // zzap (2026-10-19, offline sim S2): the slowdown is distance / 10 all the way in. For a search slowing at every
-                // path corner (2 m window, corner reached at 0.1 m) that is a crawl - 61% of SlowAtCorners search movement under
-                // 0.3 m/s vs 6% without (factory, 100 raids). A caller may set a floor; 0 (every other caller) keeps it as it was.
-                targetSpeed *= Mathf.Max(minSlowFraction, magnitude / SLOW_COEF);
+                targetSpeed *= (magnitude / SLOW_COEF);
             }
             float speedDelta = targetSpeed - playerSpeed;
             ChangeSpeed(player, speedDelta);
@@ -204,8 +201,7 @@ public class PlayerMovementController
         Vector3 finalMoveDestination,
         PlayerComponent playerComp,
         float START_SLOW_DIST = 0.75f,
-        float STOP_SPRINT_DIST = 1f,
-        float minSlowFraction = 0f
+        float STOP_SPRINT_DIST = 1f
     )
     {
         if (direction.sqrMagnitude < Mathf.Epsilon)
@@ -234,7 +230,7 @@ public class PlayerMovementController
         float destinationDistance = (finalMoveDestination - playerComp.Position).magnitude;
         bool canSprint = player.MovementContext.CanSprint && CheckCanSprintByDistanceRemaining(destinationDistance, STOP_SPRINT_DIST);
         bool shallSprint = canSprint && _wantToSprint;
-        SetPlayerSpeed(player, destinationDistance, playerSpeed, START_SLOW_DIST, shallSprint, minSlowFraction);
+        SetPlayerSpeed(player, destinationDistance, playerSpeed, START_SLOW_DIST, shallSprint);
         player.EnableSprint(shallSprint);
 
         direction.Normalize();
