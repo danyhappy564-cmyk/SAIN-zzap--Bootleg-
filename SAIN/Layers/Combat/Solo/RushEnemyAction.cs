@@ -114,7 +114,8 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
             else if (TryJumpTimer < Time.time && Bot.Player.IsSprintEnabled)
             {
                 TryJumpTimer = Time.time + 3f;
-                if (!_shallBunnyHop && SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Roll($"bunnyHop.{Bot.Info.Personality}", Bot.Info.PersonalitySettings.Rush.BunnyHopChance))
+                // zzap (2026-10-20, 1st-stage review): the chance roll ignored CanBunnyHop; disabled personalities must not roll or start it.
+                if (Bot.Info.PersonalitySettings.Rush.CanBunnyHop && !_shallBunnyHop && SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Roll($"bunnyHop.{Bot.Info.Personality}", Bot.Info.PersonalitySettings.Rush.BunnyHopChance))
                 {
                     _shallBunnyHop = true;
                 }
