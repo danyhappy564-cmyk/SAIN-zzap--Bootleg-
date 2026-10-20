@@ -12,5 +12,5 @@ public static class SAINVersionInfo
     /// compatibility, so this is what F6, the BepInEx log and the web updates page show (user 2026-10-19: "the top left of
     /// F6 says 4.5.1"). Bump together with the README and the release notes on every release.
     /// </summary>
-    public const string ZzapRelease = "remake6";
+    public const string ZzapRelease = "Remix6.1";
 }

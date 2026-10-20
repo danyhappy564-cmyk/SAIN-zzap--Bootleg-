@@ -370,7 +370,7 @@ public static class HiddenEnemyUtility
                     break;
                 }
             }
-            TacticDiagnostics.CountRoll($"utilityHiddenNotBest.{bot.Info.Personality}", 100f * (1f - w[0] / sum), pick > 0);
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.CountRoll($"utilityHiddenNotBest.{bot.Info.Personality}", 100f * (1f - w[0] / sum), pick > 0);
             if (pick > 0)
             {
                 var chosen = list[pick];

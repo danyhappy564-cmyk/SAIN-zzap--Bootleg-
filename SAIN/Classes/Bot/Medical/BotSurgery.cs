@@ -95,7 +95,7 @@ public class BotSurgery : BotBase
             return false;
         }
         _relaxedActive = true;
-        TacticDiagnostics.Count($"heal.surgery.relaxed.{Bot.Info.Personality}");
+        if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"heal.surgery.relaxed.{Bot.Info.Personality}");
         return true;
     }
 
