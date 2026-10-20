@@ -294,8 +294,8 @@ public sealed class CornerChase(BotComponent bot)
         {
             _jumped = true;
             _jumpTime = time;
-            Bot.BotOwner.ShootData?.EndShoot();
-            Bot.BotOwner.ShootData?.BlockFor(0.55f); // no shots in the air
+            // zzap (user 2026-10-21): no extra "never in the air" block here - TryJump already holds fire for the bots whose air-shot
+            // roll (JumpAirShotChance, once per enemy) said hold, and lets the others shoot; this line blocked every one of them.
             TacticDiagnostics.Count("chase.jumpShot.jumped");
             Bot.Mover.MarkJump("jumpShot");
         }

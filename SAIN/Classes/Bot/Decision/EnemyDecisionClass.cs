@@ -456,6 +456,12 @@ public class EnemyDecisionClass : BotBase
                     {
                         result = ECombatDecision.DoorTactic;
                     }
+                    // zzap (user 2026-10-21): a Coward never rushes past a refused rush check - 1st stage: Coward RushEnemy 2-3 % of its
+                    // combat samples, nearly all utilityPush through this fallback (path 40 m, mag 35 %) after shallRushEnemy said no.
+                    else if (Bot.Info.Personality == EPersonality.Coward)
+                    {
+                        TacticDiagnostics.Count("utility.push.cowardRefused");
+                    }
                     else if (enemy.Path.PathToEnemyStatus == NavMeshPathStatus.PathComplete && enemy.Path.PathLength <= 40f
                         && SAINBotSuppressClass.CalcAmmoRatio(BotOwner, out _) >= 0.35f)
                     {

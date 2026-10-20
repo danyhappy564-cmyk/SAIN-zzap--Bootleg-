@@ -43,6 +43,8 @@ public static class HiddenEnemyUtility
         public float Until;
         public string EnemyId;
         public float HoldSince = -1f;
+        /// <summary>When Hold was capped: the enemy's last-news time then. Hold stays off until news of him is newer.</summary>
+        public float HoldBanKnownAt = -1f;
         public EStance LastTop;
         public float NextLog;
     }
@@ -112,7 +114,18 @@ public static class HiddenEnemyUtility
         }
         // How long the bot has already been holding against this enemy (hold fatigue, see Score).
         float heldFor = m != null && m.EnemyId == enemy.EnemyProfileId && m.HoldSince > 0f ? time - m.HoldSince : 0f;
-        var ranked = Score(bot, enemy, settings, heldFor, out string why, out float hold);
+        // zzap (user 2026-10-21, "hold time cap"): 1st stage freezeTooLong 32 per 500 raids even with the fatigue clock fixed -
+        // fatigue tops out at -0.45, so a long gun / cover / fear bonus can keep Hold winning for good. After 40 s held against
+        // the same enemy with no news of him since, Hold is off against him until he is seen or heard again.
+        float knownAt = time - enemy.TimeSinceLastKnownUpdated;
+        bool sameEnemy = m != null && m.EnemyId == enemy.EnemyProfileId;
+        float banKnownAt = sameEnemy && m.HoldBanKnownAt > 0f && Mathf.Abs(m.HoldBanKnownAt - knownAt) < 0.5f ? m.HoldBanKnownAt : -1f;
+        if (banKnownAt < 0f && heldFor >= HOLD_CAP)
+        {
+            banKnownAt = knownAt;
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("utility.hold.capped");
+        }
+        var ranked = Score(bot, enemy, settings, heldFor, out string why, out float hold, banKnownAt > 0f);
         // 15:34 sim: under fire the memory is skipped and every re-score rolled the dice again - with Push 0.38 / FallBack 0.32 /
         // Hold 0.31 the pick rotated every 0.1-0.3 s (RushEnemy <-> SeekCover 10x in 2 s), and a plain re-score after the
         // memory ran out could also swap a running stance for an equally good one. Re-score, but keep the last pick for the
@@ -149,7 +162,7 @@ public static class HiddenEnemyUtility
         bool sameTop = m != null && m.EnemyId == enemy.EnemyProfileId && m.LastTop == ranked[0].stance && time < m.NextLog;
         _memory[id] = new Memory
         {
-            Ranked = ranked, Until = time + hold, EnemyId = enemy.EnemyProfileId, HoldSince = holdSince,
+            Ranked = ranked, Until = time + hold, EnemyId = enemy.EnemyProfileId, HoldSince = holdSince, HoldBanKnownAt = banKnownAt,
             LastTop = ranked[0].stance, NextLog = sameTop ? m.NextLog : time + 2f,
         };
         if (TacticDiagnostics.CountOn && !sameTop) TacticDiagnostics.Count($"utility.top.{ranked[0].stance}");
@@ -160,7 +173,9 @@ public static class HiddenEnemyUtility
         return ranked;
     }
 
-    private static List<(EStance stance, float score)> Score(BotComponent bot, Enemy enemy, CloseCombatSettings settings, float heldFor, out string why, out float commit)
+    private const float HOLD_CAP = 40f;
+
+    private static List<(EStance stance, float score)> Score(BotComponent bot, Enemy enemy, CloseCombatSettings settings, float heldFor, out string why, out float commit, bool holdBanned = false)
     {
         var sb = new StringBuilder();
         float time = Time.time;
@@ -293,6 +308,11 @@ public static class HiddenEnemyUtility
         if (pushyPlayer) sb.Append("this player pushes; ");
         if (closingOnLongGun) sb.Append($"he's closing on my long gun (ideal {load.IdealRange:0}m) - keep distance; ");
         sb.Append(path < 10000f ? $"path {path:0}m, " : "no path yet, ").Append($"{bot.Info.Personality} [{load.Summary}]");
+        if (holdBanned)
+        {
+            hold = -1f;
+            sb.Append($" | held {HOLD_CAP:0}s with no news of him - not holding again until he shows");
+        }
         why = sb.ToString();
 
         var list = new List<(EStance stance, float score)>

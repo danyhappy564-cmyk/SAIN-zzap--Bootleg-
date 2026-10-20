@@ -494,7 +494,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         _jumpPeeks++;
         _nextJumpPeek = time + Random.Range(2.5f, 4f);
         _tapEnd = time + 0.55f; // the hop is this peek
-        Bot.BotOwner.ShootData?.BlockFor(0.4f); // look in the air, shoot on landing
+        // zzap (user 2026-10-21): no extra block in the air - TryJump follows the per-enemy air-shot roll (JumpAirShotChance)
         Bot.Mover.MarkJump("jumpPeek");
         TacticDiagnostics.Count("diamond.jumpPeek");
     }
