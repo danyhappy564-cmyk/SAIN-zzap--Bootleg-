@@ -22192,7 +22192,7 @@
         "Rush": {
           "CanRushEnemyReloadHeal": true,
           "CanJumpCorners": true,
-          "JumpCornerChance": 100,
+          "JumpCornerChance": 90,
           "CanBunnyHop": true,
           "BunnyHopChance": 50
         },
