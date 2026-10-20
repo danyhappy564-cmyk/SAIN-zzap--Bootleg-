@@ -186,7 +186,7 @@ internal static class TacticDiagnostics
                 + $"chance%: giga={d.GigaChadChance:0} chad={d.ChadChance:0} turtle={d.SnappingTurtleChance:0} rat={d.RatChance:0} "
                 + $"peekVsTrap={d.GigaChadPeekChance:0} runBy%={d.RunByChance:0} stepPeek={d.StepPeek} autoClose={d.AutoCloseDoors} x{d.ChanceMultiplier:0.0} "
                 + $"TESTMODE={d.TestModeAllPmcGigaChad} logs={d.DiagnosticLogs}/{d.VerboseLogs} "
-                + $"botRam: on={d.BotRamEnabled} {d.BotRamMinSpeed:0.0}m/s dmg={d.BotRamDamage:0} bothSides={d.BotRamBothSides} clearRam={d.DoorModRam}/{d.DoorModRamChance:0}% moveRam={d.DoorModRamOnMove} flee{d.DoorModRamFleeChance:0}/rush{d.DoorModRamRushChance:0}/search{d.DoorModRamSearchChance:0}/move{d.DoorModRamMoveChance:0}% "
+                + $"botRam: on={d.BotRamEnabled} {d.BotRamMinSpeed:0.0}m/s bothSides={d.BotRamBothSides} clearRam={d.DoorModRam}/{d.DoorModRamChance:0}% moveRam={d.DoorModRamOnMove} flee{d.DoorModRamFleeChance:0}/rush{d.DoorModRamRushChance:0}/search{d.DoorModRamSearchChance:0}/move{d.DoorModRamMoveChance:0}% "
                 + $"TESTMODE_DOORMODS={d.TestModeDoorMods}"
         );
         Logger.LogWarning(

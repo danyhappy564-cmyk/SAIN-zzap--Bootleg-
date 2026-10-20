@@ -18,14 +18,14 @@ namespace SAIN.SAINComponent.Classes.Mover;
 ///
 /// SAIN's own sprint ram for bots. Ported from two mods, credited here and in the README:
 ///   - doordash (bmpq / tarkin, https://github.com/bmpq/spt-doordash, RaycastBreacher): sprint into a shut door -> breach it
-///     (LockForInteraction, SetUser, Interact(Breach)), the rammer takes arm damage and burns stamina.
+///     (LockForInteraction, SetUser, Interact(Breach)), the rammer burns stamina (no damage since 2026-10-20).
 ///   - DualSideDoorBreach 2.0.2 (maschine34675, https://github.com/maschine34675/DualSideDoorBreach, MIT,
 ///     Copyright (c) 2026 maschine34675): a door rammed from the side it would swing into is breached the other way round
 ///     (the Breaching angle handed to InteractionState.InitSmoothOpen is negated), so both sides of a door work.
 ///
 /// Differences from doordash: only bots, only while a SAIN door tactic / DoorRammer has asked for it (a job with an end time,
 /// never a component left on the bot); cast along the bot's horizontal velocity (bots aim at corners while they run, so the
-/// body's forward is often not where they go); speed threshold, arm damage and both-sides switch from F6 (Door Tactics), never
+/// body's forward is often not where they go); speed threshold and both-sides switch from F6 (Door Tactics), never
 /// from doordash's config. No door dislodge physics (doordash's PhysicalDoor works off the main player).
 ///
 /// Installed alongside:
@@ -466,25 +466,14 @@ public static class BotDoorBreacher
         HurtRammer(player, door);
     }
 
-    /// <summary>doordash's AffectPlayer for a bot: stamina hit and arm damage (Fall type, so EFT may fracture it; metal doors
-    /// x2). The camera / hands kick and the stun are the player's screen effects and are left out.</summary>
+    /// <summary>doordash's AffectPlayer for a bot, stamina hit only. 2026-10-20 (user: "bots take no damage from ramming"): the arm
+    /// damage (Fall type, could fracture the arm) is gone, and so is its F6 setting. The camera / hands kick and the stun are the
+    /// player's screen effects and are left out.</summary>
     private static void HurtRammer(Player player, Door door)
     {
         try
         {
             player.Physical?.OnBreach();
-            float damage = Settings?.BotRamDamage ?? 0f;
-            if (damage <= 0f || player.ActiveHealthController == null)
-            {
-                return;
-            }
-            string sound = door.BreachSound != null ? door.BreachSound.name : string.Empty;
-            if (sound.Contains("grate") || sound.Contains("metal"))
-            {
-                damage *= 2f;
-            }
-            var info = new EFT.Ballistics.DamageInfo { DamageType = EDamageType.Fall };
-            player.ActiveHealthController.ApplyDamage(EBodyPart.LeftArm, damage, info);
         }
         catch (Exception ex)
         {

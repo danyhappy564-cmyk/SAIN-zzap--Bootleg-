@@ -94,18 +94,28 @@ internal class SeekCoverAction(BotOwner bot) : BotAction(bot, nameof(SeekCoverAc
 
     private bool CantShootWhileWalkingToCover()
     {
-        var cover = Bot.Cover.CoverInUse;
+        var cover = CoverAhead();
         // 2026-10-20 (2nd sim, backWalk 12 of 12 in SeekCover, 8 with a leg at 0 hp): Mover.Running is "wants to sprint", which stays
         // true for a bot that can't sprint - ask whether it really sprints (a sprint faces the way it runs by itself).
         if (cover == null || cover.BotInThisCover || Bot.Player.IsSprintEnabled || Bot.Player.Velocity.magnitude < 0.5f)
         {
             return false;
         }
-        if ((cover.Position - Bot.Position).sqrMagnitude < 2f * 2f)
+        if ((cover.Position - Bot.Position).sqrMagnitude < FACE_THREAT_NEAR_COVER * FACE_THREAT_NEAR_COVER)
         {
             return false;
         }
         return BotOwner.WeaponManager?.Reload?.Reloading == true || BotOwner.Medecine?.Using == true;
+    }
+
+    // 2026-10-20 (1st stage, wallStare in cover 27 -> 55 after the sprint fix): both rules read CoverInUse, which is null while
+    // walking to the cover (the journal's cover=none) - so the bot faced the walk right into the cover and stood there facing its
+    // wall, and the busy rule never ran at all. Read the cover it is walking to, and turn back to the threat for the last 3 m.
+    private const float FACE_THREAT_NEAR_COVER = 3f;
+
+    private CoverPoint CoverAhead()
+    {
+        return Bot.Cover.CoverInUse ?? Bot.Cover.CoverPoint_MovingTo;
     }
 
     private bool FaceWalkNoThreat(Enemy enemy)
@@ -114,8 +124,8 @@ internal class SeekCoverAction(BotOwner bot) : BotAction(bot, nameof(SeekCoverAc
         {
             return false;
         }
-        var cover = Bot.Cover.CoverInUse;
-        if (cover != null && (cover.BotInThisCover || (cover.Position - Bot.Position).sqrMagnitude < 2f * 2f))
+        var cover = CoverAhead();
+        if (cover != null && (cover.BotInThisCover || (cover.Position - Bot.Position).sqrMagnitude < FACE_THREAT_NEAR_COVER * FACE_THREAT_NEAR_COVER))
         {
             return false;
         }

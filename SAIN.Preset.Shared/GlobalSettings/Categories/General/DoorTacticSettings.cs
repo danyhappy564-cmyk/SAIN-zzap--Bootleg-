@@ -210,12 +210,6 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     public float BotRamMinSpeed = 1.6f;
 
     [DataMember]
-    [Name("Bot Sprint Ram: Arm Damage")]
-    [Description("Damage to the rammer's left arm per burst door (metal doors x2; EFT may fracture the arm like a fall). doordash's player default is 10. 0 = none.")]
-    [MinMax(0f, 30f, 1f)]
-    public float BotRamDamage = 5f;
-
-    [DataMember]
     [Name("Bot Sprint Ram: Both Sides Of A Door")]
     [Description("Like DualSideDoorBreach: a door rammed from the side it would swing into bursts the other way (away from the bot). Off: bots only ram doors that swing away from them, like doordash for the player. With DualSideDoorBreach installed and its direction setting on, that mod turns the door instead (never twice).")]
     public bool BotRamBothSides = true;
