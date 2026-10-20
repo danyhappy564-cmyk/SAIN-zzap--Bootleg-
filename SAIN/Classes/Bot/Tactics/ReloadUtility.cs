@@ -40,7 +40,9 @@ public static class ReloadUtility
         bool visible = enemy.IsVisible;
         bool looking = visible && enemy.EnemyLookingAtMe;
         float dist = enemy.RealDistance;
-        bool inCover = bot.Cover.CoverInUse != null;
+        // zzap (2026-10-20, 1st-stage review): CoverInUse includes cover still en route; only arrival makes reloading safer.
+        var cover = bot.Cover.CoverInUse;
+        bool inCover = cover != null && cover.BotInThisCover;
         bool busy = enemy.Status.VulnerableAction != EEnemyAction.None;
         bool hit = bot.Medical.TimeSinceShot < 1.5f;
         float need = 1f - r;
