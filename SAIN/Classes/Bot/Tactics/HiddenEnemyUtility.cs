@@ -247,6 +247,13 @@ public static class HiddenEnemyUtility
         {
             hold -= fatigue;
         }
+        // zzap (user 2026-10-20, F8 mark #6: "some just stand there after a fight - why? very unnatural"): FallBack is for getting
+        // away, but once there it only keeps the bot standing in its cover - 2nd sim Bot105 (Dying, no meds it could use) stood
+        // 31 s in cover with the enemy 67 m off and quiet 17-46 s, FallBack 0.55-0.72 every re-score. With nothing heard from
+        // him for 15 s+ it fades like hold fatigue (0.03/s, at most 0.45) so Search / Hold take over. In or out of cover alike,
+        // so arriving in cover doesn't flip it back and forth (P8).
+        float staleFallBack = !coming && !holdsAngle ? Mathf.Clamp((infoAge - 15f) * 0.03f, 0f, 0.45f) : 0f;
+        fallBack -= staleFallBack;
         // Too far to ambush (sims 2026-10-10: Hold = Freeze was 22-34% of combat time, mostly short 2-5 s holds while the
         // enemy was 50-130 m off - Shoreline 86% of freeze time beyond 50 m). A freeze ambush waits for him at a close angle
         // (the old chain only freezes within Freeze Ambush > Max Enemy Distance, 45 m); the utility had no distance at all.
@@ -257,6 +264,7 @@ public static class HiddenEnemyUtility
         hold -= farHold;
         if (fearWhy.Length > 0) sb.Append(fearWhy).Append("; ");
         if (fatigue > 0f && !coming) sb.Append($"held {heldFor:0}s already, nothing came; ");
+        if (staleFallBack > 0.05f) sb.Append($"nothing from him for {infoAge:0}s - not just standing back; ");
         if (openHold) sb.Append("standing in the open - no place to hold from; ");
         if (farHold > 0.05f) sb.Append($"he's {knownDist:0}m off - too far to ambush; ");
         if (weak >= 0.3f) sb.Append($"he's weak ({weakWhy}); ");

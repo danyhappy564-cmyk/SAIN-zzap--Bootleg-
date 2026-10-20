@@ -104,11 +104,13 @@ public class BotLightController : BotComponentClassBase
 
     private void updateLightToggle()
     {
-        if (wantLightOn && IsLightEnabled)
+        if (wantLightOn && AllDevicesOn)
         {
             _lightBackoffRounds = 0;
         }
-        if ((Bot.SAINLayersActive || Bot.HasEnemy) && IsLightEnabled != wantLightOn && _nextLightChangeTime < Time.time)
+        // on = every device on, off = every device off (a half-on gun - light off, laser on - is not "off")
+        bool mismatch = wantLightOn ? !AllDevicesOn : AnyDeviceOn;
+        if ((Bot.SAINLayersActive || Bot.HasEnemy) && mismatch && _nextLightChangeTime < Time.time)
         {
             // zzap: a bot whose weapon has no usable light (laser only, IR, or nothing that turns on) never reaches
             // IsEnable == true, so SAIN re-sent TurnOn every ~1s and the player heard a tactical-device click loop
@@ -122,7 +124,7 @@ public class BotLightController : BotComponentClassBase
                 _lightOnFailures = 0;
             }
             _nextLightChangeTime = Time.time + (wantLightOn ? 0.25f : _changelightFreq * UnityEngine.Random.Range(0.66f, 1.33f));
-            if (wantLightOn && _lastTurnOnTime > 0f && Time.time - _lastTurnOnTime > 0.8f && !IsLightEnabled)
+            if (wantLightOn && _lastTurnOnTime > 0f && Time.time - _lastTurnOnTime > 0.8f && !AllDevicesOn)
             {
                 _lightOnFailures++;
                 if (_lightOnFailures >= 2)
@@ -147,9 +149,143 @@ public class BotLightController : BotComponentClassBase
         }
     }
 
+    /// <summary>Any tactical device on the gun in hands is on (light, laser, IR - anything on the rail).</summary>
     public bool IsLightEnabled
     {
-        get { return BotOwner?.BotLight?.IsEnable == true; }
+        get { return AnyDeviceOn; }
+    }
+
+    // zzap (user 2026-10-20, F8 mark #3: "a laser stays on outside a fight - lasers, lights, everything on the rail should go
+    // off/on together; it turns one off and on"): EFT's BotLight drives only the FIRST LightComponent on the gun
+    // (FindLight: list.First(), IsEnable reads only that one), so a gun with a light and a laser kept the other one as it
+    // spawned and SAIN's light discipline never saw it. BotLight.TurnOn / TurnOff are patched (BotLightTurnOnPatch /
+    // BotLightTurnOffPatch) to switch every device here in one SetLightsState call - one click, all of them.
+    private readonly System.Collections.Generic.List<EFT.InventoryLogic.LightComponent> _devices = new();
+    private EFT.InventoryLogic.Item _devicesWeapon;
+    private float _devicesCheckedAt = -10f;
+
+    /// <summary>The tactical devices on the gun in hands (re-read when the gun changes, or every 5 s for a mod swap).</summary>
+    public System.Collections.Generic.List<EFT.InventoryLogic.LightComponent> Devices
+    {
+        get
+        {
+            EFT.InventoryLogic.Weapon weapon = (Player?.HandsController as EFT.Player.FirearmController)?.Item as EFT.InventoryLogic.Weapon;
+            if (weapon == null)
+            {
+                _devices.Clear();
+                _devicesWeapon = null;
+                return _devices;
+            }
+            if (!ReferenceEquals(weapon, _devicesWeapon) || Time.time - _devicesCheckedAt > 5f)
+            {
+                _devicesWeapon = weapon;
+                _devicesCheckedAt = Time.time;
+                _devices.Clear();
+                // the same list EFT's BotLight.FindLight reads (it only keeps the first)
+                foreach (EFT.InventoryLogic.Item item in weapon.Mods)
+                {
+                    var device = item.GetItemComponent<EFT.InventoryLogic.LightComponent>();
+                    if (device != null)
+                    {
+                        _devices.Add(device);
+                    }
+                }
+            }
+            return _devices;
+        }
+    }
+
+    public bool AnyDeviceOn
+    {
+        get
+        {
+            var devices = Devices;
+            for (int i = 0; i < devices.Count; i++)
+            {
+                if (devices[i].IsActive)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    public bool AllDevicesOn
+    {
+        get
+        {
+            var devices = Devices;
+            if (devices.Count == 0)
+            {
+                return false;
+            }
+            for (int i = 0; i < devices.Count; i++)
+            {
+                if (!devices[i].IsActive)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    /// <summary>Every device on the gun to the same state in one SetLightsState call. False when nothing needed switching.</summary>
+    public bool SetAllDevices(bool active)
+    {
+        var fc = Player?.HandsController as EFT.Player.FirearmController;
+        var devices = Devices;
+        if (fc == null || devices.Count == 0)
+        {
+            return false;
+        }
+        int n = 0;
+        for (int i = 0; i < devices.Count; i++)
+        {
+            if (devices[i].IsActive != active)
+            {
+                n++;
+            }
+        }
+        if (n == 0)
+        {
+            return false;
+        }
+        var states = new EFT.LightsState[n];
+        int k = 0;
+        for (int i = 0; i < devices.Count; i++)
+        {
+            var device = devices[i];
+            if (device.IsActive != active)
+            {
+                states[k++] = new EFT.LightsState { Id = device.Item.Id, IsActive = active, LightMode = device.SelectedMode };
+            }
+        }
+        fc.SetLightsState(states);
+        if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn && devices.Count > 1)
+        {
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(active ? "light.allOn" : "light.allOff");
+        }
+        return true;
+    }
+
+    /// <summary>"2/3 on" style text for the F8 scene mark.</summary>
+    public string DevicesText
+    {
+        get
+        {
+            var devices = Devices;
+            int on = 0;
+            for (int i = 0; i < devices.Count; i++)
+            {
+                if (devices[i].IsActive)
+                {
+                    on++;
+                }
+            }
+            return devices.Count == 0 ? "none" : $"{on}/{devices.Count}on";
+        }
     }
 
     private float _nextLightChangeTime;
@@ -243,7 +379,7 @@ public class BotLightController : BotComponentClassBase
                 return;
             }
 
-            if (enemy.Seen && BotOwner.BotLight?.IsEnable == true && enemy.TimeSinceSeen > randomizedTurnOffTime)
+            if (enemy.Seen && IsLightEnabled && enemy.TimeSinceSeen > randomizedTurnOffTime)
             {
                 ToggleLight(false);
                 return;

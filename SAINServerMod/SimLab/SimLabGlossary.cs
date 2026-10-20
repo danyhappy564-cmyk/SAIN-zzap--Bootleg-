@@ -31,7 +31,7 @@ public static class SimLabGlossary
         new("faction.", "팩션별 (PMC·Rogue·Raider·Goons·Boss·Follower·BlackDivision): spawned=나옴, layer.sain/orbit/vanillaLayer/vanilla=2초 표본의 두뇌, decision.*=SAIN 전투 중 판단 표본, death.diamond.*=사망 시 다이아몬드 상태", "Per faction: spawned, brain layer samples, combat decision samples, diamond state at death", "SimLabProbe.SampleFaction / BattleStats.OnBotDied / SimLabRunner.Tick"),
         new("sim.boss.", "시뮬 보스 (called=호출, seen=등장, slow=90초 넘게 늦음, notSeen=5분 안 미등장, waveMissing=웨이브 못 찾음)", "Sim boss (called / seen / slow > 90 s / not seen in 5 min / wave missing)", "SimLabRunner.TickBoss / SimLabFactions.AddBoss"),
         new("sim.faction.", "시뮬 팩션 분대 호출 (called.역할, callFailed)", "Sim faction squad calls", "SimLabRunner.Spawn"),
-        new("jump.", "점프 종류별(jumpShot·rush·bait·retreat) made=점프, hit.air/landed.fast/slow=점프 뒤 2.5초 안 첫 명중", "Jumps per kind and the first hit within 2.5 s", "SAINMoverClass.MarkJump / EnemyEvents.BookJumpHit"),
+        new("jump.", "점프 종류별(jumpShot·rush·bait·retreat) made=점프, hit.air/landed.fast/slow=점프 뒤 2.5초 안 첫 명중, waitRunUp=점프하려는데 아직 그쪽으로 안 움직여 기다림(10/20 제자리 점프 방지, 1초에 1번만 셈)", "Jumps per kind and the first hit within 2.5 s", "SAINMoverClass.MarkJump / EnemyEvents.BookJumpHit"),
         new("sound.gun.", "총소리 거리 단계: near=100m 안 수색, mid=100~250m 고개만, far=250m 밖 무시, shotAtMe=나를 쏜 사람(거리 무시), chase=추격 성격, glance=실제로 고개 돌림", "Gunshot distance bands", "HearingSensor.ShallReactToGunshot"),
         new("sound.floor.", "층 차이(실내·2.5m+) 감쇠: applied=적용, cut=그 때문에 못 들음 (10/12부터 총소리는 두 층 이상만 0.85)", "Floor attenuation (indoors, 2.5 m+)", "HearingAnalysis.CalcFloorMod"),
         new("sound.bait.", "저사양: 봇의 장전·치료·핀 소리를 봇이 무시함", "Low-spec: bots ignore other bots' bait sounds", "EnemyHearing.updateEnemyAction"),
@@ -47,8 +47,8 @@ public static class SimLabGlossary
         new("diamond.jiggle", "코너에서 몸을 내밀었다 숨는 흔들기 (peek=내밂, hide=숨음)", "Corner jiggle peek (peek / hide)", "DiamondStepper jiggle"),
         new("diamond.leanSpam", "기울이기(Q/E) 연타", "Lean spam (Q/E)", "DiamondStepper lean spam"),
         new("diamond.plant", "쏘는 순간 발을 멈춰 정확도 확보", "Planted feet to shoot accurately", "DiamondStepper plant"),
-        new("diamond.", "다이아몬드 스텝 기타 (blocked=막힘, redirected=방향 바꿈)", "Other diamond-step events", "DiamondStepper"),
-        new("chase.", "코너 추격: 숨은 적을 쫓아 코너를 도는 방식 (Pie=조금씩 각 넓히기, LeanIn=기울여 들어가기, JumpShot=점프하며 쏘기)", "Corner chase styles (Pie, LeanIn, JumpShot)", "CornerChase"),
+        new("diamond.", "다이아몬드 스텝 기타 (blocked=막힘, redirected=방향 바꿈, jumpPeek.noRunUp=점프 피킹을 하려 했는데 0.45초 안에 옆으로 속도가 안 붙어 그냥 한 걸음 피킹)", "Other diamond-step events", "DiamondStepper"),
+        new("chase.", "코너 추격: 숨은 적을 쫓아 코너를 도는 방식 (Pie=조금씩 각 넓히기, LeanIn=기울여 들어가기, JumpShot=점프하며 쏘기, jumpShot.tooSlow=코너에서 2.2m/s보다 느려 점프 안 하고 걸어 돎)", "Corner chase styles (Pie, LeanIn, JumpShot)", "CornerChase"),
         new("corner.preAim", "코너를 돌기 전에 미리 조준", "Pre-aimed before rounding a corner", "SAINSteeringClass pre-aim"),
         new("close.", "근거리 이동 (짧게 달려 엄폐, 적을 보며 걷기)", "Close-range movement (short dash to cover, walk facing enemy)", "SAINCoverClass / EnemyDecisionClass"),
         new("threat.keep", "목표 적을 그대로 유지 (너무 자주 바꾸지 않게)", "Kept the current target enemy", "ThreatPicker keep"),
@@ -79,7 +79,7 @@ public static class SimLabGlossary
         new("reload.cantReload", "장전하려 했지만 못 함 (탄창 없음 등)", "Wanted to reload but couldn't", "SelfActionDecisionClass"),
         new("reload.noAmmo.", "탄창이 비었을 때 대응 (reloadInstead=장전, waitReloadInHand=든 총에 여분 탄이 있어 다른 총으로 안 바꾸고 장전 기다림, reloadStuckSwap=6초 넘게 장전 못 해 다른 총으로, melee=칼, nothing=할 수 있는 게 없음)", "Out of ammo response", "ReloadUtility"),
         new("heal.pick.", "치료 판단 (FirstAid=구급상자, Stim=주사기, Wait=나중에)", "Heal decision (FirstAid, Stim, Wait)", "HealUtility"),
-        new("heal.cancel.", "위협 때문에 치료 취소", "Heal cancelled by a threat", "HealUtility"),
+        new("heal.cancel.", "위협 때문에 치료 취소 (threat=40m 안 적이 보이거나 맞음, footsteps=치료 0.5초 뒤 15m 안 적 발소리 — 그 뒤 4초는 치료 안 함)", "Heal cancelled by a threat", "HealUtility"),
         new("weapon.", "무기 교체·빠른 장전 등 무기 관련", "Weapon swaps, quick reloads", "CombatWeaponClass / WeaponLog"),
         new("weapon.keptLongRange.", "SAIN이 일부러 든 저격총·DMR을 계속 듦 (reload=장전하려 할 때 게임이 주무기로 되돌리려는 것을 막음, otherEnemy=노리는 적이 바뀌어 '사라짐'으로 보였지만 20초 안에 본 다른 먼 적이 있음)", "Kept the long-range gun SAIN picked", "CombatWeaponClass / AmmoAwareWeaponSwapPatch"),
         // squad
@@ -122,7 +122,7 @@ public static class SimLabGlossary
         new("suppress.", "제압 사격 (burstPause=점사 사이 쉼)", "Suppression (burst pause)", "SAINBotSuppressClass"),
         new("shoot.blocked.", "안 보이는 적에게 쏘려다 막아 둔 사격 (otherFloor=다른 층이라 천장·바닥·벽에 막힘, wallInFace=총구 2.5m 앞이 벽; 뒤에 쏘려던 이유 Suppress·Blindfire·None 등)", "Shot at an unseen enemy refused: line blocked (other floor / wall in front of the muzzle), by reason", "ManualShootClass"),
         new("light.dark.idleOutOfCombat", "SAIN 전투 밖(ORBIT 등)에서 2초 넘게 서 있어 라이트·레이저 끔 (10/14 마크 1)", "Light / laser off while standing idle outside SAIN layers", "BotLightController"),
-        new("light.", "손전등 켜기/끄기", "Flashlight use", "BotLightController"),
+        new("light.", "손전등 켜기/끄기 (allOn/allOff=총에 장비가 2개 이상일 때 손전등·레이저 전부 한 번에 켬/끔 — 10/20부터 EFT의 '첫 장비만' 대신 전부)", "Flashlight use", "BotLightController"),
         // ORBIT handoff / stuck / sim
         new("handoff.toOrbit", "교전이 끝나 ORBIT(맵 이동 모드)로 넘어감 (gap=끝나고 몇 초 뒤)", "Fight ended -> handed to ORBIT (gap = seconds after)", "LayerHandoff"),
         new("handoff.orbitToCombat", "ORBIT 중에 적을 만나 SAIN 전투로 돌아옴", "ORBIT -> back to SAIN combat", "LayerHandoff"),
@@ -135,12 +135,12 @@ public static class SimLabGlossary
         new("hands.", "수류탄을 2초 넘게 안 던지고 들고 있어 총으로 되돌림 (grenadePutAway / Refused, 10/14 마크 12)", "Grenade held 2 s+ without a throw -> previous weapon", "SAINBotUnstuckClass"),
         new("stuck.ledge.", "무릎 높이 턱에 걸려 1초 만에 넘기·점프 (vault/jump/cant)", "Knee-high edge: early vault / jump", "SAINBotUnstuckClass"),
         new("stuck.", "막힘 감지·탈출 단계 (stage1~4, freed=풀려남, layer=막힌 레이어)", "Stuck detection / escape stages", "SAINBotUnstuckClass"),
-        new("oddity.", "이상 행동 자동 감지 (noShoot=보이는 적에게 안 쏨, backTurned=가까운 적에게 등 돌림, hitNoReact=맞고도 반응 없음, flipFlop=판단이 계속 뒤집힘, bunched=아군과 몸이 겹침, stalledMove=움직여야 하는데 제자리, backWalk=뒷걸음질, slowUnderFire=맞는 중인데 천천히 걸음, doorStuck=문 앞 끼임, wallStare=벽 보고 서 있음, closeNoReact=3m 안 적에게 반응 없음, ignoredGunfire=전투 밖 레이어가 40m 안 총격 무시). 한 번 걸린 상태가 풀릴 때까지 1회. 일지 [Oddity] 줄 끝 state:와 F8 [Mark] 줄에 봇 상태 전체", "Automatic oddity detector (noShoot / backTurned / hitNoReact / flipFlop / bunched / stalledMove), one per episode", "SimLabOddity"),
+        new("oddity.", "이상 행동 자동 감지 (noShoot=보이는 적에게 안 쏨, backTurned=가까운 적에게 등 돌림, hitNoReact=맞고도 반응 없음, flipFlop=판단이 계속 뒤집힘, bunched=아군과 몸이 겹침, stalledMove=움직여야 하는데 제자리, backWalk=뒷걸음질, slowUnderFire=맞는 중인데 천천히 걸음, doorStuck=문 앞 끼임, wallStare=벽 보고 서 있음, closeNoReact=3m 안 적에게 반응 없음, ignoredGunfire=전투 밖 레이어가 40m 안 총격 무시, idleAfterFight=적 소식이 15초+ 없는데 10초+ 제자리). 한 번 걸린 상태가 풀릴 때까지 1회. 일지 [Oddity] 줄 끝 state:와 F8 [Mark] 줄에 봇 상태 전체", "Automatic oddity detector (noShoot / backTurned / hitNoReact / flipFlop / bunched / stalledMove), one per episode", "SimLabOddity"),
         new("look.wallFix.", "벽을 보고 있던 봇이 시선을 고침 (corner=적이 나올 코너, open=트인 방향, none=고칠 곳 없음)", "Wall stare corrected (corner / open / none)", "SAINSteeringClass.AvoidWallStare"),
         new("hear.firstSeen.", "처음 적을 봤을 때 10초 안에 소리로 먼저 들었는지 (heard.move=발소리·문·덤불, heard.gun=총소리, notHeard=못 들음) · 거리 close<15m mid<40m far", "On first sight: was the enemy heard in the 10 s before (move / gun / not heard) and range", "EnemyEvents.CountFirstSeen"),
         new("sim.", "시뮬 전용 (시체 정리 등)", "Sim only (corpse cleanup)", "CorpseCleanup"),
         new("perf.", "성능 정리 (시체 피 자국 해제)", "Performance cleanup", "CorpseDecalRelease"),
-        new("deadBug.", "죽음 처리 버그 점검 (bodyOk=정상)", "Death-handling check", "SafeDeathPatch / CorpseCleanup"),
+        new("deadBug.", "죽음 처리 버그 점검 (bodyOk=정상, medsInHandsReleased=약·음식을 든 채 죽어 손을 정리함 — 10/20 '죽은 봇 옆 공중에 뜬 구급상자')", "Death-handling check", "SafeDeathPatch / CorpseCleanup"),
     ];
 
     public static readonly Entry[] Reasons =

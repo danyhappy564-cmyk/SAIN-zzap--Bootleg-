@@ -615,6 +615,42 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
         return false;
     }
 
+    /// <summary>
+    /// zzap (user 2026-10-20: "the jump shots look wrong - they jump on the spot instead of jumping out sideways, it feels like a
+    /// standing jump at corners"): EFT's jump keeps the speed the body has at take-off and air control is small, so a jump
+    /// sent on the first frame of a move (corner jump shot after the slow-down at the corner, jump peek / door peek / bait hop
+    /// started from standing) went straight up. This jumps only once the bot is already moving that way at minSpeed m/s
+    /// (callers call it every tick of their move step, so it fires a moment into the run-up). False = not yet.
+    /// </summary>
+    public bool TryJumpMoving(Vector3 direction, float minSpeed = 1.1f)
+    {
+        if (!MovingToward(direction, minSpeed))
+        {
+            if (Time.time - _lastRunUpWaitCount > 1f)
+            {
+                _lastRunUpWaitCount = Time.time;
+                if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("jump.waitRunUp");
+            }
+            return false;
+        }
+        return TryJump();
+    }
+
+    private float _lastRunUpWaitCount = -10f;
+
+    /// <summary>The body already moves along direction (flat) at minSpeed m/s or more.</summary>
+    public bool MovingToward(Vector3 direction, float minSpeed)
+    {
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.0001f)
+        {
+            return false;
+        }
+        Vector3 v = Player.Velocity;
+        v.y = 0f;
+        return Vector3.Dot(v, direction.normalized) >= minSpeed;
+    }
+
     public bool TryVault()
     {
         bool vaulted = Player?.MovementContext?.TryVaulting() == true;

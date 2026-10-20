@@ -279,6 +279,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         Bot.PlayerComponent.CharacterController.SetWantToSprint(false);
         // Far-away "destination" so SAIN's arrival slowdown never kicks in during a tap.
         Bot.PlayerComponent.CharacterController.SetTargetMoveDirection(_tapDir, Bot.Position + _tapDir * 5f, Bot.PlayerComponent, 0f, 1f);
+        TickJumpPeek();
         return true;
     }
 
@@ -417,7 +418,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         return EPeekStyle.Step;
     }
 
-    /// <summary>On a peek tap: hop out instead of stepping (headroom, level 1.2 m landing on the navmesh, 2.5-4 s apart, 3 per fight).</summary>
+    /// <summary>On a peek tap: hop out instead of stepping (headroom, level landing on the navmesh, 2.5-4 s apart, 3 per fight).</summary>
     private void TryJumpPeek()
     {
         float time = Time.time;
@@ -425,22 +426,65 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         {
             return;
         }
-        Vector3 pos = Bot.Position;
-        Vector3 land = pos + _tapDir * 1.2f;
-        int mask = LayersMaskController.HighPolyWithTerrainMask;
-        if (NavMesh.Raycast(pos, land, out _, -1)
-            || Physics.Raycast(pos + Vector3.up * 1.7f, Vector3.up, 0.7f, mask)
-            || Physics.Raycast(pos + Vector3.up * 0.5f, _tapDir, 1.4f, mask)
-            || Physics.Raycast(pos + Vector3.up * 1.2f, _tapDir, 1.4f, mask))
+        if (!JumpPeekSafe())
         {
             TacticDiagnostics.Count("diamond.jumpPeek.unsafe");
             _nextJumpPeek = time + 1f;
             return;
         }
-        if (!Bot.Mover.TryJump())
+        // zzap (user 2026-10-20: "they jump on the spot instead of out to the side"): the peek tap starts from standing (or
+        // from the hide tap's other direction), and EFT's jump keeps the take-off speed - jumping here went straight up. Walk
+        // out first and hop once the body moves that way (TickJumpPeek, up to 0.45 s); no speed by then = a plain step peek.
+        _jumpPeekPendingUntil = time + 0.45f;
+        _tapEnd = Mathf.Max(_tapEnd, time + 0.45f);
+    }
+
+    private float _jumpPeekPendingUntil;
+
+    private bool JumpPeekSafe()
+    {
+        Vector3 pos = Bot.Position;
+        // a hop from a walk carries ~1.5 m: land, headroom and a clear lane that far
+        Vector3 land = pos + _tapDir * 1.6f;
+        int mask = LayersMaskController.HighPolyWithTerrainMask;
+        return !(NavMesh.Raycast(pos, land, out _, -1)
+            || Physics.Raycast(pos + Vector3.up * 1.7f, Vector3.up, 0.7f, mask)
+            || Physics.Raycast(pos + Vector3.up * 0.5f, _tapDir, 1.8f, mask)
+            || Physics.Raycast(pos + Vector3.up * 1.2f, _tapDir, 1.8f, mask));
+    }
+
+    /// <summary>Every tick of a peek tap with a hop pending: jump once the bot moves out at walking speed.</summary>
+    private void TickJumpPeek()
+    {
+        if (_jumpPeekPendingUntil <= 0f)
         {
             return;
         }
+        float time = Time.time;
+        if (time > _jumpPeekPendingUntil || _jiggleHide)
+        {
+            _jumpPeekPendingUntil = 0f;
+            TacticDiagnostics.Count("diamond.jumpPeek.noRunUp");
+            return;
+        }
+        Vector3 v = Bot.Player.Velocity;
+        v.y = 0f;
+        if (!Bot.Player.MovementContext.IsGrounded || Vector3.Dot(v, _tapDir) < 1.1f)
+        {
+            return;
+        }
+        // the tap may have turned since the hop was planned (mate / own grenade / blocked lane): check where it goes now
+        if (!JumpPeekSafe())
+        {
+            _jumpPeekPendingUntil = 0f;
+            TacticDiagnostics.Count("diamond.jumpPeek.unsafe");
+            return;
+        }
+        if (!Bot.Mover.TryJumpMoving(_tapDir, 1.1f))
+        {
+            return;
+        }
+        _jumpPeekPendingUntil = 0f;
         _jumpPeeks++;
         _nextJumpPeek = time + Random.Range(2.5f, 4f);
         _tapEnd = time + 0.55f; // the hop is this peek
@@ -615,6 +659,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
     public bool Stop(string why = "actionStopped")
     {
         _rollKeepUntil = Time.time + 3f;
+        _jumpPeekPendingUntil = 0f;
         if (_runByActive)
         {
             _runByActive = false;

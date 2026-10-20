@@ -720,7 +720,8 @@ public class RepositionClass : BotComponentClassBase
                 // Reference clip 3: hop out past the cover edge (forward), not over the cover.
                 if (s.BaitJump && !s.BaitJumped)
                 {
-                    s.BaitJumped = JumpSafe(s.Target) && Bot.Mover.TryJump();
+                    // zzap 2026-10-20 ("they jump on the spot"): hop once the step out has started - EFT keeps the take-off speed
+                    s.BaitJumped = Bot.Mover.MovingToward(s.Target - Bot.Position, 1.2f) && JumpSafe(s.Target) && Bot.Mover.TryJump();
                     if (s.BaitJumped) Bot.Mover.MarkJump("bait");
                     if (s.BaitJumped)
                     {
@@ -745,7 +746,7 @@ public class RepositionClass : BotComponentClassBase
                 // Info peek: hop straight back in too (the door jump peek's back-hop, from cover).
                 if (s.BaitJump && !s.BaitJumpedBack && phaseTime > 0.05f)
                 {
-                    s.BaitJumpedBack = JumpSafe(s.Home) && Bot.Mover.TryJump();
+                    s.BaitJumpedBack = Bot.Mover.MovingToward(s.Home - Bot.Position, 1.2f) && JumpSafe(s.Home) && Bot.Mover.TryJump();
                     if (s.BaitJumpedBack) Bot.Mover.MarkJump("bait");
                 }
                 if (MoveTo(s, s.Home, s.BaitJump, phaseTime) || phaseTime > 1.2f)

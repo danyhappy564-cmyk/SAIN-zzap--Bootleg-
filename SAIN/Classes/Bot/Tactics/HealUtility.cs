@@ -95,10 +95,7 @@ public static class HealUtility
                 freshAge = enemy.TimeSinceLastKnownUpdated;
                 freshKnown = enemy.KnownPlaces.LastKnownPosition;
             }
-            var hearing = enemy.Hearing;
-            if (hearing != null && time - hearing.LastHeardSoundTime < 3f
-                && (hearing.LastHeardSoundType == SAINSoundType.FootStep || hearing.LastHeardSoundType == SAINSoundType.Sprint)
-                && (hearing.LastHeardSoundPosition - bot.Position).magnitude < 25f)
+            if (HeardSteps(bot, enemy, 5f, 30f))
             {
                 coming = true;
             }
@@ -114,13 +111,24 @@ public static class HealUtility
         // (user: "they heal while peeking a corner mid-fight").
         bool inHisView = nearestKnown != null && nearestAge < 30f
             && !Physics.Linecast(nearestKnown.Value + Vector3.up * 1.5f, bot.Position + Vector3.up * 1.3f, LayersMaskController.HighPolyWithTerrainMask);
+        // zzap (user 2026-10-20: "why do some heal while running toward where the enemy is?" - 2nd sim Bot12: first aid 19 s
+        // into a push, then walked 11 m on toward that enemy): the cover still being walked to lies closer to where he was than
+        // we are now - no meds on that walk.
+        bool coverTowardHim = !inCover && cover != null && nearestKnown != null && nearestAge < 30f
+            && (cover.Position - nearestKnown.Value).magnitude < (bot.Position - nearestKnown.Value).magnitude - 1.5f;
 
         // Plenty of meds -> heal more readily; the last one is worth saving for something serious.
         var load = LoadoutProfile.Of(bot);
         float medBias = load.Meds >= 3 ? 0.1f : load.Meds <= 1 && health > 0.35f ? -0.1f : 0f;
+        // Close and recent = he can be on us before the meds are done (sim 4: 6m / 6s ago counted as safe).
+        // zzap (user 2026-10-20: "many heal while they hear footsteps close by and know someone is there"): 2nd sim 13:54
+        // first aid won with the nearest threat 8 m / 5 s ago (0.77 > 0.57) and with steps heard 17 m off (0.64 > 0.61) - the
+        // window was 15 s and the wait bonus 0.3, the heal lost only 0.35 to steps. Now 25 s, it weighs on first aid too, and
+        // steps heard in the last 5 s within 30 m cost first aid 0.55.
+        float closeRecent = Mathf.Clamp01((30f - nearestPath) / 25f) * Mathf.Clamp01((25f - nearestAge) / 15f);
         float firstAid = canFirstAid
-            ? medBias + 0.2f + 0.5f * (1f - health) + (inCover ? 0.2f : 0f) + 0.3f * safe - (anyVisible ? 0.6f : 0f) - (coming ? 0.35f : 0f) - (hit ? 0.3f : 0f)
-                - (inHisView ? 0.4f : 0f) - (runningToCover ? (legsHold ? 0.2f : 0.5f) : 0f)
+            ? medBias + 0.2f + 0.5f * (1f - health) + (inCover ? 0.2f : 0f) + 0.3f * safe - (anyVisible ? 0.6f : 0f) - (coming ? 0.55f : 0f) - (hit ? 0.3f : 0f)
+                - (inHisView ? 0.4f : 0f) - (runningToCover ? (legsHold ? 0.2f : 0.5f) : 0f) - 0.35f * closeRecent - (coverTowardHim ? 0.5f : 0f)
             : -1f;
         float stim = canStim && health <= 0.35f
             // 10/14 (user screenshots, Bot35: "fighting, then healing where he could be seen, and died"): +0.1 for an enemy in
@@ -130,11 +138,11 @@ public static class HealUtility
                 - (bot.Medical.TimeSinceShot < 0.5f ? 0.2f : 0f)
             : -1f;
         float surgery = canSurgery
-            ? 0.1f + 0.4f * safe + (inCover ? 0.15f : 0f) - (anyVisible ? 0.8f : 0f) - (coming ? 0.5f : 0f) - (nearestAge < 10f ? 0.3f : 0f) - (inHisView ? 0.5f : 0f)
+            ? 0.1f + 0.4f * safe + (inCover ? 0.15f : 0f) - (anyVisible ? 0.8f : 0f) - (coming ? 0.7f : 0f) - (nearestAge < 10f ? 0.3f : 0f) - (inHisView ? 0.5f : 0f)
+                - (coverTowardHim ? 0.5f : 0f)
             : -1f;
-        // Close and recent = he can be on us before the meds are done (sim 4: 6m / 6s ago counted as safe). Ties go to waiting.
-        float closeRecent = Mathf.Clamp01((30f - nearestPath) / 25f) * Mathf.Clamp01((15f - nearestAge) / 10f);
-        float wait = 0.31f + 0.3f * closeRecent + (coming ? 0.15f : 0f) + (anyVisible ? 0.2f : 0f);
+        // Ties go to waiting.
+        float wait = 0.31f + 0.45f * closeRecent + (coming ? 0.25f : 0f) + (anyVisible ? 0.2f : 0f);
 
         var list = new List<(EChoice choice, float score)>
         {
@@ -152,11 +160,20 @@ public static class HealUtility
             _nextLog[id] = time + 4f;
             if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(
                 $"[Heal] [{bot.name}] {list[0].choice}{(mistake ? " (mistake)" : "")} {list[0].score:0.00} > {list[1].choice} {list[1].score:0.00} | "
-                    + $"{hs}; {(anyVisible ? "enemy in sight; " : "")}{(inHisView ? "standing where he could see me; " : "")}{(coming ? "someone coming; " : "")}{(hit ? "just hit; " : "")}{(inCover ? "in cover; " : "")}{(runningToCover ? "running to cover; " : "")}"
+                    + $"{hs}; {(anyVisible ? "enemy in sight; " : "")}{(inHisView ? "standing where he could see me; " : "")}{(coming ? "someone coming; " : "")}{(hit ? "just hit; " : "")}{(inCover ? "in cover; " : "")}{(runningToCover ? "running to cover; " : "")}{(coverTowardHim ? "cover is toward him; " : "")}"
                     + $"nearest threat {nearestPath:0}m / {nearestAge:0}s ago; meds {load.Meds}");
         }
         if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"heal.pick.{list[0].choice}");
         return list;
+    }
+
+    /// <summary>This enemy's footsteps / sprint heard within the last seconds, the sound within meters of the bot.</summary>
+    public static bool HeardSteps(BotComponent bot, Enemy enemy, float seconds, float meters)
+    {
+        var hearing = enemy?.Hearing;
+        return hearing != null && Time.time - hearing.LastHeardSoundTime < seconds
+            && (hearing.LastHeardSoundType == SAINSoundType.FootStep || hearing.LastHeardSoundType == SAINSoundType.Sprint)
+            && (hearing.LastHeardSoundPosition - bot.Position).sqrMagnitude < meters * meters;
     }
 
     public static void Clear()

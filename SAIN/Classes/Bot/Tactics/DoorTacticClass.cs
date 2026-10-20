@@ -1382,7 +1382,8 @@ public partial class DoorTacticClass : BotComponentClassBase
                 s.LookTarget = s.InsidePoint;
                 if (!s.Jumped)
                 {
-                    s.Jumped = s.PeekStyle != 3 && JumpSafe(s.PeekPoint) && Bot.Mover.TryJump();
+                    // zzap 2026-10-20 ("they jump on the spot"): hop once the run out has started - EFT keeps the take-off speed
+                    s.Jumped = s.PeekStyle != 3 && Bot.Mover.MovingToward(s.PeekPoint - Bot.Position, 1.2f) && JumpSafe(s.PeekPoint) && Bot.Mover.TryJump();
                     if (s.Jumped)
                     {
                         TacticDiagnostics.Count("door.jumpOut");
@@ -1406,7 +1407,7 @@ public partial class DoorTacticClass : BotComponentClassBase
                 }
                 if (!s.JumpedBack)
                 {
-                    s.JumpedBack = s.PeekStyle != 3 && JumpSafe(s.Stack) && Bot.Mover.TryJump();
+                    s.JumpedBack = s.PeekStyle != 3 && Bot.Mover.MovingToward(s.Stack - Bot.Position, 1.2f) && JumpSafe(s.Stack) && Bot.Mover.TryJump();
                     if (s.JumpedBack)
                     {
                         TacticDiagnostics.Count("door.jumpBack");

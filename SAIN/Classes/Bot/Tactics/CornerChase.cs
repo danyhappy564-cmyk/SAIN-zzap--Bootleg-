@@ -249,6 +249,7 @@ public sealed class CornerChase(BotComponent bot)
     // planted (same steadying as the diamond step plant) before carrying on.
     private float _jumpTime;
     private float _landPlantUntil;
+    private bool _tooSlowCounted;
 
     private bool TickJumpShot(float cornerDist)
     {
@@ -281,7 +282,15 @@ public sealed class CornerChase(BotComponent bot)
         Vector3 v = player.Velocity;
         v.y = 0f;
         float takeOff = Mathf.Clamp(v.magnitude * 0.42f, 1.6f, 3f); // ~0.42s to the top of a sprint hop
-        if (cornerDist < takeOff && player.MovementContext.IsGrounded && Bot.Mover.TryJump())
+        // zzap (user 2026-10-20: "the corner jump shot feels like a standing jump"): at the corner the bot had often slowed
+        // down (path corner, door slow-down) and the hop went straight up - EFT keeps the take-off speed. Only hop from a run
+        // (2.2 m/s+); slower, it rounds the corner on foot.
+        if (cornerDist < takeOff && player.MovementContext.IsGrounded && v.magnitude < 2.2f && !_tooSlowCounted)
+        {
+            _tooSlowCounted = true;
+            TacticDiagnostics.Count("chase.jumpShot.tooSlow");
+        }
+        if (cornerDist < takeOff && player.MovementContext.IsGrounded && Bot.Mover.TryJumpMoving(v, 2.2f))
         {
             _jumped = true;
             _jumpTime = time;
@@ -296,6 +305,7 @@ public sealed class CornerChase(BotComponent bot)
     private void PickStyle(CloseCombatSettings settings, Enemy enemy)
     {
         _styleCounted = false;
+        _tooSlowCounted = false;
         _jumped = false;
         _jumpTime = 0f;
         _landPlantUntil = 0f;

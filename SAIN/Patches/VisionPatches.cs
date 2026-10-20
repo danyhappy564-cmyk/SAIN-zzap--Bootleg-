@@ -9,6 +9,7 @@ using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.GlobalSettings;
 using SAIN.Preset.Shared.GlobalSettings.Categories.General;
 using SAIN.SAINComponent.Classes.EnemyClasses;
+using SAIN.SAINComponent.Classes.WeaponFunction;
 using SPT.Reflection.Patching;
 using UnityEngine;
 
@@ -40,8 +41,11 @@ public class UpdateLightEnablePatch : ModulePatch
         float turnOnRatio = lookSettings.LightOnRatio;
         float turnOffRatio = lookSettings.LightOffRatio;
 
-        bool isOn = __instance.IsEnable;
-        bool wantOn = !isOn && timeModifier <= turnOnRatio && __instance._owner.Memory.IsPeace;
+        // zzap 2026-10-20: every device on the gun, not only EFT's first one (BotLightController.Devices)
+        BotLightController devices = BotTacticalDevices.Of(__instance);
+        bool isOn = devices != null ? devices.AnyDeviceOn : __instance.IsEnable;
+        bool allOn = devices != null ? devices.AllDevicesOn : isOn;
+        bool wantOn = !allOn && timeModifier <= turnOnRatio && __instance._owner.Memory.IsPeace;
         bool wantOff = isOn && timeModifier >= turnOffRatio;
         __instance._canUseNow = timeModifier < turnOffRatio;
 
@@ -113,7 +117,8 @@ public class UpdateLightEnablePatch2 : ModulePatch
     [PatchPrefix]
     public static bool PatchPrefix(BotLight __instance)
     {
-        if (!__instance.IsEnable)
+        BotLightController devices = BotTacticalDevices.Of(__instance);
+        if (devices != null ? !devices.AnyDeviceOn : !__instance.IsEnable)
         {
             return false;
         }
@@ -246,7 +251,7 @@ public class BotLightTurnOnPatch : ModulePatch
     }
 
     [PatchPrefix]
-    public static bool PatchPrefix(BotLight __instance)
+    public static bool PatchPrefix(BotLight __instance, bool anyTime)
     {
         if (__instance._isInDarkPlace && !SAINPlugin.LoadedPreset.GlobalSettings.General.Flashlight.AllowLightOnForDarkBuildings)
         {
@@ -254,11 +259,11 @@ public class BotLightTurnOnPatch : ModulePatch
         }
         if (__instance._isInDarkPlace || __instance._owner.Memory.GoalEnemy != null)
         {
-            return true;
+            return BotTacticalDevices.TurnOn(__instance, anyTime);
         }
         if (!ShallTurnLightOff(__instance._owner.Profile.Info.Settings.Role))
         {
-            return true;
+            return BotTacticalDevices.TurnOn(__instance, anyTime);
         }
         __instance._owner.BotLight.TurnOff(false, true);
         return false;
@@ -288,6 +293,67 @@ public class BotLightTurnOnPatch : ModulePatch
             return settings.TurnLightOffNoEnemyFOLLOWER;
         }
         return settings.TurnLightOffNoEnemyRAIDERROGUE;
+    }
+}
+
+/// <summary>
+/// zzap (user 2026-10-20: "lasers, lights, anything on the rail - all off / all on together"): EFT's BotLight.TurnOff switches
+/// only the first LightComponent on the gun. Same conditions as EFT's (not in a dark place, enemy not in sight unless told to
+/// ignore that, 3 s between toggles unless anyTime), but every device goes off.
+/// </summary>
+public class BotLightTurnOffPatch : ModulePatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return AccessTools.Method(typeof(BotLight), nameof(BotLight.TurnOff));
+    }
+
+    [PatchPrefix]
+    public static bool PatchPrefix(BotLight __instance, bool dependceOnEnemy, bool anyTime)
+    {
+        BotLightController devices = BotTacticalDevices.Of(__instance);
+        if (devices == null)
+        {
+            return true;
+        }
+        var goal = __instance._owner.Memory.GoalEnemy;
+        if (!__instance._isInDarkPlace && (goal == null || !goal.IsVisible || !dependceOnEnemy) && devices.AnyDeviceOn
+            && (__instance._nextCanToggleTime < Time.time || anyTime))
+        {
+            __instance._nextCanToggleTime = Time.time + BotLight.DELAY;
+            devices.SetAllDevices(false);
+        }
+        return false;
+    }
+}
+
+/// <summary>EFT BotLight -> the SAIN bot's light controller (every device on the gun). Null for a bot SAIN doesn't run.</summary>
+internal static class BotTacticalDevices
+{
+    public static BotLightController Of(BotLight light)
+    {
+        var owner = light?._owner;
+        if (owner == null || !SAINEnableClass.GetSAIN(owner.ProfileId, out BotComponent bot) || bot?.BotLight == null)
+        {
+            return null;
+        }
+        return bot.BotLight;
+    }
+
+    /// <summary>EFT's TurnOn conditions with every device: returns the prefix result (true = run EFT's own, for non-SAIN bots).</summary>
+    public static bool TurnOn(BotLight light, bool anyTime)
+    {
+        BotLightController devices = Of(light);
+        if (devices == null)
+        {
+            return true;
+        }
+        if (light.CanUseBySettings && (anyTime || light._canUseNow) && !devices.AllDevicesOn && (light._nextCanToggleTime < Time.time || anyTime))
+        {
+            light._nextCanToggleTime = Time.time + BotLight.DELAY;
+            devices.SetAllDevices(true);
+        }
+        return false;
     }
 }
 

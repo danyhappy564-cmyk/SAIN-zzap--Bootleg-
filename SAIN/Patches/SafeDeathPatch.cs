@@ -587,6 +587,43 @@ public class SafeProneSoundPatch : ModulePatch
 }
 
 /// <summary>
+/// zzap fork (user 2026-10-20 screenshot: "this one is dead - why is it still healing? fix the thing circled in the air"):
+/// a body that died with meds (or food) in its hands left the med kit hanging in the air where its hands had been. EFT's
+/// Player.OnDeadCoroutine runs DropItemDead on whatever the hands hold: rigidbody, then CorpseRagdoll.AttachWeapon, which
+/// reads the GUN's bone links (TransformLinks weapon_R_IK_marker) - a meds model has none, so the attach fails and the model
+/// stays put. A med kit isn't a dropped gun: it is still in the inventory (the corpse's loot has it). Clear the hands the way
+/// EFT does when that item is taken off a body (Player.ReleaseHand: hands controller destroyed, hand pose back) - nothing
+/// switched off or destroyed by hand (P7, as CorpseCleanup.ReleaseGunInHands).
+/// </summary>
+public class DeadMedsInHandsPatch : ModulePatch
+{
+    protected override MethodBase GetTargetMethod()
+    {
+        return AccessTools.Method(typeof(Player), nameof(Player.DropItemDead));
+    }
+
+    [PatchPrefix]
+    public static bool Prefix(Player __instance)
+    {
+        if (__instance == null || __instance.HandsController is not IMedsController)
+        {
+            return true;
+        }
+        try
+        {
+            __instance.ReleaseHand();
+            TacticDiagnostics.Count("deadBug.medsInHandsReleased");
+        }
+        catch (Exception ex)
+        {
+            TacticDiagnostics.Count("deadBug.medsInHandsReleaseFailed");
+            Logger.LogWarning($"[SAIN zzap] clearing the meds in a dead player's hands failed: {ex.Message}");
+        }
+        return false;
+    }
+}
+
+/// <summary>
 /// zzap fork (sim 2026-10-10 Factory: 14x "NullReferenceException in BotWeaponManager.UpdateHandsController" from
 /// BotWeaponSelector.OnWeaponTaken, first at t=1135s): a weapon draw that finishes after the bot's weapon manager was
 /// disposed (killed mid-swap - Dispose sets Melee to null) still runs EFT's "weapon taken" callback, which uses it.

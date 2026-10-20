@@ -138,6 +138,7 @@ public static class SimLabAnalyzer
             "doorStuck" => "doorStuck: state 줄 door=(상태·sliding/swingsTowardBot)·leafWithin1m → 문 종류별 처리(BotDoorPushOpen·미닫이 대기·DoorLeafCheck)",
             "wallStare" => "wallStare: state 줄 combat/why + wallAhead → SAINSteeringClass WallLookFix가 왜 안 걸렸는지(조준 중·PreAim)",
             "closeNoReact" => "closeNoReact: 3m 안 적인데 발견 안 됨/조준 지연 → EnemyGainSightClass 근거리 보정, SAINEnemyController.CloseSense, 문 전술 중 시야",
+            "idleAfterFight" => "idleAfterFight: state 줄 combat/why로 어느 판단이 서 있게 하는지 → HiddenEnemyUtility 지키기·물러나기 피로(조용해진 뒤 수색·이동으로 넘어가는지), FreezeAction",
             "ignoredGunfire" => "ignoredGunfire: 전투 밖 레이어(ORBIT·순찰·PostCombat)가 40m 안 총격을 봤는데 전투로 안 넘어감 → 총소리 → 적 등록(HearingSensor)·LayerHandoff, shooter가 'not hostile'이면 같은 편이라 정상일 수 있음",
             _ => kind,
         };
@@ -443,6 +444,7 @@ public static class SimLabAnalyzer
             "doorStuck" => T("문 앞에서 멈춤(끼임)", "stuck at a door"),
             "wallStare" => T("벽에 얼굴 박고 서 있음", "staring at a wall"),
             "closeNoReact" => T("3m 안 적에게 반응 없음", "no reaction to an enemy within 3 m"),
+            "idleAfterFight" => T("전투가 조용해진 뒤 오래 제자리", "standing idle after the fight went quiet"),
             "ignoredGunfire" => T("40m 안 보이는 총격 무시(전투 밖 레이어)", "nearby gunfire ignored (out of combat)"),
             _ => kind,
         };

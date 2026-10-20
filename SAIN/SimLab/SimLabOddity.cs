@@ -28,6 +28,9 @@ namespace SAIN.SimLab;
 ///   wallStare      - standing, enemy out of sight, the look ray hits something within 0.8 m for 4 s
 ///   ignoredGunfire - outside SAIN's combat layer (ORBIT, patrol, squad / post-combat; not Avoid Threat) while an enemy 40 m
 ///                    or closer in clear line of sight fired in the last 3 s - for 4 s
+/// 10/20 (user, F8 mark #6: "some just stand there after a fight - why? it looks very unnatural"):
+///   idleAfterFight - in SAIN's combat layer, goal enemy out of sight with no news of him for 15 s+, not hit for 10 s, no
+///                    reload / meds, no shot, standing still - for 10 s
 /// Each episode also writes the full state line (SimLabSceneMark.Describe) to the journal.
 /// One episode per bot per kind until the state clears; sim raids only.
 /// </summary>
@@ -186,6 +189,9 @@ public static class SimLabOddity
         // clear line of sight and no shot for 2 s
         bool shotRecently = s.LastShotOrReload >= 0f && now - s.LastShotOrReload < 2f;
         Check(s, "closeNoReact", HostileWithin(player, owner, 3f) && !shotRecently && bullets > 0, 2f, now);
+        bool hitLately = owner.Memory != null && owner.Memory.UnderFireTime > 0f && now - owner.Memory.UnderFireTime < 10f;
+        bool quiet = enemy != null && !visible && enemy.TimeSinceLastKnownUpdated >= 15f;
+        Check(s, "idleAfterFight", quiet && !hitLately && !selfAction && gunIdle && vNow < 0.3f && speed < 0.25f, 10f, now);
 
         foreach (string kind in KINDS)
         {
@@ -199,7 +205,7 @@ public static class SimLabOddity
     }
 
     private static readonly string[] KINDS = { "noShoot", "backTurned", "hitNoReact", "flipFlop", "bunched", "stalledMove", "ignoredSniper",
-        "backWalk", "slowUnderFire", "doorStuck", "wallStare", "closeNoReact" };
+        "backWalk", "slowUnderFire", "doorStuck", "wallStare", "closeNoReact", "idleAfterFight" };
 
     private static bool HostileWithin(Player player, BotOwner owner, float meters)
     {
@@ -341,6 +347,7 @@ public static class SimLabOddity
         {
             "flipFlop" => 0f,
             "bunched" or "stalledMove" or "ignoredSniper" => 6f,
+            "idleAfterFight" => 10f,
             "closeNoReact" => 2f,
             _ => 4f,
         };
@@ -423,6 +430,19 @@ public static class SimLabOddity
         _counts.TryGetValue(kind, out int n);
         _counts[kind] = n + 1;
         TacticDiagnostics.Count("oddity." + kind);
+        if (kind == "idleAfterFight" && TacticDiagnostics.CountOn)
+        {
+            // which decision keeps it standing (10/20: SeekCover in all 1st-stage examples, reason not in them)
+            TacticDiagnostics.Count($"oddity.idleAfterFight.{decision}.{reason}");
+            // and why it doesn't go looking for him instead
+            var goal = bot.GoalEnemy;
+            if (goal != null && bot.Search?.Decider != null)
+            {
+                bool want = bot.Search.Decider.WantToSearch(goal, out var why);
+                TacticDiagnostics.Count($"oddity.idleAfterFight.search.{(want ? "wanted" : why.NotWantToSearchReason.ToString())}"
+                    + (why.NotWantToSearchReason == SAIN.SAINComponent.Classes.Search.SearchReasonsStruct.ENotWantToSearchReason.CantStart ? $".{why.CantStartReason}" : ""));
+            }
+        }
         if (TacticDiagnostics.LogOn)
         {
             // 04:55 sim: 2 of 3 noShoot came right after a grenade throw - log what blocks the shot so the next sim can tell

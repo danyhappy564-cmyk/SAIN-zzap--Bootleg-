@@ -449,8 +449,13 @@ public class SelfActionDecisionClass : BotBase
             _nextCheckHealTime = Time.time + 2f;
             // 15:34 sim (user: "some bots heal while rushing"): 4 pushes turned into first aid on the run. While pushing an
             // enemy with fresh info (under 5 s), only a dying bot may pop a stim - no first aid / surgery mid-push.
+            // zzap (user 2026-10-20: "healing while running toward the enemy"): 2nd sim Bot12 pushed an enemy last known 19 s
+            // before, 15 m off, switched to first aid and walked on toward him. A push is a push while he is that close and that
+            // fresh: 30 s and 40 m (was 5 s, any distance).
+            var pushed = Bot.GoalEnemy;
             if (Bot.Decision.CurrentCombatDecision == ECombatDecision.RushEnemy
-                && Bot.GoalEnemy != null && Bot.GoalEnemy.TimeSinceLastKnownUpdated < 5f)
+                && pushed != null && (pushed.TimeSinceLastKnownUpdated < 5f
+                    || (pushed.TimeSinceLastKnownUpdated < 30f && Mathf.Min(pushed.Path.PathLength, pushed.KnownPlaces.BotDistanceFromLastKnown * 1.3f) < 40f)))
             {
                 if (Bot.Memory.Health.HealthStatus == ETagStatus.Dying && GetCanUseStims())
                 {
@@ -639,8 +644,31 @@ public class SelfActionDecisionClass : BotBase
             Decision = ESelfActionType.None;
             return false;
         }
+        // zzap (user 2026-10-20: "they keep healing with footsteps right next to them"): an enemy's steps heard within 15 m in
+        // the last 1.5 s, half a second into the heal (not the steps that were already priced in when it started).
+        if (timeSinceChange > 0.5f && StepsHeardWithin(15f, 1.5f))
+        {
+            Bot.Medical.TryCancelHeal();
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("heal.cancel.footsteps");
+            // no start -> cancel -> start loop while he walks around out there (P8): next heal check in 4 s
+            _nextCheckHealTime = Time.time + 4f;
+            Decision = ESelfActionType.None;
+            return false;
+        }
         Decision = ESelfActionType.FirstAid;
         return true;
+    }
+
+    private bool StepsHeardWithin(float meters, float seconds)
+    {
+        foreach (Enemy e in Bot.EnemyController.KnownEnemies)
+        {
+            if (e != null && SAIN.SAINComponent.Classes.Tactics.HealUtility.HeardSteps(Bot, e, seconds, meters))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private bool EnemyInSightWithin(float dist)

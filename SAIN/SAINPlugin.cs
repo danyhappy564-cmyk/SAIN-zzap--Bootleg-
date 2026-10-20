@@ -136,6 +136,7 @@ public class SAINPlugin : BaseUnityPlugin
         {
             SAIN.SimLab.SimLabSceneMark.Mark();
         }
+        SAIN.SimLab.SimLabSceneMark.Tick();
         PresetSyncWebSocket.Resync();
 
         ModDetection.ManualUpdate();
