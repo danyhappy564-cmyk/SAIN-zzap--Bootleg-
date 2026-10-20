@@ -153,6 +153,12 @@ public class SearchClass : BotComponentClassBase
         }
 
         bool shallBeStealthy = Decider.ShallBeStealthyDuringSearch(enemy);
+        // zzap 2026-10-20: a search started only because a heard enemy went quiet goes carefully - a walk, no sprint. Not the
+        // stealthy pace: indoors that is 33 % of a walk, and the 1st stage read it as standing (stalledMove 313 -> 1425).
+        if (Decider.QuietHeardSearch(enemy))
+        {
+            shallSprint = false;
+        }
         GetSpeedAndPose(out float speed, out float pose, shallSprint, shallBeStealthy);
         // zzap remake5: footstep discipline - no sprint within 30 m of the enemy, crouch-walk within 12 m (FootstepDiscipline)
         if (SAIN.SAINComponent.Classes.Tactics.FootstepDiscipline.Quiet(Bot, enemy, out float quietSpeed, out float quietPose))

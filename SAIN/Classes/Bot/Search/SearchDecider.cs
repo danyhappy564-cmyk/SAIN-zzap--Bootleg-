@@ -80,7 +80,7 @@ public class SearchDecider : BotSubClass<SearchClass>
             return false;
         }
 
-        if (!enemy.Seen && !Bot.Info.PersonalitySettings.Search.WillSearchFromAudio)
+        if (!enemy.Seen && !Bot.Info.PersonalitySettings.Search.WillSearchFromAudio && !QuietHeardSearch(enemy))
         {
             reasons.NotWantToSearchReason = ENotWantToSearchReason.WontSearchFromAudio;
             return false;
@@ -220,8 +220,35 @@ public class SearchDecider : BotSubClass<SearchClass>
             }
         }
 
+        if (QuietHeardSearch(enemy))
+        {
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("search.quietHeard.start");
+            reason = EWantToSearchReason.NewSearch_EnemyNotHeard;
+            return true;
+        }
+
         reason = EWantToSearchReason.None;
         return false;
+    }
+
+    private const float QUIET_HEARD_SEARCH_AFTER = 15f;
+
+    /// <summary>
+    /// zzap (user 2026-10-20: "after a fight some just stand there" - F8 mark #6, then "search heard-only enemies carefully once
+    /// it's been quiet 15 s"): an enemy only ever heard, nothing new from him for 15 s+, and the bot's own rules would not go
+    /// yet - its personality doesn't search from audio (Timmy) or its wait before searching is longer (Normal 40-80 s, Rat,
+    /// SnappingTurtle...; the enemy is forgotten about 60 s after the last news, so it never went). 1st stage: 52% of the bots
+    /// standing after a quiet fight were refused for audio, 39% for the wait. Bots that never search (Coward) stay out.
+    /// SearchClass walks these searches (no sprint).
+    /// </summary>
+    public bool QuietHeardSearch(Enemy enemy)
+    {
+        if (enemy == null || enemy.Seen || !enemy.Heard || enemy.TimeSinceLastKnownUpdated < QUIET_HEARD_SEARCH_AFTER)
+        {
+            return false;
+        }
+        var search = Bot.Info.PersonalitySettings.Search;
+        return search.WillSearchForEnemy && (!search.WillSearchFromAudio || Bot.Info.TimeBeforeSearch > QUIET_HEARD_SEARCH_AFTER);
     }
 
     private bool CanStartSearch(Enemy enemy, out ECantStartReason reason)
@@ -298,6 +325,12 @@ public class SearchDecider : BotSubClass<SearchClass>
                 reason = EWantToSearchReason.ContinueSearch_EnemyNotHeard_Squad;
                 return true;
             }
+        }
+
+        if (QuietHeardSearch(enemy))
+        {
+            reason = EWantToSearchReason.ContinueSearch_EnemyNotHeard;
+            return true;
         }
 
         reason = EWantToSearchReason.None;
