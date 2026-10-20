@@ -71,6 +71,17 @@ public sealed class PersonalityDictionary : Dictionary<EPersonality, Personality
             result = EPersonality.Normal;
         }
 
+        // zzap (2026-10-20, 1st-stage review): fallback ignored Enabled; switch to the other enabled fallback.
+        if (!this[result].Assignment.Enabled)
+        {
+            result = result == EPersonality.Chad ? EPersonality.Normal : EPersonality.Chad;
+            if (!this[result].Assignment.Enabled)
+            {
+                // Both are disabled: keep Normal as the last resort so every bot still receives personality settings.
+                result = EPersonality.Normal;
+            }
+        }
+
         settings = this[result];
         return result;
     }
@@ -175,6 +186,8 @@ public sealed class PersonalityDictionary : Dictionary<EPersonality, Personality
         {
             modifier0to1 = 1f - modifier0to1;
         }
+        // zzap (2026-10-20, 1st-stage review): extrapolation exceeded the configured maximum chance; keep the scale within 0-1.
+        modifier0to1 = Mathf.Clamp01(modifier0to1);
         float result = assignment.MaxChanceIfMeetRequirements * modifier0to1;
         result = Mathf.Clamp(result, 0f, 100f);
         //Logger.LogDebug($"Result: [{result}] Power: [{powerLevel}] PowerLevelScaleStart [{PowerLevelScaleStart}] PowerLevelScaleEnd [{PowerLevelScaleEnd}] MaxChanceIfMeetRequirements [{MaxChanceIfMeetRequirements}]");
