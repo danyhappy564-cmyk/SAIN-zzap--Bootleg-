@@ -95,7 +95,9 @@ internal class SeekCoverAction(BotOwner bot) : BotAction(bot, nameof(SeekCoverAc
     private bool CantShootWhileWalkingToCover()
     {
         var cover = Bot.Cover.CoverInUse;
-        if (cover == null || cover.BotInThisCover || Bot.Mover.Running || Bot.Player.Velocity.magnitude < 0.5f)
+        // 2026-10-20 (2nd sim, backWalk 12 of 12 in SeekCover, 8 with a leg at 0 hp): Mover.Running is "wants to sprint", which stays
+        // true for a bot that can't sprint - ask whether it really sprints (a sprint faces the way it runs by itself).
+        if (cover == null || cover.BotInThisCover || Bot.Player.IsSprintEnabled || Bot.Player.Velocity.magnitude < 0.5f)
         {
             return false;
         }
@@ -108,7 +110,7 @@ internal class SeekCoverAction(BotOwner bot) : BotAction(bot, nameof(SeekCoverAc
 
     private bool FaceWalkNoThreat(Enemy enemy)
     {
-        if (Bot.Mover.Running || !Bot.Mover.Moving || Bot.Player.Velocity.magnitude < 0.5f)
+        if (Bot.Player.IsSprintEnabled || !Bot.Mover.Moving || Bot.Player.Velocity.magnitude < 0.5f)
         {
             return false;
         }

@@ -39,7 +39,8 @@ public class LeanClass : BotBase
         float time = Time.time;
         // zzap: no leaning out while using meds - a bot patching up at a corner kept its lean (pre-aim / hold / Q-E) and
         // showed half its body to the enemy it was hiding from (user 2026-09-29: "peeking the corner while healing").
-        if (BotOwner.Medecine?.Using == true)
+        // 2026-10-20: also while the meds are still in the hands after a cancel (Medecine.Using already false), as DiamondStepper
+        if (BotOwner.Medecine?.Using == true || Player.HandsController is IMedsController)
         {
             if (_spam)
             {

@@ -81,8 +81,12 @@ public class DoorRammer(BotComponent bot)
         }
         float speed = _bot.Player.Velocity.magnitude;
         bool fast = speed >= BotDoorBreacher.MinSpeed;
-        if (!FindDoorAhead(path, botPosition, out Door door, out Vector3 hitPoint, out float dist))
+        if (!FindDoorAhead(path, botPosition, out Door door, out Vector3 hitPoint, out float dist, out bool offPath))
         {
+            if (offPath)
+            {
+                Count($"doormod.move.skip.notOnPath.{CtxName(ctx)}");
+            }
             return false;
         }
         if (dist < (fast ? MIN_START_DIST_FAST : MIN_START_DIST))
@@ -339,11 +343,12 @@ public class DoorRammer(BotComponent bot)
     /// unlocked door. Stops at a turn sharper than MAX_LEG_TURN (50 deg) - the ram casts along the run (velocity), so the door has to sit on the
     /// leg the bot is running straight down.
     /// </summary>
-    private static bool FindDoorAhead(BotPathDataManual path, Vector3 botPosition, out Door door, out Vector3 hitPoint, out float dist)
+    private static bool FindDoorAhead(BotPathDataManual path, Vector3 botPosition, out Door door, out Vector3 hitPoint, out float dist, out bool offPath)
     {
         door = null;
         hitPoint = default;
         dist = 0f;
+        offPath = false;
         var corners = path.PathCorners;
         int index = path.CurrentIndex;
         if (corners == null || index < 0 || index >= corners.Count)
@@ -377,6 +382,14 @@ public class DoorRammer(BotComponent bot)
                 {
                     return false;
                 }
+                // 2026-10-20 (user, 2nd sim: "rams the door, then goes back"; 1st stage: 14 of 377 bursts ended 2-8 m back where they
+                // rammed, same decision): the cast runs 0.4 m past a corner and its 0.3 m sphere grazes doors beside the path - only
+                // ram a door the path goes through, i.e. a later corner lies past the leaf.
+                if (!PathCrosses(corners, i, hit.point, hit.normal, dir))
+                {
+                    offPath = true;
+                    return false;
+                }
                 door = d;
                 hitPoint = hit.point;
                 dist = travelled + hit.distance;
@@ -385,6 +398,32 @@ public class DoorRammer(BotComponent bot)
             travelled += legLength;
             from = to;
             lastDir = dir;
+        }
+        return false;
+    }
+
+    /// <summary>A path corner from 'first' on (up to three) more than 0.3 m past the leaf face the cast hit.</summary>
+    private static bool PathCrosses(List<BotPathCorner> corners, int first, Vector3 hitPoint, Vector3 hitNormal, Vector3 dir)
+    {
+        Vector3 n = hitNormal;
+        n.y = 0f;
+        if (n.sqrMagnitude < 1e-4f)
+        {
+            n = -dir;
+        }
+        n.Normalize();
+        if (Vector3.Dot(n, dir) > 0f)
+        {
+            n = -n; // the face toward the bot
+        }
+        for (int k = first; k < corners.Count && k < first + 3; k++)
+        {
+            Vector3 c = corners[k].Position - hitPoint;
+            c.y = 0f;
+            if (Vector3.Dot(c, -n) > 0.3f)
+            {
+                return true;
+            }
         }
         return false;
     }

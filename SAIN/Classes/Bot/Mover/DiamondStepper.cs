@@ -104,7 +104,10 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         {
             return Stop("tooClose");
         }
-        if (Bot.Player.IsInPronePose || Bot.BotOwner.Medecine?.Using == true)
+        // 2026-10-20 (user, 2nd sim: "steps the diamond while still healing instead of cancelling and shooting"): Medecine.Using
+        // goes false when the heal is cancelled or times out, but the meds stay in the hands for the put-away (0.6 s wait + outro)
+        // - no stepping while anything but the gun is out of the meds controller either.
+        if (Bot.Player.IsInPronePose || Bot.BotOwner.Medecine?.Using == true || Bot.Player.HandsController is IMedsController)
         {
             return Stop("proneOrHealing");
         }

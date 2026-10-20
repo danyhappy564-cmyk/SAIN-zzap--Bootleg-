@@ -245,7 +245,17 @@ public class SAINBotUnstuckClass : BotComponentClassBase
         }
         // 10/14 sim F8 mark #6 (user: "hits a ledge while running, jumps a bit late"): the vault/jump stage waited 5 s even
         // when a knee-high edge was right in front. Knee-high hit within 0.7 m with chest height clear -> vault/jump at 1 s.
-        if (stuckFor >= 1f && _wdStage == 0 && !_wdLedgeTried && LowLedgeAhead(pos))
+        // 2026-10-20 (user, 2nd sim: "in a squad / duo move, when the one in front stops, the one behind keeps jumping to get
+        // over him"; journal: two squadmates side by side, both "no progress 5s -> jump", 0 m to go): a body in the way is not a
+        // ledge - no vault, jump or hop over a player; the path recalc and the final stop still run.
+        bool personAhead = PersonAhead(pos);
+        if (personAhead && stuckFor >= 1f && !_wdPersonLogged)
+        {
+            _wdPersonLogged = true;
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("stuck.personAhead");
+            LogStuck("someone in the way - no vault/jump/hop", stuckFor);
+        }
+        if (stuckFor >= 1f && _wdStage == 0 && !_wdLedgeTried && !personAhead && LowLedgeAhead(pos))
         {
             _wdLedgeTried = true;
             bool vaulted = Bot.Mover.TryVault();
@@ -275,14 +285,21 @@ public class SAINBotUnstuckClass : BotComponentClassBase
         else if (_wdStage == 1 && stuckFor >= 5f)
         {
             _wdStage = 2;
-            bool vaulted = Bot.Mover.TryVault();
-            bool jumped = !vaulted && Bot.Mover.TryJump();
-            LogStuck(vaulted ? "vault" : jumped ? "jump" : "vault/jump not possible", stuckFor);
+            if (!personAhead)
+            {
+                bool vaulted = Bot.Mover.TryVault();
+                bool jumped = !vaulted && Bot.Mover.TryJump();
+                LogStuck(vaulted ? "vault" : jumped ? "jump" : "vault/jump not possible", stuckFor);
+            }
         }
         else if (_wdStage == 2 && stuckFor >= 8f)
         {
             _wdStage = 3;
-            if (IsHumanClose() || IsHumanVisible())
+            if (personAhead)
+            {
+                LogStuck("someone in the way - no hop", stuckFor);
+            }
+            else if (IsHumanClose() || IsHumanVisible())
             {
                 LogStuck("human near/looking - no hop", stuckFor);
             }
@@ -369,6 +386,7 @@ public class SAINBotUnstuckClass : BotComponentClassBase
         _wdStage = 0;
         _wdUnjamTried = false;
         _wdLedgeTried = false;
+        _wdPersonLogged = false;
     }
 
     private void LogStuck(string action, float stuckFor)
@@ -390,6 +408,49 @@ public class SAINBotUnstuckClass : BotComponentClassBase
 
     /// <summary>Something solid at knee height within 0.7 m toward the next path point (or the look direction), nothing at
     /// chest height - a step / curb / low pipe the bot runs into.</summary>
+    private bool _wdPersonLogged;
+
+    /// <summary>Another living player within 1.2 m in the way the bot is trying to go (the path corner, else where it looks).</summary>
+    private bool PersonAhead(Vector3 pos)
+    {
+        Vector3 dir = Player.LookDirection;
+        var path = BotOwner.Mover.ActualPathController?.CurPath;
+        if (path != null && path.CurIndex < path.Length)
+        {
+            Vector3 to = path.GetPoint(path.CurIndex) - pos;
+            to.y = 0f;
+            if (to.sqrMagnitude > 0.04f)
+            {
+                dir = to;
+            }
+        }
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.01f)
+        {
+            return false;
+        }
+        dir.Normalize();
+        foreach (var other in Singleton<GameWorld>.Instance.AllAlivePlayersList)
+        {
+            if (other == null || ReferenceEquals(other, Player) || !other.HealthController.IsAlive)
+            {
+                continue;
+            }
+            Vector3 d = other.Position - pos;
+            if (Mathf.Abs(d.y) > 1.5f)
+            {
+                continue;
+            }
+            d.y = 0f;
+            float dist = d.magnitude;
+            if (dist < 1.2f && (dist < 0.05f || Vector3.Dot(d / dist, dir) > 0.3f))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private bool LowLedgeAhead(Vector3 pos)
     {
         Vector3 dir = Player.LookDirection;
