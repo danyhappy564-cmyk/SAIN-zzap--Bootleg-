@@ -15,7 +15,7 @@ namespace SAIN.SAINComponent.Classes.Tactics;
 /// MoveToEngage sprinted to any firing position more than 15 m away. Now, going after a known enemy that isn't in sight:
 ///   within 30 m of him  no sprinting (walk)
 ///   within 12 m         crouch-walk (pose 0.6, speed 0.45)
-/// A style, so rolled once per bot per enemy (rule 2026-10-02): Rat / SnappingTurtle / Coward always, Timmy 80%, Normal 70%,
+/// A style, so rolled once per bot per enemy (rule 2026-10-02): Rat / SnappingTurtle / Coward 90%, Timmy 80%, Normal 70%,
 /// Chad 50%, GigaChad 30%, Wreckless 15%. A looting enemy is always crept up on. Not while under fire, not for a squad "help"
 /// run, not for a sniper the personality always sprints at. 20 s at most per enemy, then normal movement (no stalls).
 /// Counters: quiet.start / quiet.timeout / quiet.skip.{why} / quiet.move.{sprint|walk|crouch} (SimLabProbe 2 s samples).
@@ -42,7 +42,8 @@ public static class FootstepDiscipline
     {
         return p switch
         {
-            EPersonality.Rat or EPersonality.SnappingTurtle or EPersonality.Coward => 1f,
+            // zzap (2026-10-21, 1st-stage dice audit): Use 90% for Rat/SnappingTurtle/Coward so quiet movement stays probabilistic.
+            EPersonality.Rat or EPersonality.SnappingTurtle or EPersonality.Coward => 0.9f,
             EPersonality.Timmy => 0.8f,
             EPersonality.Normal => 0.7f,
             EPersonality.Chad => 0.5f,
