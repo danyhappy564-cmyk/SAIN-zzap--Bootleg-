@@ -233,7 +233,10 @@ public static class HiddenEnemyUtility
         // "Hurt -> stay put" only pays in cover (10/12 sim: a Dying Chad out of cover wanting first aid 0.87 picked Hold 0.79 on
         // that bonus, stepped out to see the angle and was shot by a second enemy 1.4 s later). Out of cover, badly hurt with meds:
         // get to cover so the heal can start.
-        bool hurtInOpen = !inCover && health <= 0.35f && load.Meds > 0;
+        // zzap (user 2026-10-21, 2nd sim Hauzman: Dying, both legs destroyed, 13 meds - FallBack 0.84 "get to cover to heal" for
+        // 70 s, then stood in cover until shot): EFT first aid skips destroyed parts (BotFirstAid.FindDamagedPart, <= 5 %), so
+        // meds in the bag are not a heal. Only when first aid has a part or bleed to treat, or a surgery kit has a destroyed part.
+        bool hurtInOpen = !inCover && health <= 0.35f && load.Meds > 0 && CanHealSomething(bot);
         float hold = 0.2f * load.Long + 0.25f + (coming ? 0.35f : 0f) + (inCover ? 0.25f : 0.05f) * (1f - health) + (holdsAngle ? 0.1f : 0f) + 0.15f * (1f - aggr) - (justLost ? 0.05f : 0f)
             + (inCover ? 0.1f : 0f) + (pushyPlayer ? 0.15f : 0f) - 0.3f * quiet;
         float flank = 0.2f + (holdsAngle ? 0.3f : 0f) + 0.15f * Mathf.Max(0f, numbers) + 0.1f * quiet - 0.2f * (1f - health);
@@ -390,6 +393,17 @@ public static class HiddenEnemyUtility
             TacticDiagnostics.Count(list[0].Item1 == EStance.Hold ? "quiet.holdOnHear" : $"quiet.heardComing.{list[0].Item1}");
         }
         return list;
+    }
+
+    /// <summary>First aid has a damaged part or a bleed to treat with meds it has, or a surgery kit has a destroyed part.</summary>
+    private static bool CanHealSomething(BotComponent bot)
+    {
+        var med = bot.BotOwner?.Medecine;
+        if (med == null)
+        {
+            return false;
+        }
+        return (med.FirstAid != null && med.FirstAid.Damaged && med.FirstAid.HaveSmth2Use) || med.SurgicalKit?.HaveWork == true;
     }
 
     private static int MatesOnHim(BotComponent bot, Enemy enemy)
