@@ -181,7 +181,7 @@ public static class RetreatWeave
             st.NextSwitch = time + Random.Range(0.45f, 0.8f);
             st.BlockedThisSwing = false;
             TacticDiagnostics.Count("retreat.weave");
-            if (Random.value * 100f < settings.RetreatWeaveJumpChance)
+            if (TacticDiagnostics.Roll("retreatWeaveJump", settings.RetreatWeaveJumpChance))
             {
                 // rolled a hop: taken the first frame within 0.5 s that the run is fast enough (same 20% rate)
                 st.HopPendingUntil = time + 0.5f;

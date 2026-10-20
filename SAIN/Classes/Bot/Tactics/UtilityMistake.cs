@@ -73,7 +73,9 @@ public static class UtilityMistake
         else
         {
             float chance = (_chance.TryGetValue(bot.Info.Personality, out float c) ? c : 0.05f) * settings.UtilityMistakeMultiplier;
-            pick = Random.value < chance ? (ranked.Count > 2 && ranked[2].score > 0f && Random.value < 0.3f ? 2 : 1) : 0;
+            bool mistake = Random.value < chance;
+            TacticDiagnostics.CountRoll($"mistake.{what}.{bot.Info.Personality}", 100f * chance, mistake);
+            pick = mistake ? (ranked.Count > 2 && ranked[2].score > 0f && Random.value < 0.3f ? 2 : 1) : 0;
             _verdicts[key] = new Verdict { Best = ranked[0].option, Picked = pick > 0 ? ranked[pick].option : null, Until = time + VERDICT_TIME };
             if (_verdicts.Count > 1024)
             {

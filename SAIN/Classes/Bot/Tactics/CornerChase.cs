@@ -125,7 +125,7 @@ public sealed class CornerChase(BotComponent bot)
                 chance *= 0.6f;
                 why.Append("mag under 60% x0.6; ");
             }
-            roll = (seenTime, Random.value * 100f < chance);
+            roll = (seenTime, TacticDiagnostics.Roll("cornerChase", chance));
             _rolls[id] = roll;
             if (TacticDiagnostics.CountOn) TacticDiagnostics.Count(roll.chase ? $"chase.start.{bot.Info.Personality}" : "chase.rollFailed");
             if (TacticDiagnostics.LogOn) TacticDiagnostics.LogCloseCombat(

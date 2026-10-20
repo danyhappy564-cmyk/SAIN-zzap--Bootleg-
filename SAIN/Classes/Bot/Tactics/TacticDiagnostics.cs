@@ -102,6 +102,28 @@ internal static class TacticDiagnostics
         }
     }
 
+    /// <summary>
+    /// zzap (user 2026-10-20: "the dice / probability behaviours need checking too"): one probability roll, counted as
+    /// dice.{name}.p{chance}.{hit|miss} (chance in whole percent) so the 1st stage and the sim summary can compare what came out
+    /// with what was set. Same single Random.value draw the call sites made before.
+    /// </summary>
+    public static bool Roll(string name, float chancePercent)
+    {
+        bool hit = UnityEngine.Random.value * 100f < chancePercent;
+        CountRoll(name, chancePercent, hit);
+        return hit;
+    }
+
+    /// <summary>A roll made elsewhere (weighted picks): its chance of the "hit" side in percent, and whether it hit.</summary>
+    public static void CountRoll(string name, float chancePercent, bool hit)
+    {
+        if (CountOn)
+        {
+            int p = UnityEngine.Mathf.Clamp(UnityEngine.Mathf.RoundToInt(chancePercent), 0, 100);
+            Count($"dice.{name}.p{p}.{(hit ? "hit" : "miss")}");
+        }
+    }
+
     public static void Count(string key)
     {
         if (!Enabled)

@@ -88,7 +88,7 @@ public static class FootstepDiscipline
         if (!_states.TryGetValue(id, out State s) || s.EnemyId != enemy.EnemyProfileId || time - s.LastApplied > 30f)
         {
             bool looting = enemy.Status.VulnerableAction == EEnemyAction.Looting;
-            s = new State { EnemyId = enemy.EnemyProfileId, Quiet = looting || Random.value < Chance(bot.Info.Personality), Start = time };
+            s = new State { EnemyId = enemy.EnemyProfileId, Quiet = looting || TacticDiagnostics.Roll($"quiet.{bot.Info.Personality}", 100f * Chance(bot.Info.Personality)), Start = time };
             _states[id] = s;
             if (_states.Count > 256)
             {

@@ -114,7 +114,7 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
             else if (TryJumpTimer < Time.time && Bot.Player.IsSprintEnabled)
             {
                 TryJumpTimer = Time.time + 3f;
-                if (!_shallBunnyHop && EFTMath.RandomBool(Bot.Info.PersonalitySettings.Rush.BunnyHopChance))
+                if (!_shallBunnyHop && SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Roll($"bunnyHop.{Bot.Info.Personality}", Bot.Info.PersonalitySettings.Rush.BunnyHopChance))
                 {
                     _shallBunnyHop = true;
                 }
@@ -188,7 +188,7 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
         _shallTryJump =
             Bot.Info.PersonalitySettings.Rush.CanJumpCorners
             //&& Bot.Decision.CurrentSquadDecision != SquadDecision.PushSuppressedEnemy
-            && EFTMath.RandomBool(Bot.Info.PersonalitySettings.Rush.JumpCornerChance);
+            && SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Roll($"rushJumpCorners.{Bot.Info.Personality}", Bot.Info.PersonalitySettings.Rush.JumpCornerChance);
 
         _shallBunnyHop = false;
     }

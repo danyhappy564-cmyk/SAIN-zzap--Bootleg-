@@ -115,10 +115,10 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         {
             _diamondActive = true;
             float leanChance = settings.LeanSpamChance + SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.LeanSpamBonus(Bot, enemy);
-            _leanSpam = settings.LeanSpam && Random.value * 100f < leanChance;
+            _leanSpam = settings.LeanSpam && TacticDiagnostics.Roll("leanSpam", leanChance);
             // zzap (user 2026-10-02 19:46 sim: "the dance got monotone - every bot the same, some just stand there taking hits"):
             // planting is a style, rolled per engagement, not something every bot does on every burst.
-            _plantStyle = settings.DiamondStepPlant && Random.value * 100f < settings.DiamondStepPlantChance;
+            _plantStyle = settings.DiamondStepPlant && TacticDiagnostics.Roll("diamondPlant", settings.DiamondStepPlantChance);
             if (_leanSpam)
             {
                 TacticDiagnostics.Count("diamond.leanSpam");
@@ -180,7 +180,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             if (!sameFight)
             {
                 _rollEnemyId = enemy.EnemyProfileId;
-                _rollWantsJiggle = settings.CornerJiggle && Random.value * 100f < settings.CornerJiggleChance;
+                _rollWantsJiggle = settings.CornerJiggle && TacticDiagnostics.Roll("cornerJiggle", settings.CornerJiggleChance);
                 _peekStyle = PickPeekStyle(settings);
                 _jumpPeeks = 0;
                 _runByDone = false;
@@ -407,11 +407,17 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             return EPeekStyle.Step;
         }
         float roll = Random.value * 100f;
-        if (roll < settings.CornerPeekJumpShare)
+        // dice audit: the jump share, then the run-by share of what is left
+        bool jump = roll < settings.CornerPeekJumpShare;
+        TacticDiagnostics.CountRoll("peekJump", settings.CornerPeekJumpShare, jump);
+        if (jump)
         {
             return EPeekStyle.Jump;
         }
-        if (roll < settings.CornerPeekJumpShare + settings.CornerPeekRunByShare)
+        float rest = 100f - settings.CornerPeekJumpShare;
+        bool runBy = roll < settings.CornerPeekJumpShare + settings.CornerPeekRunByShare;
+        TacticDiagnostics.CountRoll("peekRunBy", rest > 0f ? 100f * settings.CornerPeekRunByShare / rest : 0f, runBy);
+        if (runBy)
         {
             return EPeekStyle.RunBy;
         }

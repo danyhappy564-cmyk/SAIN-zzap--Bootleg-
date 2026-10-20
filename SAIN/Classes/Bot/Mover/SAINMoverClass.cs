@@ -583,6 +583,7 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
     /// (EnemyEvents.enemyHit). Callers that know why they jumped call MarkJump right after a successful TryJump.
     /// </summary>
     public string LastJumpKind = "other";
+    public float LastJumpTakeoffSpeed;
     public float LastJumpHitBooked = -1f;
 
     public void MarkJump(string kind)
@@ -591,6 +592,7 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
         if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
         {
             SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"jump.{kind}.made");
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"jump.{kind}.takeoff.{(LastJumpTakeoffSpeed < 0.5f ? "still" : LastJumpTakeoffSpeed < 1.1f ? "slow" : "moving")}");
         }
     }
 
@@ -599,6 +601,10 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
         if (_nextJumpTime < Time.time && Player.MovementContext?.CanJump == true)
         {
             _nextJumpTime = Time.time + 0.5f;
+            // flat speed at take-off: EFT keeps it through the hop, so under 0.5 m/s is a jump on the spot (SimLabOddity standingJump)
+            Vector3 takeoff = Player.Velocity;
+            takeoff.y = 0f;
+            LastJumpTakeoffSpeed = takeoff.magnitude;
             Player.MovementContext?.TryJump();
             TimeLastJumped = Time.time;
             LastJumpKind = "other";
@@ -766,7 +772,7 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
         {
             _airShotEnemyId = id;
             float chance = SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass.Instance?.General?.CloseCombat?.JumpAirShotChance ?? 0f;
-            _airShotAllowed = UnityEngine.Random.value * 100f < chance;
+            _airShotAllowed = SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Roll("airShot", chance);
             SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(_airShotAllowed ? "jump.airShot.allowed" : "jump.airShot.held");
         }
         return _airShotAllowed;

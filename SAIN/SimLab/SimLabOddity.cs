@@ -31,6 +31,11 @@ namespace SAIN.SimLab;
 /// 10/20 (user, F8 mark #6: "some just stand there after a fight - why? it looks very unnatural"):
 ///   idleAfterFight - in SAIN's combat layer, goal enemy out of sight with no news of him for 15 s+, not hit for 10 s, no
 ///                    reload / meds, no shot, standing still - for 10 s
+/// 10/20 (user: "implement freeze / ambush in the 1st stage too and check it for errors properly"):
+///   frozenUnderFire - Freeze (hold / ambush) while being hit for 2 s+: the freeze must break when shot (REGRESSIONS P10)
+///   freezeTooLong   - Freeze with the enemy out of sight for 45 s+: hold fatigue should have ended it
+///   standingJump   - a jump sent while the body moved under 0.5 m/s: EFT keeps the take-off speed, so it hops straight up
+///                    (user 10/20: "jump shots on the spot"). One per jump; the jump's kind (SAINMoverClass.LastJumpKind) is the reason
 /// Each episode also writes the full state line (SimLabSceneMark.Describe) to the journal.
 /// One episode per bot per kind until the state clears; sim raids only.
 /// </summary>
@@ -49,6 +54,7 @@ public static class SimLabOddity
         public bool HasPos;
         public float LastSample = -1f;
         public string LastGoalId;
+        public float LastJumpSeen = -1f;
     }
 
     private static readonly Dictionary<string, State> _states = new();
@@ -192,6 +198,22 @@ public static class SimLabOddity
         bool hitLately = owner.Memory != null && owner.Memory.UnderFireTime > 0f && now - owner.Memory.UnderFireTime < 10f;
         bool quiet = enemy != null && !visible && enemy.TimeSinceLastKnownUpdated >= 15f;
         Check(s, "idleAfterFight", quiet && !hitLately && !selfAction && gunIdle && vNow < 0.3f && speed < 0.25f, 10f, now);
+        bool frozen = decision == "Freeze";
+        bool hitNow = owner.Memory != null && owner.Memory.UnderFireTime > 0f && now - owner.Memory.UnderFireTime < 1.5f;
+        Check(s, "frozenUnderFire", frozen && hitNow, 2f, now);
+        Check(s, "freezeTooLong", frozen && !visible, 45f, now);
+
+        // a jump since the last sample (one per jump; jumps are 0.5 s+ apart, a 2 s sample sees the latest)
+        var mover = bot.Mover;
+        if (mover != null && mover.TimeLastJumped > 0f && mover.TimeLastJumped > s.LastJumpSeen)
+        {
+            s.LastJumpSeen = mover.TimeLastJumped;
+            // "other" = the stuck watchdog's ledge hop / path jumps: those jump from a standstill on purpose
+            if (mover.LastJumpTakeoffSpeed < 0.5f && mover.LastJumpKind != "other")
+            {
+                Record("standingJump", player, bot, decision, $"jump:{mover.LastJumpKind}", layer, enemyDist, visible, angle, mover.LastJumpTakeoffSpeed, bullets, 0f);
+            }
+        }
 
         foreach (string kind in KINDS)
         {
@@ -205,7 +227,7 @@ public static class SimLabOddity
     }
 
     private static readonly string[] KINDS = { "noShoot", "backTurned", "hitNoReact", "flipFlop", "bunched", "stalledMove", "ignoredSniper",
-        "backWalk", "slowUnderFire", "doorStuck", "wallStare", "closeNoReact", "idleAfterFight" };
+        "backWalk", "slowUnderFire", "doorStuck", "wallStare", "closeNoReact", "idleAfterFight", "frozenUnderFire", "freezeTooLong" };
 
     private static bool HostileWithin(Player player, BotOwner owner, float meters)
     {
@@ -348,6 +370,8 @@ public static class SimLabOddity
             "flipFlop" => 0f,
             "bunched" or "stalledMove" or "ignoredSniper" => 6f,
             "idleAfterFight" => 10f,
+            "frozenUnderFire" => 2f,
+            "freezeTooLong" => 45f,
             "closeNoReact" => 2f,
             _ => 4f,
         };
@@ -430,6 +454,10 @@ public static class SimLabOddity
         _counts.TryGetValue(kind, out int n);
         _counts[kind] = n + 1;
         TacticDiagnostics.Count("oddity." + kind);
+        if (kind is "freezeTooLong" or "frozenUnderFire" or "standingJump" && TacticDiagnostics.CountOn)
+        {
+            TacticDiagnostics.Count($"oddity.{kind}.{decision}.{reason}");
+        }
         if (kind == "idleAfterFight" && TacticDiagnostics.CountOn)
         {
             // which decision keeps it standing (10/20: SeekCover in all 1st-stage examples, reason not in them)
