@@ -89,10 +89,15 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
             if (cornerCount > 2 && (corners[cornerCount - 2] - Bot.Position).sqrMagnitude < 1f)
             {
                 TryJumpTimer = Time.time + 3f;
-                if (Bot.Mover.TryJump()) Bot.Mover.MarkJump("rush");
+                if (Bot.Mover.TryJumpMoving(Bot.Player.Velocity, RUSH_JUMP_MIN_SPEED)) Bot.Mover.MarkJump("rush");
             }
         }
     }
+
+    // zzap (user 2026-10-20, 2nd sim 224327 mark #4: "it looked like a jump shot on the spot"): the bunny hop jumped every
+    // 0.5 s with no speed check, so a rusher that had stopped in front of its enemy hopped straight up. Every rush jump now
+    // needs the bot already running (EFT keeps the take-off speed).
+    private const float RUSH_JUMP_MIN_SPEED = 2f;
 
     private void checkJumpEnemyInSight()
     {
@@ -104,7 +109,7 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
         {
             if (_shallBunnyHop)
             {
-                if (Bot.Mover.TryJump()) Bot.Mover.MarkJump("rush");
+                if (Bot.Mover.TryJumpMoving(Bot.Player.Velocity, RUSH_JUMP_MIN_SPEED)) Bot.Mover.MarkJump("rush");
             }
             else if (TryJumpTimer < Time.time && Bot.Player.IsSprintEnabled)
             {
@@ -113,7 +118,7 @@ internal class RushEnemyAction(BotOwner bot) : BotAction(bot, nameof(RushEnemyAc
                 {
                     _shallBunnyHop = true;
                 }
-                if (Bot.Mover.TryJump()) Bot.Mover.MarkJump("rush");
+                if (Bot.Mover.TryJumpMoving(Bot.Player.Velocity, RUSH_JUMP_MIN_SPEED)) Bot.Mover.MarkJump("rush");
             }
         }
     }

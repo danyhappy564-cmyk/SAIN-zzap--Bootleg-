@@ -21,6 +21,7 @@ public class BotLightController : BotComponentClassBase
         {
             return;
         }
+        TurnOffDevicesNotInHands();
         if (ShallStayDark(out string why))
         {
             // zzap light discipline: holding an angle with the enemy out of sight -> light AND laser off (both are one
@@ -268,6 +269,35 @@ public class BotLightController : BotComponentClassBase
             SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count(active ? "light.allOn" : "light.allOff");
         }
         return true;
+    }
+
+    // zzap (user 2026-10-20, 2nd sim 224327 mark #6: "walks around with the laser on its pistol"): AGX held an RPD (no device)
+    // while the TT in its holster had spawned with its laser on - nothing ever switched a gun it never drew. A carried gun not
+    // in the hands has its devices off: every 5 s the device visuals on the body (TacticalComboVisualController, the beam
+    // EFT draws from LightComponent.IsActive) are checked, and any lit one not on the gun in hands goes off.
+    private float _nextNotInHandsCheck;
+
+    private void TurnOffDevicesNotInHands()
+    {
+        float now = Time.time;
+        if (now < _nextNotInHandsCheck || Player == null)
+        {
+            return;
+        }
+        _nextNotInHandsCheck = now + 5f;
+        var inHands = Devices;
+        var visuals = Player.GetComponentsInChildren<TacticalComboVisualController>(true);
+        for (int i = 0; i < visuals.Length; i++)
+        {
+            var device = visuals[i].LightMod;
+            if (device == null || !device.IsActive || inHands.Contains(device))
+            {
+                continue;
+            }
+            device.IsActive = false;
+            visuals[i].UpdateBeams();
+            SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("light.offNotInHands");
+        }
     }
 
     /// <summary>"2/3 on" style text for the F8 scene mark.</summary>

@@ -64,6 +64,18 @@ public class EnemyKnownChecker(EnemyData enemyData)
             return false;
         }
 
+        // zzap (user 2026-10-20, 2nd sim 224327 mark #5: "it killed its enemy and just stands there"): Furiously99 searched
+        // to the other enemy's last known spot, found nothing, and then had nothing left to do - push "nowhere to go",
+        // search "already searched" - so it stood in place 19 s+ until the forget time (about a minute) ran out; the 1st
+        // stage counted the same 826 times. A spot already searched and 20 s without news: he is gone, the fight is over
+        // and the normal after-fight flow takes the bot. Seeing or hearing him again brings him straight back.
+        if (timeSinceUpdate >= SEARCHED_GONE_AFTER && !Enemy.IsVisible
+            && (places.LastKnownPlace.HasArrivedPersonal || places.LastKnownPlace.HasArrivedSquad))
+        {
+            if (Enemy.EnemyKnown) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("enemy.forgotSearched");
+            return false;
+        }
+
         if (timeSinceUpdate <= forgetEnemyTime)
         {
             return true;
@@ -81,6 +93,7 @@ public class EnemyKnownChecker(EnemyData enemyData)
     }
 
     private const float LAST_KNOWN_TIME_UPDATE_UPPER_LIMIT = 400f;
+    private const float SEARCHED_GONE_AFTER = 20f;
 
     public bool BotIsSearchingForMe()
     {
