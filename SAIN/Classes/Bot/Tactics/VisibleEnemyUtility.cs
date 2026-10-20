@@ -65,6 +65,7 @@ public static class VisibleEnemyUtility
         {
             return null;
         }
+        bool hit = bot.Medical.TimeSinceShot < 1.5f;
         if (!enemy.CanShoot)
         {
             // zzap (sims 2026-10-10): "can shoot" = a clear line from the muzzle to some body part, and it blinks off for a
@@ -72,7 +73,8 @@ public static class VisibleEnemyUtility
             // ("search" / "move to cover" toward an enemy in sight 6-25 m away), then back to shooting under a second later
             // (Factory: 90 old-chain picks with an enemy in sight within 25 m, many back to shooting within a second). Keep the
             // last scoring of this enemy while it is still fresh (its 2-3 s memory, or 1.5 s).
-            if (_memory.TryGetValue(bot.ProfileId, out Memory blink) && blink.EnemyId == enemy.EnemyProfileId
+            // zzap (2026-10-20, 1st-stage review): blink memory bypassed hit re-evaluation; when hit without a shot, use the old chain.
+            if (!hit && _memory.TryGetValue(bot.ProfileId, out Memory blink) && blink.EnemyId == enemy.EnemyProfileId
                 && (Time.time < blink.Until || Time.time - blink.ScoredAt < 1.5f) && blink.Ranked != null)
             {
                 if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("utilityV.keepNoShot");
@@ -86,7 +88,6 @@ public static class VisibleEnemyUtility
         }
         string id = bot.ProfileId;
         float time = Time.time;
-        bool hit = bot.Medical.TimeSinceShot < 1.5f;
         if (_memory.TryGetValue(id, out Memory m) && m.EnemyId == enemy.EnemyProfileId && time < m.Until && !hit)
         {
             return m.Ranked;
