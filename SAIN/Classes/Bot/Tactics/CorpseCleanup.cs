@@ -142,8 +142,9 @@ public static class CorpseCleanup
                 TacticDiagnostics.Count("sim.corpseSweep");
             }
         }
-        // Each pass dequeues one corpse or returns, so this ends.
-        while (_corpses.Count > 0 && (sweep || (limit > 0 && _corpses.Count > limit)))
+        // Each pass dequeues one corpse or returns; a body put back for later counts as a pass, so this ends.
+        int passes = _corpses.Count;
+        while (passes-- > 0 && _corpses.Count > 0 && (sweep || (limit > 0 && _corpses.Count > limit)))
         {
             var (player, time, weaponId) = _corpses.Peek();
             if (Time.time - time < MIN_AGE)
@@ -156,6 +157,15 @@ public static class CorpseCleanup
                 continue;
             }
             Vector3 bodyPos = player.Position;
+            // 2026-10-21 sim (factory, also customs 10/13 x2): ORBIT's LootCorpseAsync threw a NullReferenceException reading the
+            // name of a corpse deleted while it was looting it - ORBIT only checks Target == null when the loot starts. A living
+            // player within 3 m is most likely looting this body: leave it for the next sweep.
+            if (SomeoneAtBody(bodyPos))
+            {
+                _corpses.Enqueue((player, time, weaponId));
+                TacticDiagnostics.Count("sim.corpseDeferredSomeoneNear");
+                continue;
+            }
             if (Delete && TryDelete(player))
             {
                 DeleteDroppedWeapon(weaponId, bodyPos);
@@ -165,6 +175,24 @@ public static class CorpseCleanup
             Hidden++;
             TacticDiagnostics.Count("sim.corpseHidden");
         }
+    }
+
+    private static bool SomeoneAtBody(Vector3 body)
+    {
+        var players = Comfort.Common.Singleton<GameWorld>.Instance?.AllAlivePlayersList;
+        if (players == null)
+        {
+            return false;
+        }
+        for (int i = 0; i < players.Count; i++)
+        {
+            Player p = players[i];
+            if (p != null && p.HealthController?.IsAlive == true && (p.Position - body).sqrMagnitude < 3f * 3f)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     // zzap, 11th sim (user 2026-10-01): hiding keeps the whole body in memory (83 corpses, 43 hidden, RAM still +293 MB per
