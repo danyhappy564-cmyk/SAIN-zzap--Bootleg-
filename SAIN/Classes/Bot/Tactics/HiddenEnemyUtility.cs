@@ -113,7 +113,10 @@ public static class HiddenEnemyUtility
             return m.Ranked;
         }
         // How long the bot has already been holding against this enemy (hold fatigue, see Score).
-        float heldFor = m != null && m.EnemyId == enemy.EnemyProfileId && m.HoldSince > 0f ? time - m.HoldSince : 0f;
+        // 2026-10-21: a bot still frozen keeps its clock when its goal switches between hidden enemies (1st stage: freezeTooLong 39
+        // with the cap working 10 times - the per-enemy clock restarted on every A -> B switch while the bot never moved).
+        bool frozenNow = bot.Decision.CurrentCombatDecision == ECombatDecision.Freeze;
+        float heldFor = m != null && m.HoldSince > 0f && (m.EnemyId == enemy.EnemyProfileId || frozenNow) ? time - m.HoldSince : 0f;
         // zzap (user 2026-10-21, "hold time cap"): 1st stage freezeTooLong 32 per 500 raids even with the fatigue clock fixed -
         // fatigue tops out at -0.45, so a long gun / cover / fear bonus can keep Hold winning for good. After 40 s held against
         // the same enemy with no news of him since, Hold is off against him until he is seen or heard again.
@@ -155,8 +158,9 @@ public static class HiddenEnemyUtility
         // zzap (2026-10-21, 1st stage freezeTooLong 38 per 500 raids, all utilityHold; Codex review): the hold clock followed the
         // top pick, not what the bot does - a top pick that couldn't run falls through to Hold (within 0.12, EnemyDecisionClass)
         // and the bot kept freezing while HoldSince went back to -1, so fatigue never built up. Keep the clock while the bot is
-        // still frozen against this enemy.
-        bool stillHolding = heldFor > 0f && bot.Decision.CurrentCombatDecision == ECombatDecision.Freeze;
+        // still frozen against this enemy. 2026-10-21: and start it then too - a hold entered as the fall-through (not the top
+        // pick) never started the clock, so neither fatigue nor the 40 s cap ever reached it (utility.hold.capped 0 in 500 raids).
+        bool stillHolding = bot.Decision.CurrentCombatDecision == ECombatDecision.Freeze;
         float holdSince = ranked[0].stance == EStance.Hold || stillHolding ? (heldFor > 0f ? m.HoldSince : time) : -1f;
         // Under fire it re-scores every tick (15:43 sim: the same line 9 times in 1s) - log on a change of pick or every 2s.
         bool sameTop = m != null && m.EnemyId == enemy.EnemyProfileId && m.LastTop == ranked[0].stance && time < m.NextLog;
