@@ -7,7 +7,8 @@ namespace SAINServerMod.SimLab;
 
 public sealed class SimLabConfig
 {
-    /// <summary>Rotation paused: the client does not auto-start the next raid (sim spawns still apply to raids you start).</summary>
+    /// <summary>Rotation paused: the client does not auto-start the next raid. (2026-10-20: raids started while stopped are
+    /// normal raids - SimLabService.ApplyToRaid needs Running.)</summary>
     public bool Paused = false;
 
     /// <summary>After a map's time is up, move on to the next map of the rotation.</summary>

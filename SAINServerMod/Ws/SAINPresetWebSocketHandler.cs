@@ -45,9 +45,9 @@ public sealed class SAINPresetWebSocketHandler(ISptLogger<SAINPresetWebSocketHan
         return Task.CompletedTask;
     }
 
-    public async Task BroadcastPresetChanged(string presetName, EPresetSyncChange change, string? exceptSessionId = null)
+    public async Task BroadcastPresetChanged(string presetName, EPresetSyncChange change, string? exceptSessionId = null, string? copyOf = null)
     {
-        var message = new SAINPresetSyncMessage { PresetName = presetName, Change = change };
+        var message = new SAINPresetSyncMessage { PresetName = presetName, Change = change, CopyOf = copyOf };
         byte[] payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message, SAINJsonUtil.Indented));
 
         int sent = 0;

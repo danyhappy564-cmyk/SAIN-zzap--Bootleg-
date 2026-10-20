@@ -30,6 +30,7 @@ public static class PresetSync
     private static bool _liveReapplyPending;
     private static bool _configReapplyPending;
     private static SAINPresetDefinition _pendingConfigTarget;
+    private static SAINPresetDefinition _pendingSwitchTarget;
 
     private static readonly Dictionary<string, SAINPresetBundle> _customBundles = new(StringComparer.Ordinal);
 
@@ -144,6 +145,16 @@ public static class PresetSync
             _pendingConfigTarget = null;
             Logger.LogInfo("[SAIN] Applying the server preset change from during the raid.");
             PresetHandler.ApplyDefinition(target);
+        }
+
+        if (_pendingSwitchTarget != null)
+        {
+            var copy = _pendingSwitchTarget;
+            _pendingSwitchTarget = null;
+            _liveReapplyPending = false;
+            Logger.LogInfo($"[SAIN] Switching to '{copy.Name}', saved on the web page during the raid.");
+            PresetHandler.InitPresetFromDefinition(copy);
+            return;
         }
 
         if (!_liveReapplyPending)
@@ -279,6 +290,31 @@ public static class PresetSync
         {
             ReapplyLivePreset(bundle.Info);
         }
+        else if (UsesCopySource(message.CopyOf))
+        {
+            // zzap (user 2026-10-20: "the web save makes a copy and tells me to pick it in game - make it apply in game too"):
+            // the web page saved its "[Modified]" copy of the zzap preset this game is on (or of the one an earlier copy came
+            // from) - use the new copy. Only that family: a game on any other preset keeps it (REGRESSIONS P13).
+            if (InRaid)
+            {
+                _pendingSwitchTarget = bundle.Info;
+                Logger.LogInfo($"[SAIN] '{name}' saved on the web page as a copy of '{message.CopyOf}' - switching to it when the raid ends.");
+                return;
+            }
+            Logger.LogInfo($"[SAIN] '{name}' saved on the web page as a copy of '{message.CopyOf}' - switching to it.");
+            PresetHandler.InitPresetFromDefinition(bundle.Info);
+        }
+    }
+
+    /// <summary>The loaded preset is <paramref name="source"/> itself or one of its "[Modified]" / "[Modified N]" copies.</summary>
+    private static bool UsesCopySource(string source)
+    {
+        string loaded = PresetHandler.LoadedPreset?.Info?.Name;
+        if (string.IsNullOrEmpty(source) || loaded == null)
+        {
+            return false;
+        }
+        return string.Equals(loaded, source, StringComparison.Ordinal) || loaded.StartsWith(source + " [Modified", StringComparison.Ordinal);
     }
 
     /// <summary>Throw away unsaved edits of a custom preset: rebuild its cached bundle from the last pulled/saved JSON.</summary>

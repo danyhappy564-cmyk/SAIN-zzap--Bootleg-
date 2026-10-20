@@ -207,6 +207,56 @@ public static class SimLab
         });
     }
 
+    /// <summary>
+    /// zzap (user 2026-10-20: "the sim does not stop - the timer stays at the top right"): the web page's stop button only paused
+    /// the rotation, a running sim raid played on to its time. Set from <see cref="PollStopInBackground"/> when the server says
+    /// the rotation is stopped; the runner ends the raid.
+    /// </summary>
+    public static volatile bool StopSeen;
+
+    private static int _stopPolling;
+
+    /// <summary>In-raid hello on a worker thread (a blocking request would stall a frame): sets <see cref="StopSeen"/> when the
+    /// rotation was stopped on the web page. A finished cycle (Completed) is not a stop. One request at a time.</summary>
+    public static void PollStopInBackground()
+    {
+        if (System.Threading.Interlocked.Exchange(ref _stopPolling, 1) == 1)
+        {
+            return;
+        }
+        string body;
+        try
+        {
+            body = Envelope(new SimHello { Armed = Active, Preset = PresetName, Build = Build, Reason = "raid" });
+        }
+        catch (Exception ex)
+        {
+            _stopPolling = 0;
+            Logger.LogWarning($"[SimLab] stop check not sent: {ex.Message}");
+            return;
+        }
+        Task.Run(() =>
+        {
+            try
+            {
+                string json = RequestHandler.PostJson("/sain/sim/hello", body);
+                var plan = string.IsNullOrEmpty(json) || json == "null" ? null : JsonConvert.DeserializeObject<SimPlan>(json);
+                if (plan != null && plan.Paused && !plan.Completed)
+                {
+                    StopSeen = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning($"[SimLab] stop check failed: {ex.Message}");
+            }
+            finally
+            {
+                _stopPolling = 0;
+            }
+        });
+    }
+
     /// <summary>Tells the server whether the sim preset is loaded (arms/disarms the sim spawns) and gets the rotation plan.</summary>
     private static string _lastPlanSummary;
 

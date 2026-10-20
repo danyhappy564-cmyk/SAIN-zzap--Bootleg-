@@ -381,10 +381,11 @@
 
         var renamedFrom = _opened.IsNewCustom || zzapCopy ? null : _opened.OriginalName;
         var savedName = _bundle.Info.Name;
-        await Presets.SaveAsync(_bundle, renamedFrom);
+        await Presets.SaveAsync(_bundle, renamedFrom, zzapCopy ? _opened.OriginalName : null);
+        // zzap (user 2026-10-20): the game switches to the copy by itself when it uses this zzap preset (or an earlier copy of it).
         Snackbar.Add(zzapCopy
-            ? T($"'{_opened.OriginalName}'은(는) 그대로 두고 '{savedName}'(으)로 저장했습니다. 게임에서 쓰려면 F6에서 이 프리셋을 고르세요.",
-                $"'{_opened.OriginalName}' left as shipped - saved as '{savedName}'. Pick it in F6 to use it in game.")
+            ? T($"'{_opened.OriginalName}'은(는) 그대로 두고 '{savedName}'(으)로 저장했습니다. 게임이 '{_opened.OriginalName}'(또는 그 복사본)을 쓰고 있으면 이 프리셋으로 바로 바뀝니다 — 레이드 중이면 레이드가 끝난 뒤. 다른 프리셋을 쓰고 있으면 F6에서 고르세요.",
+                $"'{_opened.OriginalName}' left as shipped - saved as '{savedName}'. A game using '{_opened.OriginalName}' (or a copy of it) switches to it now - after the raid if one is running. Otherwise pick it in F6.")
             : T($"'{savedName}' 저장. 접속 중인 게임이 다시 불러옵니다.", $"Saved '{savedName}'. Connected game clients will reload it."), Severity.Success);
 
         Reload();

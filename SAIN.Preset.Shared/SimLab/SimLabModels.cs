@@ -50,6 +50,9 @@ public class SimPlan
 public class SimRaidInfo
 {
     public bool Applied;
+    /// <summary>zzap (user 2026-10-20): the rotation was stopped on the web page when this raid was generated - a normal raid
+    /// (no sim spawns, no timer, no end at the sim time).</summary>
+    public bool Stopped;
     public string RunId;
     public string Map;
     public string MapName;

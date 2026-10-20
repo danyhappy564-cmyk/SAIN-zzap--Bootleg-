@@ -699,6 +699,18 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             logger.Info($"[SAIN SimLab] {map} is excluded - raid left as is");
             return;
         }
+        if (!Running)
+        {
+            // zzap (user 2026-10-20: "stop does not stop the sim"): a raid started while the rotation is stopped is a normal raid.
+            // Was: sim spawns applied to any raid while the sim preset was loaded. LastRaid is replaced so the client does not
+            // pick up the previous map's setup.
+            lock (_lock)
+            {
+                LastRaid = new SimRaidInfo { Applied = false, Stopped = true, Map = map, Note = "시뮬 정지 상태 — 일반 레이드" };
+            }
+            logger.Info($"[SAIN SimLab] {map}: sim stopped on the web page - normal raid, no sim setup");
+            return;
+        }
         lock (_lock)
         {
             try

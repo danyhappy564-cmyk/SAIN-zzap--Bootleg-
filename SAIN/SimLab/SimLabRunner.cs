@@ -32,6 +32,11 @@ public sealed class SimLabRunner : MonoBehaviour
     private const float SERVER_BEAT = 60f;
     private const float START_TIMEOUT = 300f;
     private const float MENU_POLL = 10f;
+    // zzap (user 2026-10-20: "stop did not stop it before the start"): the countdown asked the server only when it reached 0,
+    // so a stop on the web page left the countdown running on screen. Ask every few seconds instead.
+    private const float COUNTDOWN_POLL = 3f;
+    // ... and during a sim raid the stop button did nothing at all (user picked: end the raid right away).
+    private const float STOP_POLL = 5f;
 
     public static SimLabRunner Instance { get; private set; }
 
@@ -45,6 +50,8 @@ public sealed class SimLabRunner : MonoBehaviour
     private string _autoStartMap;
     private float _nextCountdownNote;
     private float _nextPoll;
+    private float _nextCountdownPoll;
+    private float _nextStopPoll;
     private bool _menuHelloDone;
     private bool _pausedNoted;
     private float _lastRaidEnd = -1f;
@@ -258,6 +265,7 @@ public sealed class SimLabRunner : MonoBehaviour
         _autoStartMap = plan.NextMap;
         _autoStartAt = now + wait;
         _nextCountdownNote = 0f;
+        _nextCountdownPoll = now + COUNTDOWN_POLL;
         Logger.LogWarning($"[SimLab] countdown {wait:0}s to {plan.NextMap} (gap left {Mathf.Max(0f, gapLeft):0}s)");
     }
 
@@ -341,6 +349,22 @@ public sealed class SimLabRunner : MonoBehaviour
     private void TickCountdown(float now)
     {
         float left = _autoStartAt - now;
+        if (left > 0f && now >= _nextCountdownPoll)
+        {
+            _nextCountdownPoll = now + COUNTDOWN_POLL;
+            var check = SimLab.Hello("poll"); // "poll": logged only when the plan changes
+            if (check != null && (!check.Armed || check.Paused || !string.Equals(check.NextMap, _autoStartMap, StringComparison.OrdinalIgnoreCase)))
+            {
+                _autoStartAt = -1f;
+                _nextPoll = 0f; // the menu poll takes over (waiting notice, or a new countdown for a changed map)
+                Logger.LogWarning($"[SimLab] countdown to {_autoStartMap} cancelled (armed={check.Armed} paused={check.Paused} next={check.NextMap})");
+                if (check.Paused)
+                {
+                    Notify(L("[시뮬] 웹에서 '시뮬 정지' — 다음 맵 시작을 취소했습니다", "[Sim] 'Stop sim' on the web page - next map cancelled"), false);
+                }
+                return;
+            }
+        }
         if (now >= _nextCountdownNote && left > 1f)
         {
             _nextCountdownNote = now + (left > 30f ? 15f : 5f);
@@ -530,6 +554,19 @@ public sealed class SimLabRunner : MonoBehaviour
                 SimLab.PostInBackground("/sain/sim/beat", beat);
             }
         }
+        if (!_endRequested && now >= _nextStopPoll)
+        {
+            _nextStopPoll = now + STOP_POLL;
+            SimLab.PollStopInBackground();
+        }
+        if (!_endRequested && SimLab.StopSeen)
+        {
+            SimLab.StopSeen = false;
+            _notes.Add($"웹에서 '시뮬 정지' — {raidSeconds / 60f:0.0}분에 레이드 끝냄");
+            Notify(L("[시뮬] 웹에서 '시뮬 정지' — 레이드를 끝냅니다", "[Sim] 'Stop sim' on the web page - ending the raid"), false);
+            EndRaid("stopped");
+            return;
+        }
         if (!_endRequested && raidSeconds >= _plannedSeconds)
         {
             EndRaid("timeUp");
@@ -581,6 +618,18 @@ public sealed class SimLabRunner : MonoBehaviour
         _player = world.MainPlayer;
 
         var info = SimLab.Post<SimRaidInfo>("/sain/sim/raid", new object());
+        if (info != null && info.Stopped && string.Equals(info.Map, _map, StringComparison.OrdinalIgnoreCase))
+        {
+            // zzap (user 2026-10-20): started while the sim is stopped on the web page - a normal raid: no timer, no sim log,
+            // no end at the sim time. Was: every raid with the sim preset loaded ran as a sim raid.
+            _inRaid = false;
+            SimLab.Raid = null;
+            SimLabZzapCheck.Restore();
+            Logger.LogWarning($"[SimLab] {_map}: sim stopped on the web page - normal raid");
+            return;
+        }
+        SimLab.StopSeen = false;
+        _nextStopPoll = 0f;
         if (info != null && info.Applied && string.Equals(info.Map, _map, StringComparison.OrdinalIgnoreCase))
         {
             SimLab.Raid = info;
@@ -1155,7 +1204,9 @@ public sealed class SimLabRunner : MonoBehaviour
                 return;
             }
             SimLab.SkipNextResults = true;
-            Logger.LogWarning($"[SimLab] {_map}: time is up ({_plannedSeconds / 60f:0} min) - ending the raid");
+            Logger.LogWarning(reason == "stopped"
+                ? $"[SimLab] {_map}: stopped on the web page - ending the raid"
+                : $"[SimLab] {_map}: time is up ({_plannedSeconds / 60f:0} min) - ending the raid");
             game.Stop(_player.ProfileId, ExitStatus.Survived, null, 0f);
         }
         catch (Exception ex)
