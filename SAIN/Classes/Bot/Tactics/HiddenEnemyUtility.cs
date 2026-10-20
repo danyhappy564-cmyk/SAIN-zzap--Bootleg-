@@ -139,7 +139,12 @@ public static class HiddenEnemyUtility
                 if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("utility.keptPick");
             }
         }
-        float holdSince = ranked[0].stance == EStance.Hold ? (heldFor > 0f ? m.HoldSince : time) : -1f;
+        // zzap (2026-10-21, 1st stage freezeTooLong 38 per 500 raids, all utilityHold; Codex review): the hold clock followed the
+        // top pick, not what the bot does - a top pick that couldn't run falls through to Hold (within 0.12, EnemyDecisionClass)
+        // and the bot kept freezing while HoldSince went back to -1, so fatigue never built up. Keep the clock while the bot is
+        // still frozen against this enemy.
+        bool stillHolding = heldFor > 0f && bot.Decision.CurrentCombatDecision == ECombatDecision.Freeze;
+        float holdSince = ranked[0].stance == EStance.Hold || stillHolding ? (heldFor > 0f ? m.HoldSince : time) : -1f;
         // Under fire it re-scores every tick (15:43 sim: the same line 9 times in 1s) - log on a change of pick or every 2s.
         bool sameTop = m != null && m.EnemyId == enemy.EnemyProfileId && m.LastTop == ranked[0].stance && time < m.NextLog;
         _memory[id] = new Memory
