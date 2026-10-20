@@ -227,7 +227,22 @@ public static class PlayerAdaptation
         }
         string id = bot.ProfileId;
         float time = Time.time;
-        if (bot.BotOwner.Memory.IsUnderFire || bot.Decision.CurrentSelfDecision != ESelfActionType.None)
+        // zzap (2026-10-20, 1st-stage review): IsUnderFire can lag; match the hidden decision's hit/any-enemy fire checks to break the hold.
+        bool beingShot = bot.BotOwner.Memory.IsUnderFire || bot.Medical.TimeSinceShot < 1.5f;
+        if (!beingShot)
+        {
+            var known = bot.EnemyController.KnownEnemies;
+            for (int i = 0; i < known.Count; i++)
+            {
+                var status = known[i]?.Status;
+                if (status != null && (status.ShotAtMeRecently || status.ShotMeRecently))
+                {
+                    beingShot = true;
+                    break;
+                }
+            }
+        }
+        if (beingShot || bot.Decision.CurrentSelfDecision != ESelfActionType.None)
         {
             _holdUntil.Remove(id);
             return false;
