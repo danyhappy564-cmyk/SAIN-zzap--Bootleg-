@@ -94,6 +94,18 @@ public class DoorRammer(BotComponent bot)
         {
             return false;
         }
+        // 2026-10-20 (user, 2nd sim: "rams the door, then goes back"; 1st stage: 13 of 19 rams that ended 2-8 m back had the path's
+        // destination on the bot's own side of the door - the path only grazed the doorway): ram only a door the bot is going past.
+        if (!DestinationBeyond(path, botPosition, hitPoint))
+        {
+            if (_rolledUntil.Count >= MAX_ROLLED)
+            {
+                _rolledUntil.Clear();
+            }
+            _rolledUntil[id] = time + 1f; // look again in a second, the destination may change
+            Count($"doormod.move.skip.destThisSide.{CtxName(ctx)}");
+            return false;
+        }
         if (_rolledUntil.Count >= MAX_ROLLED)
         {
             _rolledUntil.Clear();
@@ -387,6 +399,21 @@ public class DoorRammer(BotComponent bot)
             lastDir = dir;
         }
         return false;
+    }
+
+    /// <summary>The path's destination more than 0.5 m past the door, along the way the bot comes at it.</summary>
+    private static bool DestinationBeyond(BotPathDataManual path, Vector3 botPosition, Vector3 hitPoint)
+    {
+        Vector3 dir = hitPoint - botPosition;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 1e-4f)
+        {
+            return true;
+        }
+        dir.Normalize();
+        Vector3 toDest = path.Destination - hitPoint;
+        toDest.y = 0f;
+        return Vector3.Dot(toDest, dir) > 0.5f;
     }
 
     private bool TeammateNear(Vector3 point, float radius)
