@@ -157,7 +157,10 @@ public class SelfActionDecisionClass : BotBase
                         // Pistol is always in the ranked list (score 0 when no pistol is ready), so a failed reload fell through
                         // to SwapToPistol every tick, counted a refusal and pushed its 3s backoff forward forever. Only ask when
                         // a loaded pistol is actually ready.
-                        if (pistolReady && Bot.CombatWeapon.SwapToPistol(enemy, _ammoRatio))
+                        // 2026-10-21 sim (Bot1 MP7 0/40 +3 mags, enemy hidden 35m, 2 PING-PONG lines): Reload ranked first but
+                        // couldn't start, so this drew the pistol at score 0 (= no enemy in sight within 30m) and the weapon
+                        // class put the main gun back 2s later (enemy gone). Only when the pistol scored at all.
+                        if (score > 0f && pistolReady && Bot.CombatWeapon.SwapToPistol(enemy, _ammoRatio))
                         {
                             _lastReloadTime = Time.time;
                             return false;
