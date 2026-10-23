@@ -89,6 +89,10 @@
                 }
                 <span class="sain-bot-reference spt-muted">@(_reference == null ? T("기준 없음 (zzap 프리셋에 이 봇이 없음)", "No reference (not in the zzap preset)") : T("기준: zzap 프리셋", "Reference: zzap preset"))</span>
             </div>
+            @if (_allSlotsSame)
+            {
+                <div class="sain-bot-shown spt-muted">@T("이 봇은 난이도 4칸 값이 모두 같습니다 — 어느 칸을 골라도 숫자는 같습니다.", "This bot has the same values in all four difficulty slots - every slot shows the same numbers.")</div>
+            }
 
             @if (_settings == null)
             {
@@ -112,6 +116,10 @@
                         <div class="sain-qrow sain-bot-knob" @key="knob.Id">
                             <div class="sain-bot-knob-label">
                                 <span class="sain-qrow-name">@knob.Name(Korean)</span>
+                                @if (_bySlotKnobs.Contains(knob.Id))
+                                {
+                                    <span class="sain-bot-byslot">@T("칸마다 다름", "differs by slot")</span>
+                                }
                                 <div class="sain-quick-desc">@knob.Help(Korean)</div>
                             </div>
                             <div class="sain-bot-knob-control">
@@ -243,6 +251,7 @@
     .sain-bot-scope .sain-bot-unseen.on { opacity: .85; }
     .sain-bot-reference { margin-left: auto; font-size: .75rem; }
     .sain-bot-shown { font-size: .75rem; }
+    .sain-bot-byslot { margin-left: 6px; padding: 0 6px; border-radius: 8px; background: #303038; color: #a1a1aa; font-size: .65rem; }
     .sain-bot-knob { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(160px, 1.5fr) minmax(150px, 1fr) 78px; gap: 12px; align-items: center; padding: 12px 0; }
     .sain-bot-knob-label, .sain-bot-knob-control { min-width: 0; }
     .sain-bot-knob-control { display: flex; align-items: center; gap: 6px; }
@@ -323,6 +332,8 @@
     private readonly HashSet<ESainWildSpawnType> _changedBots = new();
     private readonly HashSet<ESainWildSpawnType> _copyTargets = new();
     private readonly HashSet<string> _changedKnobs = new();
+    private readonly HashSet<string> _bySlotKnobs = new();
+    private bool _allSlotsSame;
     private List<AdvancedRow> _advancedRows = new();
     private List<AdvancedSection> _advancedSections = new();
     private string _query = string.Empty;
@@ -658,6 +669,16 @@
     private void RefreshSelectionMarks()
     {
         RefreshBotMark(_botType);
+        // zzap (2026-10-23, user): say when all four slots hold the same values, mark knobs whose slots differ.
+        _allSlotsSame = _group != null && BotQuickSettings.AllSlotsSame(_group);
+        _bySlotKnobs.Clear();
+        if (_group != null)
+        {
+            foreach (var knob in BotQuickSettings.All)
+            {
+                if (BotQuickSettings.DiffersBySlot(knob, _group)) _bySlotKnobs.Add(knob.Id);
+            }
+        }
         _changedKnobs.Clear();
         if (_group != null && _reference != null)
         {

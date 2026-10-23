@@ -194,6 +194,7 @@ public static class BotSelectionClass
         public Dictionary<ESainBotDifficulty, int> Totals = new();
         public string RecordLine;
         public string ReferenceLine;
+        public string SlotsLine;
         public string AdvancedTitle;
         public readonly List<(ESainBotDifficulty? Scope, string Text, bool Seen)> Pills = new();
         public readonly List<KnobView> Knobs = new();
@@ -263,6 +264,9 @@ public static class BotSelectionClass
                 ? T("아직 기록 없음 — 레이드를 한 판 하면 나옵니다", "No record yet - play a raid and it shows here")
                 : (Korean ? $"최근 레이드 {record?.Count ?? 0}판: " : $"Last {record?.Count ?? 0} raids: ")
                     + string.Join(" · ", Difficulties.Where(Totals.ContainsKey).Select(d => Korean ? $"{EditorText.Value(d)} {Totals[d]}명" : $"{d} {Totals[d]}"));
+            SlotsLine = BotQuickSettings.AllSlotsSame(Group)
+                ? T("이 봇은 난이도 4칸 값이 모두 같습니다 — 어느 칸을 골라도 숫자는 같습니다.", "This bot has the same values in all four difficulty slots - every slot shows the same numbers.")
+                : null;
             ReferenceLine = Reference != null ? T("기준: zzap 프리셋", "Reference: zzap preset") : T("기준 없음 (zzap 프리셋에 이 봇이 없음)", "No reference (not in the zzap preset)");
             Pills.Add((null, T("난이도 4칸 전부", "All 4 difficulties"), true));
             foreach (var d in Difficulties)
@@ -282,10 +286,11 @@ public static class BotSelectionClass
             foreach (var knob in BotQuickSettings.All)
             {
                 bool changed = BotQuickSettings.IsChanged(knob, Group, Reference);
+                string bySlot = BotQuickSettings.DiffersBySlot(knob, Group) ? "  <color=#a1a1aa><size=11>" + T("칸마다 다름", "differs by slot") + "</size></color>" : string.Empty;
                 var view = new KnobView
                 {
                     Knob = knob,
-                    Label = new GUIContent("<b>" + knob.Name(Korean) + "</b>" + (changed ? "  <color=#facc15>●</color>" : string.Empty), knob.Help(Korean)),
+                    Label = new GUIContent("<b>" + knob.Name(Korean) + "</b>" + bySlot + (changed ? "  <color=#facc15>●</color>" : string.Empty), knob.Help(Korean)),
                     CanReset = changed && Reference != null,
                     Value = knob.Get(Slot),
                     On = knob.GetOn(Slot),
@@ -418,6 +423,10 @@ public static class BotSelectionClass
         GUILayout.FlexibleSpace();
         GUILayout.Label(_view.ReferenceLine, ZzapUI.Small, GUILayout.Height(28f));
         GUILayout.EndHorizontal();
+        if (_view.SlotsLine != null)
+        {
+            GUILayout.Label(_view.SlotsLine, ZzapUI.Small);
+        }
         ZzapUI.Separator(4f);
         if (_view.Slot == null)
         {

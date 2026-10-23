@@ -346,6 +346,55 @@ public static class BotQuickSettings
         return false;
     }
 
+    /// <summary>
+    /// zzap (2026-10-23, user: "switching easy/normal/hard doesn't change the numbers"): most zzap bots carry the same values in
+    /// all four difficulty slots, so the page says so - and marks the knobs whose slots do differ (sight distance on bosses...).
+    /// </summary>
+    public static bool AllSlotsSame(SAINSettingsGroupClass group)
+    {
+        var slots = group?.Settings?.Values.Where(s => s != null).ToList();
+        if (slots == null || slots.Count < 2)
+        {
+            return true;
+        }
+        foreach (var row in BotAdvancedFields.Rows())
+        {
+            object first = row.Get(slots[0]);
+            for (int i = 1; i < slots.Count; i++)
+            {
+                if (!SameValue(first, row.Get(slots[i])))
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /// <summary>The knob's fields are not the same in every slot the group has.</summary>
+    public static bool DiffersBySlot(BotKnob knob, SAINSettingsGroupClass group)
+    {
+        var slots = group?.Settings?.Values.Where(s => s != null).ToList();
+        if (knob == null || slots == null || slots.Count < 2)
+        {
+            return false;
+        }
+        foreach (var field in knob.Fields)
+        {
+            object first = field.Get(slots[0]);
+            for (int i = 1; i < slots.Count; i++)
+            {
+                if (!SameValue(first, field.Get(slots[i])))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static bool SameValue(object a, object b) => a is float fa && b is float fb ? Math.Abs(fa - fb) <= 1e-4f : Equals(a, b);
+
     // Every float / int / bool / enum value field of every category (Aiming, Core...).
     private static readonly FieldPath[] AllSimpleFields = typeof(SAINSettingsClass)
         .GetFields(BindingFlags.Public | BindingFlags.Instance)
