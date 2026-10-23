@@ -199,10 +199,20 @@ public static class BotLevels
         return group.LevelBase != null && group.LevelBase.TryGetValue(ModifierKey, out float stored) ? stored : group.DifficultyModifier;
     }
 
+    /// <summary>
+    /// A source that is the edited group itself would make every pick build on the last one (final review 10/23: with the zzap
+    /// preset loaded, F6's "zzap" bundle was the very object being edited). Such sources are refused.
+    /// </summary>
+    private static bool Aliased(SAINSettingsGroupClass group, LevelSources src)
+    {
+        return ReferenceEquals(group, src.Reference) || ReferenceEquals(group, src.EasyBot) || ReferenceEquals(group, src.NormalBot)
+            || ReferenceEquals(group, src.HardBot);
+    }
+
     /// <summary>The slot values the level gives (only the fields a level writes are meaningful); null when unavailable.</summary>
     public static SAINSettingsClass Compute(EBotLevel level, SAINSettingsGroupClass group, LevelSources src)
     {
-        if (group == null || !Available(level, src))
+        if (group == null || !Available(level, src) || Aliased(group, src))
         {
             return null;
         }
@@ -215,7 +225,7 @@ public static class BotLevels
         {
             if (f.Kind == Kind.Flag)
             {
-                f.Path.Set(result, globals.FasterCqb);
+                f.Path.Set(result, Base(f.Path, group, src) > 0.5f && globals.FasterCqb);
                 continue;
             }
             float b = Base(f.Path, group, src);
@@ -261,7 +271,7 @@ public static class BotLevels
     /// <summary>Write the level into every slot the group has and remember the pick (an unavailable level does nothing).</summary>
     public static void Apply(EBotLevel level, SAINSettingsGroupClass group, LevelSources src)
     {
-        if (group?.Settings == null || !Available(level, src))
+        if (group?.Settings == null || !Available(level, src) || Aliased(group, src))
         {
             return;
         }
@@ -391,9 +401,73 @@ public static class BotLevels
         {
             return (group.DifficultyLevel, IsAdjusted(group, src), false);
         }
-        bool zzap = Available(EBotLevel.Hard, src) && Matches(EBotLevel.Hard, group, src, WrittenPaths())
-            && Math.Abs(group.DifficultyModifier - ComputeModifier(EBotLevel.Hard, group, src)) <= 1e-4f;
+        bool zzap = src?.Reference != null
+            ? SameAsReference(group, src.Reference, WrittenPaths().ToList()) && Math.Abs(group.DifficultyModifier - src.Reference.DifficultyModifier) <= 1e-4f
+            : Available(EBotLevel.Hard, src) && Matches(EBotLevel.Hard, group, src, WrittenPaths())
+                && Math.Abs(group.DifficultyModifier - ComputeModifier(EBotLevel.Hard, group, src)) <= 1e-4f;
         return zzap ? (EBotLevel.Hard, false, false) : (EBotLevel.None, false, true);
+    }
+
+    // Every slot against the reference's same slot (its normal slot when it lacks that one) - zzap differs per slot.
+    private static bool SameAsReference(SAINSettingsGroupClass group, SAINSettingsGroupClass reference, List<FieldPath> paths)
+    {
+        var fallback = NormalSlot(reference);
+        foreach (var pair in group.Settings)
+        {
+            var refSlot = reference.Settings.TryGetValue(pair.Key, out var r) && r != null ? r : fallback;
+            if (pair.Value != null && refSlot != null && paths.Any(p => !Same(p.Get(pair.Value), p.Get(refSlot))))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// The knob mark: against the picked level's values, or for a never-picked bot against the reference slot by slot
+    /// (an untouched zzap bot has no marks even where its slots differ).
+    /// </summary>
+    public static bool KnobChanged(BotKnob knob, SAINSettingsGroupClass group, LevelSources src)
+    {
+        if (knob == null || group?.Settings == null || src == null)
+        {
+            return false;
+        }
+        if (group.DifficultyLevel == EBotLevel.None && src.Reference != null)
+        {
+            return !SameAsReference(group, src.Reference, LevelFieldsOf(knob));
+        }
+        var level = group.DifficultyLevel == EBotLevel.None ? EBotLevel.Hard : group.DifficultyLevel;
+        return KnobDiffers(knob, group, Compute(level, group, src));
+    }
+
+    /// <summary>The knob's reset: back to the picked level's values, or for a never-picked bot to the reference slot by slot.</summary>
+    public static void ResetKnobToBaseline(BotKnob knob, SAINSettingsGroupClass group, LevelSources src)
+    {
+        if (knob == null || group?.Settings == null || src == null)
+        {
+            return;
+        }
+        if (group.DifficultyLevel == EBotLevel.None && src.Reference?.Settings != null)
+        {
+            var fallback = NormalSlot(src.Reference);
+            var paths = LevelFieldsOf(knob);
+            foreach (var pair in group.Settings)
+            {
+                var refSlot = src.Reference.Settings.TryGetValue(pair.Key, out var r) && r != null ? r : fallback;
+                if (pair.Value == null || refSlot == null)
+                {
+                    continue;
+                }
+                foreach (var path in paths)
+                {
+                    path.Set(pair.Value, path.Get(refSlot));
+                }
+            }
+            return;
+        }
+        var level = group.DifficultyLevel == EBotLevel.None ? EBotLevel.Hard : group.DifficultyLevel;
+        ResetKnob(knob, group, Compute(level, group, src));
     }
 
     // Every value field of a slot: the categories' plain fields and the nested ones (part weights).
@@ -450,6 +524,27 @@ public static class BotLevels
         if (src?.Reference?.Settings != null)
         {
             CopyGroup(src.Reference, group);
+        }
+        else if (group.LevelBase != null && group.LevelBase.Count > 0)
+        {
+            // No reference: the values the first level pick started from are the original (final review 10/23).
+            foreach (var path in WrittenPaths().Where(p => p.Field.FieldType == typeof(float)))
+            {
+                if (group.LevelBase.TryGetValue(path.Category.Name + "." + path.Field.Name, out float value))
+                {
+                    foreach (var slot in group.Settings.Values)
+                    {
+                        if (slot != null)
+                        {
+                            path.Set(slot, value);
+                        }
+                    }
+                }
+            }
+            if (group.LevelBase.TryGetValue(ModifierKey, out float modifier))
+            {
+                group.DifficultyModifier = modifier;
+            }
         }
         group.DifficultyLevel = EBotLevel.None;
         group.UseVanillaAI = false;
