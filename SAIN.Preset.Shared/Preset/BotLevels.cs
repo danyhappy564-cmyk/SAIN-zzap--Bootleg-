@@ -332,20 +332,49 @@ public static class BotLevels
             return 0;
         }
         var values = Compute(level, group, src);
-        int count = 0;
-        foreach (var knob in BotQuickSettings.All)
+        return BotQuickSettings.All.Count(knob => KnobDiffers(knob, group, values));
+    }
+
+    // The knob's fields a level writes (the headshot on/off, personality and grenades are not level fields).
+    private static List<FieldPath> LevelFieldsOf(BotKnob knob)
+    {
+        var written = WrittenPaths().ToList();
+        return knob.Fields.Where(p => written.Any(w => w.Category == p.Category && w.Field == p.Field)).ToList();
+    }
+
+    /// <summary>A level sets this knob (false: "not affected by the level" - personality, grenades).</summary>
+    public static bool AffectsKnob(BotKnob knob) => knob != null && LevelFieldsOf(knob).Count > 0;
+
+    /// <summary>The knob's level fields differ from the level values in some slot (the knob's "reset to level" shows).</summary>
+    public static bool KnobDiffers(BotKnob knob, SAINSettingsGroupClass group, SAINSettingsClass levelValues)
+    {
+        if (knob == null || group?.Settings == null || levelValues == null)
         {
-            if (knob.Kind == BotKnobKind.Personality || knob.Kind == BotKnobKind.Toggle)
+            return false;
+        }
+        var paths = LevelFieldsOf(knob);
+        return group.Settings.Values.Any(slot => slot != null && paths.Any(p => !Same(p.Get(slot), p.Get(levelValues))));
+    }
+
+    /// <summary>Put the knob's level fields back to the level values in every slot.</summary>
+    public static void ResetKnob(BotKnob knob, SAINSettingsGroupClass group, SAINSettingsClass levelValues)
+    {
+        if (knob == null || group?.Settings == null || levelValues == null)
+        {
+            return;
+        }
+        var paths = LevelFieldsOf(knob);
+        foreach (var slot in group.Settings.Values)
+        {
+            if (slot == null)
             {
                 continue;
             }
-            var paths = knob.Fields.Where(p => WrittenPaths().Any(w => w.Field == p.Field)).ToList();
-            if (group.Settings.Values.Any(slot => slot != null && paths.Any(p => !Same(p.Get(slot), p.Get(values)))))
+            foreach (var path in paths)
             {
-                count++;
+                path.Set(slot, path.Get(levelValues));
             }
         }
-        return count;
     }
 
     /// <summary>
