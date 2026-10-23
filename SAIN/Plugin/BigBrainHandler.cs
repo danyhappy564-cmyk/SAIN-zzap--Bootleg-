@@ -139,6 +139,110 @@ public static class BigBrainHandler
             ToggleVanillaLayersForAllBots();
 
             ApplyModdedBotLayers();
+            ApplyPerBotVanilla();
+        }
+
+        // Every brain and vanilla layer the group toggles above handle, for ApplyPerBotVanilla.
+        private static readonly HashSet<string> _toggledBrains = [];
+        private static readonly HashSet<string> _toggledLayers = [];
+        private static readonly HashSet<WildSpawnType> _perBotVanillaReported = [];
+
+        /// <summary>
+        /// zzap (2026-10-23, bot type page "this bot's AI: SAIN / EFT's own"): bot types set to vanilla get SAIN's layers taken
+        /// off and EFT's restored, for that role only, on every brain the group toggles handle (plus a modded type's own
+        /// brains and layers). A role-scoped exclusion leaves every other bot type alone. A group toggle that already covers
+        /// the type wins (VanillaByGroupSetting). Runs at game start and again at raid start after the modded-bot reassert.
+        /// </summary>
+        public static void ApplyPerBotVanilla()
+        {
+            var all = SAINPlugin.LoadedPreset?.BotSettings?.SAINSettings;
+            if (all == null)
+            {
+                return;
+            }
+            foreach (BotType botType in BotTypeDefinitions.BotTypes.Values)
+            {
+                WildSpawnType role = botType.WildSpawnType;
+                if (!all.TryGetValue(role, out var group) || group == null || !group.UseVanillaAI || VanillaByGroupSetting(role, out _))
+                {
+                    continue;
+                }
+                var brainSet = new HashSet<string>(_toggledBrains);
+                var layerSet = new HashSet<string>(_toggledLayers);
+                if (botType.BrainsToApply != null)
+                {
+                    brainSet.UnionWith(botType.BrainsToApply);
+                }
+                if (!string.IsNullOrEmpty(botType.BaseBrain))
+                {
+                    brainSet.Add(botType.BaseBrain);
+                }
+                if (botType.LayersToRemove != null)
+                {
+                    layerSet.UnionWith(botType.LayersToRemove);
+                }
+                List<string> brains = [.. brainSet];
+                List<string> layers = [.. layerSet];
+                if (brains.Count == 0)
+                {
+                    continue;
+                }
+                BrainManager.RemoveLayers(SAINLayerNames, brains, [role]);
+                BrainManager.RestoreLayers(layers, brains, [role]);
+                if (_perBotVanillaReported.Add(role))
+                {
+                    Logger.LogInfo($"[SAIN BotTypes] {botType.Name} ({role}) uses EFT's own AI (bot type setting)");
+                }
+            }
+        }
+
+        /// <summary>A global "Vanilla ..." group toggle already makes this role vanilla (the bot type page can't change it).</summary>
+        public static bool VanillaByGroupSetting(WildSpawnType role, out string settingName)
+        {
+            settingName = null;
+            var settings = SAINPlugin.LoadedPreset?.GlobalSettings?.General?.VanillaBots;
+            if (settings == null || !BotTypeDefinitions.BotTypes.TryGetValue(role, out BotType botType))
+            {
+                return false;
+            }
+            var brains = new HashSet<string>(botType.BrainsToApply ?? []);
+            if (!string.IsNullOrEmpty(botType.BaseBrain))
+            {
+                brains.Add(botType.BaseBrain);
+            }
+            bool Uses(List<EBrain> group)
+            {
+                for (int i = 0; i < group.Count; i++)
+                {
+                    if (brains.Contains(group[i].ToString()))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            (bool On, string Name, bool Match)[] groups =
+            [
+                (settings.VanillaScavs, "Vanilla Scavs", Uses(AIBrains.Scavs) || role == WildSpawnType.assaultGroup),
+                (settings.VanillaRogues, "Vanilla Rogues", brains.Contains(nameof(EBrain.ExUsec))),
+                (settings.VanillaRaiders, "Vanilla Raiders", role == WildSpawnType.pmcBot),
+                (settings.VanillaBloodHounds, "Vanilla Bloodhounds", brains.Contains(nameof(EBrain.ArenaFighter)) || role == WildSpawnType.arenaFighterEvent),
+                (settings.VanillaBosses, "Vanilla Bosses", Uses(AIBrains.NormalBosses)),
+                (settings.VanillaFollowers, "Vanilla Boss Followers", Uses(AIBrains.NormalFollowers)),
+                (settings.VanillaGoons, "Vanilla Goons", Uses(AIBrains.Goons)),
+                (settings.VanillaLabyrinthBots, "Vanilla Labyrinth Bots", Uses(AIBrains.LabyrinthBots)),
+                (settings.VanillaCultists, "Vanilla Cultists", Uses(AIBrains.Cultists)),
+                (settings.VanillaSpecialBots, "Vanilla Special Bots", Uses(AIBrains.SpecialBots)),
+            ];
+            foreach (var g in groups)
+            {
+                if (g.On && g.Match)
+                {
+                    settingName = g.Name;
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -161,6 +265,8 @@ public static class BigBrainHandler
             _hitRevealReported.Clear();
             _spawnExclusionReported.Clear();
             ApplyModdedBotLayers(true);
+            // The reassert puts SAIN's layers back on modded roles - take them off again where the bot type page says vanilla.
+            ApplyPerBotVanilla();
         }
 
         // Modded roles whose "vanilla layers excluded at spawn" line was already logged this raid.
@@ -185,6 +291,12 @@ public static class BigBrainHandler
                 return;
             }
             if (SAIN.Components.BotController.BotSpawnController.IsExcluded(role))
+            {
+                return;
+            }
+            // zzap (2026-10-23): a modded type set to EFT's own AI keeps its vanilla layers.
+            var presetBots = SAINPlugin.LoadedPreset?.BotSettings?.SAINSettings;
+            if (presetBots != null && presetBots.TryGetValue(role, out var roleSettings) && roleSettings?.UseVanillaAI == true)
             {
                 return;
             }
@@ -626,6 +738,8 @@ public static class BigBrainHandler
 
         private static void ToggleVanillaLayers(List<string> brainNames, List<string> layerNames, bool useVanillaLayers)
         {
+            _toggledBrains.UnionWith(brainNames);
+            _toggledLayers.UnionWith(layerNames);
             if (useVanillaLayers)
             {
                 BrainManager.RemoveLayers(SAINLayerNames, brainNames);
@@ -647,6 +761,8 @@ public static class BigBrainHandler
             bool useVanillaLayers
         )
         {
+            _toggledBrains.UnionWith(brainNames);
+            _toggledLayers.UnionWith(layerNames);
             if (useVanillaLayers)
             {
                 BrainManager.RemoveLayers(SAINLayerNames, brainNames, roles);
