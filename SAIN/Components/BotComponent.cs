@@ -6,6 +6,8 @@ using SAIN.Classes.Bot.Search;
 using SAIN.Classes.Bot.Sense.Hearing;
 using SAIN.Components.PlayerComponentSpace;
 using SAIN.Layers;
+using SAIN.Components.BotController;
+using SAIN.Extensions;
 using SAIN.Models.Enums;
 using SAIN.Preset.GlobalSettings.Categories;
 using SAIN.Preset.Shared.Enums;
@@ -300,6 +302,11 @@ public class BotComponent : BotComponentBase, ISPlayer
         {
             // Must be first, other classes use it
             Info = new SAINBotInfoClass(this);
+            // zzap (2026-10-23, bot type settings redesign): which difficulty slot this bot type really uses.
+            if (System.Enum.IsDefined(typeof(ESainBotDifficulty), (int)Info.Profile.BotDifficulty))
+            {
+                SpawnDifficultyRecorder.Count(Info.Profile.WildSpawnType.ToESain(), (ESainBotDifficulty)(int)Info.Profile.BotDifficulty);
+            }
 
             Squad = new BotSquadContainer(this);
             GlobalEvents = new BotGlobalEventsClass(this);

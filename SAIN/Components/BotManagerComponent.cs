@@ -211,6 +211,16 @@ public class BotManagerComponent : MonoBehaviour
             Logger.LogError($"Dispose SAIN BotController lists Error: {ex}");
         }
 
+        // zzap (2026-10-23, bot type settings redesign): this raid's spawned difficulties, saved in the background.
+        try
+        {
+            SpawnDifficultyRecorder.FlushRaid(GameWorld?.LocationId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Dispose SAIN spawn difficulty record Error: {ex}");
+        }
+
         Destroy(this);
     }
 
