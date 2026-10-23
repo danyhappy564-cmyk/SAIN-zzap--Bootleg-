@@ -225,6 +225,19 @@ public class BotSpawnController : BotManagerBase
         }
     }
 
+    /// <summary>
+    /// zzap (2026-10-23, RAM cleaner leak scan): raid end. Only the dictionary was cleared before; the sets kept every bot still
+    /// alive at the end (BotComponent -> BotOwner / Player) reachable through the static Instance until the next raid.
+    /// </summary>
+    public void ClearRaidLists()
+    {
+        BotDictionary.Clear();
+        SAINBots.Clear();
+        BotGroup1.Clear();
+        BotGroup2.Clear();
+        VanillaBots.Clear();
+    }
+
     private bool Subscribed = false;
 
     public BotComponent GetSAIN(BotOwner botOwner)

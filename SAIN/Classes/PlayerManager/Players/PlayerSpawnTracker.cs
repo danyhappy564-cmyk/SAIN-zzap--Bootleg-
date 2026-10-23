@@ -169,6 +169,9 @@ public class PlayerSpawnTracker
             }
         }
         AlivePlayersDictionary.Clear();
+        // zzap (2026-10-23, RAM cleaner leak scan): the set was never emptied, so the last raid's alive players (PlayerComponent ->
+        // Player) stayed reachable through the static BotManagerComponent.Instance -> SAINGameWorld until the next raid.
+        AlivePlayerArray.Clear();
     }
 
     private bool TryAddPlayerComponent(Player player)

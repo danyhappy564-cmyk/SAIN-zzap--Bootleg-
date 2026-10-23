@@ -201,6 +201,16 @@ public class BotManagerComponent : MonoBehaviour
             Logger.LogError($"Dispose SAIN BotController Error: {ex}");
         }
 
+        // zzap (2026-10-23): apart from the block above, so one throwing bot dispose doesn't leave the raid's bots referenced.
+        try
+        {
+            BotSpawnController?.ClearRaidLists();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Dispose SAIN BotController lists Error: {ex}");
+        }
+
         Destroy(this);
     }
 
