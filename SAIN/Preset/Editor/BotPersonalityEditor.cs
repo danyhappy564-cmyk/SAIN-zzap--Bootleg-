@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using SAIN.Plugin;
 using SAIN.Preset;
 using SAIN.Preset.Shared.Models.Preset.Personalities;
+using SAIN.Preset.Shared.Personalities.BasePersonality;
 using static SAIN.Attributes.AttributesGUI;
 
 namespace SAIN.Editor.GUISections;
@@ -55,7 +56,7 @@ public static class BotPersonalityEditor
         UnityEngine.GUILayout.Space(12f);
 
         UnityEngine.GUILayout.BeginVertical(ZzapUI.Panel1, UnityEngine.GUILayout.Height(ZzapUI.PANEL_HEIGHT), UnityEngine.GUILayout.ExpandWidth(true));
-        ZzapUI.PanelHeading(EditorText.Value(current));
+        ZzapUI.PanelHeading(EditorText.Value(current), EditorText.Setting(PersonalitySettingsClass.DescriptionOf(current)));
         _scroll = SAINLayout.BeginScrollView(_scroll, UnityEngine.GUILayout.ExpandHeight(true));
         if (SAINPresetClass.Instance.PersonalityManager.PersonalityDictionary.TryGetValue(current, out var settings))
         {

@@ -33,6 +33,16 @@ public class PersonalitySettingsClass : SettingsGroupBase<PersonalitySettingsCla
             },
         };
 
+    /// <summary>
+    /// zzap (2026-10-23, user: "GigaChad's description shows in Korean in English mode, Wreckless' in English in Korean mode"):
+    /// screens show this code text (translated) instead of the Description stored in each preset, which old presets saved as
+    /// whatever text they had then.
+    /// </summary>
+    public static string DescriptionOf(EPersonality personality)
+    {
+        return PersonalityDescriptions.TryGetValue(personality, out string text) ? text : string.Empty;
+    }
+
     public PersonalitySettingsClass(EPersonality personality)
     {
         Name = personality.ToString();

@@ -1463,5 +1463,15 @@ public static class KoreanSettingText
         { "EFT's own value: when this bot is hit, its aim is thrown off for at least this many seconds.", "게임 원래 값: 이 봇이 맞으면 조준이 흐트러지는 최소 시간(초)." },
         { "EFT's own value: when this bot is hit, its aim is thrown off for at most this many seconds.", "게임 원래 값: 이 봇이 맞으면 조준이 흐트러지는 최대 시간(초)." },
         { "EFT's own value: extra seconds added to the aim the first time this bot sees an enemy.", "게임 원래 값: 처음 적을 봤을 때 조준에 더해지는 반응 시간(초)." },
+        // zzap (2026-10-23): personality descriptions shown from code (PersonalitySettingsClass.DescriptionOf)
+        { "An Average Tarkov Enjoyer", "평범한 타르코프 유저." },
+        { "A true alpha threat. Hyper Aggressive and typically wearing high tier equipment.", "진짜 최상위 위협. 매우 공격적이고 보통 고급 장비를 입고 다닙니다." },
+        { "This personality tends to sprint at their enemies, and will very frequently scream at everyone - Usually both at the same time. More Aggressive than Gigachads.", "적에게 전력으로 달려들고, 아주 자주 소리를 지릅니다 — 대개 둘을 동시에. 기가차드보다 더 공격적입니다." },
+        { "A player who finds the balance between rat and chad, yin and yang. Will rat you out but can spring out at any moment.", "랫과 차드 사이 균형을 잡는 유형. 숨어서 기다리다가도 언제든 튀어나올 수 있습니다." },
+        { "An aggressive player. Typically wearing high tier equipment, and is more aggressive than usual.", "공격적인 유저. 보통 고급 장비를 입고, 평소보다 더 공격적입니다." },
+        { "Scum of Tarkov. Rarely Seeks out enemies, and when they do - they will crab walk all the way there", "타르코프의 쥐. 적을 찾아 나서는 일이 드물고, 나설 때는 내내 쪼그려 걸어갑니다." },
+        { "A New Player, terrified of everything.", "모든 게 무서운 뉴비." },
+        { "A player who is more passive and afraid than usual. Will never seek out enemies and will hide in a closet until the scary thing goes away.", "평소보다 소극적이고 겁이 많은 유저. 적을 찾아 나서지 않고, 무서운 게 사라질 때까지 구석에 숨어 있습니다." },
+        { "Allowed Bot Types", "허용 봇 종류" },
     };
 }

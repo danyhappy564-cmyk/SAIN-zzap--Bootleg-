@@ -14,9 +14,10 @@
 
 @if (_settings != null)
 {
-    @if (!string.IsNullOrWhiteSpace(_settings.Description))
+    @* zzap (2026-10-23): the description comes from code, not from the text an old preset stored (it could be in either language). *@
+    @if (!string.IsNullOrWhiteSpace(PersonalitySettingsClass.DescriptionOf(_selected)))
     {
-        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-3">@Setting(_settings.Description)</MudAlert>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-3">@Setting(PersonalitySettingsClass.DescriptionOf(_selected))</MudAlert>
     }
     <SainSectionEditor Target="_settings" OnChanged="OnChanged" />
 }
