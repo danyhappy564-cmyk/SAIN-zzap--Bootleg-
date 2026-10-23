@@ -51,6 +51,7 @@ public static class BotSelectionClass
     private static Vector2 _listScroll;
     private static Vector2 _rightScroll;
     private static GUIEntryConfig _entryConfig;
+    private static GUIStyle _wrapSmall;
 
     // Spawn record: read in the background each time the page is opened again (a raid may have ended since).
     private static volatile List<SpawnRaidCounts> _loaded;
@@ -72,6 +73,7 @@ public static class BotSelectionClass
     public static void Menu()
     {
         ZzapUI.EnsureStyles();
+        _wrapSmall ??= new GUIStyle(ZzapUI.Small) { wordWrap = true };
         if (Time.frameCount - _lastMenuFrame > 2)
         {
             // The page was not drawn last frames: it was (re)opened - fetch the record again and recheck every bot's dot.
@@ -172,6 +174,7 @@ public static class BotSelectionClass
         public EPersonality Personality;
         public string Note;
         public bool CanReset;
+        public string SlotText;
     }
 
     private sealed class RowView
@@ -195,6 +198,7 @@ public static class BotSelectionClass
         public string RecordLine;
         public string ReferenceLine;
         public string SlotsLine;
+        public string ScopeLine;
         public string AdvancedTitle;
         public readonly List<(ESainBotDifficulty? Scope, string Text, bool Seen)> Pills = new();
         public readonly List<KnobView> Knobs = new();
@@ -264,6 +268,12 @@ public static class BotSelectionClass
                 ? T("아직 기록 없음 — 레이드를 한 판 하면 나옵니다", "No record yet - play a raid and it shows here")
                 : (Korean ? $"최근 레이드 {record?.Count ?? 0}판: " : $"Last {record?.Count ?? 0} raids: ")
                     + string.Join(" · ", Difficulties.Where(Totals.ContainsKey).Select(d => Korean ? $"{EditorText.Value(d)} {Totals[d]}명" : $"{d} {Totals[d]}"));
+            // zzap (user 10/23: "picking easy/normal/hard, can't tell anything changed"): which slot is shown and what a change hits.
+            string shownName = EditorText.Value(Shown);
+            ScopeLine = _scope.HasValue
+                ? (Korean ? $"지금 보는 칸: {shownName} · 바꾸면 {shownName} 칸만 바뀝니다" : $"Showing: {Shown} · changes hit the {Shown} slot only")
+                : (Korean ? $"지금 보는 칸: {shownName}{(Totals.Count > 0 ? " (최근 레이드에서 가장 많이 나옴)" : " (기록이 없어 보통)")} · 바꾸면 4칸 모두 같은 비율로 바뀝니다"
+                    : $"Showing: {Shown}{(Totals.Count > 0 ? " (most seen lately)" : " (no record - normal)")} · changes move all four slots by the same ratio");
             SlotsLine = BotQuickSettings.AllSlotsSame(Group)
                 ? T("이 봇은 난이도 4칸 값이 모두 같습니다 — 어느 칸을 골라도 숫자는 같습니다.", "This bot has the same values in all four difficulty slots - every slot shows the same numbers.")
                 : null;
@@ -286,7 +296,8 @@ public static class BotSelectionClass
             foreach (var knob in BotQuickSettings.All)
             {
                 bool changed = BotQuickSettings.IsChanged(knob, Group, Reference);
-                string bySlot = BotQuickSettings.DiffersBySlot(knob, Group) ? "  <color=#a1a1aa><size=11>" + T("칸마다 다름", "differs by slot") + "</size></color>" : string.Empty;
+                bool differs = BotQuickSettings.DiffersBySlot(knob, Group);
+                string bySlot = differs ? "  <color=#a1a1aa><size=11>" + T("칸마다 다름", "differs by slot") + "</size></color>" : string.Empty;
                 var view = new KnobView
                 {
                     Knob = knob,
@@ -296,6 +307,11 @@ public static class BotSelectionClass
                     On = knob.GetOn(Slot),
                     Personality = knob.GetPersonality(Slot),
                 };
+                if (differs)
+                {
+                    view.SlotText = string.Join(" · ", BotQuickSettings.SlotValues(knob, Group, Korean)
+                        .Select(p => p.Difficulty == Shown ? $"<b><color=#e4e4e7>{EditorText.Value(p.Difficulty)} {p.Text}</color></b>" : $"{EditorText.Value(p.Difficulty)} {p.Text}"));
+                }
                 view.Reference = refSlot != null ? knob.Get(refSlot) : view.Value;
                 view.Direction = knob.Direction(view.Value, view.Reference);
                 view.Delta = refSlot == null
@@ -423,6 +439,7 @@ public static class BotSelectionClass
         GUILayout.FlexibleSpace();
         GUILayout.Label(_view.ReferenceLine, ZzapUI.Small, GUILayout.Height(28f));
         GUILayout.EndHorizontal();
+        GUILayout.Label(_view.ScopeLine, ZzapUI.Small);
         if (_view.SlotsLine != null)
         {
             GUILayout.Label(_view.SlotsLine, ZzapUI.Small);
@@ -473,7 +490,11 @@ public static class BotSelectionClass
         GUILayout.BeginHorizontal();
         GUILayout.BeginVertical(GUILayout.Width(LABEL_WIDTH));
         GUILayout.Label(view.Label, ZzapUI.Name, GUILayout.Height(22f));
-        GUILayout.Label(knob.Help(Korean), ZzapUI.Small);
+        GUILayout.Label(knob.Help(Korean), _wrapSmall);
+        if (view.SlotText != null)
+        {
+            GUILayout.Label(view.SlotText, _wrapSmall);
+        }
         GUILayout.EndVertical();
 
         switch (knob.Kind)

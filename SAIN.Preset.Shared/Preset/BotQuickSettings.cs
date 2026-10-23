@@ -393,6 +393,36 @@ public static class BotQuickSettings
         return false;
     }
 
+    /// <summary>
+    /// The knob's value in each slot the group has, easy to impossible ("150m", "켬", "GigaChad"), so a knob that differs by
+    /// slot shows all of them and switching the difficulty visibly changes something (user 10/23: "can't tell it changed").
+    /// </summary>
+    public static List<(ESainBotDifficulty Difficulty, string Text)> SlotValues(BotKnob knob, SAINSettingsGroupClass group, bool korean)
+    {
+        var list = new List<(ESainBotDifficulty, string)>();
+        if (knob == null || group?.Settings == null)
+        {
+            return list;
+        }
+        foreach (ESainBotDifficulty difficulty in Enum.GetValues(typeof(ESainBotDifficulty)))
+        {
+            if (!group.Settings.TryGetValue(difficulty, out var slot) || slot == null)
+            {
+                continue;
+            }
+            string off = korean ? "끔" : "off";
+            string text = knob.Kind switch
+            {
+                BotKnobKind.Toggle => knob.GetOn(slot) ? (korean ? "켬" : "on") : off,
+                BotKnobKind.ToggleNumber => knob.GetOn(slot) ? knob.Format(knob.Get(slot), korean) : off,
+                BotKnobKind.Personality => knob.GetPersonality(slot) == EPersonality.None ? (korean ? "지정 안 함" : "Unassigned") : knob.GetPersonality(slot).ToString(),
+                _ => knob.Format(knob.Get(slot), korean),
+            };
+            list.Add((difficulty, text));
+        }
+        return list;
+    }
+
     private static bool SameValue(object a, object b) => a is float fa && b is float fb ? Math.Abs(fa - fb) <= 1e-4f : Equals(a, b);
 
     // Every float / int / bool / enum value field of every category (Aiming, Core...).

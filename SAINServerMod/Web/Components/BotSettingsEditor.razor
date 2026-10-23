@@ -89,6 +89,7 @@
                 }
                 <span class="sain-bot-reference spt-muted">@(_reference == null ? T("기준 없음 (zzap 프리셋에 이 봇이 없음)", "No reference (not in the zzap preset)") : T("기준: zzap 프리셋", "Reference: zzap preset"))</span>
             </div>
+            <div class="sain-bot-shown spt-muted">@ScopeLine</div>
             @if (_allSlotsSame)
             {
                 <div class="sain-bot-shown spt-muted">@T("이 봇은 난이도 4칸 값이 모두 같습니다 — 어느 칸을 골라도 숫자는 같습니다.", "This bot has the same values in all four difficulty slots - every slot shows the same numbers.")</div>
@@ -100,7 +101,7 @@
             }
             else
             {
-                <div class="sain-bot-shown spt-muted">@T($"표시 중인 값: {Value(_shown)} · 오른쪽으로 갈수록 강하게", $"Showing: {Value(_shown)} · stronger to the right")</div>
+                <div class="sain-bot-shown spt-muted">@T("오른쪽으로 갈수록 강하게", "Stronger to the right")</div>
                 @foreach (var section in KnobSections)
                 {
                     <div class="sain-quick-head mt-3">
@@ -121,6 +122,15 @@
                                     <span class="sain-bot-byslot">@T("칸마다 다름", "differs by slot")</span>
                                 }
                                 <div class="sain-quick-desc">@knob.Help(Korean)</div>
+                                @if (_bySlotKnobs.Contains(knob.Id) && _group != null)
+                                {
+                                    <div class="sain-quick-desc sain-bot-slots">
+                                        @foreach (var slot in BotQuickSettings.SlotValues(knob, _group, Korean))
+                                        {
+                                            <span class="@(slot.Difficulty == _shown ? "on" : null)">@Value(slot.Difficulty) @slot.Text</span>
+                                        }
+                                    </div>
+                                }
                             </div>
                             <div class="sain-bot-knob-control">
                                 @if (knob.Kind is BotKnobKind.Toggle or BotKnobKind.ToggleNumber)
@@ -251,6 +261,8 @@
     .sain-bot-scope .sain-bot-unseen.on { opacity: .85; }
     .sain-bot-reference { margin-left: auto; font-size: .75rem; }
     .sain-bot-shown { font-size: .75rem; }
+    .sain-bot-slots span + span::before { content: " · "; color: #71717a; font-weight: 400; }
+    .sain-bot-slots .on { color: #e4e4e7; font-weight: 700; }
     .sain-bot-byslot { margin-left: 6px; padding: 0 6px; border-radius: 8px; background: #303038; color: #a1a1aa; font-size: .65rem; }
     .sain-bot-knob { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(160px, 1.5fr) minmax(150px, 1fr) 78px; gap: 12px; align-items: center; padding: 12px 0; }
     .sain-bot-knob-label, .sain-bot-knob-control { min-width: 0; }
@@ -341,6 +353,19 @@
     private bool _copying;
     private int _advancedChanged;
     private string BotName => _group?.Name ?? _botType.ToString();
+
+    // zzap (user 10/23: "picking easy/normal/hard, can't tell anything changed"): which slot is shown and what a change hits.
+    private string ScopeLine
+    {
+        get
+        {
+            bool recorded = _records.TryGetValue(_botType, out var record) && record.Totals.Count > 0;
+            return _scope.HasValue
+                ? T($"지금 보는 칸: {Value(_shown)} · 바꾸면 {Value(_shown)} 칸만 바뀝니다", $"Showing: {Value(_shown)} · changes hit the {Value(_shown)} slot only")
+                : T($"지금 보는 칸: {Value(_shown)}{(recorded ? " (최근 레이드에서 가장 많이 나옴)" : " (기록이 없어 보통)")} · 바꾸면 4칸 모두 같은 비율로 바뀝니다",
+                    $"Showing: {Value(_shown)}{(recorded ? " (most seen lately)" : " (no record - normal)")} · changes move all four slots by the same ratio");
+        }
+    }
 
     // zzap (2026-10-23): load once per opened component; missing or damaged records never block editing.
     protected override async Task OnInitializedAsync()
