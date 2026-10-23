@@ -633,7 +633,9 @@
         view.Badge = BotLevels.Badge(view.Group, view.Sources);
         view.AdjustedCount = hasSlots ? BotLevels.AdjustedCount(view.Group, view.Sources) : 0;
         var level = view.Group.DifficultyLevel == EBotLevel.None ? EBotLevel.Hard : view.Group.DifficultyLevel;
-        view.Baseline = hasSlots && view.Available.Contains(level) ? BotLevels.Compute(level, view.Group, view.Sources) : null;
+        view.Baseline = view.Group.DifficultyLevel == EBotLevel.None && view.Sources.Reference != null
+            ? BotLevels.NormalSlot(BotLevels.Snapshot(view.Sources.Reference))
+            : hasSlots && view.Available.Contains(level) ? BotLevels.Compute(level, view.Group, view.Sources) : null;
         view.KnobReference = null;
         if (view.Baseline != null && view.Group.Settings != null)
         {
@@ -829,8 +831,8 @@
 
     private Task ResetKnob(BotKnob knob)
     {
-        if (_group == null || _selectedView?.Baseline == null) return Task.CompletedTask;
-        BotLevels.ResetKnob(knob, _group, _selectedView.Baseline);
+        if (_group == null || _selectedView == null) return Task.CompletedTask;
+        BotLevels.ResetKnobToBaseline(knob, _group, _selectedView.Sources);
         return NotifyChange();
     }
 
@@ -1004,12 +1006,12 @@
             }
         }
         _changedKnobs.Clear();
-        if (_group != null && _selectedView?.KnobReference != null)
+        if (_group != null && _selectedView != null)
         {
             foreach (var knob in BotQuickSettings.All)
             {
                 // Same rule as F6: only the knob fields a level writes count; personality / grenades are "not affected by the level".
-                if (BotLevels.AffectsKnob(knob) && BotLevels.KnobDiffers(knob, _group, _selectedView.Baseline)) _changedKnobs.Add(knob.Id);
+                if (BotLevels.AffectsKnob(knob) && BotLevels.KnobChanged(knob, _group, _selectedView.Sources)) _changedKnobs.Add(knob.Id);
             }
         }
         _advancedChanged = 0;

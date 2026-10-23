@@ -168,7 +168,8 @@ public static class BigBrainHandler
                     continue;
                 }
                 var brainSet = new HashSet<string>(_toggledBrains);
-                var layerSet = new HashSet<string>(_toggledLayers);
+                // Exfiltration is appended after the group lists were recorded; vanilla bots need it back too.
+                var layerSet = new HashSet<string>(_toggledLayers) { "Exfiltration" };
                 if (botType.BrainsToApply != null)
                 {
                     brainSet.UnionWith(botType.BrainsToApply);
@@ -199,50 +200,7 @@ public static class BigBrainHandler
         /// <summary>A global "Vanilla ..." group toggle already makes this role vanilla (the bot type page can't change it).</summary>
         public static bool VanillaByGroupSetting(WildSpawnType role, out string settingName)
         {
-            settingName = null;
-            var settings = SAINPlugin.LoadedPreset?.GlobalSettings?.General?.VanillaBots;
-            if (settings == null || !BotTypeDefinitions.BotTypes.TryGetValue(role, out BotType botType))
-            {
-                return false;
-            }
-            var brains = new HashSet<string>(botType.BrainsToApply ?? []);
-            if (!string.IsNullOrEmpty(botType.BaseBrain))
-            {
-                brains.Add(botType.BaseBrain);
-            }
-            bool Uses(List<EBrain> group)
-            {
-                for (int i = 0; i < group.Count; i++)
-                {
-                    if (brains.Contains(group[i].ToString()))
-                    {
-                        return true;
-                    }
-                }
-                return false;
-            }
-            (bool On, string Name, bool Match)[] groups =
-            [
-                (settings.VanillaScavs, "Vanilla Scavs", Uses(AIBrains.Scavs) || role == WildSpawnType.assaultGroup),
-                (settings.VanillaRogues, "Vanilla Rogues", brains.Contains(nameof(EBrain.ExUsec))),
-                (settings.VanillaRaiders, "Vanilla Raiders", role == WildSpawnType.pmcBot),
-                (settings.VanillaBloodHounds, "Vanilla Bloodhounds", brains.Contains(nameof(EBrain.ArenaFighter)) || role == WildSpawnType.arenaFighterEvent),
-                (settings.VanillaBosses, "Vanilla Bosses", Uses(AIBrains.NormalBosses)),
-                (settings.VanillaFollowers, "Vanilla Boss Followers", Uses(AIBrains.NormalFollowers)),
-                (settings.VanillaGoons, "Vanilla Goons", Uses(AIBrains.Goons)),
-                (settings.VanillaLabyrinthBots, "Vanilla Labyrinth Bots", Uses(AIBrains.LabyrinthBots)),
-                (settings.VanillaCultists, "Vanilla Cultists", Uses(AIBrains.Cultists)),
-                (settings.VanillaSpecialBots, "Vanilla Special Bots", Uses(AIBrains.SpecialBots)),
-            ];
-            foreach (var g in groups)
-            {
-                if (g.On && g.Match)
-                {
-                    settingName = g.Name;
-                    return true;
-                }
-            }
-            return false;
+            return SAINEnableClass.VanillaByGroupSetting(role, out settingName);
         }
 
         /// <summary>

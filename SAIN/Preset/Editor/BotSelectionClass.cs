@@ -65,6 +65,7 @@ public static class BotSelectionClass
     // "Revert" copies, taken when the page opens and again after a save.
     private static readonly Dictionary<BotType, SAINSettingsGroupClass> _saved = new();
     private static bool _lastUnsaved;
+    private static SAINPresetClass _snapshotPreset;
 
     private static readonly View _view = new();
     private static bool _dirty = true;
@@ -84,7 +85,7 @@ public static class BotSelectionClass
         ZzapUI.EnsureStyles();
         EnsureStyles();
         bool unsaved = ConfigEditingTracker.UnsavedChanges;
-        if (Time.frameCount - _lastMenuFrame > 2 || (_lastUnsaved && !unsaved))
+        if (Time.frameCount - _lastMenuFrame > 2 || (_lastUnsaved && !unsaved) || !ReferenceEquals(_snapshotPreset, SAINPlugin.LoadedPreset))
         {
             // (Re)opened, or just saved: fetch the record again, take fresh revert copies, recheck every badge.
             Task.Run(() => _loaded = SpawnDifficultyRecorder.Load());
@@ -156,7 +157,7 @@ public static class BotSelectionClass
 
     private static SAINPresetBundle Bundle(string name)
     {
-        return PresetSync.TryGetCustomBundle(name, out var bundle) ? bundle : null;
+        return PresetSync.TryGetSavedCustomBundle(name, out var bundle) ? bundle : null;
     }
 
     private static SAINSettingsGroupClass BotIn(SAINPresetBundle bundle, BotType bot)
@@ -172,7 +173,7 @@ public static class BotSelectionClass
         {
             return zzap;
         }
-        foreach (var bundle in PresetSync.ServerDefaults())
+        foreach (var bundle in PresetSync.SavedServerDefaults())
         {
             var group = BotIn(bundle, bot);
             if (group != null)
@@ -203,10 +204,32 @@ public static class BotSelectionClass
 
     private static void TakeSnapshots()
     {
+        var preset = SAINPlugin.LoadedPreset;
+        bool samePreset = ReferenceEquals(_snapshotPreset, preset);
+        if (!samePreset)
+        {
+            _saved.Clear();
+        }
+        _snapshotPreset = preset;
+        SAINPresetBundle saved = null;
+        if (preset?.Info?.IsCustom == true)
+        {
+            PresetSync.TryGetSavedCustomBundle(preset.Info.Name, out saved);
+        }
+        else if (preset?.Info != null)
+        {
+            saved = PresetSync.SavedServerDefaults().FirstOrDefault(b => b?.Info?.BaseSAINDifficulty == preset.Info.BaseSAINDifficulty);
+        }
+        // A reopened tab must not turn dirty live values into the saved baseline.
+        // If the server copy is unavailable, keep the previous snapshot or disable Revert until a clean capture.
+        if (saved == null && ConfigEditingTracker.UnsavedChanges)
+        {
+            return;
+        }
         _saved.Clear();
         foreach (var bot in BotTypeDefinitions.BotTypes.Values)
         {
-            var copy = BotLevels.Snapshot(Group(bot));
+            var copy = BotLevels.Snapshot(saved != null ? BotIn(saved, bot) : Group(bot));
             if (copy != null)
             {
                 _saved[bot] = copy;
@@ -405,7 +428,8 @@ public static class BotSelectionClass
                 : null;
             CanRevert = _saved.ContainsKey(_bot);
             var shownLevel = Group.DifficultyLevel == EBotLevel.None ? EBotLevel.Hard : Group.DifficultyLevel;
-            LevelValues = BotLevels.Compute(shownLevel, Group, Src);
+            LevelValues = Group.DifficultyLevel == EBotLevel.None && Src.Reference != null
+                ? BotLevels.NormalSlot(Src.Reference) : BotLevels.Compute(shownLevel, Group, Src);
             foreach (var level in Levels)
             {
                 bool on = Group.DifficultyLevel == level;
@@ -452,7 +476,7 @@ public static class BotSelectionClass
             foreach (var knob in BotQuickSettings.All)
             {
                 bool affected = BotLevels.AffectsKnob(knob);
-                bool changed = affected && BotLevels.KnobDiffers(knob, Group, LevelValues);
+                bool changed = affected && BotLevels.KnobChanged(knob, Group, Src);
                 var view = new KnobView
                 {
                     Knob = knob,
@@ -806,10 +830,10 @@ public static class BotSelectionClass
         {
             if (GUILayout.Button(new GUIContent(T("되돌리기", "Reset"), T("고른 난이도의 값으로", "Back to the picked level's value")), ZzapUI.Button, GUILayout.Width(RESET_WIDTH), GUILayout.Height(26f)))
             {
-                var values = _view.LevelValues;
+                var sources = _view.Src;
                 Write(() =>
                 {
-                    BotLevels.ResetKnob(knob, group, values);
+                    BotLevels.ResetKnobToBaseline(knob, group, sources);
                     ConfigEditingTracker.Add(knob.NameEn, "reset");
                 });
             }

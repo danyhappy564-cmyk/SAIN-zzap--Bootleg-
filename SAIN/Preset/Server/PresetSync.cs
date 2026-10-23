@@ -27,6 +27,9 @@ public static class PresetSync
 
     private static List<SAINPresetBundle> _serverDefaults;
     private static bool _serverDefaultsFetched;
+    private static string _serverDefaultsJson;
+    private static List<SAINPresetBundle> _savedServerDefaults;
+    private static readonly Dictionary<string, (string Json, SAINPresetBundle Bundle)> _savedCustomBundles = new(StringComparer.Ordinal);
     private static bool _liveReapplyPending;
     private static bool _configReapplyPending;
     private static SAINPresetDefinition _pendingConfigTarget;
@@ -49,6 +52,67 @@ public static class PresetSync
         return _customBundles.TryGetValue(name, out bundle);
     }
 
+    /// <summary>Last pulled/saved values for editor references; never the objects the editor changes.</summary>
+    public static bool TryGetSavedCustomBundle(string name, out SAINPresetBundle bundle)
+    {
+        bundle = null;
+        if (name == null || !_customJson.TryGetValue(name, out string json))
+        {
+            return false;
+        }
+        if (_savedCustomBundles.TryGetValue(name, out var cached) && string.Equals(cached.Json, json, StringComparison.Ordinal))
+        {
+            bundle = cached.Bundle;
+            return true;
+        }
+        try
+        {
+            bundle = JsonConvert.DeserializeObject<SAINPresetBundle>(json, _settings);
+            if (bundle?.Info == null)
+            {
+                return false;
+            }
+            _savedCustomBundles[name] = (json, bundle);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"[SAIN] Could not read saved reference '{name}': {ex.Message}");
+            bundle = null;
+            return false;
+        }
+        finally
+        {
+            // Deserializing globals/debug settings changes their static Instance fields.
+            PresetHandler.LoadedPreset?.MakeCurrent();
+        }
+    }
+
+    /// <summary>Generated defaults as received from the server, independent of the loaded default's edits.</summary>
+    public static IReadOnlyList<SAINPresetBundle> SavedServerDefaults()
+    {
+        ServerDefaults();
+        if (_savedServerDefaults != null)
+        {
+            return _savedServerDefaults;
+        }
+        try
+        {
+            _savedServerDefaults = string.IsNullOrEmpty(_serverDefaultsJson)
+                ? [] : JsonConvert.DeserializeObject<List<SAINPresetBundle>>(_serverDefaultsJson, _settings) ?? [];
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"[SAIN] Could not read saved default references: {ex.Message}");
+            _savedServerDefaults = [];
+        }
+        finally
+        {
+            PresetHandler.LoadedPreset?.MakeCurrent();
+        }
+        return _savedServerDefaults;
+    }
+
     public static List<SAINPresetBundle> ServerDefaults()
     {
         if (_serverDefaultsFetched)
@@ -62,6 +126,8 @@ public static class PresetSync
             if (!string.IsNullOrEmpty(json) && json != "null")
             {
                 _serverDefaults = JsonConvert.DeserializeObject<List<SAINPresetBundle>>(json, _settings);
+                _serverDefaultsJson = json;
+                _savedServerDefaults = null;
                 PresetHandler.LoadedPreset?.MakeCurrent();
                 Logger.LogInfo($"[SAIN] Fetched {_serverDefaults?.Count ?? 0} server-generated default presets.");
             }
@@ -76,6 +142,8 @@ public static class PresetSync
     public static void RefreshServerDefaults()
     {
         _serverDefaults = null;
+        _serverDefaultsJson = null;
+        _savedServerDefaults = null;
         _serverDefaultsFetched = false;
         ServerDefaults();
     }
@@ -100,6 +168,7 @@ public static class PresetSync
         {
             _customBundles.Clear();
             _customJson.Clear();
+            _savedCustomBundles.Clear();
             foreach (string name in ServerPresetClient.ListCustom())
             {
                 try
@@ -250,6 +319,8 @@ public static class PresetSync
         if (message.Change == EPresetSyncChange.Deleted)
         {
             _customBundles.Remove(name);
+            _customJson.Remove(name);
+            _savedCustomBundles.Remove(name);
             PresetHandler.LoadCustomPresetOptions();
             Logger.LogInfo($"[SAIN] Custom preset '{name}' was deleted on the server.");
 
@@ -271,6 +342,8 @@ public static class PresetSync
             && string.Equals(JsonConvert.SerializeObject(existing, _settings), json, StringComparison.Ordinal)
         )
         {
+            // A web save can equal the live unsaved edits while still advancing the saved baseline.
+            _customJson[name] = json;
             return;
         }
 
@@ -347,6 +420,7 @@ public static class PresetSync
     {
         _customBundles.Remove(name);
         _customJson.Remove(name);
+        _savedCustomBundles.Remove(name);
         try
         {
             ServerPresetClient.DeleteCustom(name);
@@ -378,11 +452,11 @@ public static class PresetSync
         {
             var bundle = BuildBundle(preset);
             bundle.Info = info;
-            _customBundles[info.Name] = bundle;
-
             string json = JsonConvert.SerializeObject(bundle, _settings);
-            _customJson[info.Name] = json;
             ServerPresetClient.SaveCustom(info.Name, json);
+            // Only an accepted save may become the editor's saved baseline.
+            _customBundles[info.Name] = bundle;
+            _customJson[info.Name] = json;
         }
         catch (Exception ex)
         {

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>latest</LangVersion><Nullable>disable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../SAIN.Preset.Shared/SAIN.Preset.Shared.csproj" />
+    <Reference Include="Newtonsoft.Json"><HintPath>../../References/Newtonsoft.Json.dll</HintPath></Reference>
+    <Compile Include="../../SAIN/Preset/Server/PresetSync.cs" Link="Real/PresetSync.cs" />
+    <Compile Include="../../SAIN/Plugin/SAINEnableClass.cs" Link="Real/SAINEnableClass.cs" />
+    <Compile Include="../../SAIN/Plugin/BigBrainHandler.cs" Link="Real/BigBrainHandler.cs" />
+    <Compile Include="../../SAIN/Helpers/EnumValues.cs" Link="Real/EnumValues.cs" />
+    <Compile Include="../../SAIN/Preset/GlobalSettings/Categories/BigBrain/EBrain.cs" Link="Real/AIBrains.cs" />
+  </ItemGroup>
+</Project>

@@ -154,6 +154,13 @@ public static class SAINEnableClass
             return true;
         }
 
+        // zzap (2026-10-24): per-role vanilla must also keep SAIN components/patches off PMCs and modded bots.
+        var bots = SAINPlugin.LoadedPreset?.BotSettings?.SAINSettings;
+        if (bots != null && bots.TryGetValue(type, out var group) && group?.UseVanillaAI == true)
+        {
+            return true;
+        }
+
         if (IsAlwaysEnabled(type, botOwner))
         {
             return false;
@@ -174,6 +181,38 @@ public static class SAINEnableClass
             || ExcludeBloodHounds(wildSpawnType)
             || ExcludeLabyrinthBots(wildSpawnType)
             || ExcludeSpecialBots(wildSpawnType);
+    }
+
+    /// <summary>The same role predicates used to exclude SAIN components, for the F6 global-group lock.</summary>
+    public static bool VanillaByGroupSetting(WildSpawnType role, out string settingName)
+    {
+        settingName = null;
+        if (SAINPlugin.LoadedPreset?.GlobalSettings?.General?.VanillaBots == null)
+        {
+            return false;
+        }
+        (bool Excluded, string Name)[] groups =
+        [
+            (SAINEnabled.VanillaScavs && WildSpawn.IsScav(role), "Vanilla Scavs"),
+            (ExcludeNormalBoss(role), "Vanilla Bosses"),
+            (ExcludeNormalFollower(role), "Vanilla Boss Followers"),
+            (ExcludeGoons(role), "Vanilla Goons"),
+            (ExcludeCultists(role), "Vanilla Cultists"),
+            (ExcludeRogues(role), "Vanilla Rogues"),
+            (ExcludeRaiders(role), "Vanilla Raiders"),
+            (ExcludeBloodHounds(role), "Vanilla Bloodhounds"),
+            (ExcludeLabyrinthBots(role), "Vanilla Labyrinth Bots"),
+            (ExcludeSpecialBots(role), "Vanilla Special Bots"),
+        ];
+        foreach (var group in groups)
+        {
+            if (group.Excluded)
+            {
+                settingName = group.Name;
+                return true;
+            }
+        }
+        return false;
     }
 
     private static bool IsAlwaysEnabled(WildSpawnType wildSpawnType, BotOwner botOwner)
