@@ -62,7 +62,7 @@
 ## 5. 실제 스폰 난이도 기록
 
 - **클라 수집**: SAIN 봇이 만들어질 때(`BotComponent` 초기화 쪽, `Info.Profile.WildSpawnType` + `BotDifficulty`) 레이드 집계 사전에 +1. 레이드 끝(`BotManagerComponent.Dispose` 정리 자리 근처)에 그 판 집계를 서버로 보내고 비운다. 시뮬레이션 랩 판도 센다.
-- **전송·보관**: 기존 `ServerDataClient`(`/sain/data/save`, `/sain/data/get`) 키 하나(`spawnDifficulties`)에 최근 5판 목록 `[{time, map, counts: {role: {difficulty: n}}}]`. 6판째가 오면 가장 오래된 판을 버린다(서버 쪽에서 합침 — 클라는 한 판만 보냄).
+- **전송·보관**: 기존 `ServerDataClient`(`/sain/data/save`, `/sain/data/get`) 키 하나(`spawnDifficulties`)에 최근 5판 목록 `[{time, map, counts: {role: {difficulty: n}}}]`. 6판째가 오면 가장 오래된 판을 버린다. `/sain/data/save`는 덮어쓰기만 하므로 클라가 레이드 끝에 읽고 → 공용 코드로 합치고 → 저장한다(새 서버 경로 없음).
 - **읽기**: F6은 탭을 열 때 한 번 `/sain/data/get`, 웹은 서버 서비스에서 직접. 5판 합계로 배지·한 줄 문구를 만든다.
 - **기록 없음**: 배지 `기록 없음`, 오른쪽 위 `아직 기록 없음 — 레이드를 한 판 하면 나옵니다`, 표시 난이도 `normal`.
 - 실패(서버 안 됨 등)는 경고 한 줄 남기고 화면은 '기록 없음'처럼 동작.
