@@ -61,7 +61,7 @@ public static class SimLabFactions
         bool moddedCheck = config.ModdedBotCheckInSim && moddedRoles is { Count: > 0 };
         if (moddedCheck)
         {
-            roles = moddedRoles!;
+            roles = InterleaveByMod(moddedRoles!);
             share = MODDED_CHECK_SHARE;
         }
         else
@@ -90,6 +90,39 @@ public static class SimLabFactions
             location.BossLocationSpawn!.Add(Wave(role, role, escorts, sideA ? info.ZonesA : info.ZonesB, info.FactionTimeBase + i));
         }
         info.FactionWaves = count;
+    }
+
+    /// <summary>
+    /// zzap (2026-10-23 sim 16:55): the registration order put Black Division's 5 roles first, and the client calls faction waves
+    /// in order - 7 calls in 19 minutes were all Black Division, RUAF / UNTAR never got a turn. One role of each mod in turn
+    /// (Black Division, RUAF, Remnant, UNTAR, Black Division...) so every installed mod shows up within the first few calls.
+    /// </summary>
+    private static List<string> InterleaveByMod(List<string> roles)
+    {
+        var byMod = new List<Queue<string>>();
+        var index = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (string role in roles)
+        {
+            string mod = ModdedFamilies.TryGetValue(role, out string? section) && !string.IsNullOrWhiteSpace(section) ? section : role;
+            if (!index.TryGetValue(mod, out int i))
+            {
+                index[mod] = i = byMod.Count;
+                byMod.Add(new Queue<string>());
+            }
+            byMod[i].Enqueue(role);
+        }
+        var result = new List<string>(roles.Count);
+        while (result.Count < roles.Count)
+        {
+            foreach (var queue in byMod)
+            {
+                if (queue.Count > 0)
+                {
+                    result.Add(queue.Dequeue());
+                }
+            }
+        }
+        return result;
     }
 
     public static void AddBoss(LocationTable locations, LocationBase location, SimRaidInfo info, SimLabConfig config)
