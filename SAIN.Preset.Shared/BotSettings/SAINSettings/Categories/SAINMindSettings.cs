@@ -11,7 +11,7 @@ public class SAINMindSettings : SAINSettingsBase<SAINMindSettings>, ISAINSetting
 {
     [DataMember]
     [Category("Personality")]
-    [Name("Personality Override (Modded Bots)")]
+    [Name("Personality Override")]
     [Description(
         "Always assign this personality to this bot type at the selected difficulty. Unassigned keeps normal assignment. Ignored if the personality is disabled. Black Division defaults to GigaChad."
     )]
@@ -76,18 +76,21 @@ public class SAINMindSettings : SAINSettingsBase<SAINMindSettings>, ISAINSetting
     [DataMember]
     [Category("Talk")]
     [Name("Squad Talk Frequency. Higher = More Delay between Talking.")]
+    [Description("Seconds a squad member waits between voice lines. Higher = talks less often.")]
     [MinMax(0f, 60f)]
     public float SquadMemberTalkFreq = 3f;
 
     [DataMember]
     [Category("Talk")]
     [Name("Squad Leader Talk Frequency. Higher = More Delay between Talking.")]
+    [Description("Seconds the squad leader waits between voice lines. Higher = talks less often.")]
     [MinMax(0f, 60f)]
     public float SquadLeadTalkFreq = 3f;
 
     [DataMember]
     [Category("Extract")]
     [Name("Enable Extracts")]
+    [Description("On = this bot type may head for an extract late in the raid (the raid percentage limits below).")]
     public bool EnableExtracts = true;
 
     [DataMember]

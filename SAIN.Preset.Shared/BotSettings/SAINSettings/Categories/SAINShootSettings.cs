@@ -42,6 +42,7 @@ public class SAINShootSettings : SAINSettingsBase<SAINShootSettings>, ISAINSetti
     [DataMember]
     [Category("Firerate")]
     [Name("Full Auto Scatter Multiplier")]
+    [Description("How much more the bullets spread in full auto. Higher = wider spread.")]
     [MinMax(1f, 5f, 100f)]
     [Advanced]
     [CopyValue]

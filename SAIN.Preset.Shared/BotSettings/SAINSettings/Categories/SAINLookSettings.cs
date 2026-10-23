@@ -25,10 +25,12 @@ public class SAINLookSettings : SAINSettingsBase<SAINLookSettings>, ISAINSetting
 
     [DataMember]
     [Name("Can Use Flashlights")]
+    [Description("Off = this bot never turns on its flashlight or laser.")]
     public bool CAN_USE_LIGHT = true;
 
     [DataMember]
     [Name("Full 360 Vision Cheat Vision")]
+    [Description("On = this bot sees all around itself, behind it too. A cheat - for testing.")]
     [Advanced]
     public bool FULL_SECTOR_VIEW = false;
 

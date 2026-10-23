@@ -10,12 +10,14 @@ public class SAINCoreSettings : SAINSettingsBase<SAINCoreSettings>, ISAINSetting
     [DataMember]
     [Category("Vision")]
     [Name("Field of View")]
+    [Description("How wide this bot's view is, in degrees from one side to the other. Enemies outside it are not seen.")]
     [MinMax(45f, 180f)]
     public float VisibleAngle = 160f;
 
     [DataMember]
     [Category("Vision")]
     [Name("Base Vision Distance")]
+    [Description("How far this bot can see enemies in good light. Darkness, weather and foliage shorten it from here.")]
     [MinMax(50f, 500f)]
     public float VisibleDistance = 150f;
 
@@ -63,6 +65,7 @@ public class SAINCoreSettings : SAINSettingsBase<SAINCoreSettings>, ISAINSetting
 
     [DataMember]
     [Name("Can Use Grenades")]
+    [Description("Off = this bot never throws grenades.")]
     public bool CanGrenade = true;
 
     [Hidden]

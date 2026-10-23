@@ -22,12 +22,14 @@ public class SAINAimingSettings : SAINSettingsBase<SAINAimingSettings>, ISAINSet
 
     [DataMember]
     [Name("Can Aim for Headshots")]
+    [Description("On = this bot may aim at the head (with the chance below) instead of the body.")]
     [Category("Aim Target")]
     public bool AimForHead = false;
 
     [DataMember]
     [Category("Aim Target")]
     [Name("Can Aim for Headshots - Percentage Chance")]
+    [Description("When headshots are on: the chance that a shot is aimed at the head.")]
     [Percentage]
     public float AimForHeadChance = 33f;
 
@@ -105,6 +107,7 @@ public class SAINAimingSettings : SAINSettingsBase<SAINAimingSettings>, ISAINSet
     [DataMember]
     [Category("Scatter Modifiers")]
     [Name("VANILLA EFT CONFIG VALUE : Scatter Multiplier - Moving")]
+    [Description("EFT's own value: how much more the bullets spread while this bot moves.")]
     [MinMax(0.1f, 6f, 100f)]
     [Advanced]
     public float COEF_IF_MOVE = 1.5f;
@@ -151,6 +154,7 @@ public class SAINAimingSettings : SAINSettingsBase<SAINAimingSettings>, ISAINSet
     [DataMember]
     [Category("Time to Aim")]
     [Name("VANILLA EFT CONFIG VALUE : Hit Aim Time Penalty Seconds - Min")]
+    [Description("EFT's own value: when this bot is hit, its aim is thrown off for at least this many seconds.")]
     [MinMax(0f, 1f, 100f)]
     [Advanced]
     public float MIN_TIME_DISCARD_AIM_SEC = 0.5f;
@@ -158,6 +162,7 @@ public class SAINAimingSettings : SAINSettingsBase<SAINAimingSettings>, ISAINSet
     [DataMember]
     [Category("Time to Aim")]
     [Name("VANILLA EFT CONFIG VALUE : Hit Aim Time Penalty Seconds - Max")]
+    [Description("EFT's own value: when this bot is hit, its aim is thrown off for at most this many seconds.")]
     [MinMax(0f, 2f, 100f)]
     [Advanced]
     public float MAX_TIME_DISCARD_AIM_SEC = 1.5f;
@@ -169,6 +174,7 @@ public class SAINAimingSettings : SAINSettingsBase<SAINAimingSettings>, ISAINSet
     [DataMember]
     [Category("Time to Aim")]
     [Name("VANILLA EFT CONFIG VALUE : Enemy First Contact Reaction Delay")]
+    [Description("EFT's own value: extra seconds added to the aim the first time this bot sees an enemy.")]
     [MinMax(0f, 1f, 100f)]
     [Advanced]
     public float FIRST_CONTACT_ADD_SEC = 0.2f;

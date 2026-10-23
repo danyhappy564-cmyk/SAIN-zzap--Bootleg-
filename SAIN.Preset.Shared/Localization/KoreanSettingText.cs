@@ -1327,7 +1327,7 @@ public static class KoreanSettingText
         { "IR Light Visible Distance", "IR 조명 시야 거리" },
         { "How far a bot can see enemies with an IR Light Enabled, if they are using NVGs", "야간투시경을 쓰는 봇이 IR 조명을 켰을 때 적을 볼 수 있는 거리" },
         // SAINMindSettings
-        { "Personality Override (Modded Bots)", "성격 지정 (모드 봇용)" },
+        { "Personality Override", "성격 지정" },
         { "Always assign this personality to this bot type at the selected difficulty. Unassigned keeps normal assignment. Ignored if the personality is disabled. Black Division defaults to GigaChad.", "선택한 난이도의 이 봇 종류에 항상 이 성격을 배정합니다. 지정 안 함이면 원래 방식대로 배정하며, 해당 성격이 꺼져 있으면 무시합니다. 블랙 디비전 기본값은 GigaChad입니다." },
         { "Unassigned", "지정 안 함" },
         { "Global Aggression Multiplier", "전역 공격성 배율" },
@@ -1447,5 +1447,21 @@ public static class KoreanSettingText
             "zzap fork, for long bot-vs-bot simulations: when more bot corpses than this lie on the map, the oldest ones (20s+) are hidden. Only works in a preset whose name contains TEST. 0 = off. The raid journal's [Perf] line shows how many were hidden.",
             "zzap 포크, 긴 봇끼리 시뮬용: 맵에 봇 시체가 이 수보다 많으면 오래된 것(20초 이상)부터 숨김. 이름에 TEST가 들어간 프리셋에서만 작동. 0 = 끔. 레이드 일지 [Perf] 줄에 숨긴 수가 나옴."
         },
+        // zzap (2026-10-23, bot type settings redesign): descriptions for the bot type fields that had none
+        { "How wide this bot's view is, in degrees from one side to the other. Enemies outside it are not seen.", "이 봇의 시야 폭(왼쪽 끝에서 오른쪽 끝까지 각도). 이 밖에 있는 적은 보지 못합니다." },
+        { "How far this bot can see enemies in good light. Darkness, weather and foliage shorten it from here.", "밝을 때 이 봇이 적을 볼 수 있는 거리. 어둠·날씨·풀숲이 여기서 더 줄입니다." },
+        { "Off = this bot never throws grenades.", "끄면 이 봇은 수류탄을 던지지 않습니다." },
+        { "On = this bot may aim at the head (with the chance below) instead of the body.", "켜면 이 봇이 몸통 대신 머리를 노릴 수 있습니다(확률은 아래 값)." },
+        { "When headshots are on: the chance that a shot is aimed at the head.", "머리 노리기가 켜져 있을 때 한 번 조준할 때마다 머리를 노릴 확률." },
+        { "Off = this bot never turns on its flashlight or laser.", "끄면 이 봇은 손전등·레이저를 켜지 않습니다." },
+        { "On = this bot sees all around itself, behind it too. A cheat - for testing.", "켜면 이 봇이 뒤까지 360도를 다 봅니다. 치트라 시험용입니다." },
+        { "Seconds a squad member waits between voice lines. Higher = talks less often.", "분대원이 말(음성)을 한 번 하고 다음 말까지 기다리는 초. 클수록 말이 적습니다." },
+        { "Seconds the squad leader waits between voice lines. Higher = talks less often.", "분대장이 말(음성)을 한 번 하고 다음 말까지 기다리는 초. 클수록 말이 적습니다." },
+        { "On = this bot type may head for an extract late in the raid (the raid percentage limits below).", "켜면 이 봇 종류가 레이드 후반에 탈출구로 갑니다(아래 레이드 진행률 범위 안에서)." },
+        { "How much more the bullets spread in full auto. Higher = wider spread.", "연사할 때 탄이 얼마나 더 퍼지는지. 클수록 많이 퍼집니다." },
+        { "EFT's own value: how much more the bullets spread while this bot moves.", "게임 원래 값: 이 봇이 움직이면서 쏠 때 탄이 얼마나 더 퍼지는지." },
+        { "EFT's own value: when this bot is hit, its aim is thrown off for at least this many seconds.", "게임 원래 값: 이 봇이 맞으면 조준이 흐트러지는 최소 시간(초)." },
+        { "EFT's own value: when this bot is hit, its aim is thrown off for at most this many seconds.", "게임 원래 값: 이 봇이 맞으면 조준이 흐트러지는 최대 시간(초)." },
+        { "EFT's own value: extra seconds added to the aim the first time this bot sees an enemy.", "게임 원래 값: 처음 적을 봤을 때 조준에 더해지는 반응 시간(초)." },
     };
 }
