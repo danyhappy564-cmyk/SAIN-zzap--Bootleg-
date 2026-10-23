@@ -159,7 +159,98 @@ public static class BigBrainHandler
         public static void ReassertModdedBotLayers()
         {
             _hitRevealReported.Clear();
+            _spawnExclusionReported.Clear();
             ApplyModdedBotLayers(true);
+        }
+
+        // Modded roles whose "vanilla layers excluded at spawn" line was already logged this raid.
+        private static readonly HashSet<WildSpawnType> _spawnExclusionReported = [];
+
+        /// <summary>
+        /// zzap (2026-10-23 sim 16:55): Black Division spawned (12 bots) and never once ran a SAIN layer - its bots fought on the
+        /// raider brain's vanilla "Pmc" / "AdvAssaultTarget" layers. SAIN's combat layers sit at 20/22 and only win once those
+        /// vanilla layers are excluded. Why the exclusion didn't hold is not proven: MoreBotsAPI swaps the bot's brain inside
+        /// StandartBotBrain.Activate (Priority.First) and BigBrain excludes on the current brain after it, so the swap alone
+        /// doesn't explain it (Codex review). So this does two things, once a modded bot's brain is final (last-priority
+        /// Activate postfix): re-excludes this role's vanilla layers on the brain the bot really has (BigBrain applies it to
+        /// activated bots, this one included - same call as the Black Division fork's SainBrainLayerPatch, verified in a 4.0.10
+        /// raid), and logs, once per role per raid, what that brain held before and after (SAIN layers present / active, vanilla
+        /// layers still active) so the next raid shows the real cause. Per spawn of a modded role only - not per frame.
+        /// </summary>
+        public static void ExcludeVanillaLayersForModdedBot(BotOwner owner)
+        {
+            WildSpawnType role = owner.Profile.Info.Settings.Role;
+            if (!BotTypeDefinitions.IsModded(role) || !BotTypeDefinitions.BotTypes.TryGetValue(role, out BotType botType))
+            {
+                return;
+            }
+            if (SAIN.Components.BotController.BotSpawnController.IsExcluded(role))
+            {
+                return;
+            }
+            string brain = owner.Brain?.BaseBrain?.ShortName();
+            if (string.IsNullOrEmpty(brain))
+            {
+                return;
+            }
+            List<string> brains = botType.BrainsToApply is { Count: > 0 } ? botType.BrainsToApply : [botType.BaseBrain];
+            bool first = _spawnExclusionReported.Add(role);
+            if (!brains.Contains(brain))
+            {
+                // SAIN's layers were registered for other brains - nothing to uncover; say so once so the mismatch shows.
+                if (first)
+                {
+                    Logger.LogWarning($"[SAIN ModdedBots] spawn: {botType.Name} ({role}) has brain '{brain}', not in its SAIN brains [{string.Join(", ", brains)}] - SAIN layers can't run on it");
+                }
+                return;
+            }
+
+            List<string> layers = [.. _commonVanillaLayersToRemove, .. _moddedExtraVanillaLayersToRemove];
+            if (botType.LayersToRemove != null)
+            {
+                layers.AddRange(botType.LayersToRemove);
+            }
+            string before = first ? DescribeBrainLayers(owner, layers) : null;
+            BrainManager.RemoveLayers(layers, [brain], [role]);
+            if (first)
+            {
+                Logger.LogWarning($"[SAIN ModdedBots] spawn: {botType.Name} ({role}) on brain '{brain}' - before: {before} | after re-exclude: {DescribeBrainLayers(owner, layers)}");
+            }
+        }
+
+        /// <summary>"SAIN layers 5 (active 5), vanilla to exclude still active 0 []" for one bot's current brain (diagnostic, once per role).</summary>
+        private static string DescribeBrainLayers(BotOwner owner, List<string> vanillaToExclude)
+        {
+            try
+            {
+                var baseBrain = owner.Brain.BaseBrain;
+                List<string> sainNames = SAINLayerNames;
+                int sain = 0;
+                int sainActive = 0;
+                List<string> vanillaActive = null;
+                foreach (var layer in baseBrain._layers.Values)
+                {
+                    string name = layer.Name();
+                    bool active = baseBrain.IsLayerActive(layer);
+                    if (sainNames.Contains(name))
+                    {
+                        sain++;
+                        if (active)
+                        {
+                            sainActive++;
+                        }
+                    }
+                    else if (active && vanillaToExclude.Contains(name))
+                    {
+                        (vanillaActive ??= []).Add(name);
+                    }
+                }
+                return $"SAIN layers {sain} (active {sainActive}), vanilla to exclude still active {vanillaActive?.Count ?? 0} [{(vanillaActive == null ? "" : string.Join(", ", vanillaActive))}]";
+            }
+            catch (Exception ex)
+            {
+                return $"layer read failed: {ex.GetType().Name}";
+            }
         }
 
         // Bots whose "shot by an enemy SAIN didn't know" reveal was already logged this raid (BotHitByEnemyClass).

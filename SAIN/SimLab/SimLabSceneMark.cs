@@ -265,6 +265,20 @@ public static class SimLabSceneMark
         {
             return $"{head} (no SAIN) layer={layer} speed={speed:0.0} at {RaidJournal.Pos(pos)}";
         }
+        try
+        {
+            return DescribeSain(p, owner, bot, head, layer, pos, vel, speed);
+        }
+        catch (Exception ex)
+        {
+            // zzap (2026-10-23 sim 16:55): a Black Division bot that had never run a SAIN layer threw here once a second for
+            // every snapshot, so all three F8 marks of it came out empty. Keep what is known and where it broke.
+            return $"{head} layer={layer} speed={speed:0.0} at {RaidJournal.Pos(pos)} | state failed: {ex.GetType().Name} in {ex.TargetSite?.Name}";
+        }
+    }
+
+    private static string DescribeSain(Player p, BotOwner owner, BotComponent bot, string head, string layer, Vector3 pos, Vector3 vel, float speed)
+    {
         Vector3 look = bot.Transform.LookDirection;
         look.y = 0f;
         string moveVsLook = speed > 0.3f && look.sqrMagnitude > 0.01f ? $"{Vector3.Angle(vel, look):0}deg" : "-";
