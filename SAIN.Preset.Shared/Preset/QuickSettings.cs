@@ -234,7 +234,7 @@ public static class QuickSettings
     private static string Pct(float ratio) => Math.Round(ratio * 100f).ToString("0");
 
     /// <summary>Change of a multiplier: "25% 느림" / "30% 김" / "8배" (from 2x up the ratio reads better than a percent).</summary>
-    private static Func<float, float, bool, string> Ratio(string moreKo, string lessKo, string moreEn, string lessEn, string nounKo = "", string nounEn = "")
+    internal static Func<float, float, bool, string> Ratio(string moreKo, string lessKo, string moreEn, string lessEn, string nounKo = "", string nounEn = "")
     {
         return (v, r, k) =>
         {
@@ -254,7 +254,7 @@ public static class QuickSettings
     }
 
     /// <summary>Change in the setting's own unit: "0.3초 느림", "20° 좁음", "15%p 더".</summary>
-    private static Func<float, float, bool, string> Diff(string unitKo, string unitEn, string moreKo, string lessKo, string moreEn, string lessEn)
+    internal static Func<float, float, bool, string> Diff(string unitKo, string unitEn, string moreKo, string lessKo, string moreEn, string lessEn)
     {
         return (v, r, k) =>
         {
