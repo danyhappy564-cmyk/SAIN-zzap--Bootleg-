@@ -61,7 +61,7 @@ public static class BotPersonalityEditor
         if (SAINPresetClass.Instance.PersonalityManager.PersonalityDictionary.TryGetValue(current, out var settings))
         {
             var saved = QuickObjectGUI.Saved();
-            QuickObjectGUI.Draw(settings, saved != null && saved.Personalities.TryGetValue(current, out var baseline) ? baseline : null, "personality."+current);
+            QuickObjectGUI.Draw(settings, saved != null && saved.Personalities.TryGetValue(current, out var baseline) ? baseline : null, "personality."+current, bundle => bundle?.Personalities != null && bundle.Personalities.TryGetValue(current, out var personality) ? personality : null);
             if (QuickObjectGUI.Advanced("personality."+current)) EditAllValuesInObj(settings, out bool newEdit);
         }
         SAINLayout.EndScrollView();

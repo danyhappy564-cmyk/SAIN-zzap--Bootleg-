@@ -37,6 +37,7 @@ public static class BotSettingsEditor
 
     private static readonly Dictionary<SettingsContainer, List<GroupEntry>> _groups = new();
     private static readonly Dictionary<SettingsContainer, string> _selectedGroup = new();
+    private static readonly HashSet<string> _expandedGroups = new();
 
     // Top-level groups, plus the zzap sections inside "General" (door tactics, close combat, freeze ambush...) as their own rows.
     private static List<GroupEntry> Groups(SettingsContainer container)
@@ -112,6 +113,19 @@ public static class BotSettingsEditor
             {
                 continue;
             }
+            string parentKey = group.Category.CategoryInfo.EnglishName;
+            bool expanded = _expandedGroups.Contains(parentKey);
+            if (group.Depth > 0 && !searching && !expanded) continue;
+            bool hasChildren = group.Depth == 0 && groups.Any(child => child.Depth > 0 && child.Category == group.Category);
+            if (hasChildren)
+            {
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button(expanded ? "▾" : "▸", ZzapUI.Button, GUILayout.Width(26f), GUILayout.Height(30f)))
+                {
+                    string captured = parentKey;
+                    ZzapUI.Defer(() => { if (!_expandedGroups.Remove(captured)) _expandedGroups.Add(captured); });
+                }
+            }
             string label = group.SubInfo != null ? group.SubInfo.Name : group.Category.CategoryInfo.Name;
             string tip = group.SubInfo?.Description ?? group.Category.CategoryInfo.Description;
             bool selected = !searching && group.Key == selectedKey;
@@ -125,6 +139,7 @@ public static class BotSettingsEditor
                     container.Scroll = UnityEngine.Vector2.zero;
                 });
             }
+            if (hasChildren) GUILayout.EndHorizontal();
         }
         EndScrollView();
         GUILayout.EndVertical();
@@ -154,11 +169,16 @@ public static class BotSettingsEditor
                 quickObject = current.SubField.GetValue(categoryObject);
                 savedObject = savedObject == null ? null : current.SubField.GetValue(savedObject);
             }
-            QuickObjectGUI.Draw(quickObject, savedObject, current.Key);
+            object Select(SAIN.Preset.Shared.Preset.SAINPresetBundle bundle)
+            {
+                object selected = bundle?.GlobalSettings == null ? null : current.Category.GetValue(bundle.GlobalSettings);
+                return current.SubField == null || selected == null ? selected : current.SubField.GetValue(selected);
+            }
+            QuickObjectGUI.Draw(quickObject, savedObject, current.Key, Select);
             if (quickObject is SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings general)
             {
                 GUILayout.Label(EditorText.Korean ? "바닐라 묶음이 봇별 설정보다 우선합니다. SAIN 값은 보관되며 바닐라를 끄면 복원됩니다. 자리키·저격수는 바닐라 고정입니다. AI 전환은 게임 재시작 후 적용됩니다." : "Global vanilla overrides bot settings, preserving stored SAIN values. Zryachiy and snipers stay vanilla. Restart the game after AI changes.", ZzapUI.Small);
-                QuickObjectGUI.Draw(general.VanillaBots, (savedObject as SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings)?.VanillaBots, current.Key+".VanillaBots");
+                QuickObjectGUI.Draw(general.VanillaBots, (savedObject as SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings)?.VanillaBots, current.Key+".VanillaBots", bundle => (Select(bundle) as SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings)?.VanillaBots, showReference: false);
             }
             if (QuickObjectGUI.Advanced(current.Key))
             {

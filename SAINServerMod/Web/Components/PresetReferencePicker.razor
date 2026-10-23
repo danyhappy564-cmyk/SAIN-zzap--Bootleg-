@@ -1,0 +1,15 @@
+@namespace SAINServerMod.Web.Components
+<div class="sain-refbar">
+    <span class="sain-refbar-label">@T("비교 기준", "Compare with")</span>
+    @foreach (string name in Names.Distinct())
+    {
+        <button type="button" class="sain-refchip @(Value == name ? "on" : null)" aria-pressed="@(Value == name)" @onclick="() => ValueChanged.InvokeAsync(name)">@name</button>
+    }
+    <button type="button" class="sain-refchip @(Value.Length == 0 ? "on" : null)" aria-pressed="@(Value.Length == 0)" @onclick="() => ValueChanged.InvokeAsync(string.Empty)">@T("저장값", "Saved")</button>
+    <span class="sain-refbar-legend"><span class="sw tick"></span>@T("기준 위치", "reference") <span class="sw up"></span>@T("수치 증가", "higher value") <span class="sw down"></span>@T("수치 감소", "lower value")</span>
+</div>
+@code {
+    [Parameter] public IEnumerable<string> Names { get; set; } = Array.Empty<string>();
+    [Parameter] public string Value { get; set; } = "zzap";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+}

@@ -50,6 +50,7 @@ foreach(var mode in new[]{"sain","perbot","global","fixed"})
     var group=bundle.BotSettings[role]; bundle.BotSettings=new(){{role,group}};
     group.UseVanillaAI=mode=="perbot"; bundle.GlobalSettings.General.VanillaBots.VanillaScavs=mode=="global";
     var html=await Render<BotSettingsEditor>("bot-"+mode,new(){{"Bundle",bundle},{"Original",Read("zzap 쉬움")},{"References",refs},{"Zzap",hard}});
+    Check(!html.Split("</aside>")[0].Contains("class=\"sain-bot-item "),mode+" bot groups initially collapsed");
     Check(html.Contains("이 봇의 AI"),mode+" can open bot panel and AI controls");
     Check(html.Contains("쉬움 (zzap 쉬움 프리셋 수준)"),mode+" combined difficulty label");
     bool disabled=html.Contains("<fieldset disabled");
@@ -61,9 +62,17 @@ foreach(var mode in new[]{"sain","perbot","global","fixed"})
 var globalHtml=await Render<SainSectionEditor>("global",new(){{"Target",easy.GlobalSettings},{"Original",normal.GlobalSettings}});
 Check(globalHtml.Contains("빠른 조절")&&globalHtml.Contains("고급 · 모든 설정"),"global quick and advanced controls render");
 var personalityHtml=await Render<PersonalityEditor>("personality",new(){{"Bundle",easy},{"Original",normal}});
-Check(personalityHtml.Contains("수치 −10%")&&personalityHtml.Contains("고급 · 성격의 모든 설정"),"personality quick and advanced controls render");
+Check(personalityHtml.Contains("기본값으로")&&!personalityHtml.Contains("수치 −10%")&&!personalityHtml.Contains("수치 +10%"),"personality toolbar contains only the defaults action");
 var gearHtml=await Render<GearStealthEditor>("gear",new(){{"Bundle",easy},{"Original",normal}});
 Check(gearHtml.Contains("검색 결과 선택")&&gearHtml.Contains("소음 설정은 아닙니다"),"gear batch controls and correct visibility explanation render");
+var quickReferences = new (string Name,object Target)[]{("zzap",hard.GlobalSettings.Difficulty),("zzap 쉬움",easy.GlobalSettings.Difficulty),("zzap 보통",normal.GlobalSettings.Difficulty)};
+var quickHtml=await Render<QuickObjectEditor>("quick-reference",new(){{"Target",easy.GlobalSettings.Difficulty},{"Original",normal.GlobalSettings.Difficulty},{"Defaults",easy.GlobalSettings.Difficulty},{"References",quickReferences}});
+Check(quickHtml.Contains("비교 기준")&&quickHtml.Contains("sain-diffslider")&&quickHtml.Contains("class=\"r\""),"quick rows render preset reference selector and reference tick");
+Check(quickHtml.Contains("기본값으로")&&!quickHtml.Contains("수치 −10%")&&!quickHtml.Contains("수치 +10%"),"quick toolbar removes both percentage actions");
+WebText.Korean=false;
+var englishHtml=await Render<QuickObjectEditor>("quick-reference-en",new(){{"Target",easy.GlobalSettings.Difficulty},{"Original",normal.GlobalSettings.Difficulty},{"Defaults",easy.GlobalSettings.Difficulty},{"References",quickReferences}});
+Check(englishHtml.Contains("Compare with")&&englishHtml.Contains("Defaults")&&!englishHtml.Contains("기본값으로"),"English quick toolbar and reference labels render in English");
+WebText.Korean=true;
 var protectedService=(PresetService)RuntimeHelpers.GetUninitializedObject(typeof(PresetService));
 foreach(var card in QuickSettings.ZzapPresets)
 {

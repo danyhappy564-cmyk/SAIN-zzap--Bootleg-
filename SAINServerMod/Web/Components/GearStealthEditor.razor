@@ -11,24 +11,26 @@
     </aside>
     <div class="flex-grow-1" style="min-width:0">
         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">@T("높을수록 먼 거리에서 눈에 덜 띕니다. 1배는 기본값입니다. 30m 이내에는 미적용, 30~60m에서 점차 적용됩니다. 소음 설정은 아닙니다.", "Higher makes gear harder to see at range. 1 is neutral. Fades in from 30–60m; no effect under 30m. Does not change sound.")</MudAlert>
+        <PresetReferencePicker Names="References.Select(r=>r.Name)" Value="_reference" ValueChanged="SelectReference" />
         <MudTextField T="string" @bind-Value="_query" Immediate="true" Placeholder="@T("장비 이름 / ID 검색", "Search name / ID")" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
         <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="my-3">
             <MudButton Size="Size.Small" OnClick="SelectResults">@T("검색 결과 선택", "Select results")</MudButton>
             <MudButton Size="Size.Small" OnClick="() => _selected.Clear()">@T("선택 해제", "Clear selection")</MudButton>
             <MudNumericField T="float" @bind-Value="_batch" Min=".1f" Max="2f" Step=".05f" Label="@T("선택 항목 배율", "Selected multiplier")" Variant="Variant.Outlined" Margin="Margin.Dense" Style="width:150px;flex:none" />
             <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(Selected.Count == 0)" OnClick="Apply">@T($"{Selected.Count}개 적용", $"Apply to {Selected.Count}")</MudButton>
-            <MudButton Variant="Variant.Outlined" Disabled="@(Selected.Count == 0)" OnClick="RestoreSelected">@T("선택 항목 저장값으로", "Restore selected")</MudButton>
+            <MudButton Variant="Variant.Outlined" Disabled="@(Selected.Count == 0)" OnClick="RestoreSelected">@T("선택 항목 기본값으로", "Defaults for selected")</MudButton>
         </MudStack>
         @foreach (var item in Visible)
         {
-            bool changed = Saved.TryGetValue(Key(item),out float baseline) && Math.Abs(item.StealthValue-baseline)>.00001f;
+            bool changed = DefaultValues.TryGetValue(Key(item),out float baseline) && Math.Abs(item.StealthValue-baseline)>.00001f;
             <div class="spt-panel pa-3 mb-2" @key="Key(item)">
                 <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
                     <MudCheckBox T="bool" Value="_selected.Contains(Key(item))" ValueChanged="v => Check(item,v)" Label="@(item.Name + (changed ? " ●" : ""))" Dense="true" Class="flex-grow-1" />
                     <MudNumericField T="float" Value="item.StealthValue" ValueChanged="v => Set(item,v)" Min=".1f" Max="2f" Step=".01f" Variant="Variant.Outlined" Margin="Margin.Dense" Style="width:120px;flex:none" aria-label="@item.Name" />
-                    <MudButton Size="Size.Small" Disabled="@(!changed)" OnClick="() => Set(item,baseline)">@T("되돌리기", "Reset")</MudButton>
+                    <MudButton Size="Size.Small" Disabled="@(!changed)" OnClick="() => Set(item,baseline)">@T("기본값", "Default")</MudButton>
                 </MudStack>
-                <MudSlider T="float" Value="item.StealthValue" ValueChanged="v => Set(item,v)" Min=".1f" Max="2f" Step=".01f" Color="Color.Primary" aria-label="@item.Name" />
+                <div class="sain-qref">@(_reference.Length==0?T("저장값","Saved"):_reference) @Compared(item).ToString("0.###")× → @item.StealthValue.ToString("0.###")×</div>
+                <ReferenceValueSlider Reference="Compared(item)" Value="item.StealthValue" ValueChanged="v => Set(item,v)" Min=".1f" Max="2f" Step=".01f" Label="@item.Name" />
                 <MudText Typo="Typo.caption" Class="spt-muted">@item.ItemID</MudText>
             </div>
         }
@@ -38,12 +40,24 @@
 @code {
     [Parameter, EditorRequired] public SAINPresetBundle Bundle { get; set; } = default!;
     [Parameter] public SAINPresetBundle? Original { get; set; }
+    [Parameter] public SAINPresetBundle? Defaults { get; set; }
+    [Parameter] public IReadOnlyList<(string Name,SAINPresetBundle Bundle)> References { get; set; } = Array.Empty<(string,SAINPresetBundle)>();
     [Parameter] public EventCallback OnChanged { get; set; }
     private EEquipmentType _type;
     private string? _query;
     private float _batch=1;
     private readonly HashSet<string> _selected=new();
-    private Dictionary<string,float> Saved = new();
+    private Dictionary<string,float> Saved = new(), DefaultValues=new(), Comparison=new();
+    private string _reference="zzap";
+    private static Dictionary<string,float> Values(SAINPresetBundle? bundle)=>bundle?.GearStealthValues.Values.SelectMany(v=>v).GroupBy(Key).ToDictionary(g=>g.Key,g=>g.First().StealthValue) ?? new();
+    private float Compared(ItemStealthValue item)=>Comparison.GetValueOrDefault(Key(item),item.StealthValue);
+    private void SelectReference(string name)
+    {
+        _reference=name;
+        var bundle=References.FirstOrDefault(r=>r.Name==name).Bundle;
+        if(name.Length>0&&bundle==null) _reference="";
+        Comparison=Values(bundle??Original);
+    }
     private static string Key(ItemStealthValue item) => item.EquipmentType+":"+item.ItemID+":"+item.Name;
     private IEnumerable<ItemStealthValue> Items => Bundle.GearStealthValues.GetValueOrDefault(_type) ?? new();
     private IEnumerable<ItemStealthValue> Visible => Items.Where(i=>string.IsNullOrWhiteSpace(_query) || (i.Name??"").Contains(_query,StringComparison.OrdinalIgnoreCase) || (i.ItemID??"").Contains(_query,StringComparison.OrdinalIgnoreCase));
@@ -51,7 +65,9 @@
     protected override void OnParametersSet()
     {
         if(!Bundle.GearStealthValues.ContainsKey(_type)) _type=Bundle.GearStealthValues.Keys.FirstOrDefault();
-        Saved=Original?.GearStealthValues.Values.SelectMany(v=>v).GroupBy(Key).ToDictionary(g=>g.Key,g=>g.First().StealthValue) ?? new();
+        Saved=Values(Original);
+        DefaultValues=Values(Defaults??Original);
+        SelectReference(_reference);
     }
     private void Select(EEquipmentType type) { _type=type; _selected.Clear(); }
     private void Check(ItemStealthValue item,bool selected) { if(selected) _selected.Add(Key(item)); else _selected.Remove(Key(item)); }
@@ -63,5 +79,5 @@
         item.StealthValue=next; return OnChanged.InvokeAsync();
     }
     private async Task Apply() { foreach(var item in Selected) await Set(item,_batch); }
-    private async Task RestoreSelected() { foreach(var item in Selected) if(Saved.TryGetValue(Key(item),out float v)) await Set(item,v); }
+    private async Task RestoreSelected() { foreach(var item in Selected) if(DefaultValues.TryGetValue(Key(item),out float v)) await Set(item,v); }
 }

@@ -18,9 +18,9 @@
     {
         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-3">@Setting(PersonalitySettingsClass.DescriptionOf(_selected))</MudAlert>
     }
-    <QuickObjectEditor Target="_settings" Original="Saved" OnChanged="OnChanged" />
+    <QuickObjectEditor Target="_settings" Original="Saved" Defaults="DefaultSettings" References="ReferenceSettings" OnChanged="OnChanged" />
     <MudExpansionPanels Elevation="0" Class="mt-3"><MudExpansionPanel Text="@T("고급 · 성격의 모든 설정", "Advanced · all personality settings")">
-        <SainSectionEditor Target="_settings" Original="Saved" OnChanged="OnChanged" />
+        <SainSectionEditor Target="_settings" Original="Saved" Defaults="DefaultSettings" References="ReferenceSettings" OnChanged="OnChanged" />
     </MudExpansionPanel></MudExpansionPanels>
 }
 else
@@ -33,6 +33,10 @@ else
 @code {
     [Parameter, EditorRequired] public SAINPresetBundle Bundle { get; set; } = default!;
     [Parameter] public SAINPresetBundle? Original { get; set; }
+    [Parameter] public SAINPresetBundle? Defaults { get; set; }
+    [Parameter] public IReadOnlyList<(string Name,SAINPresetBundle Bundle)> References { get; set; } = Array.Empty<(string,SAINPresetBundle)>();
+    private PersonalitySettingsClass? DefaultSettings => Defaults?.Personalities.GetValueOrDefault(_selected);
+    private IReadOnlyList<(string Name,object Target)> ReferenceSettings => References.Where(r=>r.Bundle.Personalities.ContainsKey(_selected)).Select(r=>(r.Name,(object)r.Bundle.Personalities[_selected])).ToArray();
     private PersonalitySettingsClass? Saved => Original?.Personalities.GetValueOrDefault(_selected);
     [Parameter] public EventCallback OnChanged { get; set; }
 

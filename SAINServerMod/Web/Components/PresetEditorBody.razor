@@ -12,16 +12,16 @@
         <PresetChanges Bundle="Bundle" Original="Original" Zzap="Zzap" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("전역 설정 (전체)", "Global settings (all)")" Icon="@Icons.Material.Outlined.Public">
-        <SainSectionEditor Target="Bundle.GlobalSettings" Original="Original?.GlobalSettings" OnChanged="OnChanged" />
+        <SainSectionEditor Target="Bundle.GlobalSettings" Original="Original?.GlobalSettings" Defaults="DefaultBundle?.GlobalSettings" References="Columns.Select(r=>(r.Name,(object)r.Bundle.GlobalSettings)).ToArray()" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("봇 종류별", "Bot types")" Icon="@Icons.Material.Outlined.SmartToy">
         <BotSettingsEditor Bundle="Bundle" Original="Original" Zzap="Zzap" References="Columns" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("성격", "Personalities")" Icon="@Icons.Material.Outlined.Psychology">
-        <PersonalityEditor Bundle="Bundle" Original="Original" OnChanged="OnChanged" />
+        <PersonalityEditor Bundle="Bundle" Original="Original" Defaults="DefaultBundle" References="Columns" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("장비 은밀성", "Gear Stealth")" Icon="@Icons.Material.Outlined.Shield">
-        <GearStealthEditor Bundle="Bundle" Original="Original" OnChanged="OnChanged" />
+        <GearStealthEditor Bundle="Bundle" Original="Original" Defaults="DefaultBundle" References="Columns" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("정보", "Info")" Icon="@Icons.Material.Outlined.Description">
         <MudStack Spacing="3" Style="max-width:520px;">
@@ -43,6 +43,8 @@
     [Parameter] public SAINPresetBundle? Zzap { get; set; }
     [Parameter] public IReadOnlyList<(string Name, SAINPresetBundle Bundle)> Columns { get; set; } = Array.Empty<(string, SAINPresetBundle)>();
     [Parameter] public int ChangedCount { get; set; }
+
+    private SAINPresetBundle? DefaultBundle => PresetEditorReference.Defaults(Bundle.Info.Name,Columns.Select(r=>r.Bundle),Original!);
 
     // Only mark dirty when the text actually changed, the field's initial value event is ignored.
     private Task SetInfo(string value, Action<string> setter, string current)

@@ -51,6 +51,9 @@ public static class ZzapUI
     public static GUIStyle ListText;
     public static GUIStyle ListTextSelected;
     public static GUIStyle Count;
+    private static GUIStyle _listWrap;
+    private static GUIStyle _listWrapSelected;
+    private static GUIStyle _listDetail;
     public static GUIStyle FieldStyle;
     public static GUIStyle Placeholder;
     public static GUIStyle Button;
@@ -156,6 +159,9 @@ public static class ZzapUI
         ListTextSelected.clipping = TextClipping.Clip;
         Count = Label(12, Dim);
         Count.alignment = TextAnchor.MiddleRight;
+        _listWrap = new GUIStyle(ListText) { wordWrap = true, alignment = TextAnchor.UpperLeft };
+        _listWrapSelected = new GUIStyle(ListTextSelected) { wordWrap = true, alignment = TextAnchor.UpperLeft };
+        _listDetail = new GUIStyle(Small) { wordWrap = true, alignment = TextAnchor.UpperLeft };
         Placeholder = Label(13, Dim);
         TabText = Label(14, Muted);
         TabText.alignment = TextAnchor.MiddleCenter;
@@ -379,9 +385,14 @@ public static class ZzapUI
     }
 
     /// <summary>One row of a left-hand list: yellow bar and tint when selected, a count on the right.</summary>
-    public static bool ListItem(string text, string right, bool selected, string tooltip = null, float indent = 0f, float height = 30f)
+    public static bool ListItem(string text, string right, bool selected, string tooltip = null, float indent = 0f, float height = 30f, bool detailOnNewLine = false)
     {
         EnsureStyles();
+        float measuredRight = string.IsNullOrEmpty(right) ? 0f : Count.CalcSize(new GUIContent(right)).x + 8f;
+        float estimatedWidth = Mathf.Max(100f, SIDE_WIDTH - 66f - indent);
+        float textHeight = (selected ? _listWrapSelected : _listWrap).CalcHeight(new GUIContent(text), detailOnNewLine ? estimatedWidth : Mathf.Max(70f, estimatedWidth - measuredRight));
+        float detailHeight = detailOnNewLine && !string.IsNullOrEmpty(right) ? _listDetail.CalcHeight(new GUIContent(right), estimatedWidth) + 4f : 0f;
+        height = Mathf.Max(height, textHeight + detailHeight + 8f);
         Rect rect = GUILayoutUtility.GetRect(10f, height, GUILayout.Height(height), GUILayout.ExpandWidth(true));
         if (Event.current.type == EventType.Repaint)
         {
@@ -395,12 +406,14 @@ public static class ZzapUI
                 Fill(rect, PanelHover);
             }
         }
-        float rightWidth = string.IsNullOrEmpty(right) ? 0f : 64f;
-        GUI.Label(new Rect(rect.x + 10f + indent, rect.y, rect.width - 14f - indent - rightWidth, rect.height), text, selected ? ListTextSelected : ListText);
-        if (rightWidth > 0f)
-        {
+        float rightWidth = detailOnNewLine ? 0f : Mathf.Min(measuredRight, Mathf.Max(0f, rect.width * .45f));
+        var labelStyle = selected ? _listWrapSelected : _listWrap;
+        var labelRect = new Rect(rect.x + 10f + indent, rect.y + 4f, Mathf.Max(1f, rect.width - 20f - indent - rightWidth), rect.height - 8f - detailHeight);
+        GUI.Label(labelRect, text, labelStyle);
+        if (detailOnNewLine && !string.IsNullOrEmpty(right))
+            GUI.Label(new Rect(labelRect.x, labelRect.yMax + 2f, labelRect.width, detailHeight), right, _listDetail);
+        else if (rightWidth > 0f)
             GUI.Label(new Rect(rect.xMax - rightWidth - 6f, rect.y, rightWidth, rect.height), right, Count);
-        }
         bool clicked = GUI.Button(rect, new GUIContent(string.Empty, tooltip), GUIStyle.none);
         if (clicked)
         {

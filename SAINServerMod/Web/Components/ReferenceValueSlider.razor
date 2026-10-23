@@ -1,0 +1,24 @@
+@namespace SAINServerMod.Web.Components
+@using System.Globalization
+<div class="sain-quick-slider sain-diffslider">
+    <div class="sain-dl" aria-hidden="true">
+        <span class="t"></span><span class="b" style="width:@Css(Math.Min(Position(Value),Position(Reference)))%"></span>
+        @if (Math.Abs(Value-Reference)>.00001f)
+        {
+            <span class="d @(Value > Reference ? "up" : "down")" style="left:@Css(Math.Min(Position(Value),Position(Reference)))%;width:@Css(Math.Abs(Position(Value)-Position(Reference)))%"></span>
+        }
+        <span class="r" style="left:@Css(Position(Reference))%"></span>
+    </div>
+    <MudSlider T="float" Value="Value" ValueChanged="ValueChanged" Min="Min" Max="Max" Step="Step" Color="Color.Default" Immediate="true" aria-label="@Label" />
+</div>
+@code {
+    [Parameter] public float Value { get; set; }
+    [Parameter] public float Reference { get; set; }
+    [Parameter] public float Min { get; set; }
+    [Parameter] public float Max { get; set; } = 1;
+    [Parameter] public float Step { get; set; } = .01f;
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public EventCallback<float> ValueChanged { get; set; }
+    private double Position(float value) => Max<=Min?0:Math.Clamp((value-Min)/(Max-Min)*100d,0,100);
+    private static string Css(double value)=>value.ToString("0.###",CultureInfo.InvariantCulture);
+}

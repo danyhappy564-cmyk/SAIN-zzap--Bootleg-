@@ -44,7 +44,7 @@ public static class BotSelectionClass
 
     private static BotType _selected;
     private static string _selectedSection; // a faction is selected instead of a bot
-    private static readonly HashSet<string> _folded = new();
+    private static readonly HashSet<string> _folded = new(Sections);
     private static ESainBotDifficulty? _advScope; // Advanced only; knobs always write all four slots
     private static string _search = string.Empty;
     private static bool _advancedOpen;
@@ -657,7 +657,7 @@ public static class BotSelectionClass
                 }
                 _view.Badges.TryGetValue(bot, out string badge);
                 var captured = bot;
-                if (ZzapUI.ListItem(bot.Name, badge, _selectedSection == null && bot == _selected, bot.Description, 26f, 28f))
+                if (ZzapUI.ListItem(bot.Name, badge, _selectedSection == null && bot == _selected, bot.Description, 26f, 52f, detailOnNewLine: true))
                 {
                     Write(() =>
                     {

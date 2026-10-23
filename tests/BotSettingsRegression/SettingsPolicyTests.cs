@@ -76,6 +76,28 @@ partial class Program
             BotQuickSettings.ApplyPersonality(knob,group,null,EPersonality.Coward);
             Check(group.Settings.Values.All(v=>BotPersonalityPool.Candidates(group.WildSpawnType,v.Mind).SequenceEqual(new[]{EPersonality.Coward})),"old single-choice edit ignored behind pool");
         });
+        Test("editor default reference keeps exact preset families and protects similarly named customs", () =>
+        {
+            foreach(string name in new[]{"zzap", "zzap 쉬움", "zzap 보통", "zzap 저사양 [테스트]", "zzap TEST [시뮬 전용]"})
+            {
+                Check((string)Call("PresetEditorReference","BaseName",name)==name,"wrong base "+name);
+                Check((string)Call("PresetEditorReference","BaseName",name+" [Modified 2]")==name,"wrong copy base "+name);
+            }
+            Check(Call("PresetEditorReference","BaseName","zzap 사용자꺼")==null,"unrelated custom assigned zzap defaults");
+        });
+        Test("quick defaults restore original values independently of saved changes and leave advanced values intact", () =>
+        {
+            var live=new SAIN.Preset.Shared.Personalities.BasePersonality.PersonalitySettingsClass();
+            var original=new SAIN.Preset.Shared.Personalities.BasePersonality.PersonalitySettingsClass();
+            original.Behavior.General.AggressionMultiplier=1.5f;
+            live.Behavior.General.AggressionMultiplier=2.5f; live.Assignment.Enabled=false;
+            live.Assignment.RandomlyAssignedChance=73;
+            int count=(int)Call("PresetEditorReference","ResetQuick",live,original);
+            Check(count==2,"wrong reset scope");
+            Check(live.Behavior.General.AggressionMultiplier==1.5f&&live.Assignment.Enabled,"defaults not restored");
+            Check(live.Assignment.RandomlyAssignedChance==73,"hidden advanced field overwritten");
+            Check(original.Behavior.General.AggressionMultiplier==1.5f,"source mutated");
+        });
         Test("client rejects direct writes to bundled original", () =>
         {
             LoadFixture(); var before=ServerPresetClient.Json["zzap"];

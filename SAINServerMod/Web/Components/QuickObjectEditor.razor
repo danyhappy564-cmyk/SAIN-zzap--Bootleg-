@@ -3,17 +3,18 @@
 @if (_fields.Count > 0)
 {
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-3">
-        <MudText Typo="Typo.subtitle2">@T("빠른 조절", "Quick controls")</MudText>
-        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => Scale(.9f)">@T("수치 −10%", "Numbers −10%")</MudButton>
-        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => Scale(1.1f)">@T("수치 +10%", "Numbers +10%")</MudButton>
-        <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="@(_saved.Count == 0)" OnClick="ResetAll">@T("저장값으로", "Restore saved")</MudButton>
-        <MudText Typo="Typo.caption" Class="spt-muted">@T($"저장 후 변경 {ChangedCount}개", $"{ChangedCount} changed since save")</MudText>
+        <MudText Typo="Typo.subtitle2" Class="flex-grow-1">@T("빠른 조절", "Quick controls") · @T($"변경 {ChangedCount}개", $"{ChangedCount} changed")</MudText>
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="@(_defaults.Count == 0)" OnClick="ResetAll">@T("기본값으로", "Defaults")</MudButton>
     </MudStack>
+    <PresetReferencePicker Names="References.Select(r=>r.Name)" Value="_reference" ValueChanged="SelectReference" />
     @foreach (var field in _fields)
     {
-        bool changed = _saved.TryGetValue(field.Key, out var baseline) && Math.Abs(field.Value - baseline) > .00001f;
+        bool changed = _saved.TryGetValue(field.Key, out var stored) && Math.Abs(field.Value - stored) > .00001f;
+        bool hasDefault = _defaults.TryGetValue(field.Key,out float baseline);
+        bool differs = hasDefault && Math.Abs(field.Value-baseline)>.00001f;
+        float compared = _comparison.GetValueOrDefault(field.Key,field.Value);
         <div class="spt-panel pa-3 mb-2" @key="field.Key">
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
                 <MudText Typo="Typo.body2" Class="flex-grow-1">@Setting(field.Name) @(changed ? "●" : "")</MudText>
                 @if (field.Toggle)
                 {
@@ -24,12 +25,14 @@
                     <MudNumericField T="float" Value="field.Value" ValueChanged="v => Set(field, v)" Min="field.Min" Max="field.Max" Step="field.Step"
                                      Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Style="width:120px;flex:none" aria-label="@Setting(field.Name)" />
                 }
-                <MudButton Size="Size.Small" Disabled="@(!changed)" OnClick="() => Set(field, baseline)">@T("되돌리기", "Reset")</MudButton>
+                <MudButton Size="Size.Small" Disabled="@(!differs)" OnClick="() => Set(field, baseline)">@T("기본값", "Default")</MudButton>
             </MudStack>
             @if (!field.Toggle)
             {
-                <MudSlider T="float" Value="field.Value" ValueChanged="v => Set(field,v)" Min="field.Min" Max="field.Max" Step="field.Step" Color="Color.Primary" aria-label="@Setting(field.Name)" />
+                <div class="sain-qref">@ReferenceLabel @compared.ToString("0.###") → <b>@field.Value.ToString("0.###")</b></div>
+                <ReferenceValueSlider Value="field.Value" Reference="compared" ValueChanged="v => Set(field,v)" Min="field.Min" Max="field.Max" Step="field.Step" Label="@Setting(field.Name)" />
             }
+            else { <div class="sain-qref">@ReferenceLabel: @(compared>=.5f?T("켬","On"):T("끔","Off"))</div> }
             <MudText Typo="Typo.caption" Class="spt-muted">@Setting(field.Help)</MudText>
         </div>
     }
@@ -38,13 +41,26 @@
 @code {
     [Parameter] public object? Target { get; set; }
     [Parameter] public object? Original { get; set; }
+    [Parameter] public object? Defaults { get; set; }
+    [Parameter] public IReadOnlyList<(string Name,object Target)> References { get; set; } = Array.Empty<(string,object)>();
     [Parameter] public EventCallback OnChanged { get; set; }
     private List<SettingsQuickField> _fields = new();
-    private Dictionary<string,float> _saved = new();
+    private Dictionary<string,float> _saved = new(), _defaults = new(), _comparison = new();
+    private string _reference = "zzap";
+    private string ReferenceLabel => _reference.Length==0?T("저장값","Saved"):_reference;
     protected override void OnParametersSet()
     {
-        _fields = SettingsQuickFields.For(Target!);
-        _saved = SettingsQuickFields.For(Original!).ToDictionary(f => f.Key, f => f.Value);
+        _fields=SettingsQuickFields.For(Target!);
+        _saved=PresetEditorReference.Values(Original!);
+        _defaults=PresetEditorReference.Values(Defaults??Original!);
+        SelectReference(_reference);
+    }
+    private void SelectReference(string name)
+    {
+        _reference=name;
+        var target=References.FirstOrDefault(r=>r.Name==name).Target;
+        if(name.Length>0&&target==null) _reference="";
+        _comparison=PresetEditorReference.Values(target??Original!);
     }
     private int ChangedCount => _fields.Count(f => _saved.TryGetValue(f.Key,out float value) && Math.Abs(f.Value-value)>.00001f);
     private Task Set(SettingsQuickField field,float value)
@@ -52,10 +68,5 @@
         float before=field.Value; field.Set(value);
         return field.Value == before ? Task.CompletedTask : OnChanged.InvokeAsync();
     }
-    private Task Scale(float ratio) => SettingsQuickFields.Scale(_fields,ratio)>0 ? OnChanged.InvokeAsync() : Task.CompletedTask;
-    private async Task ResetAll()
-    {
-        foreach (var field in _fields) if (_saved.TryGetValue(field.Key,out float value)) field.Set(value);
-        await OnChanged.InvokeAsync();
-    }
+    private Task ResetAll()=>PresetEditorReference.ResetQuick(Target!,Defaults??Original!)>0?OnChanged.InvokeAsync():Task.CompletedTask;
 }

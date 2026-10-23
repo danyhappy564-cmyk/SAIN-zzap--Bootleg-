@@ -21,14 +21,14 @@
         @foreach (var section in _visibleSections)
         {
             <div class="sain-bot-faction-head @(_selectedFaction == section.Name ? "on" : null)">
-                <button type="button" aria-expanded="@(!_collapsedSections.Contains(section.Name))"
+                <button type="button" aria-expanded="@((!string.IsNullOrWhiteSpace(_query) || !_collapsedSections.Contains(section.Name)))"
                         aria-label="@T($"{SectionName(section.Name)} 접기/펼치기", $"Collapse/expand {SectionName(section.Name)}")"
                         @onclick="() => ToggleSection(section.Name)">@(_collapsedSections.Contains(section.Name) ? "▸" : "▾")</button>
                 <button type="button" class="sain-bot-faction-name" aria-pressed="@(_selectedFaction == section.Name)"
                         @onclick="() => SelectFaction(section.Name)">@SectionName(section.Name)</button>
                 <span class="spt-muted">@T($"{section.Bots.Count}종", $"{section.Bots.Count} types")</span>
             </div>
-            @if (!_collapsedSections.Contains(section.Name))
+            @if ((!string.IsNullOrWhiteSpace(_query) || !_collapsedSections.Contains(section.Name)))
             {
                 @foreach (var bot in section.Bots)
                 {
@@ -579,6 +579,7 @@
             _scope = null;
             if (!_allBots.Any(b => b.Section == _selectedFaction)) _selectedFaction = null;
             CancelCopy();
+            _collapsedSections.UnionWith(_allBots.Select(b=>b.Section));
         }
         if (bundleChanged || languageChanged)
         {
