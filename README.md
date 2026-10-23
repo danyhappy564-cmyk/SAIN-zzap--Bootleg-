@@ -16,9 +16,9 @@
 
 ## 변경 이력
 
-- 2026-10-23 17:33 — **모드 봇(블랙 디비전 등)이 SAIN으로 안 싸우던 것 고침 시도 + 진단.** 16:55 시뮬에서 블디 12명이 나왔지만 SAIN 레이어를 한 번도 안 쓰고 게임 기본 레이더 AI로 싸움 — SAIN 전투 레이어는 기본 레이어를 빼야 차례가 오는데 그게 안 걸려 있었음. 이제 모드 봇이 스폰해 두뇌가 정해진 맨 마지막에 그 봇의 기본 전투 레이어를 다시 빼고(블디 포크가 쓰던 방법), 역할마다 한 번 그 두뇌에 SAIN 레이어가 몇 개 있고 기본 레이어가 몇 개 남았는지 로그에 남김(게임 미검증). 시뮬 '모드 봇 점검'은 모드별로 번갈아 분대를 불러 RUAF·UNTAR도 차례가 오게 함, F8 장면 표시가 이런 봇에서 통째로 실패하던 것도 고침.
+- 2026-10-23 19:00 — **Remix6.2 릴리즈 준비.** 릴리즈 이름 Remix6.2(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 17:43 게임 시뮬 '모드 봇 SAIN 점검'(공장 20분)에서 모드 봇 레이어 수정 확인 — 스폰 직후 남아 있던 기본 전투 레이어 3개(Pmc·AssaultHaveEnemy·AdvAssaultTarget)가 다시 빼진 뒤 0개, 블랙 디비전 SAIN 레이어 0% → 67%, RUAF·UNTAR 73%(나머지는 싸움 없을 때 순찰). 같은 판의 '매복 중 사망' 2건은 모르던 다른 적에게 맞은 것이라 고칠 것 없음. 내부 번호 4.5.1은 프리셋 호환 때문에 그대로.
 
-전체 변경 이력 236개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-024.md`](changelog/CHANGELOG-024.md)).
+전체 변경 이력 237개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-024.md`](changelog/CHANGELOG-024.md)).
 
 # SAIN (zzap fork)
 
@@ -37,9 +37,9 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 
 변경 이력은 [`changelog/`](changelog/), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
 
-**최근 변경 (2026-10-21, Remix6.1 릴리즈):** 봇 행동 버그 수정·조정 묶음 — 레이저·손전등이 켜진 채 남던 것, 제자리 점프, 전투 뒤 멍하니 서 있기(소리만 들은 적도 조용하면 수색, 매복 40초 상한), 적이 근처에 있는데 치료하던 것, 무기 핑퐁, 다리가 파괴된 봇의 수술(성격별 확률), 원래 SAIN 버그 5건(버니합 설정 무시·성격 배정 확률 등), 늘 100%이던 굴림 90%. 상세는 [`Remix6.1 릴리즈 노트`](changelog/RELEASE_NOTES_Remix6.1.md)와 [전체 이력](changelog/). (일부는 게임 2차 시뮬에서 확인, 마지막 수정분은 미검증)
+**최근 변경 (2026-10-23, Remix6.2 릴리즈):** 모드 봇(블랙 디비전·RUAF·UNTAR)이 포크 없이 SAIN으로 싸움 — 스폰 때 기본 전투 레이어를 다시 빼서 SAIN 전투가 돌게 함(게임 시뮬에서 블랙 디비전 SAIN 0% → 67% 확인), 모르는 적에게 맞으면 알아채고 반격, F6 봇 종류별 '성격 지정 (모드 봇용)'(블랙 디비전·웨지 기본 GigaChad). 레이드가 끝나면 지난 판 플레이어·봇 목록을 비움. 시뮬 프리셋 '모드 봇 SAIN 점검'. 상세는 [`Remix6.2 릴리즈 노트`](changelog/RELEASE_NOTES_Remix6.2.md)와 [전체 이력](changelog/).
 
-릴리즈별 변경 요약: [`remake5`](changelog/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](changelog/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](changelog/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
+릴리즈별 변경 요약: [`Remix6.2`](changelog/RELEASE_NOTES_Remix6.2.md) (Remix6.1 대비) · [`Remix6.1`](changelog/RELEASE_NOTES_Remix6.1.md) (remake6 대비) · [`remake6`](changelog/RELEASE_NOTES_remake6.md) (Remix5.1 대비) · [`Remix5.1`](changelog/RELEASE_NOTES_Remix5.1.md) (remake5 대비) · [`remake5`](changelog/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](changelog/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](changelog/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
 
 ## 설치 / 업데이트
 
