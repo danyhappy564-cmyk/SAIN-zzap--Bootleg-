@@ -105,6 +105,8 @@ public class SimRaidInfo
     public string Personalities;
     /// <summary>Bots carry no modded weapons / attachments / gear / clothing this raid (APBS's per-raid mod item list emptied).</summary>
     public bool NoModItems;
+    /// <summary>zzap (2026-10-23): this raid was a modded bot check (sim preset switch) - the analysis flags it when no modded bot spawned.</summary>
+    public bool ModdedCheck;
     /// <summary>Blackout (Labs power-cut mod) was told this sim raid is not dark (true = it had rolled dark and was switched off).</summary>
     public bool BlackoutOff;
     public bool BlackoutWasDark;

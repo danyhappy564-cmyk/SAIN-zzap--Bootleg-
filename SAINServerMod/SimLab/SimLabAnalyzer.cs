@@ -58,7 +58,30 @@ public static class SimLabAnalyzer
 
     public static int ErrorTotal(SimMapRecord m)
     {
-        return m.Last?.Errors?.Sum(e => e.Count) ?? 0;
+        return m.Last?.Errors?.Where(e => !IsOtherModLoadWarning(e)).Sum(e => e.Count) ?? 0;
+    }
+
+    /// <summary>
+    /// zzap (2026-10-23 sim): HarmonyX's "GetTypesFromAssembly ... Could not load file or assembly" is another mod's DLL that is
+    /// installed without its dependency (ozen.MagCheckInterrupt.Net needs Fika), hit when any mod scans all loaded types
+    /// (RAM cleaner's mode switch here). Not a raid error and nothing SAIN can fix - listed apart as info.
+    /// </summary>
+    public static bool IsOtherModLoadWarning(SimError e)
+    {
+        return e?.Key != null && e.Key.Contains("AccessTools.GetTypesFromAssembly", StringComparison.Ordinal);
+    }
+
+    /// <summary>"... assembly ozen.MagCheckInterrupt.Net, Version=..." -> "ozen.MagCheckInterrupt.Net".</summary>
+    private static string OtherModAssembly(string key)
+    {
+        int start = key.IndexOf("assembly ", StringComparison.Ordinal);
+        if (start < 0)
+        {
+            return key;
+        }
+        start += "assembly ".Length;
+        int end = key.IndexOf(',', start);
+        return end > start ? key.Substring(start, end - start) : key.Substring(start);
     }
 
     private static int Sum(SimBeat b, string prefix)
@@ -85,6 +108,7 @@ public static class SimLabAnalyzer
         ("시뮬 스폰 미적용", "Sim spawns not applied", "SimLabService.ApplyToRaid가 안 불렸거나 Armed/Running=false. 서버 로그 [SAIN SimLab] 줄, 시작 전 hello(start) 순서 확인."),
         ("시나리오 설정 문제", "Scenario setup problem", "SimLabDefaults.Scenarios의 구역 이름을 그 맵(원본 버전) SpawnPointParams.BotZoneName과 대조해 고치고 DefaultsVersion을 올려 저장된 설정도 갱신."),
         ("오류 ", "kinds of errors", "오류 목록 첫 스택의 위치를 수정. EFT.* 안쪽이면 그걸 부른 SAIN 코드에 null/상태 방어. 레이드 종료 중 오류라면 SimLogListener.Ending 처리(종료 뒤 집계 제외)가 빠진 경로 확인."),
+        ("모드 봇 점검인데", "Modded bot check, but", "서버 SimLabFactions.AddFactionWaves(모드 봇 점검 분대가 들어갔나, 서버 로그 factions [...])와 SimLabService.ModdedFactionRoles(등록된 모드 봇 종류), 클라 SimLabRunner.CollectReserves/Spawn(`[SimLab] faction squads: A n, B n`) 순서로 어디서 0이 됐는지 확인."),
         ("봇이 생성되지 않음", "No bots spawned", "LogOutput [SimLab] squad / 'stuck waiting' 줄과 [SimLab] ABPS found 로그 확인. ABPS 경유면 SimLabAbpsSpawn(구역 점 15m 조건, sim.abpsZone.fallback), 게임 기본이면 BotBossSpawn 지연(20초 재시도) 문제."),
         ("시뮬 외 봇이 섞임", "Non-sim bots mixed in", "RemoveOtherSpawns가 못 지운 경로(ABPS 자체 스캐브/보스, 웨이브 밖 스폰)를 찾아 SimLabService.Apply 또는 클라 StopOtherScenarios에 추가."),
         ("교전이 거의 없음", "Hardly any fighting", "분대 호출 수·봇 수·구역 줄(leash) 횟수·ORBIT 목적지를 보고: 생성 부족이면 스폰 경로, 못 만나면 시나리오 구역/Arena 반지름 조정, 페이스(MaxAliveBots/RespawnSeconds) 상향."),
@@ -184,8 +208,33 @@ public static class SimLabAnalyzer
         int errors = ErrorTotal(m);
         if (errors > 0)
         {
-            var top = b.Errors.OrderByDescending(e => e.Count).Take(3).Select(e => $"{e.Key} ×{e.Count}");
-            list.Add(new(HIGH, T($"오류 {b.Errors.Count}종, 총 {errors}회", $"{b.Errors.Count} kinds of errors, {errors} in total"), string.Join(" / ", top)));
+            var real = b.Errors.Where(e => !IsOtherModLoadWarning(e)).ToList();
+            var top = real.OrderByDescending(e => e.Count).Take(3).Select(e => $"{e.Key} ×{e.Count}");
+            list.Add(new(HIGH, T($"오류 {real.Count}종, 총 {errors}회", $"{real.Count} kinds of errors, {errors} in total"), string.Join(" / ", top)));
+        }
+        var otherMod = b.Errors?.Where(IsOtherModLoadWarning).ToList() ?? [];
+        if (otherMod.Count > 0)
+        {
+            string dlls = string.Join(", ", otherMod.Select(e => OtherModAssembly(e.Key)).Distinct());
+            list.Add(new(INFO, T("다른 모드 DLL 로드 경고 (SAIN 아님)", "Another mod's DLL failed to load (not SAIN)"),
+                T($"{dlls} — 필요한 다른 모드(예: Fika) 없이 깔린 파일. 어떤 모드가 전체 형식을 훑을 때마다 한 번씩 찍힘. 그 DLL을 빼면 사라짐 (오류 집계에서 뺌).",
+                  $"{dlls} - installed without the mod it needs (e.g. Fika); logged whenever a mod scans all types. Removing that DLL silences it (left out of the error count).")));
+        }
+
+        // zzap (2026-10-23 sim 15:54): the modded bot check spawned none of them and the md only said "faction squads 0" in a table.
+        if (m.Raid?.ModdedCheck == true && played >= 5f)
+        {
+            var modded = new HashSet<string>(SimLabFactions.Split(m.Raid.FactionRoles), StringComparer.OrdinalIgnoreCase);
+            int moddedSpawned = b.SpawnedRoles?.Where(kv => modded.Contains(kv.Key)).Sum(kv => kv.Value) ?? 0;
+            if (moddedSpawned == 0)
+            {
+                list.Add(new(HIGH, T("모드 봇 점검인데 모드 봇이 하나도 안 나옴", "Modded bot check, but no modded bot spawned"),
+                    modded.Count == 0
+                        ? T("서버가 모드 봇 분대를 하나도 넣지 않았습니다(팩션 분대 0). 서버 로그의 `[SAIN] Registered modded bot type` 줄과 `[SAIN SimLab] ... factions [...]` 줄 확인.",
+                            "The server added no modded squad (0 faction squads). Check the server log's `[SAIN] Registered modded bot type` and `[SAIN SimLab] ... factions [...]` lines.")
+                        : T($"모드 봇 분대 [{m.Raid.FactionRoles}]를 넣었고 {Sum(b, "sim.faction.called.")}번 불렀지만 안 나옴 (호출 실패 {Get(b, "sim.faction.callFailed")}). LogOutput의 `[SimLab] faction squad` 줄과 그 모드의 스폰 오류 확인.",
+                            $"Modded squads [{m.Raid.FactionRoles}] were added and called {Sum(b, "sim.faction.called.")} times but none appeared (call failures {Get(b, "sim.faction.callFailed")}). Check LogOutput's `[SimLab] faction squad` lines and that mod's spawn errors.")));
+            }
         }
 
         if (b.SimWavesActivated > 0 && b.BotsSeen == 0)
@@ -774,7 +823,8 @@ public static class SimLabAnalyzer
                     sb.AppendLine("### 오류 (같은 위치끼리 묶음)");
                     foreach (var e in b.Errors.OrderByDescending(e => e.Count))
                     {
-                        sb.AppendLine($"- ×{e.Count} [{e.Level}/{e.Source}] 첫 t={e.FirstRaidTime:0}s `{e.Key}`");
+                        string otherMod = IsOtherModLoadWarning(e) ? " (다른 모드 DLL — SAIN 아님, 집계 제외)" : string.Empty;
+                        sb.AppendLine($"- ×{e.Count} [{e.Level}/{e.Source}] 첫 t={e.FirstRaidTime:0}s `{e.Key}`{otherMod}");
                         if (!string.IsNullOrEmpty(e.Sample))
                         {
                             sb.AppendLine("  ```");

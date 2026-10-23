@@ -1221,7 +1221,7 @@ public sealed class SimLabService(
                     Deaths = beat.BotDeaths,
                     Fps = beat.Fps,
                     Mono = beat.MonoUsedMB,
-                    Errors = beat.Errors?.Sum(e => e.Count) ?? 0,
+                    Errors = beat.Errors?.Where(e => !SimLabAnalyzer.IsOtherModLoadWarning(e)).Sum(e => e.Count) ?? 0,
                 });
                 if (record.Samples.Count > MAX_SAMPLES)
                 {

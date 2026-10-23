@@ -56,18 +56,26 @@ public static class SimLabFactions
     {
         var roles = (config.FactionRoles ?? []).Where(r => !string.IsNullOrWhiteSpace(r)).Select(r => r.Trim()).Distinct().ToList();
         float share = config.FactionShare;
+        info.ModdedCheck = config.ModdedBotCheckInSim;
         // zzap (2026-10-23) modded bot check: the installed modded types instead, on half of the refills.
-        if (config.ModdedBotCheckInSim && moddedRoles is { Count: > 0 })
+        bool moddedCheck = config.ModdedBotCheckInSim && moddedRoles is { Count: > 0 };
+        if (moddedCheck)
         {
-            roles = moddedRoles;
+            roles = moddedRoles!;
             share = MODDED_CHECK_SHARE;
         }
         else
         {
             // a normal sim raid: no grouping left over from an earlier check raid
             ModdedFamilies.Clear();
+            if (config.ModdedBotCheckInSim)
+            {
+                info.Note = (info.Note + " 모드 봇 점검: SAIN에 등록된 모드 봇 종류가 없음(서버 로그 'Registered modded bot type' 확인) — 일반 팩션 분대 설정으로 돎.").Trim();
+            }
         }
-        if (!config.FactionMix || roles.Count == 0 || share <= 0f)
+        // zzap (2026-10-23 sim 15:54): the modded check is its own switch. The 'faction squads' switch was off in the sim settings,
+        // so the check raid added no modded squad at all (server "factions [] x0") and RUAF / UNTAR / Black Division never spawned.
+        if ((!config.FactionMix && !moddedCheck) || roles.Count == 0 || share <= 0f)
         {
             return;
         }
