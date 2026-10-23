@@ -58,7 +58,19 @@ public class BotHitByEnemyClass : BotBase
         Enemy enemy = Bot.EnemyController.CheckAddEnemy(shooter);
         if (enemy == null)
         {
-            return;
+            // CheckAddEnemy only finds players already in the group's enemy list - hostile but not listed yet: add him to
+            // the group first and try again (same as CloseSense / the frag blast).
+            var group = BotOwner.BotsGroup;
+            if (group == null || group.Enemies.ContainsKey(shooter) || group.IsAlly(shooter) || !group.IsPlayerEnemy(shooter))
+            {
+                return;
+            }
+            group.AddEnemy(shooter, EBotEnemyCause.checkAddTODO);
+            enemy = Bot.EnemyController.CheckAddEnemy(shooter);
+            if (enemy == null)
+            {
+                return;
+            }
         }
 
         bool wasKnown = enemy.EnemyKnown;

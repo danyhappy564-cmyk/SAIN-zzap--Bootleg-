@@ -55,6 +55,10 @@ public static class BigBrainHandler
         "Kojaniy Target", // Used by Shturman and his followers
     ];
 
+    // zzap (2026-10-23): the rest of the list MoreBotsAPI asks for on its bots (Black Division's fork, verified in a raid,
+    // excluded the same 16). Modded bot types only, so the raid-start check also restores these.
+    private static readonly string[] _moddedExtraVanillaLayersToRemove = ["Help", "Hit", "Assault Building", "Enemy Building"];
+
     private static readonly List<Type> _SAINLayers = [];
     private static readonly List<string> _SAINLayerNames = [];
 
@@ -189,7 +193,7 @@ public static class BigBrainHandler
                     continue;
                 }
 
-                List<string> layers = [.. _commonVanillaLayersToRemove];
+                List<string> layers = [.. _commonVanillaLayersToRemove, .. _moddedExtraVanillaLayersToRemove];
 
                 if (botType.LayersToRemove != null)
                 {

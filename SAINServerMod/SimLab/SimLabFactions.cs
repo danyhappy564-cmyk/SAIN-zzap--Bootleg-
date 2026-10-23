@@ -62,6 +62,11 @@ public static class SimLabFactions
             roles = moddedRoles;
             share = MODDED_CHECK_SHARE;
         }
+        else
+        {
+            // a normal sim raid: no grouping left over from an earlier check raid
+            ModdedFamilies.Clear();
+        }
         if (!config.FactionMix || roles.Count == 0 || share <= 0f)
         {
             return;
