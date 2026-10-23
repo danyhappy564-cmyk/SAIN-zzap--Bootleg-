@@ -20,15 +20,25 @@
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" Clearable="true" />
         @foreach (var section in _visibleSections)
         {
-            <h3 class="sain-bot-section">@SectionName(section.Name)</h3>
-            @foreach (var bot in section.Bots)
+            <div class="sain-bot-faction-head @(_selectedFaction == section.Name ? "on" : null)">
+                <button type="button" aria-expanded="@(!_collapsedSections.Contains(section.Name))"
+                        aria-label="@T($"{SectionName(section.Name)} 접기/펼치기", $"Collapse/expand {SectionName(section.Name)}")"
+                        @onclick="() => ToggleSection(section.Name)">@(_collapsedSections.Contains(section.Name) ? "▸" : "▾")</button>
+                <button type="button" class="sain-bot-faction-name" aria-pressed="@(_selectedFaction == section.Name)"
+                        @onclick="() => SelectFaction(section.Name)">@SectionName(section.Name)</button>
+                <span class="spt-muted">@T($"{section.Bots.Count}종", $"{section.Bots.Count} types")</span>
+            </div>
+            @if (!_collapsedSections.Contains(section.Name))
             {
-                var record = _records[bot.Type];
-                <button type="button" class="sain-bot-item @(_botType == bot.Type ? "on" : null)"
-                        aria-pressed="@(_botType == bot.Type)" @onclick="() => SelectBot(bot.Type)">
-                    <span>@bot.Name @if (_changedBots.Contains(bot.Type)) { <span class="sain-diff" title="@T("기준과 다른 값이 있음", "Changed from reference")">●</span> }</span>
-                    <span class="sain-bot-badge @(record.Totals.Count > 0 ? "used" : null)">@record.Badge</span>
-                </button>
+                @foreach (var bot in section.Bots)
+                {
+                    var view = _levelViews[bot.Type];
+                    <button type="button" class="sain-bot-item @(_selectedFaction == null && _botType == bot.Type ? "on" : null) @(_selectedFaction == section.Name ? "in-faction" : null)"
+                            aria-pressed="@(_selectedFaction == null && _botType == bot.Type)" @onclick="() => SelectBot(bot.Type)">
+                        <span>@bot.Name</span>
+                        <span class="sain-bot-badge @BadgeClass(view)">@BadgeText(view)</span>
+                    </button>
+                }
             }
         }
         @if (_visibleSections.Count == 0)
@@ -38,7 +48,57 @@
     </aside>
 
     <div class="spt-panel sain-bot-main pa-3">
-        @if (_group == null)
+        @if (_selectedFaction != null)
+        {
+            <div class="sain-bot-heading">
+                <MudText Typo="Typo.h6">@T($"{SectionName(_selectedFaction)} 전체 ({_factionBots.Count}종)", $"All of {SectionName(_selectedFaction)} ({_factionBots.Count})")</MudText>
+                <div class="sain-bot-actions">
+                    @if (_factionBots.Any(b => SavedGroup(b.Type) != null))
+                    {
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="RevertFaction">@T("되돌리기", "Revert")</MudButton>
+                    }
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" OnClick="ResetFaction">@T("원본 사용", "Use original")</MudButton>
+                </div>
+            </div>
+            <div class="sain-bot-ai">
+                <b>AI</b>
+                <button type="button" class="sain-refchip @(_factionVanilla == false ? "on" : null)" aria-pressed="@(_factionVanilla == false)" @onclick="() => SetFactionAI(false)">SAIN</button>
+                <button type="button" class="sain-refchip @(_factionVanilla == true ? "on" : null)" aria-pressed="@(_factionVanilla == true)" @onclick="() => SetFactionAI(true)">@T("게임 기본 (바닐라)", "EFT's own (vanilla)")</button>
+                @if (!_factionVanilla.HasValue && _factionBots.Count > 0)
+                {
+                    <span class="spt-muted">@T("섞임", "mixed")</span>
+                }
+            </div>
+            <div class="sain-bot-help spt-muted">@T("게임 재시작 후 적용 · 전역 설정의 '바닐라 …' 묶음이 켜져 있으면 그쪽이 우선합니다", "Applies after a game restart · a global 'Vanilla …' group toggle wins")</div>
+            <div class="sain-bot-levels @(_factionVanilla == true ? "sain-bot-dim" : null)">
+                @foreach (var level in Levels)
+                {
+                    <button type="button" class="sain-bot-level @LevelClass(level) @(_factionBots.Count > 0 && _factionCounts[level] == _factionBots.Count ? "on" : null)"
+                            disabled="@(!_factionAvailable.Contains(level))" title="@(!_factionAvailable.Contains(level) ? MissingLevel(level) : null)"
+                            @onclick="() => ApplyFactionLevel(level)">
+                        <b>@LevelName(level)</b><small>@LevelDescription(level)</small>
+                        <small>@T($"{_factionCounts[level]}종", $"{_factionCounts[level]} types")</small>
+                    </button>
+                }
+            </div>
+            <div class="sain-bot-help spt-muted">@T("행동(문 전술 등)은 성격과 전역 설정을 따릅니다", "Behaviour (door tactics etc.) follows the personality and global settings")</div>
+            <table class="sain-bot-table">
+                <thead><tr><th>@T("봇 이름", "Bot name")</th><th>@T("난이도", "Level")</th><th>AI</th></tr></thead>
+                <tbody>
+                    @foreach (var bot in _factionBots)
+                    {
+                        var view = _levelViews[bot.Type];
+                        <tr>
+                            <td><button type="button" @onclick="() => SelectBot(bot.Type)">@bot.Name</button></td>
+                            <td><span class="sain-bot-badge @BadgeClass(view)">@BadgeText(view)</span></td>
+                            <td>@(view.Group.UseVanillaAI ? T("게임 기본 (바닐라)", "EFT's own (vanilla)") : "SAIN")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <div class="sain-bot-help spt-muted mt-3">@T("손잡이는 봇을 하나 골라서", "Knobs: pick one bot")</div>
+        }
+        else if (_group == null || _selectedView == null)
         {
             <MudText Typo="Typo.body2" Class="spt-muted">@T("편집할 봇 설정이 없습니다.", "No bot settings to edit.")</MudText>
         }
@@ -68,36 +128,47 @@
         else
         {
             <div class="sain-bot-heading">
-                <div>
+                <div class="sain-bot-actions">
                     <MudText Typo="Typo.h6">@BotName</MudText>
-                    <MudText Typo="Typo.caption" Class="spt-muted">@_records[_botType].Detail</MudText>
+                    <span class="sain-bot-badge @BadgeClass(_selectedView)">@BadgeText(_selectedView)</span>
                 </div>
-                <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ContentCopy" OnClick="StartCopy">
-                    @T("이 봇 설정을 다른 봇에 복사", "Copy this bot to other bots")
-                </MudButton>
+                <div class="sain-bot-actions">
+                    @if (SavedGroup(_botType) != null)
+                    {
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="RevertBot">@T("되돌리기", "Revert")</MudButton>
+                    }
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" OnClick="ResetBot">@T("원본 사용", "Use original")</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ContentCopy" OnClick="StartCopy">
+                        @T("이 봇 설정을 다른 봇에 복사", "Copy this bot to other bots")
+                    </MudButton>
+                </div>
             </div>
-            <div class="sain-refbar sain-bot-scope">
-                <span class="sain-refbar-label">@T("바꾸면 적용할 곳", "Apply changes to")</span>
-                <button type="button" class="sain-refchip @(!_scope.HasValue ? "on" : null)" aria-pressed="@(!_scope.HasValue)" @onclick="() => SelectScope(null)">@T("난이도 4칸 전부", "All 4 difficulties")</button>
-                @foreach (var difficulty in Difficulties)
+            <div class="sain-bot-ai">
+                <b>@T("이 봇의 AI", "This bot's AI")</b>
+                <button type="button" class="sain-refchip @(!_group.UseVanillaAI ? "on" : null)" aria-pressed="@(!_group.UseVanillaAI)" @onclick="() => SetBotAI(false)">SAIN</button>
+                <button type="button" class="sain-refchip @(_group.UseVanillaAI ? "on" : null)" aria-pressed="@_group.UseVanillaAI" @onclick="() => SetBotAI(true)">@T("게임 기본 (바닐라)", "EFT's own (vanilla)")</button>
+            </div>
+            <div class="sain-bot-help spt-muted">@T("게임 재시작 후 적용 · 전역 설정의 '바닐라 …' 묶음이 켜져 있으면 그쪽이 우선합니다", "Applies after a game restart · a global 'Vanilla …' group toggle wins")</div>
+            <div class="@(_group.UseVanillaAI ? "sain-bot-dim" : null)">
+            <div class="sain-bot-levels">
+                @foreach (var level in Levels)
                 {
-                    bool seen = _records[_botType].Totals.ContainsKey(difficulty);
-                    <button type="button" class="sain-refchip @(_scope == difficulty ? "on" : null) @(!seen ? "sain-bot-unseen" : null)"
-                            aria-pressed="@(_scope == difficulty)" @onclick="() => SelectScope(difficulty)">
-                        @Value(difficulty)@(!seen ? T(" (안 나옴)", " (not seen)") : "")
+                    <button type="button" class="sain-bot-level @LevelClass(level) @(_selectedView.Badge.Level == level ? "on" : null)"
+                            aria-pressed="@(_selectedView.Badge.Level == level)" disabled="@(!_selectedView.Available.Contains(level))"
+                            title="@(!_selectedView.Available.Contains(level) ? MissingLevel(level) : null)" @onclick="() => ApplyBotLevel(level)">
+                        <b>@LevelName(level)</b><small>@LevelDescription(level)@(_selectedView.Badge.Level == level ? T(" · 지금", " · now") : "")</small>
                     </button>
                 }
-                <span class="sain-bot-reference spt-muted">@(_reference == null ? T("기준 없음 (zzap 프리셋에 이 봇이 없음)", "No reference (not in the zzap preset)") : T("기준: zzap 프리셋", "Reference: zzap preset"))</span>
             </div>
-            <div class="sain-bot-shown spt-muted">@ScopeLine</div>
-            @if (_allSlotsSame)
+            @if (_selectedView.AdjustedCount > 0)
             {
-                <div class="sain-bot-shown spt-muted">@T("이 봇은 난이도 4칸 값이 모두 같습니다 — 어느 칸을 골라도 숫자는 같습니다.", "This bot has the same values in all four difficulty slots - every slot shows the same numbers.")</div>
+                <div class="sain-bot-warning">@T($"⚠ 손으로 조정한 값이 {_selectedView.AdjustedCount}개 있습니다 — 다른 난이도를 누르면 그 단계 값으로 바뀝니다", $"⚠ {_selectedView.AdjustedCount} hand-adjusted value(s) - another level replaces them with that level's values")</div>
             }
+            <div class="sain-bot-help spt-muted">@T("행동(문 전술 등)은 성격과 전역 설정을 따릅니다", "Behaviour (door tactics etc.) follows the personality and global settings")</div>
 
             @if (_settings == null)
             {
-                <MudText Typo="Typo.body2" Class="spt-muted mb-3">@T("이 봇·난이도 조합에는 설정이 없습니다. 다른 난이도를 골라 주세요.", "No settings for this bot/difficulty combination. Pick another difficulty.")</MudText>
+                <MudText Typo="Typo.body2" Class="spt-muted mb-3">@T("이 봇에는 편집할 난이도 칸이 없습니다.", "This bot has no difficulty slots to edit.")</MudText>
             }
             else
             {
@@ -117,20 +188,11 @@
                         <div class="sain-qrow sain-bot-knob" @key="knob.Id">
                             <div class="sain-bot-knob-label">
                                 <span class="sain-qrow-name">@knob.Name(Korean)</span>
-                                @if (_bySlotKnobs.Contains(knob.Id))
+                                @if (knob.Kind is BotKnobKind.Personality or BotKnobKind.Toggle)
                                 {
-                                    <span class="sain-bot-byslot">@T("칸마다 다름", "differs by slot")</span>
+                                    <span class="sain-bot-byslot">@T("난이도와 무관", "Not affected by the level")</span>
                                 }
                                 <div class="sain-quick-desc">@knob.Help(Korean)</div>
-                                @if (_bySlotKnobs.Contains(knob.Id) && _group != null)
-                                {
-                                    <div class="sain-quick-desc sain-bot-slots">
-                                        @foreach (var slot in BotQuickSettings.SlotValues(knob, _group, Korean))
-                                        {
-                                            <span class="@(slot.Difficulty == _shown ? "on" : null)">@Value(slot.Difficulty) @slot.Text</span>
-                                        }
-                                    </div>
-                                }
                             </div>
                             <div class="sain-bot-knob-control">
                                 @if (knob.Kind is BotKnobKind.Toggle or BotKnobKind.ToggleNumber)
@@ -209,6 +271,37 @@
             </button>
             @if (_advancedOpen)
             {
+                <MudText Typo="Typo.subtitle2" Class="spt-title mt-3">@T("난이도별로 따로 바꾸기", "Per-difficulty editing")</MudText>
+                <div class="sain-refbar sain-bot-scope">
+                    <button type="button" class="sain-refchip @(!_scope.HasValue ? "on" : null)" aria-pressed="@(!_scope.HasValue)" @onclick="() => SelectScope(null)">@T("난이도 4칸 전부", "All 4 difficulties")</button>
+                    @foreach (var difficulty in Difficulties)
+                    {
+                        bool seen = _records[_botType].Totals.ContainsKey(difficulty);
+                        <button type="button" class="sain-refchip @(_scope == difficulty ? "on" : null) @(!seen ? "sain-bot-unseen" : null)"
+                                aria-pressed="@(_scope == difficulty)" @onclick="() => SelectScope(difficulty)">
+                            @Value(difficulty)@(!seen ? T(" (안 나옴)", " (not seen)") : "")
+                        </button>
+                    }
+                </div>
+                <div class="sain-bot-shown spt-muted">@_records[_botType].Detail</div>
+                <div class="sain-bot-shown spt-muted">@ScopeLine</div>
+                <div class="sain-bot-shown spt-muted">@(_allSlotsSame ? T("4칸 같음", "All 4 slots match") : T("칸마다 다름", "Differs by slot"))</div>
+                @foreach (var knob in BotQuickSettings.All.Where(k => _bySlotKnobs.Contains(k.Id)))
+                {
+                    <div class="sain-bot-shown spt-muted">
+                        @knob.Name(Korean):
+                        <span class="sain-bot-slots">
+                            @foreach (var slot in _knobSlotValues[knob.Id])
+                            {
+                                <span class="@(slot.Difficulty == _advancedShown ? "on" : null)">@Value(slot.Difficulty) @slot.Text</span>
+                            }
+                        </span>
+                    </div>
+                }
+                @if (_advancedSettings == null)
+                {
+                    <MudText Typo="Typo.body2" Class="spt-muted mt-2">@T("이 난이도 칸에는 설정이 없습니다. 다른 칸을 골라 주세요.", "No settings in this difficulty slot. Pick another slot.")</MudText>
+                }
                 @foreach (var section in _advancedSections)
                 {
                     <MudText Typo="Typo.subtitle2" Class="spt-title mt-3 mb-1">@section.Label</MudText>
@@ -240,6 +333,7 @@
                     }
                 }
             }
+            </div>
         }
     </div>
 </div>
@@ -254,7 +348,31 @@
     .sain-bot-item:hover { background: #27272a; }
     .sain-bot-item.on { background: #203d57; border-color: #39749d; }
     .sain-bot-badge { border-radius: 10px; padding: 1px 6px; background: #303038; color: #a1a1aa; font-size: .65rem; }
-    .sain-bot-badge.used { background: #214630; color: #b8eac8; }
+    .sain-bot-badge.easy { background: #1f3b4d; color: #9fd3f5; }
+    .sain-bot-badge.normal, .sain-bot-badge.vanilla { background: #303038; color: #cfd6e2; }
+    .sain-bot-badge.hard { background: #4d3a1f; color: #f5c98f; }
+    .sain-bot-badge.impossible { background: #4d1f24; color: #f59aa3; }
+    .sain-bot-badge.custom { background: #352742; color: #d4b1ed; }
+    .sain-bot-faction-head { display: flex; align-items: center; gap: 5px; margin-top: 10px; border-radius: 5px; font-size: .75rem; }
+    .sain-bot-faction-head button, .sain-bot-table button { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 6px; text-align: left; }
+    .sain-bot-faction-head .sain-bot-faction-name { flex: 1; font-weight: 700; }
+    .sain-bot-faction-head.on { background: #203d57; }
+    .sain-bot-item.in-faction { background: #22303f; }
+    .sain-bot-actions, .sain-bot-ai { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .sain-bot-ai { margin: 12px 0 4px; padding: 8px; border: 1px solid #3f3f46; border-radius: 6px; }
+    .sain-bot-levels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 12px 0 6px; }
+    .sain-bot-level { padding: 10px 6px; border: 1px solid #52525b; border-radius: 6px; color: inherit; background: transparent; cursor: pointer; }
+    .sain-bot-level small { display: block; color: #a1a1aa; margin-top: 3px; }
+    .sain-bot-level.easy.on { background: #1f3b4d; border-color: #6caad1; }
+    .sain-bot-level.normal.on { background: #303038; border-color: #a1a1aa; }
+    .sain-bot-level.hard.on { background: #4d3a1f; border-color: #e8b04a; }
+    .sain-bot-level.impossible.on { background: #4d1f24; border-color: #d96c78; }
+    .sain-bot-level:disabled { opacity: .45; cursor: not-allowed; }
+    .sain-bot-dim { opacity: .55; }
+    .sain-bot-help { font-size: .75rem; }
+    .sain-bot-warning { color: #f5c98f; font-size: .8rem; margin: 8px 0; }
+    .sain-bot-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .85rem; }
+    .sain-bot-table th, .sain-bot-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid #3f3f46; }
     .sain-bot-heading, .sain-bot-copy-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
     .sain-bot-scope { margin-top: 12px; }
     .sain-bot-scope .sain-bot-unseen { opacity: .6; }
@@ -290,6 +408,7 @@
         .sain-bot-reference { flex-basis: 100%; }
     }
     @@media (max-width: 480px) {
+        .sain-bot-levels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .sain-bot-knob { grid-template-columns: minmax(0, 1fr) 78px; }
         .sain-bot-knob-control, .sain-bot-delta { grid-column: 1 / -1; }
         .sain-bot-reset { grid-column: 2; grid-row: 1; }
@@ -299,11 +418,25 @@
 @code {
     [Parameter, EditorRequired] public SAINPresetBundle Bundle { get; set; } = default!;
     [Parameter] public SAINPresetBundle? Zzap { get; set; }
+    [Parameter] public SAINPresetBundle? Original { get; set; }
+    [Parameter] public IReadOnlyList<(string Name, SAINPresetBundle Bundle)> References { get; set; } = Array.Empty<(string, SAINPresetBundle)>();
     [Parameter] public EventCallback OnChanged { get; set; }
 
     private sealed record BotOption(ESainWildSpawnType Type, string Name, string Section);
     private sealed record BotSection(string Name, List<BotOption> Bots);
-    private sealed record SpawnSummary(Dictionary<ESainBotDifficulty, int> Totals, string Badge, string Detail);
+    private sealed record SpawnSummary(Dictionary<ESainBotDifficulty, int> Totals, string Detail);
+    // zzap (2026-10-23): cache sources, badges and computed knob references outside the render path.
+    private sealed class BotLevelView
+    {
+        public required ESainWildSpawnType Type { get; init; }
+        public required SAINSettingsGroupClass Group { get; init; }
+        public required LevelSources Sources { get; init; }
+        public (EBotLevel Level, bool Adjusted, bool Custom) Badge { get; set; }
+        public int AdjustedCount { get; set; }
+        public SAINSettingsClass? Baseline { get; set; }
+        public SAINSettingsGroupClass? KnobReference { get; set; }
+        public HashSet<EBotLevel> Available { get; } = new();
+    }
     private sealed record AdvancedSection(string Name, string Label, List<AdvancedRow> Rows);
     private sealed record AdvancedRow(string Group, FieldInfo? Category, FieldInfo Field, SainValue Editor, FieldInfo? Nested = null, string Context = "")
     {
@@ -312,6 +445,7 @@
 
     private static readonly ESainBotDifficulty[] Difficulties =
         { ESainBotDifficulty.easy, ESainBotDifficulty.normal, ESainBotDifficulty.hard, ESainBotDifficulty.impossible };
+    private static readonly EBotLevel[] Levels = { EBotLevel.Easy, EBotLevel.Normal, EBotLevel.Hard, EBotLevel.Impossible };
     private static readonly EPersonality[] Personalities = Enum.GetValues<EPersonality>();
     private static readonly (string Name, BotKnob[] Knobs)[] KnobSections =
         { ("aim", BotQuickSettings.All.Where(k => k.Group == "aim").ToArray()),
@@ -327,24 +461,44 @@
             .Select(field => (Category: item.Category, Nested: item.Field, Field: field))).ToArray();
 
     private SAINPresetBundle? _lastBundle;
-    private SAINPresetBundle? _lastZzap;
+    private SAINPresetBundle? _easyBundle;
+    private SAINPresetBundle? _normalBundle;
+    private SAINPresetBundle? _hardBundle;
+    private object? _lastDefaults;
+    private LevelGlobals? _currentGlobals;
+    private LevelGlobals? _easyGlobals;
+    private LevelGlobals? _normalGlobals;
+    private LevelGlobals? _hardGlobals;
+    private (float Sight, float Spotting, float Scatter, float Hearing, float Accuracy, float Recoil, bool Cqb)? _globalKey;
+    private SAINPresetBundle? _defaultBundle;
     private bool _lastKorean;
     private ESainWildSpawnType _botType;
     private ESainBotDifficulty? _scope;
     private ESainBotDifficulty _shown;
+    private ESainBotDifficulty _advancedShown;
     private SAINSettingsGroupClass? _group;
     private SAINSettingsGroupClass? _reference;
     private SAINSettingsClass? _settings;
     private SAINSettingsClass? _referenceSettings;
+    private SAINSettingsClass? _advancedSettings;
+    private SAINSettingsClass? _advancedReferenceSettings;
+    private BotLevelView? _selectedView;
+    private readonly Dictionary<ESainWildSpawnType, BotLevelView> _levelViews = new();
+    private readonly HashSet<string> _collapsedSections = new();
+    private string? _selectedFaction;
+    private List<BotOption> _factionBots = new();
+    private bool? _factionVanilla;
+    private readonly Dictionary<EBotLevel, int> _factionCounts = Levels.ToDictionary(level => level, _ => 0);
+    private readonly HashSet<EBotLevel> _factionAvailable = new();
     private List<SpawnRaidCounts> _raids = new();
     private List<BotOption> _allBots = new();
     private List<BotSection> _visibleSections = new();
     private List<BotSection> _copySections = new();
     private readonly Dictionary<ESainWildSpawnType, SpawnSummary> _records = new();
-    private readonly HashSet<ESainWildSpawnType> _changedBots = new();
     private readonly HashSet<ESainWildSpawnType> _copyTargets = new();
     private readonly HashSet<string> _changedKnobs = new();
     private readonly HashSet<string> _bySlotKnobs = new();
+    private readonly Dictionary<string, List<(ESainBotDifficulty Difficulty, string Text)>> _knobSlotValues = new();
     private bool _allSlotsSame;
     private List<AdvancedRow> _advancedRows = new();
     private List<AdvancedSection> _advancedSections = new();
@@ -354,16 +508,16 @@
     private int _advancedChanged;
     private string BotName => _group?.Name ?? _botType.ToString();
 
-    // zzap (user 10/23: "picking easy/normal/hard, can't tell anything changed"): which slot is shown and what a change hits.
+    // zzap (2026-10-23): slot scope belongs only to the advanced editor; knobs always affect all slots.
     private string ScopeLine
     {
         get
         {
             bool recorded = _records.TryGetValue(_botType, out var record) && record.Totals.Count > 0;
             return _scope.HasValue
-                ? T($"지금 보는 칸: {Value(_shown)} · 바꾸면 {Value(_shown)} 칸만 바뀝니다", $"Showing: {Value(_shown)} · changes hit the {Value(_shown)} slot only")
-                : T($"지금 보는 칸: {Value(_shown)}{(recorded ? " (최근 레이드에서 가장 많이 나옴)" : " (기록이 없어 보통)")} · 바꾸면 4칸 모두 같은 비율로 바뀝니다",
-                    $"Showing: {Value(_shown)}{(recorded ? " (most seen lately)" : " (no record - normal)")} · changes move all four slots by the same ratio");
+                ? T($"지금 보는 칸: {Value(_advancedShown)} · 바꾸면 {Value(_advancedShown)} 칸만 바뀝니다", $"Showing: {Value(_advancedShown)} · changes hit the {Value(_advancedShown)} slot only")
+                : T($"지금 보는 칸: {Value(_advancedShown)}{(recorded ? " (최근 레이드 기록 기준)" : " (기록 없음)")} · 바꾸면 4칸 모두 같은 비율로 바뀝니다",
+                    $"Showing: {Value(_advancedShown)}{(recorded ? " (recent raid records)" : " (no record)")} · changes move all four slots by the same ratio");
         }
     }
 
@@ -390,15 +544,25 @@
     protected override void OnParametersSet()
     {
         bool bundleChanged = !ReferenceEquals(Bundle, _lastBundle);
-        bool referenceChanged = !ReferenceEquals(Zzap, _lastZzap);
+        var easy = FindReference("zzap 쉬움");
+        var normal = FindReference("zzap 보통");
+        var hard = Zzap ?? FindReference("zzap");
+        var defaults = PresetGeneration.Presets.FirstOrDefault(p => p.Info?.BaseSAINDifficulty == SAINDifficulty.hard);
+        var globals = Bundle.GlobalSettings;
+        var globalKey = (globals?.Difficulty.VisibleDistCoef ?? 0f, globals?.Difficulty.GainSightCoef ?? 0f,
+            globals?.Difficulty.ScatteringCoef ?? 0f, globals?.Difficulty.HearingDistanceCoef ?? 0f,
+            globals?.Difficulty.ACCURACY_SPEED_COEF ?? 0f, globals?.Shoot.BOT_RECOIL_COEF ?? 0f,
+            globals?.Aiming.FasterCQBReactionsGlobal ?? false);
+        bool sourcesChanged = bundleChanged || !ReferenceEquals(easy, _easyBundle) || !ReferenceEquals(normal, _normalBundle)
+            || !ReferenceEquals(hard, _hardBundle) || !ReferenceEquals(defaults, _lastDefaults) || _globalKey != globalKey;
         bool languageChanged = Korean != _lastKorean;
         _lastBundle = Bundle;
-        _lastZzap = Zzap;
         _lastKorean = Korean;
         if (bundleChanged)
         {
-            var sectionByType = PresetGeneration.AllBotTypes().ToDictionary(b => b.WildSpawnType, b => b.Section ?? "Other");
-            _allBots = Bundle.BotSettings.Where(kv => kv.Value != null)
+            var sectionByType = PresetGeneration.AllBotTypes().GroupBy(b => b.WildSpawnType)
+                .ToDictionary(g => g.Key, g => g.First().Section ?? "Other");
+            _allBots = (Bundle.BotSettings ?? new()).Where(kv => kv.Value != null)
                 .Select(kv => new BotOption(kv.Key, kv.Value.Name ?? kv.Key.ToString(),
                     sectionByType.TryGetValue(kv.Key, out var section) ? section : "Other"))
                 .OrderBy(b => b.Section).ThenBy(b => b.Name).ToList();
@@ -407,6 +571,7 @@
                 _botType = _allBots.FirstOrDefault()?.Type ?? default;
             }
             _scope = null;
+            if (!_allBots.Any(b => b.Section == _selectedFaction)) _selectedFaction = null;
             CancelCopy();
         }
         if (bundleChanged || languageChanged)
@@ -414,15 +579,76 @@
             BuildRecords(bundleChanged);
             Search(_query);
         }
-        if (bundleChanged || referenceChanged)
+        if (sourcesChanged)
         {
-            _changedBots.Clear();
+            _easyBundle = easy;
+            _normalBundle = normal;
+            _hardBundle = hard;
+            _lastDefaults = defaults;
+            _defaultBundle = defaults?.ToBundle();
+            _globalKey = globalKey;
+            _currentGlobals = LevelGlobals.From(Bundle.GlobalSettings);
+            _easyGlobals = LevelGlobals.From(easy!);
+            _normalGlobals = LevelGlobals.From(normal!);
+            _hardGlobals = LevelGlobals.From(hard!);
+            _levelViews.Clear();
             foreach (var bot in _allBots)
             {
-                RefreshBotMark(bot.Type);
+                if (Bundle?.BotSettings == null || !Bundle.BotSettings.TryGetValue(bot.Type, out var group) || group == null) continue;
+                var view = new BotLevelView
+                {
+                    Type = bot.Type, Group = group,
+                    Sources = new LevelSources
+                    {
+                        Reference = ReferenceGroup(bot.Type)!, Current = _currentGlobals!,
+                        Easy = _easyGlobals!, Normal = _normalGlobals!, Hard = _hardGlobals!,
+                        EasyBot = GroupOf(easy, bot.Type)!, NormalBot = GroupOf(normal, bot.Type)!, HardBot = GroupOf(hard, bot.Type)!,
+                    },
+                };
+                foreach (var level in Levels.Where(level => BotLevels.Available(level, view.Sources))) view.Available.Add(level);
+                _levelViews[bot.Type] = view;
+                RefreshLevelView(bot.Type);
             }
         }
-        Select(bundleChanged || languageChanged);
+        if (sourcesChanged || languageChanged)
+        {
+            Select(true);
+            RefreshFaction();
+        }
+    }
+
+    private SAINPresetBundle? FindReference(string name)
+        => References?.FirstOrDefault(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase)).Bundle;
+
+    private static SAINSettingsGroupClass? GroupOf(SAINPresetBundle? bundle, ESainWildSpawnType type)
+        => bundle?.BotSettings != null && bundle.BotSettings.TryGetValue(type, out var group) ? group : null;
+
+    private SAINSettingsGroupClass? SavedGroup(ESainWildSpawnType type) => GroupOf(Original, type);
+
+    // zzap (2026-10-23): each knob resets only its own fields to the selected level's computed values.
+    private void RefreshLevelView(ESainWildSpawnType type)
+    {
+        if (!_levelViews.TryGetValue(type, out var view)) return;
+        bool hasSlots = BotLevels.NormalSlot(view.Group) != null;
+        view.Badge = BotLevels.Badge(view.Group, view.Sources);
+        view.AdjustedCount = hasSlots ? BotLevels.AdjustedCount(view.Group, view.Sources) : 0;
+        var level = view.Group.DifficultyLevel == EBotLevel.None ? EBotLevel.Hard : view.Group.DifficultyLevel;
+        view.Baseline = hasSlots && view.Available.Contains(level) ? BotLevels.Compute(level, view.Group, view.Sources) : null;
+        view.KnobReference = null;
+        if (view.Baseline != null && view.Group.Settings != null)
+        {
+            // zzap (2026-10-23): Compute defines only level-written fields; keep the other knob choices on their v1 reference.
+            var choices = BotLevels.NormalSlot(view.Sources.Reference) ?? BotLevels.NormalSlot(view.Group);
+            if (choices != null)
+            {
+                view.Baseline.Mind.PersonalityOverride = choices.Mind.PersonalityOverride;
+                view.Baseline.Core.CanGrenade = choices.Core.CanGrenade;
+                view.Baseline.Aiming.AimForHead = choices.Aiming.AimForHead;
+            }
+            var reference = new SAINSettingsGroupClass(Array.Empty<ESainBotDifficulty>());
+            foreach (var difficulty in view.Group.Settings.Keys) reference.Settings[difficulty] = view.Baseline;
+            view.KnobReference = reference;
+        }
     }
 
     private void BuildRecords(bool refreshTotals)
@@ -431,12 +657,11 @@
         foreach (var bot in _allBots)
         {
             var totals = _records.TryGetValue(bot.Type, out var previous) ? previous.Totals : SpawnDifficultyRecord.Totals(_raids, bot.Type);
-            string badge = totals.Count == 0 ? T("기록 없음", "no record")
-                : string.Join("·", Difficulties.Where(totals.ContainsKey).Select(d => Value(d)));
-            string detail = totals.Count == 0 ? T("아직 기록 없음 — 레이드를 한 판 하면 나옵니다", "No record yet - play a raid and it shows here")
-                : T($"최근 레이드 {_raids.Count}판: ", $"Last {_raids.Count} raids: ")
-                    + string.Join(" · ", Difficulties.Where(totals.ContainsKey).Select(d => T($"{Value(d)} {totals[d]}명", $"{Value(d)} {totals[d]}")));
-            _records[bot.Type] = new SpawnSummary(totals, badge, detail);
+            string detail = totals.Count == 0 ? T("실제로 나온 난이도: 아직 기록 없음", "Spawned difficulties: no record yet")
+                : T("실제로 나온 난이도: ", "Spawned difficulties: ")
+                    + string.Join(" · ", Difficulties.Where(totals.ContainsKey).Select(d => T($"{Value(d)} {totals[d]}명", $"{Value(d)} {totals[d]}")))
+                    + T($" (최근 {_raids.Count}판)", $" (last {_raids.Count} raids)");
+            _records[bot.Type] = new SpawnSummary(totals, detail);
         }
     }
 
@@ -452,6 +677,8 @@
     private void SelectBot(ESainWildSpawnType type)
     {
         _botType = type;
+        _selectedFaction = null;
+        _scope = null;
         CancelCopy();
         Select();
     }
@@ -462,16 +689,111 @@
         Select();
     }
 
+    private void ToggleSection(string section)
+    {
+        if (!_collapsedSections.Add(section)) _collapsedSections.Remove(section);
+    }
+
+    private void SelectFaction(string section)
+    {
+        _selectedFaction = section;
+        CancelCopy();
+        RefreshFaction();
+    }
+
+    private void RefreshFaction()
+    {
+        _factionBots = _allBots.Where(b => b.Section == _selectedFaction).ToList();
+        _factionVanilla = null;
+        if (_factionBots.Count > 0)
+        {
+            bool first = _levelViews[_factionBots[0].Type].Group.UseVanillaAI;
+            if (_factionBots.All(b => _levelViews[b.Type].Group.UseVanillaAI == first)) _factionVanilla = first;
+        }
+        _factionAvailable.Clear();
+        foreach (var level in Levels)
+        {
+            _factionCounts[level] = _factionBots.Count(b => _levelViews[b.Type].Badge.Level == level);
+            if (_factionBots.Any(b => _levelViews[b.Type].Available.Contains(level))) _factionAvailable.Add(level);
+        }
+    }
+
+    private Task SetBotAI(bool vanilla)
+    {
+        if (_group == null || _group.UseVanillaAI == vanilla) return Task.CompletedTask;
+        _group.UseVanillaAI = vanilla;
+        return NotifyChange();
+    }
+
+    private Task ApplyBotLevel(EBotLevel level)
+    {
+        if (_selectedView == null || !_selectedView.Available.Contains(level)) return Task.CompletedTask;
+        BotLevels.Apply(level, _selectedView.Group, _selectedView.Sources);
+        return NotifyChange();
+    }
+
+    private Task RevertBot()
+    {
+        var saved = SavedGroup(_botType);
+        if (_group == null || saved == null) return Task.CompletedTask;
+        BotLevels.RestoreSaved(_group, saved);
+        return NotifyChange();
+    }
+
+    private Task ResetBot()
+    {
+        if (_selectedView == null) return Task.CompletedTask;
+        BotLevels.ResetToOriginal(_selectedView.Group, _selectedView.Sources);
+        return NotifyChange();
+    }
+
+    private Task SetFactionAI(bool vanilla) => ChangeFaction(view => view.Group.UseVanillaAI = vanilla);
+
+    private Task ApplyFactionLevel(EBotLevel level) => ChangeFaction(view =>
+    {
+        if (view.Available.Contains(level)) BotLevels.Apply(level, view.Group, view.Sources);
+    });
+
+    private Task RevertFaction() => ChangeFaction(view =>
+    {
+        var saved = SavedGroup(view.Type);
+        if (saved != null) BotLevels.RestoreSaved(view.Group, saved);
+    });
+
+    private Task ResetFaction() => ChangeFaction(view => BotLevels.ResetToOriginal(view.Group, view.Sources));
+
+    // zzap (2026-10-23): batch faction/copy updates through the same cache + dirty notification path.
+    private Task ChangeFaction(Action<BotLevelView> change)
+    {
+        var changed = new List<ESainWildSpawnType>();
+        foreach (var bot in _factionBots)
+        {
+            if (!_levelViews.TryGetValue(bot.Type, out var view)) continue;
+            change(view);
+            changed.Add(bot.Type);
+        }
+        return NotifyBotsChanged(changed);
+    }
+
     private void Select(bool rebuild = false)
     {
         var previousGroup = _group;
-        var previousSettings = _settings;
-        Bundle.BotSettings.TryGetValue(_botType, out _group);
+        var previousSettings = _advancedSettings;
+        _group = GroupOf(Bundle, _botType);
+        _selectedView = _levelViews.GetValueOrDefault(_botType);
         _reference = ReferenceGroup(_botType);
-        _shown = _scope ?? (_records.TryGetValue(_botType, out var record) ? SpawnDifficultyRecord.ShownDifficulty(record.Totals) : ESainBotDifficulty.normal);
-        _settings = Slot(_group, _shown);
-        _referenceSettings = Slot(_reference, _shown);
-        if (rebuild || !ReferenceEquals(previousGroup, _group) || !ReferenceEquals(previousSettings, _settings))
+        _settings = BotLevels.NormalSlot(_group!);
+        _shown = _group?.Settings?.FirstOrDefault(pair => ReferenceEquals(pair.Value, _settings)).Key ?? ESainBotDifficulty.normal;
+        _referenceSettings = _selectedView?.Baseline;
+        _advancedShown = _scope ?? (_records.TryGetValue(_botType, out var record) ? SpawnDifficultyRecord.ShownDifficulty(record.Totals) : ESainBotDifficulty.normal);
+        _advancedSettings = Slot(_group, _advancedShown);
+        if (!_scope.HasValue && _advancedSettings == null)
+        {
+            _advancedShown = _shown;
+            _advancedSettings = _settings;
+        }
+        _advancedReferenceSettings = Slot(_reference, _advancedShown);
+        if (rebuild || !ReferenceEquals(previousGroup, _group) || !ReferenceEquals(previousSettings, _advancedSettings))
         {
             BuildAdvancedRows();
         }
@@ -479,7 +801,7 @@
     }
 
     private SAINSettingsGroupClass? ReferenceGroup(ESainWildSpawnType type)
-        => Zzap != null && Zzap.BotSettings.TryGetValue(type, out var group) ? group : null;
+        => GroupOf(_hardBundle, type) ?? GroupOf(_defaultBundle, type);
 
     private static SAINSettingsClass? Slot(SAINSettingsGroupClass? group, ESainBotDifficulty difficulty)
         => group?.Settings != null && group.Settings.TryGetValue(difficulty, out var slot) ? slot : null;
@@ -487,28 +809,28 @@
     private Task SetNumber(BotKnob knob, float value)
     {
         if (_group == null || _settings == null) return Task.CompletedTask;
-        BotQuickSettings.Apply(knob, _group, _scope, _shown, value);
+        BotQuickSettings.Apply(knob, _group, null, _shown, value);
         return NotifyChange();
     }
 
     private Task SetToggle(BotKnob knob, bool value)
     {
         if (_group == null || _settings == null) return Task.CompletedTask;
-        BotQuickSettings.ApplyToggle(knob, _group, _scope, value);
+        BotQuickSettings.ApplyToggle(knob, _group, null, value);
         return NotifyChange();
     }
 
     private Task SetPersonality(BotKnob knob, EPersonality value)
     {
         if (_group == null || _settings == null) return Task.CompletedTask;
-        BotQuickSettings.ApplyPersonality(knob, _group, _scope, value);
+        BotQuickSettings.ApplyPersonality(knob, _group, null, value);
         return NotifyChange();
     }
 
     private Task ResetKnob(BotKnob knob)
     {
-        if (_group == null || _reference == null) return Task.CompletedTask;
-        BotQuickSettings.Reset(knob, _group, _reference, _scope);
+        if (_group == null || _selectedView?.Baseline == null) return Task.CompletedTask;
+        BotLevels.ResetKnob(knob, _group, _selectedView.Baseline);
         return NotifyChange();
     }
 
@@ -530,11 +852,11 @@
         {
             _advancedRows.Add(AdvancedField("modifier", null, ModifierField, _group));
         }
-        if (_settings != null)
+        if (_advancedSettings != null)
         {
             foreach (var item in BotAdvancedFields.List())
             {
-                object? owner = item.Category.GetValue(_settings);
+                object? owner = item.Category.GetValue(_advancedSettings);
                 if (owner == null) continue;
                 if (SainValue.Classify(item.Field.FieldType) == SainFieldKind.Nested)
                 {
@@ -595,8 +917,8 @@
             field.SetValue(_group, value);
             return;
         }
-        if (_settings == null) return;
-        object? shownOwner = FieldOwner(_settings, category, nested);
+        if (_advancedSettings == null) return;
+        object? shownOwner = FieldOwner(_advancedSettings, category, nested);
         if (shownOwner == null) return;
         bool numeric = SainValue.Classify(field.FieldType) is SainFieldKind.Float or SainFieldKind.Int;
         double before = numeric ? Convert.ToDouble(field.GetValue(shownOwner), CultureInfo.InvariantCulture) : 0d;
@@ -641,7 +963,7 @@
 
     private string FieldReference(AdvancedRow row)
     {
-        object? owner = row.Category == null ? _reference : FieldOwner(_referenceSettings, row.Category, row.Nested);
+        object? owner = row.Category == null ? _reference : FieldOwner(_advancedReferenceSettings, row.Category, row.Nested);
         return owner == null ? T("기준 없음", "No reference")
             : T("기준값: ", "Reference: ") + FieldText(row.Field.GetValue(owner));
     }
@@ -664,52 +986,30 @@
         return false;
     }
 
-    private void RefreshBotMark(ESainWildSpawnType type)
-    {
-        var reference = ReferenceGroup(type);
-        bool changed = Bundle.BotSettings.TryGetValue(type, out var group) && group != null && reference != null
-            && (BotQuickSettings.AnyChanged(group, reference) || Different(group.DifficultyModifier, reference.DifficultyModifier)
-                || NestedChanged(group, reference));
-        if (changed) _changedBots.Add(type);
-        else _changedBots.Remove(type);
-    }
-
-    private static bool NestedChanged(SAINSettingsGroupClass group, SAINSettingsGroupClass reference)
-    {
-        foreach (var difficulty in Difficulties)
-        {
-            var slot = Slot(group, difficulty);
-            var referenceSlot = Slot(reference, difficulty);
-            if (slot == null || referenceSlot == null) continue;
-            foreach (var path in NestedFields)
-            {
-                object? owner = FieldOwner(slot, path.Category, path.Nested);
-                object? from = FieldOwner(referenceSlot, path.Category, path.Nested);
-                if (owner != null && from != null && Different(path.Field.GetValue(owner), path.Field.GetValue(from))) return true;
-            }
-        }
-        return false;
-    }
-
     private void RefreshSelectionMarks()
     {
-        RefreshBotMark(_botType);
         // zzap (2026-10-23, user): say when all four slots hold the same values, mark knobs whose slots differ.
         _allSlotsSame = _group != null && BotQuickSettings.AllSlotsSame(_group);
         _bySlotKnobs.Clear();
+        _knobSlotValues.Clear();
         if (_group != null)
         {
             foreach (var knob in BotQuickSettings.All)
             {
-                if (BotQuickSettings.DiffersBySlot(knob, _group)) _bySlotKnobs.Add(knob.Id);
+                if (BotQuickSettings.DiffersBySlot(knob, _group))
+                {
+                    _bySlotKnobs.Add(knob.Id);
+                    _knobSlotValues[knob.Id] = BotQuickSettings.SlotValues(knob, _group, Korean);
+                }
             }
         }
         _changedKnobs.Clear();
-        if (_group != null && _reference != null)
+        if (_group != null && _selectedView?.KnobReference != null)
         {
             foreach (var knob in BotQuickSettings.All)
             {
-                if (BotQuickSettings.IsChanged(knob, _group, _reference)) _changedKnobs.Add(knob.Id);
+                // Same rule as F6: only the knob fields a level writes count; personality / grenades are "not affected by the level".
+                if (BotLevels.AffectsKnob(knob) && BotLevels.KnobDiffers(knob, _group, _selectedView.Baseline)) _changedKnobs.Add(knob.Id);
             }
         }
         _advancedChanged = 0;
@@ -720,9 +1020,13 @@
         }
     }
 
-    private async Task NotifyChange()
+    private Task NotifyChange() => NotifyBotsChanged(new[] { _botType });
+
+    private async Task NotifyBotsChanged(IEnumerable<ESainWildSpawnType> types)
     {
-        RefreshSelectionMarks();
+        foreach (var type in types.Distinct()) RefreshLevelView(type);
+        Select();
+        RefreshFaction();
         await OnChanged.InvokeAsync();
     }
 
@@ -755,6 +1059,7 @@
     {
         if (_group?.Settings == null) return;
         int count = 0;
+        var changed = new List<ESainWildSpawnType>();
         foreach (var type in _copyTargets)
         {
             if (type == _botType || !Bundle.BotSettings.TryGetValue(type, out var target) || target?.Settings == null) continue;
@@ -769,12 +1074,12 @@
             if (copied)
             {
                 count++;
-                RefreshBotMark(type);
+                changed.Add(type);
             }
         }
         CancelCopy();
         Snackbar.Add(T($"{count}개 봇에 복사함", $"Copied to {count} bot types"), Severity.Success);
-        if (count > 0) await NotifyChange();
+        if (count > 0) await NotifyBotsChanged(changed);
     }
 
     private static SAINSettingsClass Clone(SAINSettingsClass source)
@@ -783,6 +1088,31 @@
     private static double Percent(BotKnob knob, float value)
         => knob.Max <= knob.Min ? 0d : Math.Clamp((knob.ToSlider(value) - knob.Min) / (knob.Max - knob.Min) * 100d, 0d, 100d);
     private static string Css(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+    private static string LevelName(EBotLevel level) => level switch
+    {
+        EBotLevel.Easy => T("쉬움", "Easy"), EBotLevel.Normal => T("보통", "Normal"),
+        EBotLevel.Hard => T("어려움", "Hard"), EBotLevel.Impossible => T("불가능", "Impossible"), _ => T("직접 설정", "custom"),
+    };
+    private static string LevelClass(EBotLevel level) => level switch
+    {
+        EBotLevel.Easy => "easy", EBotLevel.Normal => "normal", EBotLevel.Hard => "hard", EBotLevel.Impossible => "impossible", _ => "custom",
+    };
+    private static string LevelDescription(EBotLevel level) => level switch
+    {
+        EBotLevel.Easy => T("zzap 쉬움 프리셋 수준", "zzap easy preset level"),
+        EBotLevel.Normal => T("zzap 보통 프리셋 수준", "zzap normal preset level"),
+        EBotLevel.Hard => T("zzap 프리셋 수준", "zzap preset level"), _ => T("zzap보다 더 세게", "stronger than zzap"),
+    };
+    private static string MissingLevel(EBotLevel level)
+    {
+        string preset = level switch { EBotLevel.Easy => "zzap 쉬움", EBotLevel.Normal => "zzap 보통", _ => "zzap" };
+        return T($"'{preset}' 프리셋을 찾을 수 없음", $"Cannot find the '{preset}' preset");
+    }
+    private static string BadgeClass(BotLevelView view)
+        => view.Group.UseVanillaAI ? "vanilla" : view.Badge.Custom ? "custom" : LevelClass(view.Badge.Level);
+    private static string BadgeText(BotLevelView view)
+        => view.Group.UseVanillaAI ? T("바닐라", "vanilla") : view.Badge.Custom ? T("직접 설정", "custom")
+            : LevelName(view.Badge.Level) + (view.Badge.Adjusted ? T(" (조정됨)", " (adjusted)") : "");
     private static string PersonalityName(EPersonality personality) => personality == EPersonality.None ? T("지정 안 함", "Unassigned") : Value(personality);
     private static string SectionName(string section) => section == "Other" ? T("기타", "Other") : Setting(section);
     private static string KnobSectionName(string section) => section switch { "aim" => T("조준", "Aim"), "sense" => T("감각", "Senses"), _ => T("성향", "Mind") };

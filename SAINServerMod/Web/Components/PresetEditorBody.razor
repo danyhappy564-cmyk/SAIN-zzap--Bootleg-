@@ -15,7 +15,7 @@
         <SainSectionEditor Target="Bundle.GlobalSettings" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("봇 종류별", "Bot types")" Icon="@Icons.Material.Outlined.SmartToy">
-        <BotSettingsEditor Bundle="Bundle" Zzap="Zzap" OnChanged="OnChanged" />
+        <BotSettingsEditor Bundle="Bundle" Original="Original" Zzap="Zzap" References="Columns" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("성격", "Personalities")" Icon="@Icons.Material.Outlined.Psychology">
         <PersonalityEditor Bundle="Bundle" OnChanged="OnChanged" />
