@@ -8,13 +8,14 @@
 
 **Tech Stack:** C# (Unity IMGUI F6, Blazor/MudBlazor 웹), SAIN.Preset.Shared(netstandard2.1), 오프라인 시뮬 selftest.
 
-**Spec:** `docs/superpowers/specs/2026-10-23-bot-difficulty-levels-design.md` (v1: `…-bot-type-settings-redesign-design.md`)
+**Spec:** `docs/superpowers/specs/2026-10-23-bot-difficulty-levels-design.md` (9절 추가 결정 포함) (v1: `…-bot-type-settings-redesign-design.md`)
 
 ## Global Constraints
 
 - 브랜치 `feature/1023-bot-settings-ui`, 작성자 R_F, AI 트레일러 없음, 푸시 금지.
 - 게임 실행 코드(봇 행동) 변경 없음 — 화면·프리셋 값만.
-- 프리셋 형식: `SAINSettingsGroupClass.DifficultyLevel` 하나만 추가.
+- 프리셋 형식: `SAINSettingsGroupClass.DifficultyLevel`, `UseVanillaAI` 두 개만 추가.
+- 게임 실행 코드 변경은 Task 3(봇별 바닐라 적용)뿐.
 - F6: 화면 값은 Layout 때만 계산(View 캐시), 쓰기는 전부 `ZzapUI.Defer` 경유(v1 최종 검토 규칙).
 - 빌드 경고 클라 3·서버 16 그대로. selftest: `$TEMP/selftest_botui.sh`(기존 무관 실패 2개 `Action_unlinked_holds`·`Doors_suite_runs_and_is_deterministic`만 허용).
 - 단계 배율 상수는 스펙 4절 값 그대로(불가능: 조준 시간 ×0.6, 퍼짐 ×0.7, 발견 ×1.5, 시야 ×1.2, 청각 ×1.2, 머리 노리기 ×1.5, 공격성 ×1.2).
@@ -64,10 +65,14 @@
     - `public static bool IsAdjusted(SAINSettingsGroupClass group, LevelSources src)` — DifficultyLevel None이면 false, 아니면 Compute와 비교
     - `public static int AdjustedCount(SAINSettingsGroupClass group, LevelSources src)` — 다른 손잡이 수(경고 문구용)
     - `public static (EBotLevel Level, bool Adjusted, bool Custom) Badge(SAINSettingsGroupClass group, LevelSources src)` — 스펙 3절 규칙
-- 쓰는 필드 목록은 스펙 4절 표 + 손잡이 9개 필드(성격 지정·수류탄 제외).
+- 쓰는 필드 목록은 스펙 4절 표 + 9.1절 봇별 7개(단계 번들에서 복사) + 손잡이 9개 필드(성격 지정·수류탄 제외).
+  - `public static void ResetToOriginal(SAINSettingsGroupClass group, LevelSources src)` — 기준 4칸 복사, DifficultyLevel None, UseVanillaAI false (스펙 9.5)
+  - `public static void RestoreSaved(SAINSettingsGroupClass group, SAINSettingsGroupClass saved)` — 저장본 4칸·단계·AI 복사
 
 - [ ] **Step 1: 실패하는 selftest** — 가짜 번들 3개(전역: 쉬움 0.5/0.33/2/0.4/2/3/false, 보통 1.4/0.85/1/0.85/1/0.8/false, zzap 2/1/1/1/1/0.1/true; pmcUSEC 조준 2.0/0.6/0.3)로:
   - `Level_hard_is_reference_under_zzap`: 지금=zzap 전역 → Hard = 기준 값 그대로
+  - `Level_copies_bot_fields_from_level_bundle`: Easy → FireratMulti·BurstMulti·VisibleAngle·STRAFE_SPEED·MAX_AIMING_UPGRADE_BY_TIME·DifficultyModifier = 쉬움 번들 같은 봇 값; 번들에 없는 봇은 pmcUSEC 비율
+  - `Level_reset_original_and_restore_saved`: ResetToOriginal → 기준과 같음·None·SAIN; RestoreSaved → 저장본과 같음
   - `Level_easy_scales_by_globals`: 지금=zzap, 기준 시야 200 → Easy 시야 50(×0.25), 발견 ×0.33, 퍼짐 ×2, 청각 ×0.4, 조준 시간 = 쉬움 번들 같은 봇 값
   - `Level_current_preset_cancels`: 지금='zzap 쉬움' 전역 → Hard 시야 = 기준 × (2/0.5)
   - `Level_impossible_on_top_of_hard`: 조준 ×0.6, 퍼짐 ×0.7, 발견 ×1.5, 시야 ×1.2, 청각 ×1.2, 머리 노리기 ×1.5, 공격성 ×1.2 (범위 안에서)
@@ -79,7 +84,17 @@
 - [ ] **Step 3: 구현**
 - [ ] **Step 4: selftest 통과** → 커밋
 
-### Task 3: F6 v2
+### Task 3: 봇별 바닐라 AI 적용 (게임 실행 코드)
+
+**Files:** Modify `SAIN/Plugin/BigBrainHandler.cs` (기존 `ToggleVanillaLayersFor…` 옆), 필요하면 `SAIN/Preset/BotTypeDefinitions.cs`
+
+**Interfaces:** Consumes `SAINSettingsGroupClass.UseVanillaAI`. Produces `public static bool BigBrainHandler.VanillaByGroupSetting(WildSpawnType type, out string settingName)` (전역 묶음 토글이 이 봇을 바닐라로 만드는지 — 화면이 버튼을 끌 때 씀).
+
+- [ ] **Step 1:** 게임 시작 레이어 적용에서 `UseVanillaAI`인 봇 종류를 기존 묶음 토글과 같은 경로로 바닐라 처리(묶음 토글이 우선)
+- [ ] **Step 2:** `VanillaByGroupSetting` 구현
+- [ ] **Step 3:** 1차 시뮬 링크 여부 확인(`links.txt`), 링크돼 있으면 스모크 전후 같음; 빌드 오류 0·경고 3 → 커밋
+
+### Task 4: F6 v2
 
 **Files:** Modify `SAIN/Preset/Editor/BotSelectionClass.cs`
 
@@ -88,17 +103,20 @@
 - [ ] **Step 1: 배지** — 목록 배지를 `Badge()` 결과로(쉬움/보통/어려움/불가능 + ` (조정됨)`, `직접 설정`), 기록 배지 제거; 배지는 기존 View 캐시 규칙(전체는 페이지 재진입·복사 뒤, 선택 봇은 매 갱신)
 - [ ] **Step 2: 단계 버튼 4개 + 경고 줄** — `Available` 아닌 단계는 흐리게·툴팁, 누르면 `Write(() => BotLevels.Apply(...))`
 - [ ] **Step 3: 손잡이 기준 = 단계 계산값**(고른 적 없으면 Hard 계산값), 칸 고르기·'지금 보는 칸'·'4칸 같음' 줄을 기본 화면에서 제거하고 고급 머리로 이동(고급 안의 scope는 고급 행 편집에만 적용, 손잡이는 항상 4칸)
-- [ ] **Step 4: 빌드 오류 0·경고 3** → 커밋
+- [ ] **Step 4: AI 선택 줄**(바닐라면 아래 흐림, 묶음 토글이면 버튼 끄고 이유) + 단계 버튼 글자(스펙 9.2)·행동 안내 줄
+- [ ] **Step 5: 팩션 줄 접기(▾/▸, 상태 기억)·팩션 선택 화면**(스펙 9.4)
+- [ ] **Step 6: 되돌리기·원본 사용**(봇·팩션; 되돌리기 저장본 = 화면을 열 때·저장할 때 찍어 둔 그룹 복사본)
+- [ ] **Step 7: 빌드 오류 0·경고 3** → 커밋
 
-### Task 4: 웹 v2 (Codex)
+### Task 5: 웹 v2 (Codex)
 
-**Files:** Modify `SAINServerMod/Web/Components/BotSettingsEditor.razor`, 필요하면 `PresetEditorBody.razor`(단계 번들 3개 전달)
+**Files:** Modify `SAINServerMod/Web/Components/BotSettingsEditor.razor`, 필요하면 `PresetEditorBody.razor`(단계 번들 3개 전달) — F6 Task 4의 모든 항목(AI 선택, 단계 버튼 글자, 팩션 선택·접기, 되돌리기(= 페이지 `Original` 번들의 같은 봇)·원본 사용) 포함
 
 - [ ] **Step 1: Codex 브리프**(`F:\코딩\Index\코덱스방\sain-1023-botlevels-web\BRIEF.md`: 스펙 3절, Task 2 Interfaces, F6과 같은 문구, `LevelSources` 구성 — Reference = Zzap 번들 ?? `PresetGeneration` SAIN 기본 번들, Current = 편집 중 Bundle의 전역, 단계 번들 = 서버가 아는 bundled zzap 3개) → worktree `sain-wt-codex` 새 브랜치에서 실행
 - [ ] **Step 2: 검토·적용, 서버 빌드 오류 0·경고 16** → 커밋
 - [ ] **Step 3: 서버 켜지면 브라우저 확인**
 
-### Task 5: 마무리
+### Task 6: 마무리
 
 - [ ] **Step 1:** README·CHANGELOG 한 줄(게임 미확인)
 - [ ] **Step 2:** Release 빌드 2개 + selftest
