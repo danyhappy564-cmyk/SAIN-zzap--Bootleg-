@@ -52,4 +52,19 @@ public class SAINSettingsGroupClass
 
     [DataMember]
     public Dictionary<ESainBotDifficulty, SAINSettingsClass> Settings = new();
+
+    /// <summary>zzap (2026-10-23): the level picked on the bot type page (BotLevels); None = never picked.</summary>
+    [DataMember]
+    public EBotLevel DifficultyLevel = EBotLevel.None;
+
+    /// <summary>zzap (2026-10-23): this bot type runs EFT's own AI instead of SAIN (applied at game start).</summary>
+    [DataMember]
+    public bool UseVanillaAI;
+
+    /// <summary>
+    /// zzap (2026-10-23): for a bot type with no reference preset entry (modded bots), the values the first level pick started
+    /// from, so going between levels never drifts. Empty when a reference exists.
+    /// </summary>
+    [DataMember]
+    public Dictionary<string, float> LevelBase = new();
 }
