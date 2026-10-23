@@ -142,6 +142,34 @@ public static class BigBrainHandler
         /// </summary>
         public static void ApplyModdedBotLayers()
         {
+            ApplyModdedBotLayers(false);
+        }
+
+        /// <summary>
+        /// zzap (2026-10-23): runs again when a raid's BotsController starts, before any bot spawns. Black Division's
+        /// fork re-applied this at raid start because the vanilla exclusions it needed had gone missing by then
+        /// (SainBrainLayerPatch, verified in a 4.0.10 raid) - this does the same for every registered modded bot, so the
+        /// original mods work without a fork. Both halves are idempotent: a layer that is already registered for the
+        /// brain and role is not added again, and BigBrain ignores an exclusion that already exists.
+        /// </summary>
+        public static void ReassertModdedBotLayers()
+        {
+            _hitRevealReported.Clear();
+            ApplyModdedBotLayers(true);
+        }
+
+        // Bots whose "shot by an enemy SAIN didn't know" reveal was already logged this raid (BotHitByEnemyClass).
+        private static readonly HashSet<string> _hitRevealReported = [];
+
+        public static bool ReportHitRevealOnce(string profileId) => _hitRevealReported.Add(profileId);
+
+        private static void ApplyModdedBotLayers(bool raidStart)
+        {
+            int types = 0;
+            int layersMissing = 0;
+            int exclusionsMissing = 0;
+            List<string> names = null;
+
             foreach (BotType botType in BotTypeDefinitions.BotTypesList)
             {
                 List<string> brains = botType.BrainsToApply;
@@ -155,6 +183,12 @@ public static class BigBrainHandler
                     brains = [botType.BaseBrain];
                 }
 
+                // A mod that runs its own AI can keep SAIN off its bots through the exclusion list.
+                if (SAIN.Components.BotController.BotSpawnController.IsExcluded(botType.WildSpawnType))
+                {
+                    continue;
+                }
+
                 List<string> layers = [.. _commonVanillaLayersToRemove];
 
                 if (botType.LayersToRemove != null)
@@ -164,11 +198,76 @@ public static class BigBrainHandler
 
                 List<WildSpawnType> roles = [botType.WildSpawnType];
 
+                if (raidStart)
+                {
+                    types++;
+                    (names ??= []).Add(botType.Name);
+                    for (int i = 0; i < brains.Count; i++)
+                    {
+                        if (!HasCustomLayer(typeof(CombatSoloLayer), brains[i], botType.WildSpawnType))
+                        {
+                            layersMissing++;
+                        }
+                        for (int j = 0; j < layers.Count; j++)
+                        {
+                            if (!IsLayerExcluded(layers[j], brains[i], botType.WildSpawnType))
+                            {
+                                exclusionsMissing++;
+                            }
+                        }
+                    }
+                }
+
                 AddCustomLayersToBrainsAndRoles(brains, roles, false);
                 ToggleVanillaLayersForBrainsAndRoles(brains, roles, layers, false);
 
                 Logger.LogInfo($"[SAIN] Applied SAIN layers to modded bot '{botType.Name}' ({botType.WildSpawnType}).");
             }
+
+            if (raidStart && types > 0)
+            {
+                Logger.LogWarning(
+                    $"[SAIN ModdedBots] raid start: SAIN layers checked for {types} modded bot type(s) ({string.Join(", ", names)}) - "
+                        + $"combat layer re-added {layersMissing}, vanilla layer exclusions re-applied {exclusionsMissing}"
+                );
+            }
+        }
+
+        private static bool HasCustomLayer(Type layerType, string brain, WildSpawnType role)
+        {
+            foreach (BrainManager.LayerInfo info in BrainManager.CustomLayersReadOnly.Values)
+            {
+                if (info.customLayerType == layerType && ListHas(info.CustomLayerBrains, brain) && ListHas(info.CustomLayerRoles, role))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool IsLayerExcluded(string layerName, string brain, WildSpawnType role)
+        {
+            foreach (BrainManager.ExcludeLayerInfo info in BrainManager.ExcludeLayersReadOnly)
+            {
+                if (info.excludeLayerName == layerName && ListHas(info.ExcludeLayerBrains, brain) && ListHas(info.ExcludeLayerRoles, role))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool ListHas<T>(IReadOnlyList<T> list, T value)
+        {
+            var comparer = EqualityComparer<T>.Default;
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (comparer.Equals(list[i], value))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public static void ToggleVanillaLayersForAllBots()
@@ -396,15 +495,37 @@ public static class BigBrainHandler
         {
             var settings = SAINPlugin.LoadedPreset.GlobalSettings.General.Layers;
 
-            BrainManager.AddCustomLayer(typeof(DebugLayer), brainList, 99, roles);
-            BrainManager.AddCustomLayer(typeof(SAINAvoidThreatLayer), brainList, 80, roles);
-            BrainManager.AddCustomLayer(typeof(SAINFlashedLayer), brainList, 85, roles);
-            BrainManager.AddCustomLayer(typeof(CombatSquadLayer), brainList, settings.SAINCombatSquadLayerPriority, roles);
-            BrainManager.AddCustomLayer(typeof(CombatSoloLayer), brainList, settings.SAINCombatSoloLayerPriority, roles);
+            // zzap (2026-10-23): only where missing. MoreBotsAPI calls this again from TarkovApplication.Init and the
+            // raid-start reassert calls it every raid; BigBrain stacks a second copy of a layer on every repeat call.
+            AddCustomLayerWhereMissing(typeof(DebugLayer), brainList, 99, roles);
+            AddCustomLayerWhereMissing(typeof(SAINAvoidThreatLayer), brainList, 80, roles);
+            AddCustomLayerWhereMissing(typeof(SAINFlashedLayer), brainList, 85, roles);
+            AddCustomLayerWhereMissing(typeof(CombatSquadLayer), brainList, settings.SAINCombatSquadLayerPriority, roles);
+            AddCustomLayerWhereMissing(typeof(CombatSoloLayer), brainList, settings.SAINCombatSoloLayerPriority, roles);
 
             if (withExtract)
             {
-                BrainManager.AddCustomLayer(typeof(ExtractLayer), brainList, settings.SAINExtractLayerPriority, roles);
+                AddCustomLayerWhereMissing(typeof(ExtractLayer), brainList, settings.SAINExtractLayerPriority, roles);
+            }
+        }
+
+        private static void AddCustomLayerWhereMissing(Type layerType, List<string> brainList, int priority, List<WildSpawnType> roles)
+        {
+            for (int i = 0; i < brainList.Count; i++)
+            {
+                List<WildSpawnType> missing = null;
+                for (int j = 0; j < roles.Count; j++)
+                {
+                    if (!HasCustomLayer(layerType, brainList[i], roles[j]))
+                    {
+                        (missing ??= []).Add(roles[j]);
+                    }
+                }
+
+                if (missing != null)
+                {
+                    BrainManager.AddCustomLayer(layerType, [brainList[i]], priority, missing);
+                }
             }
         }
 

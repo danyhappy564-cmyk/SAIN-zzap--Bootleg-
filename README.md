@@ -264,6 +264,16 @@ F6 `General > 시뮬레이션 랩 (zzap)`의 `시뮬레이션 모드`가 켜진 
 - `OnPathComplete` 는 상류가 **선언만 해두고 호출하지 않던** 이벤트입니다. 이 포크에서
   `SAINMoverClass.PathComplete`가 실제로 발생시킵니다.
 
+### 다른 봇 모드 (2026-10-23)
+
+| 모드 | SAIN zzap에서 |
+|---|---|
+| **Black Division, RUAF Come Home, UNTAR Go Home** (MoreBotsAPI로 SAIN에 등록되는 모드) | SAIN이 직접 전투 레이어를 붙입니다. 레이드 시작 때마다 다시 확인해서 빠진 것만 채우고, 모르는 적에게 맞으면 그 적을 알아챕니다. **블랙 디비전은 원본 모드 그대로 쓰면 됩니다**(예전 zzap 포크는 필요 없음). 블랙 디비전 성격 기본값은 GigaChad, CS 가스탄에는 면역 |
+| **ISB Special Forces** | 원작 모드 설계대로 움직입니다. 전투 판단은 ISB 자체 AI, SAIN은 조준·시야·청각 수치만 씁니다. SAIN zzap의 전투 변경과는 관계없습니다 |
+| **Scourge** | 원작 모드 설계대로 SAIN에서 빠지고 자체 AI로 움직입니다. SAIN zzap과 관계없습니다 |
+
+위 모드를 설치하지 않았으면 이 내용은 아무 영향이 없습니다. ISB·Scourge가 실행 중에 이름으로 찾는 SAIN 코드(클래스·메서드 이름)는 바꾸지 않습니다.
+
 ### 상류 버그 하나를 같이 고쳤습니다
 
 **상류 v4.5.1 은 서버 모드가 아예 빌드되지 않습니다.** `SainSectionEditor.razor` 의 foreach

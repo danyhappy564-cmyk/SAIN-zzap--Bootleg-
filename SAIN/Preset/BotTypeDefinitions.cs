@@ -25,6 +25,12 @@ public class BotTypeDefinitions
     public static List<BotType> BotTypesList { get; private set; }
     public static List<string> BotTypesNames { get; private set; } = [];
 
+    // zzap (2026-10-23): bot types other mods registered through the server interop (Black Division, RUAF, UNTAR...).
+    // Only those carry brain info - the same test ApplyModdedBotLayers uses.
+    private static readonly HashSet<WildSpawnType> _moddedTypes = [];
+
+    public static bool IsModded(WildSpawnType type) => _moddedTypes.Contains(type);
+
     static BotTypeDefinitions()
     {
         BotTypesList = ImportBotTypes();
@@ -41,6 +47,11 @@ public class BotTypeDefinitions
 
             BotTypesNames.Add(botType.Name);
             BotTypes.Add(wildSpawn, botType);
+
+            if ((botType.BrainsToApply != null && botType.BrainsToApply.Count > 0) || !string.IsNullOrEmpty(botType.BaseBrain))
+            {
+                _moddedTypes.Add(wildSpawn);
+            }
         }
     }
 

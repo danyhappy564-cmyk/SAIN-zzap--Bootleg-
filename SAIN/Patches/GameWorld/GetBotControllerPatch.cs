@@ -19,6 +19,17 @@ public class GetBotControllerPatch : ModulePatch
     [PatchPostfix]
     public static void Patch(BotsController __instance)
     {
+        // zzap (2026-10-23): make sure modded bot types (Black Division, RUAF, UNTAR...) still have SAIN's layers
+        // and their vanilla combat layers excluded before the first bot of this raid spawns.
+        try
+        {
+            BigBrainHandler.BrainAssignment.ReassertModdedBotLayers();
+        }
+        catch (System.Exception ex)
+        {
+            Logger.LogError($"[SAIN ModdedBots] raid start layer check failed: {ex}");
+        }
+
         GameWorldComponent gameWorld = GameWorldComponent.Instance;
         if (gameWorld == null)
         {
