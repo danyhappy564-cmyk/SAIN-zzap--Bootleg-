@@ -1,200 +1,752 @@
 @namespace SAINServerMod.Web.Components
+@using System.Globalization
 @using System.Reflection
+@using System.Text.Json
+@using Microsoft.Extensions.Logging
 @using SAIN.Preset.Shared.BotSettings.SAINSettings
+@using SAIN.Preset.Shared.Models.Preset.Personalities
+@using SAINServerMod.Generation
 @using SAINServerMod.Generators
 @using SAINServerMod.Utils
 @inject ISnackbar Snackbar
 @inject PresetGenerationService PresetGeneration
+@inject ClientDataStorageService ClientData
+@inject ILogger<BotSettingsEditor> Logger
 
-<MudChipSet T="string" SelectedValue="_sectionFilter" SelectedValueChanged="OnSectionChanged"
-            SelectionMode="SelectionMode.SingleSelection" Variant="Variant.Text" Color="Color.Primary" Class="sain-section-chips mb-2">
-    @foreach (var name in _sectionNames)
-    {
-        <MudChip T="string" Value="@name" Text="@(name == AllSections ? T("전체", "All") : name == "Other" ? T("기타", "Other") : Setting(name))" />
-    }
-</MudChipSet>
-
-<MudStack Row Spacing="3" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-3">
-    <MudSelect T="ESainWildSpawnType" Value="_botType" ValueChanged="OnBotChanged" Label="@T("봇 종류", "Bot type")"
-               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width:260px;">
-        @foreach (var bot in _filteredBots)
+<div class="sain-bot-editor">
+    <aside class="spt-panel sain-bot-nav pa-3">
+        <MudTextField T="string" Value="_query" ValueChanged="Search" Immediate="true" DebounceInterval="200"
+                      Placeholder="@T("봇 이름 검색", "Search bot types")" Variant="Variant.Outlined" Margin="Margin.Dense"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" Clearable="true" />
+        @foreach (var section in _visibleSections)
         {
-            <MudSelectItem T="ESainWildSpawnType" Value="bot.Type">@bot.Name</MudSelectItem>
+            <h3 class="sain-bot-section">@SectionName(section.Name)</h3>
+            @foreach (var bot in section.Bots)
+            {
+                var record = _records[bot.Type];
+                <button type="button" class="sain-bot-item @(_botType == bot.Type ? "on" : null)"
+                        aria-pressed="@(_botType == bot.Type)" @onclick="() => SelectBot(bot.Type)">
+                    <span>@bot.Name @if (_changedBots.Contains(bot.Type)) { <span class="sain-diff" title="@T("기준과 다른 값이 있음", "Changed from reference")">●</span> }</span>
+                    <span class="sain-bot-badge @(record.Totals.Count > 0 ? "used" : null)">@record.Badge</span>
+                </button>
+            }
         }
-    </MudSelect>
-
-    <MudSelect T="ESainBotDifficulty" Value="_difficulty" ValueChanged="OnDifficultyChanged" Label="@T("난이도", "Difficulty")"
-               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width:160px;">
-        @foreach (var diff in _difficulties)
+        @if (_visibleSections.Count == 0)
         {
-            <MudSelectItem T="ESainBotDifficulty" Value="diff">@Value(diff)</MudSelectItem>
+            <MudText Typo="Typo.caption" Class="spt-muted">@T("맞는 봇 종류가 없습니다.", "No matching bot types.")</MudText>
         }
-    </MudSelect>
-</MudStack>
+    </aside>
 
-@if (_group != null)
-{
-    <MudPaper Elevation="0" Class="spt-panel pa-3 mb-3">
-        <SainFieldEditor Value="_difficultyModifier!" OnChanged="OnChanged" />
-
-        <MudDivider Class="my-3" />
-
-        <MudText Typo="Typo.subtitle2" Class="mb-1">@if (Korean) { <span><b>@BotName</b> · <b>@Value(_difficulty)</b> 설정을 복사할 곳…</span> } else { <span>Copy <b>@BotName</b> · <b>@_difficulty</b> settings to…</span> }</MudText>
-        <MudText Typo="Typo.caption" Class="spt-muted mb-2">
-            @T("아래에 보이는 값으로 대상 칸을 덮어씁니다. 성격과 장비 은밀성은 그대로입니다.", "Overwrites the target slots with the values shown below. Personalities and gear stealth are not affected.")
-        </MudText>
-        <MudStack Row Spacing="3" Wrap="Wrap.Wrap">
-            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
-                       StartIcon="@Icons.Material.Outlined.ContentCopy" OnClick="CopyToAllDifficulties">
-                @T($"{BotName}의 모든 난이도", $"Every difficulty of {BotName}")
-            </MudButton>
-            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
-                       StartIcon="@Icons.Material.Outlined.CopyAll" OnClick="CopyToAllBots">
-                @T($"모든 봇 종류 ({Value(_difficulty)})", $"Every bot type ({_difficulty})")
-            </MudButton>
-        </MudStack>
-    </MudPaper>
-}
-
-@if (_settings != null)
-{
-    <SainSectionEditor Target="_settings" OnChanged="OnChanged" />
-}
-else
-{
-    <MudText Typo="Typo.caption" Class="spt-muted">@T("이 봇·난이도 조합에는 설정이 없습니다.", "No settings for this bot/difficulty combination.")</MudText>
-}
-
-@code {
-    [Parameter, EditorRequired] public SAINPresetBundle Bundle { get; set; } = default!;
-    [Parameter] public EventCallback OnChanged { get; set; }
-
-    private const string AllSections = "All";
-    private readonly record struct BotOption(ESainWildSpawnType Type, string Name, string Section);
-
-    private ESainWildSpawnType _botType;
-    private ESainBotDifficulty _difficulty = ESainBotDifficulty.hard;
-    private SAINSettingsGroupClass? _group;
-    private SAINSettingsClass? _settings;
-    private SainValue? _difficultyModifier;
-
-    private List<BotOption> _allBots = new();
-    private List<BotOption> _filteredBots = new();
-    private List<string> _sectionNames = new();
-    private string _sectionFilter = AllSections;
-
-    private readonly ESainBotDifficulty[] _difficulties =
-        { ESainBotDifficulty.easy, ESainBotDifficulty.normal, ESainBotDifficulty.hard, ESainBotDifficulty.impossible };
-
-    private string BotName
-    {
-        get { return _group?.Name ?? _botType.ToString(); }
-    }
-
-    protected override void OnInitialized()
-    {
-        var sectionByType = PresetGeneration.AllBotTypes().ToDictionary(b => b.WildSpawnType, b => b.Section ?? "Other");
-
-        _allBots = Bundle.BotSettings
-            .Select(kv => new BotOption(
-                kv.Key,
-                kv.Value.Name ?? kv.Key.ToString(),
-                sectionByType.TryGetValue(kv.Key, out var s) ? s : "Other"))
-            .OrderBy(b => b.Section).ThenBy(b => b.Name)
-            .ToList();
-
-        _sectionNames = new List<string> { AllSections };
-        _sectionNames.AddRange(_allBots.Select(b => b.Section).Distinct().OrderBy(s => s));
-
-        _filteredBots = _allBots;
-        _botType = _allBots.FirstOrDefault().Type;
-        Select();
-    }
-
-    private void ApplyFilter()
-    {
-        _filteredBots = _sectionFilter == AllSections
-            ? _allBots
-            : _allBots.Where(b => b.Section == _sectionFilter).ToList();
-    }
-
-    private void OnSectionChanged(string? section)
-    {
-        _sectionFilter = string.IsNullOrEmpty(section) ? AllSections : section;
-        ApplyFilter();
-        if (_filteredBots.All(b => b.Type != _botType) && _filteredBots.Count > 0)
+    <div class="spt-panel sain-bot-main pa-3">
+        @if (_group == null)
         {
-            _botType = _filteredBots[0].Type;
-            Select();
+            <MudText Typo="Typo.body2" Class="spt-muted">@T("편집할 봇 설정이 없습니다.", "No bot settings to edit.")</MudText>
         }
-    }
-
-    private void Select()
-    {
-        Bundle.BotSettings.TryGetValue(_botType, out _group);
-        _settings = _group != null && _group.Settings.TryGetValue(_difficulty, out var s) ? s : null;
-
-        if (_group != null)
+        else if (_copying)
         {
-            var field = typeof(SAINSettingsGroupClass).GetField(nameof(SAINSettingsGroupClass.DifficultyModifier));
-            _difficultyModifier = field != null ? new SainMember(_group, field).ToValue() : null;
+            <MudText Typo="Typo.h6">@T("복사할 봇 고르기", "Pick bots to copy to")</MudText>
+            <MudText Typo="Typo.caption" Class="spt-muted">@T($"{BotName}의 난이도 4칸 값을 복사합니다.", $"Copies all 4 difficulty slots from {BotName}.")</MudText>
+            <div class="sain-bot-copy-list">
+                @foreach (var section in _copySections)
+                {
+                    <div class="sain-bot-copy-head">
+                        <h3 class="sain-bot-section">@SectionName(section.Name)</h3>
+                        <MudButton Size="Size.Small" OnClick="() => SelectCopySection(section)">@T("전부 선택", "Select all")</MudButton>
+                    </div>
+                    @foreach (var bot in section.Bots)
+                    {
+                        <MudCheckBox T="bool" Value="_copyTargets.Contains(bot.Type)" ValueChanged="v => SelectCopyBot(bot.Type, v)"
+                                     Label="@bot.Name" Color="Color.Primary" Dense="true" />
+                    }
+                }
+            </div>
+            <MudStack Row Spacing="2" Class="mt-3">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_copyTargets.Count == 0)" OnClick="CopyToSelectedBots">@T("복사", "Copy")</MudButton>
+                <MudButton Variant="Variant.Outlined" OnClick="CancelCopy">@T("취소", "Cancel")</MudButton>
+            </MudStack>
         }
         else
         {
-            _difficultyModifier = null;
+            <div class="sain-bot-heading">
+                <div>
+                    <MudText Typo="Typo.h6">@BotName</MudText>
+                    <MudText Typo="Typo.caption" Class="spt-muted">@_records[_botType].Detail</MudText>
+                </div>
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ContentCopy" OnClick="StartCopy">
+                    @T("이 봇 설정을 다른 봇에 복사", "Copy this bot to other bots")
+                </MudButton>
+            </div>
+            <div class="sain-refbar sain-bot-scope">
+                <span class="sain-refbar-label">@T("바꾸면 적용할 곳", "Apply changes to")</span>
+                <button type="button" class="sain-refchip @(!_scope.HasValue ? "on" : null)" aria-pressed="@(!_scope.HasValue)" @onclick="() => SelectScope(null)">@T("난이도 4칸 전부", "All 4 difficulties")</button>
+                @foreach (var difficulty in Difficulties)
+                {
+                    bool seen = _records[_botType].Totals.ContainsKey(difficulty);
+                    <button type="button" class="sain-refchip @(_scope == difficulty ? "on" : null) @(!seen ? "sain-bot-unseen" : null)"
+                            aria-pressed="@(_scope == difficulty)" @onclick="() => SelectScope(difficulty)">
+                        @Value(difficulty)@(!seen ? T(" (안 나옴)", " (not seen)") : "")
+                    </button>
+                }
+                <span class="sain-bot-reference spt-muted">@(_reference == null ? T("기준 없음 (zzap 프리셋에 이 봇이 없음)", "No reference (not in the zzap preset)") : T("기준: zzap 프리셋", "Reference: zzap preset"))</span>
+            </div>
+
+            @if (_settings == null)
+            {
+                <MudText Typo="Typo.body2" Class="spt-muted mb-3">@T("이 봇·난이도 조합에는 설정이 없습니다. 다른 난이도를 골라 주세요.", "No settings for this bot/difficulty combination. Pick another difficulty.")</MudText>
+            }
+            else
+            {
+                <div class="sain-bot-shown spt-muted">@T($"표시 중인 값: {Value(_shown)} · 오른쪽으로 갈수록 강하게", $"Showing: {Value(_shown)} · stronger to the right")</div>
+                @foreach (var section in KnobSections)
+                {
+                    <div class="sain-quick-head mt-3">
+                        <MudText Typo="Typo.subtitle2" Class="spt-title">@KnobSectionName(section.Name)</MudText>
+                    </div>
+                    @foreach (var knob in section.Knobs)
+                    {
+                        float current = knob.Get(_settings);
+                        float baseline = _referenceSettings == null ? current : knob.Get(_referenceSettings);
+                        int direction = knob.Direction(current, baseline);
+                        double currentPos = Percent(knob, current);
+                        double referencePos = Percent(knob, baseline);
+                        <div class="sain-qrow sain-bot-knob" @key="knob.Id">
+                            <div class="sain-bot-knob-label">
+                                <span class="sain-qrow-name">@knob.Name(Korean)</span>
+                                <div class="sain-quick-desc">@knob.Help(Korean)</div>
+                            </div>
+                            <div class="sain-bot-knob-control">
+                                @if (knob.Kind is BotKnobKind.Toggle or BotKnobKind.ToggleNumber)
+                                {
+                                    <MudSwitch T="bool" Value="knob.GetOn(_settings)" ValueChanged="v => SetToggle(knob, v)" Color="Color.Primary"
+                                               Label="@(knob.GetOn(_settings) ? T("켬", "On") : T("끔", "Off"))" />
+                                }
+                                @if (knob.Kind == BotKnobKind.Personality)
+                                {
+                                    <MudSelect T="EPersonality" Value="knob.GetPersonality(_settings)" ValueChanged="p => SetPersonality(knob, p)"
+                                               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" aria-label="@knob.Name(Korean)">
+                                        @foreach (var personality in Personalities)
+                                        {
+                                            <MudSelectItem T="EPersonality" Value="personality">@PersonalityName(personality)</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                }
+                                @if (knob.Kind is BotKnobKind.Number or BotKnobKind.ToggleNumber)
+                                {
+                                    <div class="sain-quick-slider sain-diffslider sain-bot-slider">
+                                        <div class="sain-dl">
+                                            <span class="t"></span>
+                                            <span class="b" style="width:@(Css(Math.Min(currentPos, referencePos)))%"></span>
+                                            @if (_referenceSettings != null)
+                                            {
+                                                @if (direction != 0)
+                                                {
+                                                    <span class="d @(direction > 0 ? "up" : "down")" style="left:@(Css(Math.Min(currentPos, referencePos)))%;width:@(Css(Math.Abs(currentPos - referencePos)))%"></span>
+                                                }
+                                                <span class="r" style="left:@(Css(referencePos))%" title="@knob.Format(baseline, Korean)"></span>
+                                            }
+                                        </div>
+                                        <MudSlider T="double" Min="knob.Min" Max="knob.Max" Step="knob.Step" Value="Math.Round(knob.ToSlider(current), 3)"
+                                                   ValueChanged="v => SetNumber(knob, knob.Round(knob.FromSlider((float)v)))" Color="Color.Default" Immediate="true" aria-label="@knob.Name(Korean)" />
+                                    </div>
+                                }
+                            </div>
+                            <div class="sain-qrow-delta sain-bot-delta">
+                                @if (_referenceSettings == null)
+                                {
+                                    <span class="sain-qref">@T("기준 없음", "No reference")</span>
+                                }
+                                @if (knob.Kind is BotKnobKind.Number or BotKnobKind.ToggleNumber)
+                                {
+                                    @if (_referenceSettings != null)
+                                    {
+                                        <span class="dir @(direction > 0 ? "up" : direction < 0 ? "down" : "same")">@knob.DeltaText(current, baseline, Korean)</span>
+                                    }
+                                    <div><span class="ref">@knob.Format(baseline, Korean)</span> → <b>@knob.Format(current, Korean)</b></div>
+                                }
+                                @if (knob.Kind is BotKnobKind.Toggle or BotKnobKind.ToggleNumber or BotKnobKind.Personality)
+                                {
+                                    @if (_referenceSettings != null)
+                                    {
+                                        <span class="sain-qref">@ChoiceReference(knob)</span>
+                                    }
+                                    @if (knob.Kind == BotKnobKind.Personality)
+                                    {
+                                        <div>@PersonalityName(knob.GetPersonality(_settings))</div>
+                                    }
+                                }
+                            </div>
+                            <div class="sain-bot-reset">
+                                @if (_changedKnobs.Contains(knob.Id))
+                                {
+                                    <MudButton Size="Size.Small" Color="Color.Warning" OnClick="() => ResetKnob(knob)">@T("되돌리기", "Reset")</MudButton>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+            }
+
+            <button type="button" class="sain-bot-advanced" aria-expanded="@_advancedOpen" @onclick="() => _advancedOpen = !_advancedOpen">
+                @(_advancedOpen ? "▾" : "▸") @T($"고급 — 숫자 전부 보기 ({_advancedRows.Count}개 · 바꾼 값 {_advancedChanged}개)", $"Advanced - every number ({_advancedRows.Count} · {_advancedChanged} changed)")
+            </button>
+            @if (_advancedOpen)
+            {
+                @foreach (var section in _advancedSections)
+                {
+                    <MudText Typo="Typo.subtitle2" Class="spt-title mt-3 mb-1">@section.Label</MudText>
+                    @foreach (var row in section.Rows)
+                    {
+                        <div class="sain-bot-advanced-row" @key="row">
+                            @if (row.Nested != null)
+                            {
+                                <div class="sain-bot-field-help spt-muted">@row.Context</div>
+                            }
+                            <SainFieldEditor Value="row.Editor" OnChanged="NotifyChange" />
+                            @if (!string.IsNullOrWhiteSpace(row.Editor.Meta.Description))
+                            {
+                                <div class="sain-bot-field-help spt-muted">@Setting(row.Editor.Meta.Description)</div>
+                            }
+                            <div class="sain-bot-field-reference">
+                                <span class="sain-qref">@FieldReference(row)</span>
+                                @if (row.Category == null)
+                                {
+                                    <span class="spt-muted">@T("봇 종류 전체에 적용", "Applies to this whole bot type")</span>
+                                }
+                                @if (row.Changed)
+                                {
+                                    <span class="sain-diff">●</span>
+                                    <MudButton Size="Size.Small" Color="Color.Warning" OnClick="() => ResetField(row)">@T("되돌리기", "Reset")</MudButton>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+            }
+        }
+    </div>
+</div>
+
+<style>
+    /* zzap (2026-10-23): local bot page layout; the existing sain-q* rules draw the reference bars. */
+    .sain-bot-editor { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
+    .sain-bot-nav { max-height: 78vh; overflow-y: auto; }
+    .sain-bot-main { min-width: 0; }
+    .sain-bot-section { font-size: .75rem; color: #a1a1aa; margin: 14px 0 6px; }
+    .sain-bot-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 5px; width: 100%; padding: 8px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: inherit; text-align: left; font-size: .85rem; cursor: pointer; }
+    .sain-bot-item:hover { background: #27272a; }
+    .sain-bot-item.on { background: #203d57; border-color: #39749d; }
+    .sain-bot-badge { border-radius: 10px; padding: 1px 6px; background: #303038; color: #a1a1aa; font-size: .65rem; }
+    .sain-bot-badge.used { background: #214630; color: #b8eac8; }
+    .sain-bot-heading, .sain-bot-copy-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+    .sain-bot-scope { margin-top: 12px; }
+    .sain-bot-scope .sain-bot-unseen { opacity: .6; }
+    .sain-bot-scope .sain-bot-unseen.on { opacity: .85; }
+    .sain-bot-reference { margin-left: auto; font-size: .75rem; }
+    .sain-bot-shown { font-size: .75rem; }
+    .sain-bot-knob { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(160px, 1.5fr) minmax(150px, 1fr) 78px; gap: 12px; align-items: center; padding: 12px 0; }
+    .sain-bot-knob-label, .sain-bot-knob-control { min-width: 0; }
+    .sain-bot-knob-control { display: flex; align-items: center; gap: 6px; }
+    .sain-bot-slider { flex: 1; min-width: 70px; }
+    .sain-bot-delta { white-space: normal; overflow: visible; }
+    .sain-bot-delta .dir { display: block; margin: 0; }
+    .sain-bot-delta .sain-qref { white-space: normal; }
+    .sain-bot-reset { text-align: right; }
+    .sain-bot-advanced { display: block; width: 100%; margin-top: 18px; padding: 10px; border: 1px dashed #52525b; border-radius: 6px; background: transparent; color: #d4d4d8; text-align: left; cursor: pointer; }
+    .sain-bot-advanced-row { border-bottom: 1px solid #27272a; }
+    .sain-bot-field-reference { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; padding: 0 8px 8px; font-size: .75rem; }
+    .sain-bot-field-help { font-size: .75rem; padding: 0 8px 4px; }
+    .sain-bot-copy-list { max-height: 60vh; overflow-y: auto; margin-top: 12px; }
+    .sain-bot-copy-list > .mud-input-control { display: flex; }
+    @@media (max-width: 1200px) {
+        .sain-bot-editor { grid-template-columns: 220px minmax(0, 1fr); }
+        .sain-bot-knob { grid-template-columns: minmax(120px, 1fr) minmax(140px, 1.5fr) 78px; }
+        .sain-bot-delta { grid-column: 1 / 3; text-align: left; }
+        .sain-bot-reset { grid-column: 3; grid-row: 1 / 3; }
+    }
+    @@media (max-width: 760px) {
+        .sain-bot-editor { grid-template-columns: minmax(0, 1fr); }
+        .sain-bot-nav { max-height: 260px; }
+        .sain-bot-reference { flex-basis: 100%; }
+    }
+    @@media (max-width: 480px) {
+        .sain-bot-knob { grid-template-columns: minmax(0, 1fr) 78px; }
+        .sain-bot-knob-control, .sain-bot-delta { grid-column: 1 / -1; }
+        .sain-bot-reset { grid-column: 2; grid-row: 1; }
+    }
+</style>
+
+@code {
+    [Parameter, EditorRequired] public SAINPresetBundle Bundle { get; set; } = default!;
+    [Parameter] public SAINPresetBundle? Zzap { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private sealed record BotOption(ESainWildSpawnType Type, string Name, string Section);
+    private sealed record BotSection(string Name, List<BotOption> Bots);
+    private sealed record SpawnSummary(Dictionary<ESainBotDifficulty, int> Totals, string Badge, string Detail);
+    private sealed record AdvancedSection(string Name, string Label, List<AdvancedRow> Rows);
+    private sealed record AdvancedRow(string Group, FieldInfo? Category, FieldInfo Field, SainValue Editor, FieldInfo? Nested = null, string Context = "")
+    {
+        public bool Changed { get; set; }
+    }
+
+    private static readonly ESainBotDifficulty[] Difficulties =
+        { ESainBotDifficulty.easy, ESainBotDifficulty.normal, ESainBotDifficulty.hard, ESainBotDifficulty.impossible };
+    private static readonly EPersonality[] Personalities = Enum.GetValues<EPersonality>();
+    private static readonly (string Name, BotKnob[] Knobs)[] KnobSections =
+        { ("aim", BotQuickSettings.All.Where(k => k.Group == "aim").ToArray()),
+          ("sense", BotQuickSettings.All.Where(k => k.Group == "sense").ToArray()),
+          ("mind", BotQuickSettings.All.Where(k => k.Group == "mind").ToArray()) };
+    private static readonly FieldInfo ModifierField = typeof(SAINSettingsGroupClass).GetField(nameof(SAINSettingsGroupClass.DifficultyModifier))!;
+    // The shared list also contains the nested aim-part weights; expose their numeric leaves through the same editor.
+    private static readonly (FieldInfo Category, FieldInfo Nested, FieldInfo Field)[] NestedFields = BotAdvancedFields.List()
+        .Where(item => SainValue.Classify(item.Field.FieldType) == SainFieldKind.Nested)
+        .SelectMany(item => item.Field.FieldType.GetFields(BindingFlags.Public | BindingFlags.Instance)
+            .Where(field => !SainMeta.Read(field).Hidden
+                && (SainValue.Classify(field.FieldType) is SainFieldKind.Float or SainFieldKind.Int or SainFieldKind.Bool or SainFieldKind.Enum))
+            .Select(field => (Category: item.Category, Nested: item.Field, Field: field))).ToArray();
+
+    private SAINPresetBundle? _lastBundle;
+    private SAINPresetBundle? _lastZzap;
+    private bool _lastKorean;
+    private ESainWildSpawnType _botType;
+    private ESainBotDifficulty? _scope;
+    private ESainBotDifficulty _shown;
+    private SAINSettingsGroupClass? _group;
+    private SAINSettingsGroupClass? _reference;
+    private SAINSettingsClass? _settings;
+    private SAINSettingsClass? _referenceSettings;
+    private List<SpawnRaidCounts> _raids = new();
+    private List<BotOption> _allBots = new();
+    private List<BotSection> _visibleSections = new();
+    private List<BotSection> _copySections = new();
+    private readonly Dictionary<ESainWildSpawnType, SpawnSummary> _records = new();
+    private readonly HashSet<ESainWildSpawnType> _changedBots = new();
+    private readonly HashSet<ESainWildSpawnType> _copyTargets = new();
+    private readonly HashSet<string> _changedKnobs = new();
+    private List<AdvancedRow> _advancedRows = new();
+    private List<AdvancedSection> _advancedSections = new();
+    private string _query = string.Empty;
+    private bool _advancedOpen;
+    private bool _copying;
+    private int _advancedChanged;
+    private string BotName => _group?.Name ?? _botType.ToString();
+
+    // zzap (2026-10-23): load once per opened component; missing or damaged records never block editing.
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            string? json = await ClientData.GetAsync(SpawnDifficultyRecord.DataKey);
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                _raids = JsonSerializer.Deserialize<List<SpawnRaidCounts>>(json,
+                    new JsonSerializerOptions { IncludeFields = true, PropertyNameCaseInsensitive = true }) ?? new();
+                _raids = _raids.Where(r => r?.Counts != null).TakeLast(SpawnDifficultyRecord.KeepRaids).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _raids = new();
+            Logger.LogWarning(ex, "SAIN bot settings: could not read spawn difficulty records.");
         }
     }
 
-    private void OnBotChanged(ESainWildSpawnType type)
+    protected override void OnParametersSet()
+    {
+        bool bundleChanged = !ReferenceEquals(Bundle, _lastBundle);
+        bool referenceChanged = !ReferenceEquals(Zzap, _lastZzap);
+        bool languageChanged = Korean != _lastKorean;
+        _lastBundle = Bundle;
+        _lastZzap = Zzap;
+        _lastKorean = Korean;
+        if (bundleChanged)
+        {
+            var sectionByType = PresetGeneration.AllBotTypes().ToDictionary(b => b.WildSpawnType, b => b.Section ?? "Other");
+            _allBots = Bundle.BotSettings.Where(kv => kv.Value != null)
+                .Select(kv => new BotOption(kv.Key, kv.Value.Name ?? kv.Key.ToString(),
+                    sectionByType.TryGetValue(kv.Key, out var section) ? section : "Other"))
+                .OrderBy(b => b.Section).ThenBy(b => b.Name).ToList();
+            if (_allBots.All(b => b.Type != _botType))
+            {
+                _botType = _allBots.FirstOrDefault()?.Type ?? default;
+            }
+            _scope = null;
+            CancelCopy();
+        }
+        if (bundleChanged || languageChanged)
+        {
+            BuildRecords(bundleChanged);
+            Search(_query);
+        }
+        if (bundleChanged || referenceChanged)
+        {
+            _changedBots.Clear();
+            foreach (var bot in _allBots)
+            {
+                RefreshBotMark(bot.Type);
+            }
+        }
+        Select(bundleChanged || languageChanged);
+    }
+
+    private void BuildRecords(bool refreshTotals)
+    {
+        if (refreshTotals) _records.Clear();
+        foreach (var bot in _allBots)
+        {
+            var totals = _records.TryGetValue(bot.Type, out var previous) ? previous.Totals : SpawnDifficultyRecord.Totals(_raids, bot.Type);
+            string badge = totals.Count == 0 ? T("기록 없음", "no record")
+                : string.Join("·", Difficulties.Where(totals.ContainsKey).Select(d => Value(d)));
+            string detail = totals.Count == 0 ? T("아직 기록 없음 — 레이드를 한 판 하면 나옵니다", "No record yet - play a raid and it shows here")
+                : T($"최근 레이드 {_raids.Count}판: ", $"Last {_raids.Count} raids: ")
+                    + string.Join(" · ", Difficulties.Where(totals.ContainsKey).Select(d => T($"{Value(d)} {totals[d]}명", $"{Value(d)} {totals[d]}")));
+            _records[bot.Type] = new SpawnSummary(totals, badge, detail);
+        }
+    }
+
+    private void Search(string? query)
+    {
+        _query = query ?? string.Empty;
+        string term = _query.Trim();
+        _visibleSections = _allBots.Where(b => b.Name.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || b.Type.ToString().Contains(term, StringComparison.OrdinalIgnoreCase))
+            .GroupBy(b => b.Section).Select(g => new BotSection(g.Key, g.ToList())).ToList();
+    }
+
+    private void SelectBot(ESainWildSpawnType type)
     {
         _botType = type;
+        CancelCopy();
         Select();
     }
 
-    private void OnDifficultyChanged(ESainBotDifficulty diff)
+    private void SelectScope(ESainBotDifficulty? difficulty)
     {
-        _difficulty = diff;
+        _scope = difficulty;
         Select();
+    }
+
+    private void Select(bool rebuild = false)
+    {
+        var previousGroup = _group;
+        var previousSettings = _settings;
+        Bundle.BotSettings.TryGetValue(_botType, out _group);
+        _reference = ReferenceGroup(_botType);
+        _shown = _scope ?? (_records.TryGetValue(_botType, out var record) ? SpawnDifficultyRecord.ShownDifficulty(record.Totals) : ESainBotDifficulty.normal);
+        _settings = Slot(_group, _shown);
+        _referenceSettings = Slot(_reference, _shown);
+        if (rebuild || !ReferenceEquals(previousGroup, _group) || !ReferenceEquals(previousSettings, _settings))
+        {
+            BuildAdvancedRows();
+        }
+        RefreshSelectionMarks();
+    }
+
+    private SAINSettingsGroupClass? ReferenceGroup(ESainWildSpawnType type)
+        => Zzap != null && Zzap.BotSettings.TryGetValue(type, out var group) ? group : null;
+
+    private static SAINSettingsClass? Slot(SAINSettingsGroupClass? group, ESainBotDifficulty difficulty)
+        => group?.Settings != null && group.Settings.TryGetValue(difficulty, out var slot) ? slot : null;
+
+    private Task SetNumber(BotKnob knob, float value)
+    {
+        if (_group == null || _settings == null) return Task.CompletedTask;
+        BotQuickSettings.Apply(knob, _group, _scope, _shown, value);
+        return NotifyChange();
+    }
+
+    private Task SetToggle(BotKnob knob, bool value)
+    {
+        if (_group == null || _settings == null) return Task.CompletedTask;
+        BotQuickSettings.ApplyToggle(knob, _group, _scope, value);
+        return NotifyChange();
+    }
+
+    private Task SetPersonality(BotKnob knob, EPersonality value)
+    {
+        if (_group == null || _settings == null) return Task.CompletedTask;
+        BotQuickSettings.ApplyPersonality(knob, _group, _scope, value);
+        return NotifyChange();
+    }
+
+    private Task ResetKnob(BotKnob knob)
+    {
+        if (_group == null || _reference == null) return Task.CompletedTask;
+        BotQuickSettings.Reset(knob, _group, _reference, _scope);
+        return NotifyChange();
+    }
+
+    private string ChoiceReference(BotKnob knob)
+    {
+        if (_settings == null || _referenceSettings == null) return T("기준 없음", "No reference");
+        bool personality = knob.Kind == BotKnobKind.Personality;
+        bool same = personality ? knob.GetPersonality(_settings) == knob.GetPersonality(_referenceSettings)
+            : knob.GetOn(_settings) == knob.GetOn(_referenceSettings);
+        string baseline = personality ? PersonalityName(knob.GetPersonality(_referenceSettings))
+            : knob.GetOn(_referenceSettings) ? T("켬", "On") : T("끔", "Off");
+        return same ? T("기준과 같음", "Same as reference") : T($"기준 {baseline} →", $"Reference {baseline} →");
+    }
+
+    private void BuildAdvancedRows()
+    {
+        _advancedRows = new();
+        if (_group != null)
+        {
+            _advancedRows.Add(AdvancedField("modifier", null, ModifierField, _group));
+        }
+        if (_settings != null)
+        {
+            foreach (var item in BotAdvancedFields.List())
+            {
+                object? owner = item.Category.GetValue(_settings);
+                if (owner == null) continue;
+                if (SainValue.Classify(item.Field.FieldType) == SainFieldKind.Nested)
+                {
+                    object? nestedOwner = item.Field.GetValue(owner);
+                    if (nestedOwner == null) continue;
+                    foreach (var path in NestedFields)
+                    {
+                        if (path.Category == item.Category && path.Nested == item.Field)
+                        {
+                            _advancedRows.Add(AdvancedField(item.Group, item.Category, path.Field, nestedOwner, item.Field));
+                        }
+                    }
+                }
+                else
+                {
+                    _advancedRows.Add(AdvancedField(item.Group, item.Category, item.Field, owner));
+                }
+            }
+        }
+        _advancedSections = _advancedRows.GroupBy(r => r.Group)
+            .Select(g => new AdvancedSection(g.Key, AdvancedSectionName(g.Key), g.ToList())).ToList();
+    }
+
+    // zzap (2026-10-23): intercept the field editor's setter before it changes the shown value, preserving all-slot ratios.
+    // The editor's built-in default reset is omitted here; the explicit reset uses the zzap reference instead.
+    private AdvancedRow AdvancedField(string group, FieldInfo? category, FieldInfo field, object owner, FieldInfo? nested = null)
+    {
+        var source = new SainMember(owner, field).ToValue();
+        var editor = new SainValue
+        {
+            Meta = source.Meta, ValueType = source.ValueType, Getter = source.Getter, CanWrite = source.CanWrite,
+            Setter = value => ApplyField(category, nested, field, source.Meta, value),
+        };
+        return new AdvancedRow(group, category, field, editor, nested, nested == null ? "" : Setting(SainMeta.Read(nested).Name));
+    }
+
+    private static object? FieldOwner(SAINSettingsClass? slot, FieldInfo category, FieldInfo? nested)
+    {
+        object? owner = slot == null ? null : category.GetValue(slot);
+        return owner == null || nested == null ? owner : nested.GetValue(owner);
+    }
+
+    private IEnumerable<(ESainBotDifficulty Difficulty, SAINSettingsClass Settings)> TargetSlots()
+    {
+        foreach (var difficulty in Difficulties)
+        {
+            if (_scope.HasValue && _scope.Value != difficulty) continue;
+            var slot = Slot(_group, difficulty);
+            if (slot != null) yield return (difficulty, slot);
+        }
+    }
+
+    private void ApplyField(FieldInfo? category, FieldInfo? nested, FieldInfo field, SainMeta meta, object? value)
+    {
+        if (_group == null) return;
+        if (category == null)
+        {
+            field.SetValue(_group, value);
+            return;
+        }
+        if (_settings == null) return;
+        object? shownOwner = FieldOwner(_settings, category, nested);
+        if (shownOwner == null) return;
+        bool numeric = SainValue.Classify(field.FieldType) is SainFieldKind.Float or SainFieldKind.Int;
+        double before = numeric ? Convert.ToDouble(field.GetValue(shownOwner), CultureInfo.InvariantCulture) : 0d;
+        double after = numeric ? Convert.ToDouble(value, CultureInfo.InvariantCulture) : 0d;
+        foreach (var target in TargetSlots())
+        {
+            object? owner = FieldOwner(target.Settings, category, nested);
+            if (owner == null) continue;
+            if (numeric && !_scope.HasValue && Math.Abs(before) >= 1e-6d)
+            {
+                double scaled = Convert.ToDouble(field.GetValue(owner), CultureInfo.InvariantCulture) * (after / before);
+                float clamped = meta.Clamp((float)scaled);
+                field.SetValue(owner, Convert.ChangeType(clamped, field.FieldType, CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                field.SetValue(owner, value);
+            }
+        }
+        field.SetValue(shownOwner, value);
+    }
+
+    private Task ResetField(AdvancedRow row)
+    {
+        if (_group == null || _reference == null) return Task.CompletedTask;
+        if (row.Category == null)
+        {
+            row.Field.SetValue(_group, row.Field.GetValue(_reference));
+        }
+        else
+        {
+            foreach (var target in TargetSlots())
+            {
+                object? owner = FieldOwner(target.Settings, row.Category, row.Nested);
+                var referenceSlot = Slot(_reference, target.Difficulty);
+                object? from = FieldOwner(referenceSlot, row.Category, row.Nested);
+                if (owner != null && from != null) row.Field.SetValue(owner, row.Field.GetValue(from));
+            }
+        }
+        return NotifyChange();
+    }
+
+    private string FieldReference(AdvancedRow row)
+    {
+        object? owner = row.Category == null ? _reference : FieldOwner(_referenceSettings, row.Category, row.Nested);
+        return owner == null ? T("기준 없음", "No reference")
+            : T("기준값: ", "Reference: ") + FieldText(row.Field.GetValue(owner));
+    }
+
+    private static bool Different(object? a, object? b)
+        => a is float fa && b is float fb ? Math.Abs(fa - fb) > 1e-4f
+            : a is double da && b is double db ? Math.Abs(da - db) > 1e-4d : !Equals(a, b);
+
+    private bool FieldChanged(AdvancedRow row)
+    {
+        if (_reference == null) return false;
+        if (row.Category == null) return Different(row.Field.GetValue(_group), row.Field.GetValue(_reference));
+        foreach (var target in TargetSlots())
+        {
+            var referenceSlot = Slot(_reference, target.Difficulty);
+            object? from = FieldOwner(referenceSlot, row.Category, row.Nested);
+            object? owner = FieldOwner(target.Settings, row.Category, row.Nested);
+            if (from != null && owner != null && Different(row.Field.GetValue(owner), row.Field.GetValue(from))) return true;
+        }
+        return false;
+    }
+
+    private void RefreshBotMark(ESainWildSpawnType type)
+    {
+        var reference = ReferenceGroup(type);
+        bool changed = Bundle.BotSettings.TryGetValue(type, out var group) && group != null && reference != null
+            && (BotQuickSettings.AnyChanged(group, reference) || Different(group.DifficultyModifier, reference.DifficultyModifier)
+                || NestedChanged(group, reference));
+        if (changed) _changedBots.Add(type);
+        else _changedBots.Remove(type);
+    }
+
+    private static bool NestedChanged(SAINSettingsGroupClass group, SAINSettingsGroupClass reference)
+    {
+        foreach (var difficulty in Difficulties)
+        {
+            var slot = Slot(group, difficulty);
+            var referenceSlot = Slot(reference, difficulty);
+            if (slot == null || referenceSlot == null) continue;
+            foreach (var path in NestedFields)
+            {
+                object? owner = FieldOwner(slot, path.Category, path.Nested);
+                object? from = FieldOwner(referenceSlot, path.Category, path.Nested);
+                if (owner != null && from != null && Different(path.Field.GetValue(owner), path.Field.GetValue(from))) return true;
+            }
+        }
+        return false;
+    }
+
+    private void RefreshSelectionMarks()
+    {
+        RefreshBotMark(_botType);
+        _changedKnobs.Clear();
+        if (_group != null && _reference != null)
+        {
+            foreach (var knob in BotQuickSettings.All)
+            {
+                if (BotQuickSettings.IsChanged(knob, _group, _reference)) _changedKnobs.Add(knob.Id);
+            }
+        }
+        _advancedChanged = 0;
+        foreach (var row in _advancedRows)
+        {
+            row.Changed = FieldChanged(row);
+            if (row.Changed) _advancedChanged++;
+        }
+    }
+
+    private async Task NotifyChange()
+    {
+        RefreshSelectionMarks();
+        await OnChanged.InvokeAsync();
+    }
+
+    private void StartCopy()
+    {
+        _copyTargets.Clear();
+        _copySections = _allBots.Where(b => b.Type != _botType).GroupBy(b => b.Section)
+            .Select(g => new BotSection(g.Key, g.ToList())).ToList();
+        _copying = true;
+    }
+
+    private void CancelCopy()
+    {
+        _copying = false;
+        _copyTargets.Clear();
+    }
+
+    private void SelectCopyBot(ESainWildSpawnType type, bool selected)
+    {
+        if (selected) _copyTargets.Add(type);
+        else _copyTargets.Remove(type);
+    }
+
+    private void SelectCopySection(BotSection section)
+    {
+        foreach (var bot in section.Bots) _copyTargets.Add(bot.Type);
+    }
+
+    private async Task CopyToSelectedBots()
+    {
+        if (_group?.Settings == null) return;
+        int count = 0;
+        foreach (var type in _copyTargets)
+        {
+            if (type == _botType || !Bundle.BotSettings.TryGetValue(type, out var target) || target?.Settings == null) continue;
+            bool copied = false;
+            foreach (var difficulty in Difficulties)
+            {
+                var source = Slot(_group, difficulty);
+                if (source == null) continue;
+                target.Settings[difficulty] = Clone(source);
+                copied = true;
+            }
+            if (copied)
+            {
+                count++;
+                RefreshBotMark(type);
+            }
+        }
+        CancelCopy();
+        Snackbar.Add(T($"{count}개 봇에 복사함", $"Copied to {count} bot types"), Severity.Success);
+        if (count > 0) await NotifyChange();
     }
 
     private static SAINSettingsClass Clone(SAINSettingsClass source)
-    {
-        return SAINJsonUtil.Deserialize<SAINSettingsClass>(SAINJsonUtil.Serialize(source))!;
-    }
+        => SAINJsonUtil.Deserialize<SAINSettingsClass>(SAINJsonUtil.Serialize(source))!;
 
-    private async Task CopyToAllDifficulties()
+    private static double Percent(BotKnob knob, float value)
+        => knob.Max <= knob.Min ? 0d : Math.Clamp((knob.ToSlider(value) - knob.Min) / (knob.Max - knob.Min) * 100d, 0d, 100d);
+    private static string Css(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+    private static string PersonalityName(EPersonality personality) => personality == EPersonality.None ? T("지정 안 함", "Unassigned") : Value(personality);
+    private static string SectionName(string section) => section == "Other" ? T("기타", "Other") : Setting(section);
+    private static string KnobSectionName(string section) => section switch { "aim" => T("조준", "Aim"), "sense" => T("감각", "Senses"), _ => T("성향", "Mind") };
+    private static string AdvancedSectionName(string section) => section switch { "vanilla" => T("게임 기본값", "EFT's own values"), "modifier" => Setting("Difficulty Modifier"), _ => Setting(SainMeta.Read(typeof(SAINSettingsClass).GetField(section)!).Name) };
+    private static string FieldText(object? value) => value switch
     {
-        if (_group == null || _settings == null)
-        {
-            return;
-        }
-        foreach (var key in _group.Settings.Keys.ToList())
-        {
-            if (key != _difficulty)
-            {
-                _group.Settings[key] = Clone(_settings);
-            }
-        }
-        Snackbar.Add(T($"{BotName} · {Value(_difficulty)} 설정을 {BotName}의 모든 난이도에 복사했습니다.", $"Copied {BotName} · {_difficulty} to every difficulty of {BotName}."), Severity.Success);
-        await OnChanged.InvokeAsync();
-    }
-
-    private async Task CopyToAllBots()
-    {
-        if (_settings == null)
-        {
-            return;
-        }
-        var count = 0;
-        foreach (var group in Bundle.BotSettings.Values)
-        {
-            if (group != _group && group.Settings.ContainsKey(_difficulty))
-            {
-                group.Settings[_difficulty] = Clone(_settings);
-                count++;
-            }
-        }
-        Snackbar.Add(T($"{BotName} · {Value(_difficulty)} 설정을 다른 봇 종류 {count}개에 복사했습니다.", $"Copied {BotName} · {_difficulty} to {count} other bot type(s)."), Severity.Success);
-        await OnChanged.InvokeAsync();
-    }
+        bool on => on ? T("켬", "On") : T("끔", "Off"),
+        EPersonality personality => PersonalityName(personality),
+        float number => number.ToString("0.###", CultureInfo.InvariantCulture),
+        double number => number.ToString("0.###", CultureInfo.InvariantCulture),
+        _ => Value(value),
+    };
 }
