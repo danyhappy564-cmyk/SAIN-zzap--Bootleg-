@@ -61,6 +61,7 @@ public class SAINBotInfoClass : BotComponentClassBase
     public BotProfile Profile { get; private set; }
     public BotWeaponInfoClass WeaponInfo { get; private set; }
     public EPersonality Personality { get; private set; }
+    internal bool PersonalityOverrideLogged { get; set; }
     public PersonalityBehaviorSettings PersonalitySettings
     {
         get { return PersonalitySettingsClass?.Behavior; }

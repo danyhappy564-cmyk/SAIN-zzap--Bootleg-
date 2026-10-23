@@ -1327,6 +1327,9 @@ public static class KoreanSettingText
         { "IR Light Visible Distance", "IR 조명 시야 거리" },
         { "How far a bot can see enemies with an IR Light Enabled, if they are using NVGs", "야간투시경을 쓰는 봇이 IR 조명을 켰을 때 적을 볼 수 있는 거리" },
         // SAINMindSettings
+        { "Personality Override (Modded Bots)", "성격 지정 (모드 봇용)" },
+        { "Always assign this personality to this bot type at the selected difficulty. Unassigned keeps normal assignment. Ignored if the personality is disabled. Black Division defaults to GigaChad.", "선택한 난이도의 이 봇 종류에 항상 이 성격을 배정합니다. 지정 안 함이면 원래 방식대로 배정하며, 해당 성격이 꺼져 있으면 무시합니다. 블랙 디비전 기본값은 GigaChad입니다." },
+        { "Unassigned", "지정 안 함" },
         { "Global Aggression Multiplier", "전역 공격성 배율" },
         { "How quickly bots will move to search for enemies after losing sight, and how carefully they will search. Higher number equals higher aggression.", "시야를 놓친 뒤 봇이 얼마나 빨리 적을 찾으러 움직이는지, 얼마나 조심스럽게 수색하는지. 높을수록 공격적." },
         { "Weapon Control", "무기 제어" },

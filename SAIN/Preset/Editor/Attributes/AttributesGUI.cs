@@ -102,7 +102,7 @@ public class AttributesGUI
                 return value;
             }
 
-            if (value is float || value is bool || value is int)
+            if (value is float || value is bool || value is int || value is EPersonality)
             {
                 value = EditFloatBoolInt(ref value, settingsObject, info, config, listDepth, out wasEdited);
                 return value;
@@ -579,7 +579,11 @@ public class AttributesGUI
         var defaultValue = info.GetDefault(settingsObject);
         bool atDefault = defaultValue == null || SameValue(value, defaultValue);
 
-        if (info.ValueType == typeof(bool))
+        if (value is EPersonality personality)
+        {
+            value = EditPersonalityOverride(personality, height);
+        }
+        else if (info.ValueType == typeof(bool))
         {
             value = ZzapUI.Switch((bool)value, height);
             GUILayout.FlexibleSpace();
@@ -627,6 +631,48 @@ public class AttributesGUI
 
         wasEdited = originalValue.ToString() != value.ToString();
         return value;
+    }
+
+    private static readonly EPersonality[] _personalityOptions = EnumValues.GetEnum<EPersonality>();
+    private static string[] _personalityOptionLabels;
+    private static bool _personalityOptionLabelsKorean;
+    private static GUIStyle _personalityGridStyle;
+
+    private static EPersonality EditPersonalityOverride(EPersonality current, float height)
+    {
+        _personalityGridStyle ??= new GUIStyle(ZzapUI.Button)
+        {
+            onNormal = ZzapUI.Pill.normal,
+            onHover = ZzapUI.Pill.hover,
+            onActive = ZzapUI.Pill.active,
+            onFocused = ZzapUI.Pill.focused,
+        };
+        if (_personalityOptionLabels == null || _personalityOptionLabelsKorean != EditorText.Korean)
+        {
+            _personalityOptionLabelsKorean = EditorText.Korean;
+            _personalityOptionLabels = new string[_personalityOptions.Length];
+            for (int i = 0; i < _personalityOptions.Length; i++)
+            {
+                _personalityOptionLabels[i] = _personalityOptions[i] == EPersonality.None
+                    ? EditorText.Setting("Unassigned")
+                    : EditorText.Value(_personalityOptions[i]);
+            }
+        }
+        int selected = Array.IndexOf(_personalityOptions, current);
+        int next = GUILayout.SelectionGrid(
+            selected,
+            _personalityOptionLabels,
+            3,
+            _personalityGridStyle,
+            Height(height * ((_personalityOptions.Length + 2) / 3)),
+            GUILayout.ExpandWidth(true)
+        );
+        if (next >= 0 && next != selected)
+        {
+            SAIN.Editor.Sounds.PlaySound(EUISoundType.MenuCheckBox, 0.5f);
+            return _personalityOptions[next];
+        }
+        return current;
     }
 
     public static void EditAllStealthValues(GearStealthValuesClass stealthClass)

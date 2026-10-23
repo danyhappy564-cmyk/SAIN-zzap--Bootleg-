@@ -1,5 +1,6 @@
 using SAIN.Preset.Shared.BotSettings;
 using SAIN.Preset.Shared.BotSettings.SAINSettings;
+using SAIN.Preset.Shared.BotSettings.SAINSettings.Categories;
 using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.GlobalSettings;
 using SAIN.Preset.Shared.Models.WS;
@@ -130,6 +131,7 @@ public sealed class PresetGenerationService(
 
             foreach (KeyValuePair<ESainBotDifficulty, SAINSettingsClass> pair in group.Settings)
             {
+                pair.Value.Mind.PersonalityOverride = SAINMindSettings.DefaultPersonalityOverride(botType.WildSpawnType);
                 var defaults = GetDefaults(botType, pair.Key);
 
                 if (defaults != null)

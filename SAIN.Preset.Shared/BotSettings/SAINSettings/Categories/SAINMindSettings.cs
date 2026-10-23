@@ -1,12 +1,30 @@
 using System.Runtime.Serialization;
 using SAIN.Preset.Shared.Attributes;
+using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.GlobalSettings;
+using SAIN.Preset.Shared.Models.Preset.Personalities;
 
 namespace SAIN.Preset.Shared.BotSettings.SAINSettings.Categories;
 
 [DataContract]
 public class SAINMindSettings : SAINSettingsBase<SAINMindSettings>, ISAINSettings
 {
+    [DataMember]
+    [Category("Personality")]
+    [Name("Personality Override (Modded Bots)")]
+    [Description(
+        "Always assign this personality to this bot type at the selected difficulty. Unassigned keeps normal assignment. Ignored if the personality is disabled. Black Division defaults to GigaChad."
+    )]
+    public EPersonality PersonalityOverride = EPersonality.None;
+
+    // zzap (2026-10-23): use role IDs so Black Division defaults need no dependency on its DLL.
+    public static EPersonality DefaultPersonalityOverride(ESainWildSpawnType type)
+    {
+        return (int)type is 848420 or 848421 or 848422 or 848423 or 848424 or 848426
+            ? EPersonality.GigaChad
+            : EPersonality.None;
+    }
+
     [DataMember]
     [Category("Personality")]
     [Name("Global Aggression Multiplier")]

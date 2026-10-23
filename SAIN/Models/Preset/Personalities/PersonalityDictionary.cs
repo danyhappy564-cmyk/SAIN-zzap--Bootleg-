@@ -32,6 +32,27 @@ public sealed class PersonalityDictionary : Dictionary<EPersonality, Personality
             return result;
         }
 
+        // zzap (2026-10-23): read the current preset, since FileSettings may still cache the previous preset.
+        var profile = infoClass.Profile;
+        if (
+            SAINPlugin.LoadedPreset.BotSettings.SAINSettings.TryGetValue(profile.WildSpawnType, out var botSettings)
+            && botSettings.Settings.TryGetValue(profile.BotDifficulty.ToESain(), out var difficultySettings)
+        )
+        {
+            result = difficultySettings.Mind.PersonalityOverride;
+            if (result != EPersonality.None && TryGetValue(result, out settings) && settings.Assignment.Enabled)
+            {
+                if (!infoClass.PersonalityOverrideLogged)
+                {
+                    infoClass.PersonalityOverrideLogged = true;
+                    Logger.LogWarning(
+                        $"[SAIN ModdedBots] personality {result} forced for {infoClass.BotOwner.ProfileId} (role {(int)profile.WildSpawnType}, difficulty {profile.BotDifficulty})"
+                    );
+                }
+                return result;
+            }
+        }
+
         // zzap SimLab: a sim preset's personality mix for this raid's PMCs (only in a sim raid that sets one)
         if (SAIN.SimLab.SimLab.TryPickPersonality(infoClass.Profile.IsPMC, ContainsKey, out result))
         {
