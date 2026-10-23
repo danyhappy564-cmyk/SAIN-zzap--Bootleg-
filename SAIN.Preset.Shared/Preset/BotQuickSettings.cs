@@ -31,6 +31,8 @@ public sealed class BotKnob
     public float Max = 1f;
     public float Step = 0.01f;
     public bool HigherIsStronger = true;
+    /// <summary>A narrower slider than the field's [MinMax] (UI only, the field's range still applies when typing).</summary>
+    public float SliderMax;
     public string UnitKo = string.Empty;
     public string UnitEn = string.Empty;
 
@@ -129,7 +131,12 @@ public static class BotQuickSettings
         {
             knob.Min = range.Min;
             knob.Max = range.Max;
-            knob.Step = Math.Max(range.Rounding > 0f ? 1f / range.Rounding : 0.01f, (range.Max - range.Min) / 200f);
+            // The field's own rounding (final review 10/23: range/200 made spotting's step 0.05 = 25% of zzap's 0.2).
+            knob.Step = range.Rounding > 0f ? 1f / range.Rounding : 0.01f;
+        }
+        if (knob.SliderMax > 0f && knob.SliderMax < knob.Max)
+        {
+            knob.Max = knob.SliderMax;
         }
         knob.Text = new QuickSetting
         {
@@ -137,6 +144,12 @@ public static class BotQuickSettings
             HigherIsStronger = knob.HigherIsStronger, UnitKo = knob.UnitKo, UnitEn = knob.UnitEn, Change = change,
         };
         return knob;
+    }
+
+    private static BotKnob Spotting(BotKnob knob)
+    {
+        knob.SliderMax = 1f;
+        return Finish(knob, knob.Text.Change);
     }
 
     public static readonly BotKnob[] All =
@@ -155,8 +168,9 @@ public static class BotQuickSettings
         }, QuickSettings.Diff("%p", " pp", "더", "덜", "more", "less")),
         Number("sight", "sense", "시야 거리", "Sight distance", "적을 볼 수 있는 기본 거리", "Base distance at which enemies can be seen", true, "m", " m",
             QuickSettings.Diff("m", " m", "김", "짧음", "farther", "shorter"), P("Core", "VisibleDistance")),
-        Number("spotting", "sense", "발견 속도", "Spotting speed", "보이는 적을 알아채는 빠르기", "How fast a visible enemy is noticed", true, "", "",
-            QuickSettings.Ratio("빨리", "늦게", "sooner", "later"), P("Core", "GainSightCoef")),
+        // GainSightCoef's [MinMax] runs to 10 while zzap uses about 0.2-0.3: the slider stops at 1 so zzap isn't jammed at the left.
+        Spotting(Number("spotting", "sense", "발견 속도", "Spotting speed", "보이는 적을 알아채는 빠르기", "How fast a visible enemy is noticed", true, "", "",
+            QuickSettings.Ratio("빨리", "늦게", "sooner", "later"), P("Core", "GainSightCoef"))),
         Number("hearing", "sense", "소리 듣기 거리", "Hearing distance", "발소리·총소리를 듣는 거리 배율", "Multiplier on how far steps and shots are heard", true, "배", "x",
             QuickSettings.Ratio("김", "짧음", "farther", "shorter"), P("Core", "HearingDistanceMulti")),
         Number("aggression", "mind", "공격성", "Aggression", "잃은 적을 얼마나 빨리, 덜 조심스럽게 찾으러 가나", "How soon and how boldly a lost enemy is searched for", true, "배", "x",

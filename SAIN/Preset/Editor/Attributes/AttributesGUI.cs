@@ -553,7 +553,8 @@ public class AttributesGUI
         int listDepth,
         out bool wasEdited,
         bool showLabel = true,
-        bool beginHoriz = true
+        bool beginHoriz = true,
+        bool showDefaultReset = true
     )
     {
         if (value == null)
@@ -610,7 +611,8 @@ public class AttributesGUI
             }
         }
 
-        if (!atDefault)
+        // zzap (2026-10-23): the bot type page resets to the zzap reference with its own button, not to SAIN's class default.
+        if (showDefaultReset && !atDefault)
         {
             string tip = string.Format(EditorText.UI("Back to the default ({0})"), defaultValue is float df ? df.Round(info.Rounding).ToString() : defaultValue.ToString());
             if (Button(new GUIContent(EditorText.UI("Reset"), tip), ZzapUI.Button, EUISoundType.ButtonClick, Width(ZzapUI.RESET_WIDTH), Height(height - 4f)))
@@ -619,7 +621,7 @@ public class AttributesGUI
                 ConfigEditingTracker.Remove(info);
             }
         }
-        else
+        else if (showDefaultReset)
         {
             Space(ZzapUI.RESET_WIDTH + 8f);
         }
