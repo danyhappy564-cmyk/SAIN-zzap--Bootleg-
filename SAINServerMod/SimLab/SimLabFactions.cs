@@ -23,6 +23,7 @@ public static class SimLabFactions
     public const float FACTION_TIME_OFFSET = 1000f;
     public const float BOSS_TIME_OFFSET = 2000f;
     private const int FACTION_WAVES_PER_SIDE = 15;
+    private const float MODDED_CHECK_SHARE = 0.5f;
 
     /// <summary>Leader bosses a sim raid may roll (followers come with them). Zryachiy is never on SAIN (kept vanilla), so not here.</summary>
     public static readonly string[] BossPool =
@@ -39,6 +40,9 @@ public static class SimLabFactions
     private static readonly HashSet<string> VanillaRoles = new(Enum.GetNames(typeof(ESainWildSpawnType)), StringComparer.OrdinalIgnoreCase);
 
     private static string _lastBoss = string.Empty;
+
+    /// <summary>zzap (2026-10-23) modded bot check: role -> the mod's section; roles of one section are one family (friends).</summary>
+    public static Dictionary<string, string> ModdedFamilies = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Random _rng = new();
 
     /// <summary>Waves of roles EFT doesn't know (custom factions from MoreBotsAPI-style mods) - kept when the map is cleared.</summary>
@@ -48,15 +52,22 @@ public static class SimLabFactions
         return name.Length > 0 && !VanillaRoles.Contains(name);
     }
 
-    public static void AddFactionWaves(LocationBase location, SimRaidInfo info, SimLabConfig config, string escorts)
+    public static void AddFactionWaves(LocationBase location, SimRaidInfo info, SimLabConfig config, string escorts, List<string>? moddedRoles = null)
     {
         var roles = (config.FactionRoles ?? []).Where(r => !string.IsNullOrWhiteSpace(r)).Select(r => r.Trim()).Distinct().ToList();
-        if (!config.FactionMix || roles.Count == 0 || config.FactionShare <= 0f)
+        float share = config.FactionShare;
+        // zzap (2026-10-23) modded bot check: the installed modded types instead, on half of the refills.
+        if (config.ModdedBotCheckInSim && moddedRoles is { Count: > 0 })
+        {
+            roles = moddedRoles;
+            share = MODDED_CHECK_SHARE;
+        }
+        if (!config.FactionMix || roles.Count == 0 || share <= 0f)
         {
             return;
         }
         info.FactionTimeBase = SimLabService.RESERVE_TIME_BASE + FACTION_TIME_OFFSET;
-        info.FactionShare = Math.Clamp(config.FactionShare, 0f, 1f);
+        info.FactionShare = Math.Clamp(share, 0f, 1f);
         info.FactionRoles = string.Join(",", roles);
         int count = FACTION_WAVES_PER_SIDE * 2;
         for (int i = 0; i < count; i++)
@@ -209,9 +220,23 @@ public static class SimLabFactions
         {
             Add(raid.SideB);
         }
+        var moddedFamilies = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (string r in Split(raid.FactionRoles))
         {
+            if (ModdedFamilies.TryGetValue(r, out string? section) && section.Length > 0)
+            {
+                if (!moddedFamilies.TryGetValue(section, out var members))
+                {
+                    moddedFamilies[section] = members = [];
+                }
+                members.Add(r);
+                continue;
+            }
             Add(r);
+        }
+        foreach (var members in moddedFamilies.Values)
+        {
+            Add([.. members]);
         }
         if (!string.IsNullOrEmpty(raid.Boss))
         {

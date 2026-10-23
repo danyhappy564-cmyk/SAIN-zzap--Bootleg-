@@ -19,7 +19,12 @@ namespace SAINServerMod.SimLab;
 /// other preset leaves raids untouched.
 /// </summary>
 [Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad + 6)]
-public sealed class SimLabService(ModHelper modHelper, LocationTable locationTable, ISptLogger<SimLabService> logger) : IOnLoad
+public sealed class SimLabService(
+    ModHelper modHelper,
+    LocationTable locationTable,
+    SAINServerMod.Generators.PresetGenerationService presetGeneration,
+    ISptLogger<SimLabService> logger
+) : IOnLoad
 {
     /// <summary>Reserve waves start at this Time (seconds) - far beyond any raid, so only the client activates them.</summary>
     public const float RESERVE_TIME_BASE = 90000f;
@@ -542,6 +547,24 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         return Config.Presets.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// zzap (2026-10-23) modded bot check: bot-db names of the types other mods registered with SAIN (they carry brain info),
+    /// bosses left out - a faction squad is a leader plus escorts of the same role.
+    /// </summary>
+    private List<string> ModdedFactionRoles()
+    {
+        var types = presetGeneration
+            .AllBotTypes()
+            .Where(t => (t.BrainsToApply is { Count: > 0 } || !string.IsNullOrEmpty(t.BaseBrain)) && !string.IsNullOrEmpty(t.BotDbKey))
+            .Where(t => !t.BotDbKey.StartsWith("boss", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        // One mod's roles stay one side in the sim (Black Division doesn't fight Black Division); the section is the mod's group.
+        SimLabFactions.ModdedFamilies = types
+            .GroupBy(t => t.BotDbKey, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Section ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+        return types.Select(t => t.BotDbKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
     /// <summary>Copies a preset's lineup / pace / personality mix / mod item switch into the live settings and saves.</summary>
     public bool ApplyPreset(string name)
     {
@@ -560,6 +583,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
             Config.Personalities = preset.Personalities ?? string.Empty;
             Config.NoModItemsInSim = preset.NoModItems;
             Config.DoorTestInSim = preset.DoorTest;
+            Config.ModdedBotCheckInSim = preset.ModdedBotCheck;
             Config.ActivePreset = preset.Name;
             // a new lineup starts from its first map
             State.Step = 0;
@@ -598,6 +622,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
                 Personalities = Config.Personalities ?? string.Empty,
                 NoModItems = Config.NoModItemsInSim,
                 DoorTest = Config.DoorTestInSim,
+                ModdedBotCheck = Config.ModdedBotCheckInSim,
             });
             Config.ActivePreset = name;
             SaveConfig();
@@ -642,6 +667,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         if (p.MaxAliveBots != Config.MaxAliveBots || p.SquadSizeMin != Config.SquadSizeMin || p.SquadSizeMax != Config.SquadSizeMax
             || p.RespawnSeconds != Config.RespawnSeconds || p.NoModItems != Config.NoModItemsInSim
             || p.DoorTest != Config.DoorTestInSim
+            || p.ModdedBotCheck != Config.ModdedBotCheckInSim
             || !string.Equals(p.Personalities ?? string.Empty, Config.Personalities ?? string.Empty, StringComparison.OrdinalIgnoreCase)
             || p.Rotation.Count != Config.Rotation.Count)
         {
@@ -862,7 +888,7 @@ public sealed class SimLabService(ModHelper modHelper, LocationTable locationTab
         info.ZzapBehaviour = Config.ZzapCrossCheck;
         try
         {
-            SimLabFactions.AddFactionWaves(location, info, Config, escorts);
+            SimLabFactions.AddFactionWaves(location, info, Config, escorts, Config.ModdedBotCheckInSim ? ModdedFactionRoles() : null);
         }
         catch (Exception ex)
         {

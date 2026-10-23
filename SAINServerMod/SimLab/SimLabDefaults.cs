@@ -152,12 +152,23 @@ public static class SimLabDefaults
             Preset("실외·장거리", "Outdoor / long range",
                 "재배치(실외 전용)·장거리 무기 전환·먼 적 상대 판단(정지·매복 거리 감점)·발소리 감지. 넓은 실외 맵.",
                 "", ("woods", 20), ("lighthouse", 20), ("sandbox", 20), ("shoreline", 20)),
+            // user 2026-10-23: a check-only preset for the modded bots SAIN now handles itself (Black Division without its fork).
+            ModdedCheck(Preset("모드 봇 SAIN 점검 (블디·RUAF·UNTAR)", "Modded bot SAIN check (Black Division, RUAF, UNTAR)",
+                "설치된 모드 봇(블랙 디비전·RUAF·UNTAR 등)이 SAIN으로 싸우는지. 보충 분대의 절반을 그 봇들로 채움(보스 제외, 설치 안 된 모드는 자동으로 빠짐). "
+                + "LogOutput에서 [SAIN ModdedBots] 줄 — 레이드 시작 레이어 점검 수치, 모르는 적에게 맞고 알아챔, 성격 지정. 분석 페이지 팩션별 표의 BlackDivision 두뇌 칸이 SAIN인지. 일반 순회 결과와 섞어 비교하지 말 것.",
+                "", ("factory4_day", 15), ("bigmap", 15))),
         ];
     }
 
     private static SimPreset DoorCheck(SimPreset preset)
     {
         preset.DoorTest = true;
+        return preset;
+    }
+
+    private static SimPreset ModdedCheck(SimPreset preset)
+    {
+        preset.ModdedBotCheck = true;
         return preset;
     }
 
@@ -171,7 +182,8 @@ public static class SimLabDefaults
         ["성격 비교 (고르게)"] = "All 8 personalities in equal shares to compare kills/deaths, freezes and ambush / retreat / rush rates per personality. Close range (Factory) and a multi-floor building (Customs).",
         ["방어형 성격 (Rat·Coward·SnappingTurtle)"] = "Whether ambush / retreat / holding personalities act naturally instead of zoning out (freeze and ambush rates, stalled retreats, healing). To see Rats ambushing next to doors, switch off the TEST preset's door tactic 'test mode: every PMC uses GigaChad tactics'.",
         ["공격형 성격 (GigaChad·Chad·Wreckless)"] = "Whether rushes, corner chases, squad storms and jump shots stay sensible (deaths while rushing, deaths right after a switch).",
-        ["실외·장거리"] = "Repositioning (outdoor only), switching to a long-range weapon, decisions against far enemies (freeze / ambush distance penalty), footstep detection. Large outdoor maps.",
+        ["모드 봇 SAIN 점검 (블디·RUAF·UNTAR)"] = "Whether the installed modded bots (Black Division, RUAF, UNTAR...) fight with SAIN. Half of the refills are those bots (bosses left out, mods that aren't installed drop out by themselves). In LogOutput the [SAIN ModdedBots] lines - raid-start layer check counts, hit by an unknown enemy and noticing it, forced personality. In the analysis page's per-faction table, whether the BlackDivision brain column is SAIN. Don't mix its results with normal rotations.",
+        ["실외·장거리"] ="Repositioning (outdoor only), switching to a long-range weapon, decisions against far enemies (freeze / ambush distance penalty), footstep detection. Large outdoor maps.",
     };
 
     private static SimPreset Preset(string name, string nameEn, string purpose, string personalities, params (string Map, float Minutes)[] picks)

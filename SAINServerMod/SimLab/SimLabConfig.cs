@@ -87,6 +87,13 @@ public sealed class SimLabConfig
     /// </summary>
     public bool DoorTestInSim;
 
+    /// <summary>
+    /// zzap (2026-10-23) modded bot check: in sim raids only, the faction squads are the bot types other mods registered with SAIN
+    /// (Black Division, RUAF, UNTAR... - whatever is installed; bosses left out) and half of the refills are faction squads.
+    /// No modded type installed = normal faction squads.
+    /// </summary>
+    public bool ModdedBotCheckInSim;
+
     /// <summary>Mix faction squads into the refills (rogues, raiders; spawned by the game's boss spawner, ABPS leaves them alone).</summary>
     public bool FactionMix = true;
 
@@ -162,6 +169,8 @@ public sealed class SimPreset
     public bool NoModItems = true;
     /// <summary>Door check switches on for this preset's raids (SimLabConfig.DoorTestInSim).</summary>
     public bool DoorTest;
+    /// <summary>Modded bot check switches on for this preset's raids (SimLabConfig.ModdedBotCheckInSim).</summary>
+    public bool ModdedBotCheck;
 }
 
 public sealed class SimMapEntry
