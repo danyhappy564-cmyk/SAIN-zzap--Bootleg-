@@ -287,6 +287,7 @@ public static class BotQuickSettings
         foreach (var slot in Slots(group, scope))
         {
             knob.Personality.Set(slot, personality);
+            slot.Mind.PersonalityPool = personality == EPersonality.None ? new List<EPersonality>() : new List<EPersonality> { personality };
         }
     }
 
@@ -303,6 +304,8 @@ public static class BotQuickSettings
             {
                 continue;
             }
+            if (knob.Kind == BotKnobKind.Personality)
+                pair.Value.Mind.PersonalityPool = from.Mind.PersonalityPool == null ? null : new List<EPersonality>(from.Mind.PersonalityPool);
             foreach (var field in knob.Fields)
             {
                 field.Set(pair.Value, field.Get(from));
@@ -312,13 +315,16 @@ public static class BotQuickSettings
 
     public static bool IsChanged(BotKnob knob, SAINSettingsGroupClass group, SAINSettingsGroupClass reference)
     {
-        return knob != null && Differs(group, reference, knob.Fields);
+        return knob?.Kind == BotKnobKind.Personality
+            ? BotLevels.KnobChanged(knob, group, new LevelSources { Reference = reference })
+            : knob != null && Differs(group, reference, knob.Fields);
     }
 
     /// <summary>Any knob or advanced field differs from the reference (the dot in the bot list).</summary>
     public static bool AnyChanged(SAINSettingsGroupClass group, SAINSettingsGroupClass reference)
     {
-        return Differs(group, reference, AllSimpleFields);
+        return Differs(group, reference, AllSimpleFields)
+            || IsChanged(All.First(k => k.Kind == BotKnobKind.Personality), group, reference);
     }
 
     private static bool Differs(SAINSettingsGroupClass group, SAINSettingsGroupClass reference, IReadOnlyList<FieldPath> fields)
@@ -357,6 +363,8 @@ public static class BotQuickSettings
         {
             return true;
         }
+        if (slots.Skip(1).Any(slot => !BotPersonalityPool.Candidates(group.WildSpawnType, slots[0].Mind).OrderBy(p => p)
+            .SequenceEqual(BotPersonalityPool.Candidates(group.WildSpawnType, slot.Mind).OrderBy(p => p)))) return false;
         foreach (var row in BotAdvancedFields.Rows())
         {
             object first = row.Get(slots[0]);
@@ -379,6 +387,9 @@ public static class BotQuickSettings
         {
             return false;
         }
+        if (knob.Kind == BotKnobKind.Personality)
+            return slots.Skip(1).Any(slot => !BotPersonalityPool.Candidates(group.WildSpawnType, slots[0].Mind).OrderBy(p => p)
+                .SequenceEqual(BotPersonalityPool.Candidates(group.WildSpawnType, slot.Mind).OrderBy(p => p)));
         foreach (var field in knob.Fields)
         {
             object first = field.Get(slots[0]);
@@ -415,12 +426,18 @@ public static class BotQuickSettings
             {
                 BotKnobKind.Toggle => knob.GetOn(slot) ? (korean ? "켬" : "on") : off,
                 BotKnobKind.ToggleNumber => knob.GetOn(slot) ? knob.Format(knob.Get(slot), korean) : off,
-                BotKnobKind.Personality => knob.GetPersonality(slot) == EPersonality.None ? (korean ? "지정 안 함" : "Unassigned") : knob.GetPersonality(slot).ToString(),
+                BotKnobKind.Personality => PoolText(group.WildSpawnType, slot, korean),
                 _ => knob.Format(knob.Get(slot), korean),
             };
             list.Add((difficulty, text));
         }
         return list;
+    }
+
+    private static string PoolText(ESainWildSpawnType type, SAINSettingsClass slot, bool korean)
+    {
+        var candidates = BotPersonalityPool.Candidates(type, slot.Mind);
+        return candidates.Count == 0 ? (korean ? "자동 배정" : "Automatic") : string.Join(" / ", candidates);
     }
 
     private static bool SameValue(object a, object b) => a is float fa && b is float fb ? Math.Abs(fa - fb) <= 1e-4f : Equals(a, b);

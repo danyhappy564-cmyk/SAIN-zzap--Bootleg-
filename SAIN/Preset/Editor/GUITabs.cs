@@ -148,7 +148,7 @@ public static class GUITabs
         UnityEngine.GUILayout.BeginVertical(ZzapUI.Panel1, Height(ZzapUI.PANEL_HEIGHT), UnityEngine.GUILayout.ExpandWidth(true));
         ZzapUI.PanelHeading(EditorText.Value(current), EditorText.UI("Modify the stealth value that certain pieces of equipment provide."));
         _stealthScroll = BeginScrollView(_stealthScroll, UnityEngine.GUILayout.ExpandHeight(true));
-        AttributesGUI.EditStealthType(stealth, current);
+        GearQuickGUI.Draw(current);
         EndScrollView();
         UnityEngine.GUILayout.EndVertical();
         EndHorizontal();

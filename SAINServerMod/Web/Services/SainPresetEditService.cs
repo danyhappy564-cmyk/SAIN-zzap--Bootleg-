@@ -27,19 +27,6 @@ public sealed class SainPresetEditService(
     {
         var items = new List<PresetListItem>();
 
-        foreach (var preset in presetGeneration.Presets.OrderBy(p => (int)p.Info.BaseSAINDifficulty))
-        {
-            items.Add(
-                new PresetListItem(
-                    preset.Info.Name,
-                    preset.Info.Description,
-                    IsCustom: false,
-                    preset.Info.BaseSAINDifficulty.ToString(),
-                    Disabled: serverConfig.Config.DisabledPresets.Contains(preset.Info.Name)
-                )
-            );
-        }
-
         foreach (var name in presetService.ListCustom())
         {
             items.Add(new PresetListItem(name, Description: null, IsCustom: true, BaseDifficulty: null));
@@ -112,21 +99,24 @@ public sealed class SainPresetEditService(
     public async Task SaveAsync(SAINPresetBundle bundle, string? renamedFrom = null, string? copyOf = null)
     {
         bundle.Info ??= new SAINPresetDefinition();
+        string original = copyOf ?? renamedFrom ?? bundle.Info.Name;
+        bundle.Info.Name = PresetSavePolicy.NameForSave(original, bundle.Info.Name, CustomExists);
         bundle.Info.IsCustom = true;
         bundle.Info.CanEditName = true;
 
+        var json = SAINJsonUtil.Serialize(bundle);
+        await presetService.SaveCustomAsync(bundle.Info.Name, json);
         // If the preset was renamed, drop the old custom file so we don't leave a stale duplicate.
         if (
             !string.IsNullOrWhiteSpace(renamedFrom)
             && !string.Equals(renamedFrom, bundle.Info.Name, StringComparison.Ordinal)
             && CustomExists(renamedFrom)
+            && !PresetSavePolicy.IsProtected(renamedFrom)
         )
         {
             presetService.DeleteCustom(renamedFrom);
         }
 
-        var json = SAINJsonUtil.Serialize(bundle);
-        await presetService.SaveCustomAsync(bundle.Info.Name, json);
         await webSocket.BroadcastPresetChanged(bundle.Info.Name, EPresetSyncChange.Saved, copyOf: copyOf);
     }
 

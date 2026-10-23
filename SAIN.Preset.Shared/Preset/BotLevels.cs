@@ -54,6 +54,8 @@ public sealed class LevelGlobals
 /// <summary>Everything a level pick reads: the reference bot, the loaded preset's globals and the three zzap level presets.</summary>
 public sealed class LevelSources
 {
+    public SAINSettingsGroupClass BaselineBot;
+    public EBotLevel BaselineLevel;
     /// <summary>The same bot in the bundled zzap preset (else SAIN's default preset); null for a bot neither lists.</summary>
     public SAINSettingsGroupClass Reference;
     public LevelGlobals Current;
@@ -77,6 +79,18 @@ public sealed class LevelSources
 /// </summary>
 public static class BotLevels
 {
+    public static EBotLevel PresetLevel(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return EBotLevel.None;
+        foreach (var preset in QuickSettings.ZzapPresets)
+        {
+            if (string.Equals(name, preset.Name, StringComparison.OrdinalIgnoreCase)
+                || name.StartsWith(preset.Name + " [Modified", StringComparison.OrdinalIgnoreCase))
+                return preset.Level == 1 ? EBotLevel.Easy : preset.Level == 2 ? EBotLevel.Normal : EBotLevel.Hard;
+        }
+        return EBotLevel.None;
+    }
+
     private enum Kind
     {
         Global,
@@ -337,10 +351,10 @@ public static class BotLevels
     public static int AdjustedCount(SAINSettingsGroupClass group, LevelSources src)
     {
         var level = group?.DifficultyLevel ?? EBotLevel.None;
-        if (level == EBotLevel.None || !Available(level, src))
-        {
-            return 0;
-        }
+        if (level == EBotLevel.None)
+            return src?.BaselineLevel != EBotLevel.None && src?.BaselineBot != null
+                ? BotQuickSettings.All.Count(knob => KnobChanged(knob, group, src)) : 0;
+        if (!Available(level, src)) return 0;
         var values = Compute(level, group, src);
         return BotQuickSettings.All.Count(knob => KnobDiffers(knob, group, values));
     }
@@ -401,6 +415,12 @@ public static class BotLevels
         {
             return (group.DifficultyLevel, IsAdjusted(group, src), false);
         }
+        if (src?.BaselineBot != null && src.BaselineLevel != EBotLevel.None)
+        {
+            bool same = SameAsReference(group, src.BaselineBot, WrittenPaths().ToList())
+                && Math.Abs(group.DifficultyModifier - src.BaselineBot.DifficultyModifier) <= 1e-4f;
+            return (src.BaselineLevel, !same, false);
+        }
         bool zzap = src?.Reference != null
             ? SameAsReference(group, src.Reference, WrittenPaths().ToList()) && Math.Abs(group.DifficultyModifier - src.Reference.DifficultyModifier) <= 1e-4f
             : Available(EBotLevel.Hard, src) && Matches(EBotLevel.Hard, group, src, WrittenPaths())
@@ -433,9 +453,16 @@ public static class BotLevels
         {
             return false;
         }
-        if (group.DifficultyLevel == EBotLevel.None && src.Reference != null)
+        var baseline = src.BaselineBot ?? src.Reference;
+        if (knob.Kind == BotKnobKind.Personality && baseline != null)
+            return group.Settings.Any(pair => pair.Value != null && !BotPersonalityPool.Candidates(group.WildSpawnType, pair.Value.Mind)
+                .OrderBy(p => p).SequenceEqual(BotPersonalityPool.Candidates(group.WildSpawnType,
+                    (baseline.Settings.TryGetValue(pair.Key, out var reference) ? reference : NormalSlot(baseline))?.Mind).OrderBy(p => p)));
+        if (!AffectsKnob(knob) && baseline != null)
+            return !SameAsReference(group, baseline, knob.Fields.ToList());
+        if (group.DifficultyLevel == EBotLevel.None && baseline != null)
         {
-            return !SameAsReference(group, src.Reference, LevelFieldsOf(knob));
+            return !SameAsReference(group, baseline, LevelFieldsOf(knob));
         }
         var level = group.DifficultyLevel == EBotLevel.None ? EBotLevel.Hard : group.DifficultyLevel;
         return KnobDiffers(knob, group, Compute(level, group, src));
@@ -448,13 +475,35 @@ public static class BotLevels
         {
             return;
         }
-        if (group.DifficultyLevel == EBotLevel.None && src.Reference?.Settings != null)
+        var baseline = src.BaselineBot ?? src.Reference;
+        if (knob.Kind == BotKnobKind.Personality && baseline != null)
         {
-            var fallback = NormalSlot(src.Reference);
+            foreach (var pair in group.Settings)
+            {
+                var reference = baseline.Settings.TryGetValue(pair.Key, out var slot) ? slot : NormalSlot(baseline);
+                if (pair.Value == null || reference == null) continue;
+                pair.Value.Mind.PersonalityOverride = reference.Mind.PersonalityOverride;
+                pair.Value.Mind.PersonalityPool = reference.Mind.PersonalityPool == null ? null : new System.Collections.Generic.List<SAIN.Preset.Shared.Models.Preset.Personalities.EPersonality>(reference.Mind.PersonalityPool);
+            }
+            return;
+        }
+        if (!AffectsKnob(knob) && baseline != null)
+        {
+            foreach (var pair in group.Settings)
+            {
+                var reference = baseline.Settings.TryGetValue(pair.Key, out var slot) ? slot : NormalSlot(baseline);
+                if (pair.Value == null || reference == null) continue;
+                foreach (var path in knob.Fields) path.Set(pair.Value, path.Get(reference));
+            }
+            return;
+        }
+        if (group.DifficultyLevel == EBotLevel.None && baseline?.Settings != null)
+        {
+            var fallback = NormalSlot(baseline);
             var paths = LevelFieldsOf(knob);
             foreach (var pair in group.Settings)
             {
-                var refSlot = src.Reference.Settings.TryGetValue(pair.Key, out var r) && r != null ? r : fallback;
+                var refSlot = baseline.Settings.TryGetValue(pair.Key, out var r) && r != null ? r : fallback;
                 if (pair.Value == null || refSlot == null)
                 {
                     continue;
@@ -481,6 +530,7 @@ public static class BotLevels
 
     private static void CopySlot(SAINSettingsClass from, SAINSettingsClass to)
     {
+        to.Mind.PersonalityPool = from.Mind.PersonalityPool == null ? null : new List<SAIN.Preset.Shared.Models.Preset.Personalities.EPersonality>(from.Mind.PersonalityPool);
         foreach (var path in AllPlain)
         {
             path.Set(to, path.Get(from));
@@ -521,9 +571,10 @@ public static class BotLevels
         {
             return;
         }
-        if (src?.Reference?.Settings != null)
+        var baseline = src?.BaselineBot ?? src?.Reference;
+        if (baseline?.Settings != null)
         {
-            CopyGroup(src.Reference, group);
+            CopyGroup(baseline, group);
         }
         else if (group.LevelBase != null && group.LevelBase.Count > 0)
         {
@@ -571,7 +622,7 @@ public static class BotLevels
         {
             return null;
         }
-        var copy = new SAINSettingsGroupClass(group.Settings.Keys.ToArray());
+        var copy = new SAINSettingsGroupClass(group.Settings.Keys.ToArray()) { Name = group.Name, WildSpawnType = group.WildSpawnType };
         CopyGroup(group, copy);
         copy.DifficultyLevel = group.DifficultyLevel;
         copy.UseVanillaAI = group.UseVanillaAI;

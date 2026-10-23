@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Linq;
+using SAIN.Preset.Shared.Preset;
 using EFT;
 using SAIN.Extensions;
 using SAIN.Preset.Shared.GlobalSettings;
@@ -39,14 +41,18 @@ public sealed class PersonalityDictionary : Dictionary<EPersonality, Personality
             && botSettings.Settings.TryGetValue(profile.BotDifficulty.ToESain(), out var difficultySettings)
         )
         {
-            result = difficultySettings.Mind.PersonalityOverride;
-            if (result != EPersonality.None && TryGetValue(result, out settings) && settings.Assignment.Enabled)
+            var candidates = BotPersonalityPool.Candidates(profile.WildSpawnType.ToESain(), difficultySettings.Mind)
+                .Where(p => TryGetValue(p, out var candidate) && candidate.Assignment.Enabled).ToList();
+            if (candidates.Count > 0 && BotPersonalityPool.TryPick(profile.WildSpawnType.ToESain(), difficultySettings.Mind,
+                p => TryGetValue(p, out var candidate) && candidate.Assignment.Enabled,
+                Random.Range(0, candidates.Count), out result))
             {
+                settings = this[result];
                 if (!infoClass.PersonalityOverrideLogged)
                 {
                     infoClass.PersonalityOverrideLogged = true;
                     Logger.LogWarning(
-                        $"[SAIN ModdedBots] personality {result} forced for {infoClass.BotOwner.ProfileId} (role {(int)profile.WildSpawnType}, difficulty {profile.BotDifficulty})"
+                        $"[SAIN ModdedBots] personality {result} selected from [{string.Join(", ", candidates)}] for {infoClass.BotOwner.ProfileId} (role {(int)profile.WildSpawnType}, difficulty {profile.BotDifficulty})"
                     );
                 }
                 return result;

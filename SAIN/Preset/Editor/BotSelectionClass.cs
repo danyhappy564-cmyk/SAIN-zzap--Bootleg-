@@ -192,6 +192,8 @@ public static class BotSelectionClass
         return new LevelSources
         {
             Reference = Reference(bot),
+            BaselineLevel = BotLevels.PresetLevel(SAINPlugin.LoadedPreset?.Info?.Name),
+            BaselineBot = FamilyBaseline(bot),
             Current = LevelGlobals.From(SAINPlugin.LoadedPreset?.GlobalSettings),
             Easy = LevelGlobals.From(easy),
             Normal = LevelGlobals.From(normal),
@@ -201,6 +203,24 @@ public static class BotSelectionClass
             HardBot = BotIn(hard, bot),
         };
     }
+
+    private static SAINSettingsGroupClass FamilyBaseline(BotType bot)
+    {
+        var level = BotLevels.PresetLevel(SAINPlugin.LoadedPreset?.Info?.Name);
+        return level == EBotLevel.None ? null : BotIn(Bundle(LevelBundleName(level)), bot);
+    }
+
+    private static BotAiState Ai(BotType bot) => BotAiPolicy.Resolve(bot.WildSpawnType.ToESain(),
+        SAINPlugin.LoadedPreset?.GlobalSettings?.General?.VanillaBots, Group(bot), BotSpawnController.IsExcluded(bot.WildSpawnType));
+
+    private static string AiLabel(BotAiState ai) => ai.Mode switch
+    {
+        BotAiMode.GlobalVanilla => T("바닐라 · 전역", "vanilla · global"),
+        BotAiMode.AlwaysVanilla => T("바닐라 · 고정", "vanilla · fixed"),
+        BotAiMode.ExternalVanilla => T("바닐라 · 외부", "vanilla · external"),
+        BotAiMode.PerBotVanilla => T("바닐라 · 봇별", "vanilla · per bot"),
+        _ => "SAIN",
+    };
 
     private static void TakeSnapshots()
     {
@@ -356,6 +376,7 @@ public static class BotSelectionClass
         public string AdvancedTitle;
         public bool Vanilla;
         public string VanillaLock;
+        public BotAiState Ai;
         public bool CanRevert;
         public readonly List<LevelView> LevelButtons = new();
         public readonly List<(ESainBotDifficulty? Scope, string Text, bool Seen)> Pills = new();
@@ -369,6 +390,7 @@ public static class BotSelectionClass
 
         private List<SpawnRaidCounts> _record;
         private bool _korean;
+        private string _context;
         private BotType _bot;
         private string _section;
         private ESainBotDifficulty? _scope;
@@ -378,10 +400,11 @@ public static class BotSelectionClass
         {
             var record = _loaded;
             bool languageChanged = _korean != Korean;
-            if (ReferenceEquals(record, _record) && !languageChanged && !_dirty && !AllBadgesStale && _bot == _selected && _section == _selectedSection && _scope == _advScope)
-            {
-                return;
-            }
+            var global = SAINPlugin.LoadedPreset?.GlobalSettings;
+            string context = SAINPlugin.LoadedPreset?.Info?.Name + JsonConvert.SerializeObject(global?.General?.VanillaBots)
+                + JsonConvert.SerializeObject(global?.Difficulty) + global?.Shoot?.BOT_RECOIL_COEF + global?.Aiming?.FasterCQBReactionsGlobal;
+            if (_context != context) { AllBadgesStale = true; _context = context; }
+            if (ReferenceEquals(record, _record) && !languageChanged && !_dirty && !AllBadgesStale && _bot == _selected && _section == _selectedSection && _scope == _advScope) return;
             _record = record;
             _korean = Korean;
             _bot = _selected;
@@ -394,7 +417,7 @@ public static class BotSelectionClass
                 AllBadgesStale = false;
                 foreach (var bot in BotTypeDefinitions.BotTypes.Values)
                 {
-                    Badges[bot] = BadgeText(Group(bot), Sources(bot));
+                    Badges[bot] = Ai(bot).UsesVanilla ? AiLabel(Ai(bot)) : BadgeText(Group(bot), Sources(bot));
                 }
             }
             SectionCounts.Clear();
@@ -420,21 +443,21 @@ public static class BotSelectionClass
                 return;
             }
             Src = Sources(_bot);
-            Reference = Src.Reference;
+            Reference = Src.BaselineBot ?? Src.Reference;
             Badges[_bot] = Badge = BadgeText(Group, Src);
-            Vanilla = Group.UseVanillaAI;
-            VanillaLock = BigBrainHandler.BrainAssignment.VanillaByGroupSetting(_bot.WildSpawnType, out string setting)
-                ? (Korean ? $"전역 설정 '{EditorText.Setting(setting)}'이 켜져 있어 이 봇은 바닐라로 고정됩니다" : $"Global setting '{setting}' is on - this bot stays vanilla")
-                : null;
+            Ai = BotSelectionClass.Ai(_bot);
+            Vanilla = Ai.UsesVanilla;
+            VanillaLock = Ai.CanChooseAI ? null : T("바닐라 우선 적용: ", "Vanilla override: ") + Ai.Reason;
+            if (Ai.UsesVanilla) Badges[_bot] = Badge = AiLabel(Ai);
             CanRevert = _saved.ContainsKey(_bot);
-            var shownLevel = Group.DifficultyLevel == EBotLevel.None ? EBotLevel.Hard : Group.DifficultyLevel;
-            LevelValues = Group.DifficultyLevel == EBotLevel.None && Src.Reference != null
-                ? BotLevels.NormalSlot(Src.Reference) : BotLevels.Compute(shownLevel, Group, Src);
+            var shownLevel = Group.DifficultyLevel == EBotLevel.None ? (Src.BaselineLevel == EBotLevel.None ? EBotLevel.Hard : Src.BaselineLevel) : Group.DifficultyLevel;
+            LevelValues = Group.DifficultyLevel == EBotLevel.None && Reference != null
+                ? BotLevels.NormalSlot(Reference) : BotLevels.Compute(shownLevel, Group, Src);
             foreach (var level in Levels)
             {
-                bool on = Group.DifficultyLevel == level;
-                bool available = BotLevels.Available(level, Src);
-                string text = $"<b>{LevelName(level)}</b>\n<size=11>{LevelHint(level)}{(on ? T(" · 지금", " · now") : string.Empty)}</size>";
+                bool on = BotLevels.Badge(Group, Src).Level == level;
+                bool available = Ai.CanEditSain && BotLevels.Available(level, Src);
+                string text = $"<b>{LevelName(level)} ({LevelHint(level)})</b>";
                 string tip = available ? null : (Korean ? $"'{LevelBundleName(level)}' 프리셋을 찾을 수 없습니다" : $"Preset '{LevelBundleName(level)}' not found");
                 LevelButtons.Add(new LevelView { Level = level, Content = new GUIContent(text, tip), On = on, Available = available });
             }
@@ -457,7 +480,7 @@ public static class BotSelectionClass
                 : (Korean ? $"실제로 나온 난이도 (최근 {record?.Count ?? 0}판): " : $"Spawned at (last {record?.Count ?? 0} raids): ")
                     + string.Join(" · ", Difficulties.Where(totals.ContainsKey).Select(d => Korean ? $"{EditorText.Value(d)} {totals[d]}명" : $"{d} {totals[d]}"));
             SlotsLine = BotQuickSettings.AllSlotsSame(Group) ? T("난이도 4칸 값이 모두 같습니다.", "All four difficulty slots hold the same values.") : null;
-            ReferenceLine = Reference != null ? T("기준: zzap 프리셋", "Reference: zzap preset") : T("기준 없음 (zzap 프리셋에 이 봇이 없음)", "No reference (not in the zzap preset)");
+            ReferenceLine = Reference != null ? T("기준: 현재 프리셋 계열 원본", "Reference: current preset family") : T("기준 없음 (zzap 프리셋에 이 봇이 없음)", "No reference (not in the zzap preset)");
             Pills.Add((null, T("4칸 전부", "All 4"), true));
             foreach (var d in Difficulties)
             {
@@ -476,7 +499,7 @@ public static class BotSelectionClass
             foreach (var knob in BotQuickSettings.All)
             {
                 bool affected = BotLevels.AffectsKnob(knob);
-                bool changed = affected && BotLevels.KnobChanged(knob, Group, Src);
+                bool changed = BotLevels.KnobChanged(knob, Group, Src);
                 var view = new KnobView
                 {
                     Knob = knob,
@@ -560,7 +583,7 @@ public static class BotSelectionClass
                     counts.TryGetValue(level, out int n);
                     counts[level] = n + 1;
                 }
-                if (group.UseVanillaAI)
+                if (BotSelectionClass.Ai(bot).UsesVanilla)
                 {
                     anyVanilla = true;
                 }
@@ -568,14 +591,14 @@ public static class BotSelectionClass
                 {
                     anySain = true;
                 }
-                SectionRows.Add(new SectionRow { Name = bot.Name, Badge = BadgeText(group, src), Ai = group.UseVanillaAI ? T("바닐라", "vanilla") : "SAIN" });
+                SectionRows.Add(new SectionRow { Name = bot.Name, Badge = BadgeText(group, src), Ai = AiLabel(BotSelectionClass.Ai(bot)) });
             }
             SectionVanilla = anyVanilla && anySain ? null : anyVanilla;
             foreach (var level in Levels)
             {
                 counts.TryGetValue(level, out int n);
-                string text = $"<b>{LevelName(level)}</b>\n<size=11>{LevelHint(level)}</size>\n<size=11>{(Korean ? $"{n}종" : $"{n}")}</size>";
-                LevelButtons.Add(new LevelView { Level = level, Content = new GUIContent(text), On = false, Available = true });
+                string text = $"<b>{LevelName(level)} ({LevelHint(level)})</b>\n<size=11>{(Korean ? $"{n}종" : $"{n}")}</size>";
+                LevelButtons.Add(new LevelView { Level = level, Content = new GUIContent(text), On = false, Available = bots.Any(b => BotSelectionClass.Ai(b).CanEditSain && BotLevels.Available(level, Sources(b))) });
             }
         }
     }
@@ -654,18 +677,19 @@ public static class BotSelectionClass
 
     // ---------------------------------------------------------------- right: one bot
 
-    private static void HeaderButtons(Action revert, Action original, bool canRevert)
+    private static void HeaderButtons(Action revert, Action original, bool canRevert, bool canEdit = true)
     {
-        GUI.enabled = canRevert;
+        GUI.enabled = canRevert && canEdit;
         if (GUILayout.Button(new GUIContent(T("되돌리기", "Revert"), T("마지막으로 저장한 값으로 (저장 안 한 변경 취소)", "Back to the last saved values (drops unsaved changes)")), ZzapUI.Button, GUILayout.Height(28f)))
         {
             Write(revert);
         }
-        GUI.enabled = true;
+        GUI.enabled = canEdit;
         if (GUILayout.Button(new GUIContent(T("원본 사용", "Use original"), T("zzap 프리셋의 원래 값으로, 난이도 선택도 지움 (AI는 SAIN으로)", "The zzap preset's values, no level picked, SAIN AI")), ZzapUI.Button, GUILayout.Height(28f)))
         {
             Write(original);
         }
+        GUI.enabled = true;
     }
 
     private static void AiRow(bool? vanilla, string lockReason, Action<bool> set)
@@ -715,16 +739,19 @@ public static class BotSelectionClass
         HeaderButtons(
             () =>
             {
+                if (!Ai(bot).CanEditSain) return;
                 BotLevels.RestoreSaved(group, _saved.TryGetValue(bot, out var saved) ? saved : null);
                 ConfigEditingTracker.Add(bot.Name, "revert");
                 _view.AllBadgesStale = true;
             },
             () =>
             {
+                if (!Ai(bot).CanEditSain) return;
                 BotLevels.ResetToOriginal(group, src);
                 ConfigEditingTracker.Add(bot.Name, "original");
             },
-            _view.CanRevert);
+            _view.CanRevert, _view.Ai.CanEditSain);
+        GUI.enabled = _view.Ai.CanEditSain;
         if (GUILayout.Button(T("다른 봇에 복사", "Copy to other bots"), ZzapUI.Button, GUILayout.Height(28f)))
         {
             Write(() =>
@@ -733,6 +760,7 @@ public static class BotSelectionClass
                 _copyTargets.Clear();
             });
         }
+        GUI.enabled = true;
         GUILayout.EndHorizontal();
         GUILayout.Label(T("난이도를 고르면 아래 숫자가 그 단계 값으로 바뀝니다 · ", "Picking a level writes that level's values below · ") + _view.ReferenceLine, _wrapSmall);
 
@@ -741,6 +769,13 @@ public static class BotSelectionClass
             group.UseVanillaAI = vanilla;
             ConfigEditingTracker.Add(bot.Name, vanilla ? "vanilla" : "SAIN");
         });
+        if (!_view.Ai.CanEditSain)
+        {
+            GUILayout.Label(T("현재 적용: ", "Effective AI: ") + AiLabel(_view.Ai), _wrapSmall);
+            GUILayout.Label(T("보관 중인 봇별 선택: ", "Stored per-bot choice: ") + (group.UseVanillaAI ? T("바닐라", "Vanilla") : "SAIN"), _wrapSmall);
+            GUILayout.Label(T("SAIN 값은 보관됩니다. 전역 바닐라를 끄거나 이 봇을 SAIN으로 바꾸면 다시 편집·적용됩니다.", "Stored SAIN values resume when the vanilla override is removed."), _wrapSmall);
+            return;
+        }
         Color old = GUI.color;
         if (_view.Vanilla)
         {
@@ -798,7 +833,7 @@ public static class BotSelectionClass
             case BotKnobKind.Personality:
                 GUILayout.FlexibleSpace();
                 GUILayout.Label(view.Note, ZzapUI.Small, GUILayout.Height(26f));
-                if (GUILayout.Button(PersonalityName(view.Personality) + "  ▾", ZzapUI.Button, GUILayout.Width(170f), GUILayout.Height(26f)))
+                if (GUILayout.Button(PoolLabel() + "  ▾", ZzapUI.Button, GUILayout.Width(170f), GUILayout.Height(26f)))
                 {
                     Write(() => _personalityOpen = !_personalityOpen);
                 }
@@ -865,25 +900,31 @@ public static class BotSelectionClass
         }
     }
 
+    private static string PoolLabel()
+    {
+        var pool = BotPersonalityPool.Candidates(_selected.WildSpawnType.ToESain(), BotLevels.NormalSlot(_view.Group)?.Mind);
+        return pool.Count == 0 ? T("자동 배정", "Automatic") : string.Join(" / ", pool);
+    }
+
     private static void PersonalityChoices(BotKnob knob)
     {
-        GUILayout.BeginHorizontal();
-        GUILayout.Space(LABEL_WIDTH);
-        foreach (EPersonality personality in Personalities)
+        GUILayout.Label(T("여러 개 선택하면 생성할 때 균등 무작위 · 한 개는 고정 · 전부 해제하면 자동", "Multiple = uniform random at spawn · one = fixed · none = automatic"), _wrapSmall);
+        var pool = BotPersonalityPool.Candidates(_selected.WildSpawnType.ToESain(), BotLevels.NormalSlot(_view.Group)?.Mind);
+        foreach (var personality in Personalities.Where(p => p != EPersonality.None))
         {
-            var captured = personality;
-            if (GUILayout.Button(PersonalityName(personality), ZzapUI.Button, GUILayout.Height(26f)))
+            bool selected = pool.Contains(personality);
+            if (ZzapUI.ListItem((selected ? "☑ " : "☐ ") + PersonalityName(personality), null, selected, null, LABEL_WIDTH, 24f))
             {
-                var group = _view.Group;
+                var captured = personality;
                 Write(() =>
                 {
-                    BotQuickSettings.ApplyPersonality(knob, group, null, captured);
-                    ConfigEditingTracker.Add(knob.NameEn, captured);
-                    _personalityOpen = false;
+                    var values = BotPersonalityPool.Candidates(_selected.WildSpawnType.ToESain(), BotLevels.NormalSlot(_view.Group)?.Mind).ToList();
+                    if (!values.Remove(captured)) values.Add(captured);
+                    BotPersonalityPool.Set(_view.Group, values);
+                    ConfigEditingTracker.Add(knob.NameEn, string.Join(",", values));
                 });
             }
         }
-        GUILayout.EndHorizontal();
     }
 
     // ---------------------------------------------------------------- advanced: every number, per-difficulty editing
@@ -991,7 +1032,7 @@ public static class BotSelectionClass
         HeaderButtons(
             () =>
             {
-                foreach (var bot in bots)
+                foreach (var bot in bots.Where(b => Ai(b).CanEditSain))
                 {
                     BotLevels.RestoreSaved(Group(bot), _saved.TryGetValue(bot, out var saved) ? saved : null);
                 }
@@ -1000,23 +1041,23 @@ public static class BotSelectionClass
             },
             () =>
             {
-                foreach (var bot in bots)
+                foreach (var bot in bots.Where(b => Ai(b).CanEditSain))
                 {
                     BotLevels.ResetToOriginal(Group(bot), Sources(bot));
                 }
                 ConfigEditingTracker.Add(section, "original");
                 _view.AllBadgesStale = true;
             },
-            true);
+            bots.Any(b => _saved.ContainsKey(b)), bots.Any(b => Ai(b).CanEditSain));
         GUILayout.EndHorizontal();
-        GUILayout.Label(T("여기서 바꾸면 이 팩션 봇 모두에 한꺼번에 적용됩니다.", "Changes here apply to every bot in this faction."), _wrapSmall);
+        GUILayout.Label(T("편집 가능한 봇에만 적용합니다. 전역·고정 바닐라는 건너뜁니다.", "Changes apply to editable bots; global/fixed vanilla bots are skipped."), _wrapSmall);
 
-        AiRow(_view.SectionVanilla, null, vanilla =>
+        AiRow(_view.SectionVanilla, bots.Any(b => Ai(b).CanChooseAI) ? null : T("전부 바닐라로 잠겨 있습니다", "All bots have a vanilla override"), vanilla =>
         {
             foreach (var bot in bots)
             {
                 var group = Group(bot);
-                if (group != null && !BigBrainHandler.BrainAssignment.VanillaByGroupSetting(bot.WildSpawnType, out _))
+                if (group != null && Ai(bot).CanChooseAI)
                 {
                     group.UseVanillaAI = vanilla;
                 }
@@ -1027,7 +1068,7 @@ public static class BotSelectionClass
         GUILayout.Space(6f);
         LevelRow(level =>
         {
-            foreach (var bot in bots)
+            foreach (var bot in bots.Where(b => Ai(b).CanEditSain))
             {
                 BotLevels.Apply(level, Group(bot), Sources(bot));
             }
@@ -1069,7 +1110,7 @@ public static class BotSelectionClass
                 {
                     foreach (var b in bots)
                     {
-                        if (b != _selected)
+                        if (b != _selected && Ai(b).CanEditSain)
                         {
                             _copyTargets.Add(b);
                         }
@@ -1079,7 +1120,7 @@ public static class BotSelectionClass
             GUILayout.EndHorizontal();
             foreach (var bot in bots)
             {
-                if (bot == _selected)
+                if (bot == _selected || !Ai(bot).CanEditSain)
                 {
                     continue;
                 }
@@ -1124,7 +1165,7 @@ public static class BotSelectionClass
         foreach (var bot in targets)
         {
             var target = Group(bot);
-            if (target?.Settings == null || ReferenceEquals(target, source))
+            if (!Ai(bot).CanEditSain || target?.Settings == null || ReferenceEquals(target, source))
             {
                 continue;
             }

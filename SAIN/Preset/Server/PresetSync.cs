@@ -52,6 +52,20 @@ public static class PresetSync
         return _customBundles.TryGetValue(name, out bundle);
     }
 
+    /// <summary>A working copy with no shared bot/global/personality/gear objects; restores the active static globals.</summary>
+    public static SAINPresetBundle CopyForEditing(SAINPresetBundle bundle)
+    {
+        if (bundle == null) return null;
+        try
+        {
+            return JsonConvert.DeserializeObject<SAINPresetBundle>(JsonConvert.SerializeObject(bundle, _settings), _settings);
+        }
+        finally
+        {
+            PresetHandler.LoadedPreset?.MakeCurrent();
+        }
+    }
+
     /// <summary>Last pulled/saved values for editor references; never the objects the editor changes.</summary>
     public static bool TryGetSavedCustomBundle(string name, out SAINPresetBundle bundle)
     {
@@ -431,21 +445,26 @@ public static class PresetSync
         }
     }
 
-    public static void PushCustomPreset(SAINPresetClass preset)
+    public static bool PushCustomPreset(SAINPresetClass preset)
     {
         if (preset?.Info == null || !preset.Info.IsCustom)
         {
-            return;
+            return false;
         }
-        PublishCustom(preset, preset.Info);
+        return PublishCustom(preset, preset.Info);
     }
 
-    public static void PublishCustom(SAINPresetClass preset, SAINPresetDefinition info)
+    public static bool PublishCustom(SAINPresetClass preset, SAINPresetDefinition info)
     {
+        if (info == null || PresetSavePolicy.IsProtected(info.Name))
+        {
+            Logger.LogWarning("[SAIN] Bundled preset originals are read-only. Save a Modified copy.");
+            return false;
+        }
         if (!ServerConfigClient.EditingAllowed)
         {
             Logger.LogWarning("[SAIN] Preset editing is disabled by the server. Changes were not saved.");
-            return;
+            return false;
         }
 
         try
@@ -454,13 +473,15 @@ public static class PresetSync
             bundle.Info = info;
             string json = JsonConvert.SerializeObject(bundle, _settings);
             ServerPresetClient.SaveCustom(info.Name, json);
-            // Only an accepted save may become the editor's saved baseline.
-            _customBundles[info.Name] = bundle;
+            // Detach the stored object too: editing after a successful save must not alter the cache.
+            _customBundles[info.Name] = CopyForEditing(bundle);
             _customJson[info.Name] = json;
+            return true;
         }
         catch (Exception ex)
         {
             Logger.LogError($"[SAIN] Failed to push custom preset to server: {ex.Message}");
+            return false;
         }
     }
 

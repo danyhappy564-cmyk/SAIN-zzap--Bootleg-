@@ -2,16 +2,15 @@
 @using SAIN.Preset.Shared.Models.Preset.Personalities
 @using SAIN.Preset.Shared.Personalities.BasePersonality
 
-<MudStack Row Spacing="3" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-3">
-    <MudSelect T="EPersonality" Value="_selected" ValueChanged="OnSelected" Label="@T("성격", "Personality")"
-               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width:220px;">
-        @foreach (var key in _keys)
-        {
-            <MudSelectItem T="EPersonality" Value="key">@key</MudSelectItem>
-        }
-    </MudSelect>
-</MudStack>
-
+<div class="sain-editor-body">
+<aside class="spt-panel pa-3" style="min-width:190px">
+    <MudText Typo="Typo.overline">@T("성격", "Personalities")</MudText>
+    @foreach (var key in _keys)
+    {
+        <MudButton FullWidth="true" Variant="@(key == _selected ? Variant.Filled : Variant.Text)" Color="Color.Primary" OnClick="() => OnSelected(key)">@Value(key)</MudButton>
+    }
+</aside>
+<div class="flex-grow-1">
 @if (_settings != null)
 {
     @* zzap (2026-10-23): the description comes from code, not from the text an old preset stored (it could be in either language). *@
@@ -19,25 +18,32 @@
     {
         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-3">@Setting(PersonalitySettingsClass.DescriptionOf(_selected))</MudAlert>
     }
-    <SainSectionEditor Target="_settings" OnChanged="OnChanged" />
+    <QuickObjectEditor Target="_settings" Original="Saved" OnChanged="OnChanged" />
+    <MudExpansionPanels Elevation="0" Class="mt-3"><MudExpansionPanel Text="@T("고급 · 성격의 모든 설정", "Advanced · all personality settings")">
+        <SainSectionEditor Target="_settings" Original="Saved" OnChanged="OnChanged" />
+    </MudExpansionPanel></MudExpansionPanels>
 }
 else
 {
     <MudText Typo="Typo.caption" Class="spt-muted">@T("이 프리셋에는 성격 데이터가 없습니다.", "This preset has no personality data.")</MudText>
 }
 
+</div></div>
+
 @code {
     [Parameter, EditorRequired] public SAINPresetBundle Bundle { get; set; } = default!;
+    [Parameter] public SAINPresetBundle? Original { get; set; }
+    private PersonalitySettingsClass? Saved => Original?.Personalities.GetValueOrDefault(_selected);
     [Parameter] public EventCallback OnChanged { get; set; }
 
     private List<EPersonality> _keys = new();
     private EPersonality _selected;
     private PersonalitySettingsClass? _settings;
 
-    protected override void OnInitialized()
+    protected override void OnParametersSet()
     {
         _keys = Bundle.Personalities.Keys.ToList();
-        _selected = _keys.FirstOrDefault();
+        if (!_keys.Contains(_selected)) _selected = _keys.FirstOrDefault();
         Bundle.Personalities.TryGetValue(_selected, out _settings);
     }
 

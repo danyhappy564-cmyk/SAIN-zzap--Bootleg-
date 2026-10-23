@@ -12,16 +12,16 @@
         <PresetChanges Bundle="Bundle" Original="Original" Zzap="Zzap" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("전역 설정 (전체)", "Global settings (all)")" Icon="@Icons.Material.Outlined.Public">
-        <SainSectionEditor Target="Bundle.GlobalSettings" OnChanged="OnChanged" />
+        <SainSectionEditor Target="Bundle.GlobalSettings" Original="Original?.GlobalSettings" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("봇 종류별", "Bot types")" Icon="@Icons.Material.Outlined.SmartToy">
         <BotSettingsEditor Bundle="Bundle" Original="Original" Zzap="Zzap" References="Columns" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("성격", "Personalities")" Icon="@Icons.Material.Outlined.Psychology">
-        <PersonalityEditor Bundle="Bundle" OnChanged="OnChanged" />
+        <PersonalityEditor Bundle="Bundle" Original="Original" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("장비 은밀성", "Gear Stealth")" Icon="@Icons.Material.Outlined.Shield">
-        <GearStealthEditor Bundle="Bundle" OnChanged="OnChanged" />
+        <GearStealthEditor Bundle="Bundle" Original="Original" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("정보", "Info")" Icon="@Icons.Material.Outlined.Description">
         <MudStack Spacing="3" Style="max-width:520px;">

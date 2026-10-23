@@ -146,17 +146,23 @@ public static class BotSettingsEditor
             ZzapUI.PanelHeading(title, current.SubInfo?.Description ?? current.Category.CategoryInfo.Description);
             container.Scroll = BeginScrollView(container.Scroll, GUILayout.ExpandHeight(true));
             object categoryObject = current.Category.GetValue(settings);
+            var baseline = QuickObjectGUI.Saved()?.GlobalSettings;
+            object savedObject = baseline == null ? null : current.Category.GetValue(baseline);
+            object quickObject = categoryObject;
             if (current.SubField != null)
             {
-                object subObject = current.SubField.GetValue(categoryObject);
-                if (subObject != null)
-                {
-                    AttributesGUI.EditAllValuesInObj(subObject, out wasEdited);
-                }
+                quickObject = current.SubField.GetValue(categoryObject);
+                savedObject = savedObject == null ? null : current.SubField.GetValue(savedObject);
             }
-            else
+            QuickObjectGUI.Draw(quickObject, savedObject, current.Key);
+            if (quickObject is SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings general)
             {
-                AttributesGUI.EditAllValuesInObj(current.Category, categoryObject, out wasEdited);
+                GUILayout.Label(EditorText.Korean ? "바닐라 묶음이 봇별 설정보다 우선합니다. SAIN 값은 보관되며 바닐라를 끄면 복원됩니다. 자리키·저격수는 바닐라 고정입니다. AI 전환은 게임 재시작 후 적용됩니다." : "Global vanilla overrides bot settings, preserving stored SAIN values. Zryachiy and snipers stay vanilla. Restart the game after AI changes.", ZzapUI.Small);
+                QuickObjectGUI.Draw(general.VanillaBots, (savedObject as SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings)?.VanillaBots, current.Key+".VanillaBots");
+            }
+            if (QuickObjectGUI.Advanced(current.Key))
+            {
+                if (quickObject != null) AttributesGUI.EditAllValuesInObj(quickObject, out wasEdited);
             }
             EndScrollView();
         }

@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using SAIN.Preset.Shared.Preset;
+using SAIN.Preset.Shared.Enums;
 using EFT;
 using SAIN.Components;
 using SAIN.Components.BotController;
@@ -156,7 +158,12 @@ public static class SAINEnableClass
 
         // zzap (2026-10-24): per-role vanilla must also keep SAIN components/patches off PMCs and modded bots.
         var bots = SAINPlugin.LoadedPreset?.BotSettings?.SAINSettings;
-        if (bots != null && bots.TryGetValue(type, out var group) && group?.UseVanillaAI == true)
+        SAIN.Preset.Shared.BotSettings.SAINSettings.SAINSettingsGroupClass group = null;
+        bots?.TryGetValue(type, out group);
+        var ai = BotAiPolicy.Resolve((ESainWildSpawnType)(int)type,
+            SAINPlugin.LoadedPreset?.GlobalSettings?.General?.VanillaBots, group);
+        if (ai.Mode == BotAiMode.AlwaysVanilla || ai.Mode == BotAiMode.PerBotVanilla
+            || ai.Mode == BotAiMode.GlobalVanilla && !(ai.Reason == "Vanilla Scavs" && IsPlayerScav(botOwner.Profile)))
         {
             return true;
         }
@@ -171,48 +178,16 @@ public static class SAINEnableClass
 
     public static bool ShallExludeByWildSpawnType(WildSpawnType wildSpawnType, BotOwner botOwner)
     {
-        return ExcludeScav(wildSpawnType, botOwner)
-            || ExcludeNormalBoss(wildSpawnType)
-            || ExcludeNormalFollower(wildSpawnType)
-            || ExcludeGoons(wildSpawnType)
-            || ExcludeCultists(wildSpawnType)
-            || ExcludeRogues(wildSpawnType)
-            || ExcludeRaiders(wildSpawnType)
-            || ExcludeBloodHounds(wildSpawnType)
-            || ExcludeLabyrinthBots(wildSpawnType)
-            || ExcludeSpecialBots(wildSpawnType);
+        string setting = BotAiPolicy.GroupSetting((ESainWildSpawnType)(int)wildSpawnType, SAINEnabled);
+        return setting != null && !(setting == "Vanilla Scavs" && IsPlayerScav(botOwner.Profile));
     }
 
     /// <summary>The same role predicates used to exclude SAIN components, for the F6 global-group lock.</summary>
     public static bool VanillaByGroupSetting(WildSpawnType role, out string settingName)
     {
-        settingName = null;
-        if (SAINPlugin.LoadedPreset?.GlobalSettings?.General?.VanillaBots == null)
-        {
-            return false;
-        }
-        (bool Excluded, string Name)[] groups =
-        [
-            (SAINEnabled.VanillaScavs && WildSpawn.IsScav(role), "Vanilla Scavs"),
-            (ExcludeNormalBoss(role), "Vanilla Bosses"),
-            (ExcludeNormalFollower(role), "Vanilla Boss Followers"),
-            (ExcludeGoons(role), "Vanilla Goons"),
-            (ExcludeCultists(role), "Vanilla Cultists"),
-            (ExcludeRogues(role), "Vanilla Rogues"),
-            (ExcludeRaiders(role), "Vanilla Raiders"),
-            (ExcludeBloodHounds(role), "Vanilla Bloodhounds"),
-            (ExcludeLabyrinthBots(role), "Vanilla Labyrinth Bots"),
-            (ExcludeSpecialBots(role), "Vanilla Special Bots"),
-        ];
-        foreach (var group in groups)
-        {
-            if (group.Excluded)
-            {
-                settingName = group.Name;
-                return true;
-            }
-        }
-        return false;
+        settingName = BotAiPolicy.GroupSetting((ESainWildSpawnType)(int)role,
+            SAINPlugin.LoadedPreset?.GlobalSettings?.General?.VanillaBots);
+        return settingName != null;
     }
 
     private static bool IsAlwaysEnabled(WildSpawnType wildSpawnType, BotOwner botOwner)

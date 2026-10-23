@@ -13,14 +13,21 @@ public class SAINMindSettings : SAINSettingsBase<SAINMindSettings>, ISAINSetting
     [Category("Personality")]
     [Name("Personality Override")]
     [Description(
-        "Always assign this personality to this bot type at the selected difficulty. Unassigned keeps normal assignment. Ignored if the personality is disabled. Black Division defaults to GigaChad."
+        "Always assign this personality to this bot type at the selected difficulty. Unassigned keeps normal assignment. Ignored if the personality is disabled. Black Division defaults to Chad/GigaChad; Wedge defaults to GigaChad. An explicit candidate pool takes precedence."
     )]
     public EPersonality PersonalityOverride = EPersonality.None;
+
+    /// <summary>Null reads the legacy/default choice; empty means automatic; multiple choices are sampled once per bot.</summary>
+    [DataMember]
+    [Category("Personality")]
+    [Name("Personality candidates")]
+    [Description("Select one personality to fix it, several to choose equally at spawn, or none for automatic assignment.")]
+    public System.Collections.Generic.List<EPersonality> PersonalityPool;
 
     // zzap (2026-10-23): use role IDs so Black Division defaults need no dependency on its DLL.
     public static EPersonality DefaultPersonalityOverride(ESainWildSpawnType type)
     {
-        return (int)type is 848420 or 848421 or 848422 or 848423 or 848424 or 848426
+        return (int)type == 848424
             ? EPersonality.GigaChad
             : EPersonality.None;
     }

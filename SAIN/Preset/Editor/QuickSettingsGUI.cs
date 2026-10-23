@@ -35,7 +35,6 @@ public static class QuickSettingsGUI
     private static readonly Dictionary<string, float> _saved = new();
     private static SAINPresetClass _savedFor;
 
-    private static bool _showSainPresets;
     private static string _newName = string.Empty;
     private static string _pendingDelete;
 
@@ -143,21 +142,6 @@ public static class QuickSettingsGUI
             if (def != null)
             {
                 Card(def, zzap);
-            }
-        }
-
-        GUILayout.Space(6f);
-        var defaults = PresetHandler.DefaultPresetOptions();
-        if (GUILayout.Button(T($"원본 SAIN 프리셋 ({defaults.Count}) ", $"SAIN's original presets ({defaults.Count}) ") + (_showSainPresets ? "▾" : "▸"), _section))
-        {
-            Sounds.PlaySound(EUISoundType.MenuDropdown);
-            ZzapUI.Defer(() => _showSainPresets = !_showSainPresets);
-        }
-        if (_showSainPresets)
-        {
-            foreach (var def in defaults)
-            {
-                Card(def, null);
             }
         }
 

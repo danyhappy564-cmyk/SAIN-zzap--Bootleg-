@@ -24,6 +24,7 @@ public class SAINPresetClass
 
     public SAINPresetClass(SAINPresetBundle bundle)
     {
+        bundle = PresetSync.CopyForEditing(bundle);
         Instance = this;
         if (bundle.Info.IsCustom)
         {
@@ -51,6 +52,7 @@ public class SAINPresetClass
         BotSettings = new SAINBotSettingsClass(this, serverSettings);
         PersonalityManager = new PersonalityManagerClass(this, bundle.Personalities);
         GearStealthValuesClass = new GearStealthValuesClass(bundle.GearStealthValues);
+        MakeCurrent();
     }
 
     /// <summary>
@@ -98,12 +100,8 @@ public class SAINPresetClass
             return;
         }
 
-        ConfigEditingTracker.Clear();
-
-        // zzap (user 2026-10-18 "make a copy"): a bundled zzap preset saves as "name [Modified]" like SAIN's defaults do - a mod
-        // update replaces the bundled files and used to wipe the player's changes. Not while the server forces that preset: the
-        // forced name is what loads next time, so the edits have to stay in it.
-        bool bundledZzap = preset.Info.IsCustom && QuickSettings.FindZzap(preset.Info.Name) != null && !ServerConfigClient.ForcedActive;
+        // Shipped zzap presets always save to a detached Modified copy.
+        bool bundledZzap = preset.Info.IsCustom && QuickSettings.FindZzap(preset.Info.Name) != null;
 
         if (preset.Info.IsCustom == false || bundledZzap)
         {
@@ -111,7 +109,7 @@ public class SAINPresetClass
 
             if (bundledZzap)
             {
-                newPreset.Name = QuickSettings.ModifiedCopyName(preset.Info.Name, name => PresetSync.TryGetCustomBundle(name, out _));
+                newPreset.Name = PresetSavePolicy.NameForSave(preset.Info.Name, preset.Info.Name, name => PresetSync.TryGetCustomBundle(name, out _));
             }
             else
             {
@@ -121,8 +119,10 @@ public class SAINPresetClass
             newPreset.Description = "[Modified] " + newPreset.Description;
             newPreset.DateCreated = DateTime.Today.ToString();
 
+            if (!PresetSync.PublishCustom(preset, newPreset)) return;
             PresetHandler.SavePresetDefinition(newPreset);
-            PresetHandler.InitPresetFromDefinition(newPreset, true);
+            PresetHandler.InitPresetFromDefinition(newPreset);
+            ConfigEditingTracker.Clear();
             PresetHandler.UpdateExistingBots();
             if (bundledZzap)
             {
@@ -134,7 +134,8 @@ public class SAINPresetClass
             return;
         }
 
-        PresetSync.PushCustomPreset(preset);
+        if (!PresetSync.PushCustomPreset(preset)) return;
+        ConfigEditingTracker.Clear();
         PresetHandler.UpdateExistingBots();
     }
 

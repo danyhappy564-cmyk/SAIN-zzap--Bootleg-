@@ -60,7 +60,9 @@ public static class BotPersonalityEditor
         _scroll = SAINLayout.BeginScrollView(_scroll, UnityEngine.GUILayout.ExpandHeight(true));
         if (SAINPresetClass.Instance.PersonalityManager.PersonalityDictionary.TryGetValue(current, out var settings))
         {
-            EditAllValuesInObj(settings, out bool newEdit);
+            var saved = QuickObjectGUI.Saved();
+            QuickObjectGUI.Draw(settings, saved != null && saved.Personalities.TryGetValue(current, out var baseline) ? baseline : null, "personality."+current);
+            if (QuickObjectGUI.Advanced("personality."+current)) EditAllValuesInObj(settings, out bool newEdit);
         }
         SAINLayout.EndScrollView();
         UnityEngine.GUILayout.EndVertical();

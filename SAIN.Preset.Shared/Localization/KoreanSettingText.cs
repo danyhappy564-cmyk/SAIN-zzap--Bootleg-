@@ -1327,6 +1327,9 @@ public static class KoreanSettingText
         { "IR Light Visible Distance", "IR 조명 시야 거리" },
         { "How far a bot can see enemies with an IR Light Enabled, if they are using NVGs", "야간투시경을 쓰는 봇이 IR 조명을 켰을 때 적을 볼 수 있는 거리" },
         // SAINMindSettings
+        { "Personality candidates", "성격 후보" },
+        { "Select one personality to fix it, several to choose equally at spawn, or none for automatic assignment.", "한 개를 고르면 고정, 여러 개를 고르면 봇 생성 시 균등 무작위로 배정합니다. 전부 해제하면 일반 자동 배정입니다. 꺼진 성격은 후보에서 제외됩니다." },
+        { "Always assign this personality to this bot type at the selected difficulty. Unassigned keeps normal assignment. Ignored if the personality is disabled. Black Division defaults to Chad/GigaChad; Wedge defaults to GigaChad. An explicit candidate pool takes precedence.", "이전 방식의 단일 성격 지정입니다. 성격 후보를 선택했다면 후보 설정이 우선합니다. 블랙 디비전 기본값은 Chad/GigaChad 중 무작위이며 Wedge는 GigaChad입니다. 꺼진 성격은 배정에서 제외됩니다." },
         { "Personality Override", "성격 지정" },
         { "Always assign this personality to this bot type at the selected difficulty. Unassigned keeps normal assignment. Ignored if the personality is disabled. Black Division defaults to GigaChad.", "선택한 난이도의 이 봇 종류에 항상 이 성격을 배정합니다. 지정 안 함이면 원래 방식대로 배정하며, 해당 성격이 꺼져 있으면 무시합니다. 블랙 디비전 기본값은 GigaChad입니다." },
         { "Unassigned", "지정 안 함" },

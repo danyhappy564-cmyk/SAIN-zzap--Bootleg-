@@ -76,16 +76,6 @@
                     {
                         @PresetCard(item)
                     }
-                    <div class="sain-sec sain-sec-toggle" @onclick="@(() => _showSain = !_showSain)">
-                        @T($"원본 SAIN 기본 프리셋 ({SainItems().Count})", $"SAIN's original presets ({SainItems().Count})") <span class="spt-muted">@(_showSain ? "▾" : "▸")</span>
-                    </div>
-                    @if (_showSain)
-                    {
-                        @foreach (var item in SainItems())
-                        {
-                            @PresetCard(item)
-                        }
-                    }
                     <MudText Typo="Typo.overline" Class="sain-sec">@T("내 프리셋", "MY PRESETS")</MudText>
                     @if (!_items.Any(i => i.IsCustom && !IsZzap(i.Name)))
                     {
@@ -104,7 +94,7 @@
                                       Margin="Margin.Dense" />
                         <MudSelect T="string" @bind-Value="_baseName" Label="@T("바탕 프리셋", "Based on")" Variant="Variant.Outlined"
                                    Margin="Margin.Dense" Dense="true">
-                            @foreach (var def in ZzapItems().Concat(SainItems()))
+                            @foreach (var def in ZzapItems())
                             {
                                 <MudSelectItem T="string" Value="@def.Name">@def.Name</MudSelectItem>
                             }
@@ -144,7 +134,6 @@
     private SAINPresetBundle? _zzap;
     private List<(string Name, SAINPresetBundle Bundle)> _columns = new();
     private int _changed;
-    private bool _showSain;
 
     private static IEnumerable<ZzapPresetCard> ZzapPresets => QuickSettings.ZzapPresets;
 
@@ -154,12 +143,7 @@
         return ZzapPresets.Select(z => _items.FirstOrDefault(i => i.Name == z.Name)).Where(i => i != null).Select(i => i!).ToList();
     }
 
-    private List<PresetListItem> SainItems()
-    {
-        return _items.Where(i => !i.IsCustom && !IsZzap(i.Name)).ToList();
-    }
-
-    private static bool IsZzap(string name)
+    private static bool IsZzap(string? name)
     {
         return ZzapPresets.Any(z => z.Name == name);
     }
@@ -259,7 +243,7 @@
         _items = Presets.ListAll();
         if (string.IsNullOrEmpty(_baseName))
         {
-            _baseName = ZzapItems().FirstOrDefault(i => i.Name == "zzap")?.Name ?? _items.FirstOrDefault(i => !i.IsCustom)?.Name ?? string.Empty;
+            _baseName = ZzapItems().FirstOrDefault(i => i.Name == "zzap")?.Name ?? _items.FirstOrDefault()?.Name ?? string.Empty;
         }
     }
 
@@ -352,8 +336,8 @@
 
         // zzap (user 2026-10-18 "make a copy"): a bundled zzap preset saves as "name [Modified]" (same name F6 picks) and its file
         // stays as shipped - a mod update replaces those files and used to wipe the changes. A renamed one is a new copy too
-        // (never delete the bundled file). The server's forced preset keeps its name: that name is what the game loads.
-        bool zzapCopy = !_opened.IsNewCustom && IsZzap(_opened.OriginalName) && !Presets.IsForced(_opened.OriginalName);
+        // (never delete the bundled file). Protected originals are never overwritten, including forced presets.
+        bool zzapCopy = !_opened.IsNewCustom && IsZzap(_opened.OriginalName);
         bool renamed = !string.Equals(_bundle.Info.Name, _opened.OriginalName, StringComparison.Ordinal);
         if (renamed && IsZzap(_bundle.Info.Name))
         {
@@ -364,7 +348,7 @@
         {
             if (!renamed)
             {
-                _bundle.Info.Name = QuickSettings.ModifiedCopyName(_opened.OriginalName, Presets.CustomExists);
+                _bundle.Info.Name = PresetSavePolicy.NameForSave(_opened.OriginalName!, _bundle.Info.Name, Presets.CustomExists);
             }
             else if (Presets.CustomExists(_bundle.Info.Name))
             {

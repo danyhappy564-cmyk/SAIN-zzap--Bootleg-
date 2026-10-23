@@ -231,7 +231,7 @@ public sealed class PresetGenerationService(
             }
             else if (defaults != null && defaults.TryGetValue(type, out var fallback))
             {
-                merged[type] = fallback;
+                merged[type] = cloner.Clone(fallback)!;
             }
         }
 

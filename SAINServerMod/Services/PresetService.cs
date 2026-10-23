@@ -179,6 +179,8 @@ public sealed class PresetService(ModHelper modHelper, JsonFileStoreUtil jsonFil
 
     public async Task SaveCustomAsync(string name, string presetJson)
     {
+        if (PresetSavePolicy.IsProtected(name))
+            throw new InvalidOperationException("Bundled preset originals are read-only. Save a [Modified] copy.");
         await jsonFileStore.WriteTextAsync(CustomPathFor(name), presetJson);
         CustomPresetsChanged?.Invoke();
     }
@@ -272,6 +274,8 @@ public sealed class PresetService(ModHelper modHelper, JsonFileStoreUtil jsonFil
 
         foreach (string name in ListCustom())
         {
+            // Normalize old fields in memory when read; never rewrite a shipped original on startup.
+            if (PresetSavePolicy.IsProtected(name)) continue;
             string? saved = await GetCustomAsync(name);
 
             if (string.IsNullOrWhiteSpace(saved))

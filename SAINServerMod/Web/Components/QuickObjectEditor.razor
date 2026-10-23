@@ -1,0 +1,61 @@
+@namespace SAINServerMod.Web.Components
+
+@if (_fields.Count > 0)
+{
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-3">
+        <MudText Typo="Typo.subtitle2">@T("빠른 조절", "Quick controls")</MudText>
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => Scale(.9f)">@T("수치 −10%", "Numbers −10%")</MudButton>
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => Scale(1.1f)">@T("수치 +10%", "Numbers +10%")</MudButton>
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="@(_saved.Count == 0)" OnClick="ResetAll">@T("저장값으로", "Restore saved")</MudButton>
+        <MudText Typo="Typo.caption" Class="spt-muted">@T($"저장 후 변경 {ChangedCount}개", $"{ChangedCount} changed since save")</MudText>
+    </MudStack>
+    @foreach (var field in _fields)
+    {
+        bool changed = _saved.TryGetValue(field.Key, out var baseline) && Math.Abs(field.Value - baseline) > .00001f;
+        <div class="spt-panel pa-3 mb-2" @key="field.Key">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudText Typo="Typo.body2" Class="flex-grow-1">@Setting(field.Name) @(changed ? "●" : "")</MudText>
+                @if (field.Toggle)
+                {
+                    <MudSwitch T="bool" Value="@(field.Value >= .5f)" ValueChanged="v => Set(field, v ? 1 : 0)" Color="Color.Primary" />
+                }
+                else
+                {
+                    <MudNumericField T="float" Value="field.Value" ValueChanged="v => Set(field, v)" Min="field.Min" Max="field.Max" Step="field.Step"
+                                     Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Style="width:120px;flex:none" aria-label="@Setting(field.Name)" />
+                }
+                <MudButton Size="Size.Small" Disabled="@(!changed)" OnClick="() => Set(field, baseline)">@T("되돌리기", "Reset")</MudButton>
+            </MudStack>
+            @if (!field.Toggle)
+            {
+                <MudSlider T="float" Value="field.Value" ValueChanged="v => Set(field,v)" Min="field.Min" Max="field.Max" Step="field.Step" Color="Color.Primary" aria-label="@Setting(field.Name)" />
+            }
+            <MudText Typo="Typo.caption" Class="spt-muted">@Setting(field.Help)</MudText>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public object? Target { get; set; }
+    [Parameter] public object? Original { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+    private List<SettingsQuickField> _fields = new();
+    private Dictionary<string,float> _saved = new();
+    protected override void OnParametersSet()
+    {
+        _fields = SettingsQuickFields.For(Target!);
+        _saved = SettingsQuickFields.For(Original!).ToDictionary(f => f.Key, f => f.Value);
+    }
+    private int ChangedCount => _fields.Count(f => _saved.TryGetValue(f.Key,out float value) && Math.Abs(f.Value-value)>.00001f);
+    private Task Set(SettingsQuickField field,float value)
+    {
+        float before=field.Value; field.Set(value);
+        return field.Value == before ? Task.CompletedTask : OnChanged.InvokeAsync();
+    }
+    private Task Scale(float ratio) => SettingsQuickFields.Scale(_fields,ratio)>0 ? OnChanged.InvokeAsync() : Task.CompletedTask;
+    private async Task ResetAll()
+    {
+        foreach (var field in _fields) if (_saved.TryGetValue(field.Key,out float value)) field.Set(value);
+        await OnChanged.InvokeAsync();
+    }
+}

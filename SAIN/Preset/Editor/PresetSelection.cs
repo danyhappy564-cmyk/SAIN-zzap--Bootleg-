@@ -39,7 +39,7 @@ public static class PresetSelection
         BeginHorizontal();
 
         baseSelectionOptions();
-        selectedPreset = selectDefault(selectedPreset);
+        // Generated originals are internal baselines only.
         selectedPreset = selectCustom(selectedPreset);
         checkCreateNew();
         if (checkDeletePreset())

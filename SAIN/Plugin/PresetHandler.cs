@@ -98,6 +98,7 @@ internal class PresetHandler
             CheckIfPresetLoaded(EditorDefaults.SelectedCustomPreset, out presetDefinition);
         }
 
+        if (presetDefinition == null && !ServerConfigClient.ForcedActive) presetDefinition = FindDefinitionByName(ZZAP_PRESET);
         ApplyDefinition(presetDefinition);
         return LoadedPreset != null;
     }
@@ -159,17 +160,7 @@ internal class PresetHandler
 
     public static List<SAINPresetDefinition> DefaultPresetOptions()
     {
-        var list = new List<SAINPresetDefinition>();
-
-        foreach (var bundle in PresetSync.ServerDefaults())
-        {
-            if (bundle?.Info != null)
-            {
-                list.Add(bundle.Info);
-            }
-        }
-
-        return list;
+        return new List<SAINPresetDefinition>();
     }
 
     public static void SavePresetDefinition(SAINPresetDefinition definition)
@@ -214,8 +205,9 @@ internal class PresetHandler
 
     public static void loadDefault()
     {
-        LoadedPreset =
-            GetDefaultPreset(EditorDefaults.SelectedDefaultPreset) ?? GetDefaultPreset(SAINDifficulty.hard) ?? GetFirstAvailablePreset();
+        LoadedPreset = PresetSync.TryGetCustomBundle(ZZAP_PRESET, out var zzap)
+            ? new SAINPresetClass(zzap)
+            : GetDefaultPreset(EditorDefaults.SelectedDefaultPreset) ?? GetDefaultPreset(SAINDifficulty.hard) ?? GetFirstAvailablePreset();
 
         if (LoadedPreset == null)
         {
@@ -302,7 +294,7 @@ internal class PresetHandler
 
             if (isCopy)
             {
-                PresetSync.PublishCustom(LoadedPreset, def);
+                if (!PresetSync.PublishCustom(LoadedPreset, def)) return;
             }
 
             if (!PresetSync.TryGetCustomBundle(def.Name, out var bundle))

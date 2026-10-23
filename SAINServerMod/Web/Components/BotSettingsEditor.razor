@@ -62,21 +62,21 @@
             </div>
             <div class="sain-bot-ai">
                 <b>AI</b>
-                <button type="button" class="sain-refchip @(_factionVanilla == false ? "on" : null)" aria-pressed="@(_factionVanilla == false)" @onclick="() => SetFactionAI(false)">SAIN</button>
-                <button type="button" class="sain-refchip @(_factionVanilla == true ? "on" : null)" aria-pressed="@(_factionVanilla == true)" @onclick="() => SetFactionAI(true)">@T("게임 기본 (바닐라)", "EFT's own (vanilla)")</button>
+                <button type="button" class="sain-refchip @(_factionVanilla == false ? "on" : null)" aria-pressed="@(_factionVanilla == false)" disabled="@(!_factionBots.Any(b => CanChooseAI(b.Type)))" @onclick="() => SetFactionAI(false)">SAIN</button>
+                <button type="button" class="sain-refchip @(_factionVanilla == true ? "on" : null)" aria-pressed="@(_factionVanilla == true)" disabled="@(!_factionBots.Any(b => CanChooseAI(b.Type)))" @onclick="() => SetFactionAI(true)">@T("게임 기본 (바닐라)", "EFT's own (vanilla)")</button>
                 @if (!_factionVanilla.HasValue && _factionBots.Count > 0)
                 {
                     <span class="spt-muted">@T("섞임", "mixed")</span>
                 }
             </div>
-            <div class="sain-bot-help spt-muted">@T("게임 재시작 후 적용 · 전역 설정의 '바닐라 …' 묶음이 켜져 있으면 그쪽이 우선합니다", "Applies after a game restart · a global 'Vanilla …' group toggle wins")</div>
+            <div class="sain-bot-help spt-muted">@T("게임 재시작 후 적용 · 전역·고정 바닐라는 일괄 편집과 복사에서 건너뜁니다", "Applies after a game restart · a global 'Vanilla …' group toggle wins")</div>
             <div class="sain-bot-levels @(_factionVanilla == true ? "sain-bot-dim" : null)">
                 @foreach (var level in Levels)
                 {
                     <button type="button" class="sain-bot-level @LevelClass(level) @(_factionBots.Count > 0 && _factionCounts[level] == _factionBots.Count ? "on" : null)"
                             disabled="@(!_factionAvailable.Contains(level))" title="@(!_factionAvailable.Contains(level) ? MissingLevel(level) : null)"
                             @onclick="() => ApplyFactionLevel(level)">
-                        <b>@LevelName(level)</b><small>@LevelDescription(level)</small>
+                        <b>@LevelName(level) (@LevelDescription(level))</b>
                         <small>@T($"{_factionCounts[level]}종", $"{_factionCounts[level]} types")</small>
                     </button>
                 }
@@ -91,7 +91,7 @@
                         <tr>
                             <td><button type="button" @onclick="() => SelectBot(bot.Type)">@bot.Name</button></td>
                             <td><span class="sain-bot-badge @BadgeClass(view)">@BadgeText(view)</span></td>
-                            <td>@(view.Group.UseVanillaAI ? T("게임 기본 (바닐라)", "EFT's own (vanilla)") : "SAIN")</td>
+                            <td>@AiText(view.Ai)</td>
                         </tr>
                     }
                 </tbody>
@@ -116,7 +116,7 @@
                     @foreach (var bot in section.Bots)
                     {
                         <MudCheckBox T="bool" Value="_copyTargets.Contains(bot.Type)" ValueChanged="v => SelectCopyBot(bot.Type, v)"
-                                     Label="@bot.Name" Color="Color.Primary" Dense="true" />
+                                     Label="@bot.Name" Disabled="@(!CanEdit(bot.Type))" Color="Color.Primary" Dense="true" />
                     }
                 }
             </div>
@@ -135,28 +135,32 @@
                 <div class="sain-bot-actions">
                     @if (SavedGroup(_botType) != null)
                     {
-                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="RevertBot">@T("되돌리기", "Revert")</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="@(!CanEdit(_botType))" OnClick="RevertBot">@T("되돌리기", "Revert")</MudButton>
                     }
-                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" OnClick="ResetBot">@T("원본 사용", "Use original")</MudButton>
-                    <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ContentCopy" OnClick="StartCopy">
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" Disabled="@(!CanEdit(_botType))" OnClick="ResetBot">@T("원본 사용", "Use original")</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ContentCopy" Disabled="@(!CanEdit(_botType))" OnClick="StartCopy">
                         @T("이 봇 설정을 다른 봇에 복사", "Copy this bot to other bots")
                     </MudButton>
                 </div>
             </div>
             <div class="sain-bot-ai">
                 <b>@T("이 봇의 AI", "This bot's AI")</b>
-                <button type="button" class="sain-refchip @(!_group.UseVanillaAI ? "on" : null)" aria-pressed="@(!_group.UseVanillaAI)" @onclick="() => SetBotAI(false)">SAIN</button>
-                <button type="button" class="sain-refchip @(_group.UseVanillaAI ? "on" : null)" aria-pressed="@_group.UseVanillaAI" @onclick="() => SetBotAI(true)">@T("게임 기본 (바닐라)", "EFT's own (vanilla)")</button>
+                <button type="button" class="sain-refchip @(!_selectedView.Ai.UsesVanilla ? "on" : null)" aria-pressed="@(!_selectedView.Ai.UsesVanilla)" disabled="@(!CanChooseAI(_botType))" @onclick="() => SetBotAI(false)">SAIN</button>
+                <button type="button" class="sain-refchip @(_selectedView.Ai.UsesVanilla ? "on" : null)" aria-pressed="@_selectedView.Ai.UsesVanilla" disabled="@(!CanChooseAI(_botType))" @onclick="() => SetBotAI(true)">@T("게임 기본 (바닐라)", "EFT's own (vanilla)")</button>
             </div>
-            <div class="sain-bot-help spt-muted">@T("게임 재시작 후 적용 · 전역 설정의 '바닐라 …' 묶음이 켜져 있으면 그쪽이 우선합니다", "Applies after a game restart · a global 'Vanilla …' group toggle wins")</div>
-            <div class="@(_group.UseVanillaAI ? "sain-bot-dim" : null)">
+            <div class="sain-bot-help spt-muted">@T("게임 재시작 후 적용 · 전역·고정 바닐라는 일괄 편집과 복사에서 건너뜁니다", "Applies after a game restart · a global 'Vanilla …' group toggle wins")</div>
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">@T("현재 적용: ", "Effective: ") @AiText(_selectedView.Ai)
+                @T(" · 보관 중인 봇별 선택: ", " · Stored per-bot choice: ") @(_group.UseVanillaAI ? T("바닐라", "Vanilla") : "SAIN")
+                @if (_selectedView.Ai.UsesVanilla) { <span> · @T("SAIN 값은 보관됩니다. 바닐라를 끄면 다시 적용됩니다.", "Stored SAIN values resume when vanilla is disabled.")</span> }
+            </MudAlert>
+            <fieldset disabled="@(!CanEdit(_botType))" style="border:0;padding:0;min-width:0" class="@(_selectedView.Ai.UsesVanilla ? "sain-bot-dim" : null)">
             <div class="sain-bot-levels">
                 @foreach (var level in Levels)
                 {
                     <button type="button" class="sain-bot-level @LevelClass(level) @(_selectedView.Badge.Level == level ? "on" : null)"
                             aria-pressed="@(_selectedView.Badge.Level == level)" disabled="@(!_selectedView.Available.Contains(level))"
                             title="@(!_selectedView.Available.Contains(level) ? MissingLevel(level) : null)" @onclick="() => ApplyBotLevel(level)">
-                        <b>@LevelName(level)</b><small>@LevelDescription(level)@(_selectedView.Badge.Level == level ? T(" · 지금", " · now") : "")</small>
+                        <b>@LevelName(level) (@LevelDescription(level))</b>
                     </button>
                 }
             </div>
@@ -202,13 +206,14 @@
                                 }
                                 @if (knob.Kind == BotKnobKind.Personality)
                                 {
-                                    <MudSelect T="EPersonality" Value="knob.GetPersonality(_settings)" ValueChanged="p => SetPersonality(knob, p)"
-                                               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" aria-label="@knob.Name(Korean)">
-                                        @foreach (var personality in Personalities)
+                                    <MudSelect T="EPersonality" MultiSelection="true" SelectedValues="Pool" SelectedValuesChanged="SetPool"
+                                               Label="@T("성격 후보 (빈칸=자동)", "Candidates (empty=automatic)")" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                                        @foreach (var personality in Personalities.Where(p => p != EPersonality.None))
                                         {
                                             <MudSelectItem T="EPersonality" Value="personality">@PersonalityName(personality)</MudSelectItem>
                                         }
                                     </MudSelect>
+                                    <small>@T("여러 개: 생성할 때 균등 무작위 · 한 개: 고정", "Multiple: uniform at spawn · one: fixed")</small>
                                 }
                                 @if (knob.Kind is BotKnobKind.Number or BotKnobKind.ToggleNumber)
                                 {
@@ -251,7 +256,7 @@
                                     }
                                     @if (knob.Kind == BotKnobKind.Personality)
                                     {
-                                        <div>@PersonalityName(knob.GetPersonality(_settings))</div>
+                                        <div>@string.Join(" / ", Pool)</div>
                                     }
                                 }
                             </div>
@@ -333,7 +338,7 @@
                     }
                 }
             }
-            </div>
+            </fieldset>
         }
     </div>
 </div>
@@ -435,6 +440,7 @@
         public int AdjustedCount { get; set; }
         public SAINSettingsClass? Baseline { get; set; }
         public SAINSettingsGroupClass? KnobReference { get; set; }
+        public BotAiState Ai { get; set; }
         public HashSet<EBotLevel> Available { get; } = new();
     }
     private sealed record AdvancedSection(string Name, string Label, List<AdvancedRow> Rows);
@@ -601,6 +607,8 @@
                     Sources = new LevelSources
                     {
                         Reference = ReferenceGroup(bot.Type)!, Current = _currentGlobals!,
+                        BaselineLevel = BotLevels.PresetLevel(Bundle.Info.Name),
+                        BaselineBot = FamilyBaseline(bot.Type)!,
                         Easy = _easyGlobals!, Normal = _normalGlobals!, Hard = _hardGlobals!,
                         EasyBot = GroupOf(easy, bot.Type)!, NormalBot = GroupOf(normal, bot.Type)!, HardBot = GroupOf(hard, bot.Type)!,
                     },
@@ -610,11 +618,32 @@
                 RefreshLevelView(bot.Type);
             }
         }
-        if (sourcesChanged || languageChanged)
-        {
-            Select(true);
-            RefreshFaction();
-        }
+        foreach (var view in _levelViews.Values) view.Ai = BotAiPolicy.Resolve(view.Type, Bundle.GlobalSettings?.General?.VanillaBots, view.Group);
+        Select(sourcesChanged || languageChanged);
+        RefreshFaction();
+    }
+
+    private SAINSettingsGroupClass? FamilyBaseline(ESainWildSpawnType type)
+    {
+        var level = BotLevels.PresetLevel(Bundle.Info.Name);
+        string? name = level switch { EBotLevel.Easy => "zzap 쉬움", EBotLevel.Normal => "zzap 보통", EBotLevel.Hard => "zzap", _ => null };
+        return name == null ? null : GroupOf(FindReference(name), type);
+    }
+    private bool CanEdit(ESainWildSpawnType type) => _levelViews.TryGetValue(type, out var view) && view.Ai.CanEditSain;
+    private bool CanChooseAI(ESainWildSpawnType type) => _levelViews.TryGetValue(type, out var view) && view.Ai.CanChooseAI;
+    private static string AiText(BotAiState ai) => ai.Mode switch
+    {
+        BotAiMode.GlobalVanilla => T("바닐라 · 전역 우선", "Vanilla · global override"),
+        BotAiMode.AlwaysVanilla => T("바닐라 · 고정", "Vanilla · fixed"),
+        BotAiMode.ExternalVanilla => T("바닐라 · 외부", "Vanilla · external"),
+        BotAiMode.PerBotVanilla => T("바닐라 · 봇별", "Vanilla · per bot"), _ => "SAIN",
+    };
+    private IReadOnlyCollection<EPersonality> Pool => BotPersonalityPool.Candidates(_botType, _settings?.Mind).ToArray();
+    private Task SetPool(IEnumerable<EPersonality> values)
+    {
+        if (_group == null || !CanEdit(_botType)) return Task.CompletedTask;
+        BotPersonalityPool.Set(_group, values);
+        return NotifyChange();
     }
 
     private SAINPresetBundle? FindReference(string name)
@@ -629,12 +658,13 @@
     private void RefreshLevelView(ESainWildSpawnType type)
     {
         if (!_levelViews.TryGetValue(type, out var view)) return;
+        view.Ai = BotAiPolicy.Resolve(type, Bundle.GlobalSettings?.General?.VanillaBots, view.Group);
         bool hasSlots = BotLevels.NormalSlot(view.Group) != null;
         view.Badge = BotLevels.Badge(view.Group, view.Sources);
         view.AdjustedCount = hasSlots ? BotLevels.AdjustedCount(view.Group, view.Sources) : 0;
         var level = view.Group.DifficultyLevel == EBotLevel.None ? EBotLevel.Hard : view.Group.DifficultyLevel;
-        view.Baseline = view.Group.DifficultyLevel == EBotLevel.None && view.Sources.Reference != null
-            ? BotLevels.NormalSlot(BotLevels.Snapshot(view.Sources.Reference))
+        view.Baseline = view.Group.DifficultyLevel == EBotLevel.None && (view.Sources.BaselineBot ?? view.Sources.Reference) != null
+            ? BotLevels.NormalSlot(BotLevels.Snapshot(view.Sources.BaselineBot ?? view.Sources.Reference))
             : hasSlots && view.Available.Contains(level) ? BotLevels.Compute(level, view.Group, view.Sources) : null;
         view.KnobReference = null;
         if (view.Baseline != null && view.Group.Settings != null)
@@ -709,27 +739,27 @@
         _factionVanilla = null;
         if (_factionBots.Count > 0)
         {
-            bool first = _levelViews[_factionBots[0].Type].Group.UseVanillaAI;
-            if (_factionBots.All(b => _levelViews[b.Type].Group.UseVanillaAI == first)) _factionVanilla = first;
+            bool first = _levelViews[_factionBots[0].Type].Ai.UsesVanilla;
+            if (_factionBots.All(b => _levelViews[b.Type].Ai.UsesVanilla == first)) _factionVanilla = first;
         }
         _factionAvailable.Clear();
         foreach (var level in Levels)
         {
             _factionCounts[level] = _factionBots.Count(b => _levelViews[b.Type].Badge.Level == level);
-            if (_factionBots.Any(b => _levelViews[b.Type].Available.Contains(level))) _factionAvailable.Add(level);
+            if (_factionBots.Any(b => CanEdit(b.Type) && _levelViews[b.Type].Available.Contains(level))) _factionAvailable.Add(level);
         }
     }
 
     private Task SetBotAI(bool vanilla)
     {
-        if (_group == null || _group.UseVanillaAI == vanilla) return Task.CompletedTask;
+        if (!CanChooseAI(_botType) || _group == null || _group.UseVanillaAI == vanilla) return Task.CompletedTask;
         _group.UseVanillaAI = vanilla;
         return NotifyChange();
     }
 
     private Task ApplyBotLevel(EBotLevel level)
     {
-        if (_selectedView == null || !_selectedView.Available.Contains(level)) return Task.CompletedTask;
+        if (!CanEdit(_botType) || _selectedView == null || !_selectedView.Available.Contains(level)) return Task.CompletedTask;
         BotLevels.Apply(level, _selectedView.Group, _selectedView.Sources);
         return NotifyChange();
     }
@@ -737,19 +767,19 @@
     private Task RevertBot()
     {
         var saved = SavedGroup(_botType);
-        if (_group == null || saved == null) return Task.CompletedTask;
+        if (!CanEdit(_botType) || _group == null || saved == null) return Task.CompletedTask;
         BotLevels.RestoreSaved(_group, saved);
         return NotifyChange();
     }
 
     private Task ResetBot()
     {
-        if (_selectedView == null) return Task.CompletedTask;
+        if (!CanEdit(_botType) || _selectedView == null) return Task.CompletedTask;
         BotLevels.ResetToOriginal(_selectedView.Group, _selectedView.Sources);
         return NotifyChange();
     }
 
-    private Task SetFactionAI(bool vanilla) => ChangeFaction(view => view.Group.UseVanillaAI = vanilla);
+    private Task SetFactionAI(bool vanilla) => ChangeFaction(view => view.Group.UseVanillaAI = vanilla, aiOnly: true);
 
     private Task ApplyFactionLevel(EBotLevel level) => ChangeFaction(view =>
     {
@@ -765,12 +795,12 @@
     private Task ResetFaction() => ChangeFaction(view => BotLevels.ResetToOriginal(view.Group, view.Sources));
 
     // zzap (2026-10-23): batch faction/copy updates through the same cache + dirty notification path.
-    private Task ChangeFaction(Action<BotLevelView> change)
+    private Task ChangeFaction(Action<BotLevelView> change, bool aiOnly = false)
     {
         var changed = new List<ESainWildSpawnType>();
         foreach (var bot in _factionBots)
         {
-            if (!_levelViews.TryGetValue(bot.Type, out var view)) continue;
+            if (!_levelViews.TryGetValue(bot.Type, out var view) || (aiOnly ? !view.Ai.CanChooseAI : !view.Ai.CanEditSain)) continue;
             change(view);
             changed.Add(bot.Type);
         }
@@ -803,35 +833,35 @@
     }
 
     private SAINSettingsGroupClass? ReferenceGroup(ESainWildSpawnType type)
-        => GroupOf(_hardBundle, type) ?? GroupOf(_defaultBundle, type);
+        => FamilyBaseline(type) ?? GroupOf(_hardBundle, type) ?? GroupOf(_defaultBundle, type);
 
     private static SAINSettingsClass? Slot(SAINSettingsGroupClass? group, ESainBotDifficulty difficulty)
         => group?.Settings != null && group.Settings.TryGetValue(difficulty, out var slot) ? slot : null;
 
     private Task SetNumber(BotKnob knob, float value)
     {
-        if (_group == null || _settings == null) return Task.CompletedTask;
+        if (!CanEdit(_botType) || _group == null || _settings == null) return Task.CompletedTask;
         BotQuickSettings.Apply(knob, _group, null, _shown, value);
         return NotifyChange();
     }
 
     private Task SetToggle(BotKnob knob, bool value)
     {
-        if (_group == null || _settings == null) return Task.CompletedTask;
+        if (!CanEdit(_botType) || _group == null || _settings == null) return Task.CompletedTask;
         BotQuickSettings.ApplyToggle(knob, _group, null, value);
         return NotifyChange();
     }
 
     private Task SetPersonality(BotKnob knob, EPersonality value)
     {
-        if (_group == null || _settings == null) return Task.CompletedTask;
+        if (!CanEdit(_botType) || _group == null || _settings == null) return Task.CompletedTask;
         BotQuickSettings.ApplyPersonality(knob, _group, null, value);
         return NotifyChange();
     }
 
     private Task ResetKnob(BotKnob knob)
     {
-        if (_group == null || _selectedView == null) return Task.CompletedTask;
+        if (!CanEdit(_botType) || _group == null || _selectedView == null) return Task.CompletedTask;
         BotLevels.ResetKnobToBaseline(knob, _group, _selectedView.Sources);
         return NotifyChange();
     }
@@ -913,7 +943,7 @@
 
     private void ApplyField(FieldInfo? category, FieldInfo? nested, FieldInfo field, SainMeta meta, object? value)
     {
-        if (_group == null) return;
+        if (!CanEdit(_botType) || _group == null) return;
         if (category == null)
         {
             field.SetValue(_group, value);
@@ -945,7 +975,7 @@
 
     private Task ResetField(AdvancedRow row)
     {
-        if (_group == null || _reference == null) return Task.CompletedTask;
+        if (!CanEdit(_botType) || _group == null || _reference == null) return Task.CompletedTask;
         if (row.Category == null)
         {
             row.Field.SetValue(_group, row.Field.GetValue(_reference));
@@ -1011,7 +1041,7 @@
             foreach (var knob in BotQuickSettings.All)
             {
                 // Same rule as F6: only the knob fields a level writes count; personality / grenades are "not affected by the level".
-                if (BotLevels.AffectsKnob(knob) && BotLevels.KnobChanged(knob, _group, _selectedView.Sources)) _changedKnobs.Add(knob.Id);
+                if (BotLevels.KnobChanged(knob, _group, _selectedView.Sources)) _changedKnobs.Add(knob.Id);
             }
         }
         _advancedChanged = 0;
@@ -1048,13 +1078,13 @@
 
     private void SelectCopyBot(ESainWildSpawnType type, bool selected)
     {
-        if (selected) _copyTargets.Add(type);
+        if (selected && CanEdit(type)) _copyTargets.Add(type);
         else _copyTargets.Remove(type);
     }
 
     private void SelectCopySection(BotSection section)
     {
-        foreach (var bot in section.Bots) _copyTargets.Add(bot.Type);
+        foreach (var bot in section.Bots.Where(b => CanEdit(b.Type))) _copyTargets.Add(bot.Type);
     }
 
     private async Task CopyToSelectedBots()
@@ -1064,7 +1094,7 @@
         var changed = new List<ESainWildSpawnType>();
         foreach (var type in _copyTargets)
         {
-            if (type == _botType || !Bundle.BotSettings.TryGetValue(type, out var target) || target?.Settings == null) continue;
+            if (!CanEdit(type) || type == _botType || !Bundle.BotSettings.TryGetValue(type, out var target) || target?.Settings == null) continue;
             bool copied = false;
             foreach (var difficulty in Difficulties)
             {
@@ -1111,9 +1141,9 @@
         return T($"'{preset}' 프리셋을 찾을 수 없음", $"Cannot find the '{preset}' preset");
     }
     private static string BadgeClass(BotLevelView view)
-        => view.Group.UseVanillaAI ? "vanilla" : view.Badge.Custom ? "custom" : LevelClass(view.Badge.Level);
+        => view.Ai.UsesVanilla ? "vanilla" : view.Badge.Custom ? "custom" : LevelClass(view.Badge.Level);
     private static string BadgeText(BotLevelView view)
-        => view.Group.UseVanillaAI ? T("바닐라", "vanilla") : view.Badge.Custom ? T("직접 설정", "custom")
+        => view.Ai.UsesVanilla ? AiText(view.Ai) : view.Badge.Custom ? T("직접 설정", "custom")
             : LevelName(view.Badge.Level) + (view.Badge.Adjusted ? T(" (조정됨)", " (adjusted)") : "");
     private static string PersonalityName(EPersonality personality) => personality == EPersonality.None ? T("지정 안 함", "Unassigned") : Value(personality);
     private static string SectionName(string section) => section == "Other" ? T("기타", "Other") : Setting(section);
