@@ -16,9 +16,9 @@
 
 ## 변경 이력
 
-- 2026-10-24 10:30 — **기본 zzap 프리셋은 지울 수 없게 + 저사양 프리셋 삭제.** ① 기본 프리셋(zzap 쉬움·보통·zzap·TEST)은 읽기 전용입니다. 고쳐서 저장하면 '[Modified]' 복사본으로 저장되고 게임은 복사본을 씁니다. 복사본은 고치고 지울 수 있지만 원본은 F6(옛 프리셋 관리의 '삭제'도 포함)·웹·서버 어디서도 지워지지 않습니다. 전에는 F6 옛 프리셋 관리 화면과 서버 삭제 요청으로 원본 파일이 지워질 수 있었습니다. ② 'zzap 저사양 [테스트]' 프리셋을 뺐습니다. 같은 효과는 어느 프리셋에서든 '빠른 설정 › 저사양 PC' 스위치로 켭니다. 이미 설치된 옛 파일은 서버가 시작할 때 지우고, 직접 만든 복사본('zzap 저사양 [테스트] [Modified]' 등)은 남깁니다. 그 프리셋을 쓰고 있었다면 다음 실행 때 zzap이 선택됩니다. 확인: 서버 빌드 오류 0, 클라 새 오류 0, 회귀 검사 35/0·웹 정적 검사 35/0(프리셋 카드가 하나 줄어 1개 감소). 게임·웹 실제 클릭은 미검증.
+- 2026-10-24 16:42 — **Remake7 릴리즈 준비.** 릴리즈 이름 Remake7(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remix6.1 이후 바뀐 것 전부(게시 안 한 Remix6.2의 모드 봇 지원 포함)를 노트 3종(changelog/RELEASE_NOTES_Remake7*)으로 정리. 설치 안내 1번을 고침 — 전에는 'zzap*.json은 새로 들어오니 필요 없음'이라 적혀 있어 내가 고친 '[Modified]' 복사본까지 버리게 될 수 있었음. 이제 기본 4개만 새로 들어오고 [Modified] 파일은 꼭 챙기라고 안내. 확인: 서버 빌드 오류 0(기존 경고 16), 서버 zip에 웹 화면 파일과 기본 프리셋 4개 들어 있음, 클라 새 오류 0(Unity 2022 전용 레이캐스트 기준선 14개), 회귀 검사 35/0·웹 정적 검사 35/0. 배포용 클라 DLL·zip은 사용자 PC 빌드. 내부 번호 4.5.1은 프리셋 호환 때문에 그대로.
 
-전체 변경 이력 242개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-025.md`](changelog/CHANGELOG-025.md)).
+전체 변경 이력 243개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-025.md`](changelog/CHANGELOG-025.md)).
 
 # SAIN (zzap fork)
 
@@ -37,15 +37,15 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 
 변경 이력은 [`changelog/`](changelog/), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
 
-**최근 변경 (2026-10-23, Remix6.2 릴리즈):** 모드 봇(블랙 디비전·RUAF·UNTAR)이 포크 없이 SAIN으로 싸움 — 스폰 때 기본 전투 레이어를 다시 빼서 SAIN 전투가 돌게 함(게임 시뮬에서 블랙 디비전 SAIN 0% → 67% 확인), 모르는 적에게 맞으면 알아채고 반격, F6 봇 종류별 '성격 지정 (모드 봇용)'(블랙 디비전·웨지 기본 GigaChad). 레이드가 끝나면 지난 판 플레이어·봇 목록을 비움. 시뮬 프리셋 '모드 봇 SAIN 점검'. 상세는 [`Remix6.2 릴리즈 노트`](changelog/RELEASE_NOTES_Remix6.2.md)와 [전체 이력](changelog/).
+**최근 변경 (2026-10-24, Remake7 릴리즈):** 설정 화면 대개편 — 봇 종류별 설정은 봇 하나씩 보며 난이도(zzap 쉬움·보통·zzap 수준·더 세게)와 AI(SAIN/게임 기본)를 고르고 쉬운 손잡이 9개로 조절, 성격 후보는 모든 봇에서 여러 개 선택, 전역·성격·장비 설정에 프리셋 비교 막대. 기본 zzap 프리셋은 읽기 전용(고치면 '[Modified]' 복사본), 저사양 프리셋 삭제. 모드 봇(블랙 디비전·RUAF·UNTAR)이 포크 없이 SAIN으로 싸움(게임 시뮬에서 블랙 디비전 SAIN 0% → 67% 확인). 원래 봇 전투 방식·zzap 값은 Remix6.1과 같음. 상세는 [`Remake7 릴리즈 노트`](changelog/RELEASE_NOTES_Remake7.md)와 [전체 이력](changelog/).
 
-릴리즈별 변경 요약: [`Remix6.2`](changelog/RELEASE_NOTES_Remix6.2.md) (Remix6.1 대비) · [`Remix6.1`](changelog/RELEASE_NOTES_Remix6.1.md) (remake6 대비) · [`remake6`](changelog/RELEASE_NOTES_remake6.md) (Remix5.1 대비) · [`Remix5.1`](changelog/RELEASE_NOTES_Remix5.1.md) (remake5 대비) · [`remake5`](changelog/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](changelog/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](changelog/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
+릴리즈별 변경 요약: [`Remake7`](changelog/RELEASE_NOTES_Remake7.md) (Remix6.1 대비, 게시 안 한 Remix6.2 포함) · [`Remix6.2`](changelog/RELEASE_NOTES_Remix6.2.md) (초안만, 게시 안 함) · [`Remix6.1`](changelog/RELEASE_NOTES_Remix6.1.md) (remake6 대비) · [`remake6`](changelog/RELEASE_NOTES_remake6.md) (Remix5.1 대비) · [`Remix5.1`](changelog/RELEASE_NOTES_Remix5.1.md) (remake5 대비) · [`remake5`](changelog/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](changelog/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](changelog/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
 
 ## 설치 / 업데이트
 
 **이전 SAIN(원본이든 이 포크의 예전 버전이든)은 지우고 새로 설치하는 것을 권장합니다.** 옛 DLL·옛 이름 프리셋이 남아서 생기는 문제를 한 번에 없앱니다.
 
-1. **(직접 만든 프리셋이 있다면)** `SPT_Runtime/user/mods/Solarint-SAIN-ServerMod/Presets/`에서 **직접 만든 프리셋 파일만** 따로 복사해 둡니다(`zzap*.json`은 새로 들어오니 필요 없음).
+1. **(직접 만든 프리셋이 있다면)** `SPT_Runtime/user/mods/Solarint-SAIN-ServerMod/Presets/`에서 **직접 만든 프리셋 파일만** 따로 복사해 둡니다. 기본 프리셋 4개(`zzap 쉬움`·`zzap 보통`·`zzap`·`zzap TEST [시뮬 전용]`)는 새로 들어오니 필요 없지만, **이름에 `[Modified]`가 붙은 파일은 내가 고친 복사본이니 꼭 챙기세요.**
 2. 아래 두 폴더를 **통째로 지웁니다.**
    - `BepInEx/plugins/SAIN/` (클라 모드 — F6 편집기 설정 `EditorDefaults.json`도 여기 있어서 같이 초기화됨)
    - `SPT_Runtime/user/mods/Solarint-SAIN-ServerMod/` (서버 모드 — 프리셋, 서버 설정 `ServerConfig.json` 포함)
