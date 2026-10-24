@@ -183,7 +183,7 @@ public static class SimLabFeatures
         new("remake5", "먼 총소리 3단계(고개만/무시)", A("sound.gun.mid", "sound.gun.far", "sound.gun.glance"), A(), A(), "-", "싸움 구역이 좁으면 100m 넘는 총소리가 드묾", ZeroOk: true),
         new("remake5", "나를 쏜 원거리 적은 거리 무시하고 반응", A("sound.gun.shotAtMe"), A(), A(), "-", "100m 넘는 곳에서 쏜 경우만", ZeroOk: true),
         new("remake5", "전투 후 정리가 총소리를 들음", A("postCombat.alert.gunfire"), A(), A(), "[PostCombat]"),
-        new("remake5", "저사양: 봇끼리 미끼 안 낚임", A("sound.bait.ignoredBot"), A(), A(), "-", "저사양 프리셋에서만 켜짐", ZeroOk: true),
+        new("remake5", "저사양: 봇끼리 미끼 안 낚임", A("sound.bait.ignoredBot"), A(), A(), "-", "빠른 설정 저사양 PC 스위치를 켠 프리셋에서만 켜짐", ZeroOk: true),
         new("remake5", "취약 순간 돌격(소리 종류별 남은 시간)", A("vuln.rush."), A("vuln.reach."), A(), "[Vuln]", "거부 칸에 yes도 섞여 있음 — md '취약 순간 반응' 절 참고"),
         new("remake5", "수류탄 꺼낸 적에게 안 달려듦", A("vuln.grenade.backOff"), A(), A(), "[Vuln]", "", ZeroOk: true),
         new("remake5", "발소리 관리(30m 걷기·12m 숙여 걷기)", A("quiet.start"), A("quiet.skip.", "quiet.timeout"), A(), "[Quiet]"),

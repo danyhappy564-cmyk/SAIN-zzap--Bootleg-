@@ -160,7 +160,6 @@ public static class QuickSettings
         new() { Name = "zzap 쉬움", Level = 1, Ko = "처음 하거나 편하게. 조준 2초 · 시야 SAIN의 ½ · 반동 큼", En = "New or relaxed. Aim 2 s · sight ½ of SAIN · heavy recoil" },
         new() { Name = "zzap 보통", Level = 2, Ko = "쉬움과 zzap의 중간. 조준 0.6초 · 시야 1.4배 · 연사 zzap의 75%", En = "Halfway to zzap. Aim 0.6 s · sight 1.4x · 75% of zzap's fire rate" },
         new() { Name = "zzap", Level = 3, TagKo = "추천", TagEn = "pick", Ko = "하드코어. 조준 0.3초 · 시야 2배 · 반동 거의 없음 · 전술 전부", En = "Hardcore. Aim 0.3 s · sight 2x · almost no recoil · every tactic" },
-        new() { Name = "zzap 저사양 [테스트]", Level = 2, TagKo = "예전 방식", TagEn = "old way", Legacy = true, Ko = "보통 + 성능 설정. 이제 '빠른 설정 › 저사양 PC' 스위치로 어느 난이도든 같은 효과", En = "Normal + performance settings. Now any difficulty can do this with 'Quick settings › Low-spec PC'" },
         new() { Name = "zzap TEST [시뮬 전용]", Level = 3, TagKo = "시뮬 전용", TagEn = "sim only", Ko = "봇끼리 시뮬레이션용. 실제 플레이엔 쓰지 마세요", En = "For bot-vs-bot simulation. Not for real raids" },
     };
 

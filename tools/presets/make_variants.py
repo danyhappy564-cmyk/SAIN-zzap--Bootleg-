@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-zzap fork: builds the difficulty / low-spec variants of the bundled "zzap" preset.
+zzap fork: builds the difficulty variants of the bundled "zzap" preset.
 
     python3 tools/presets/make_variants.py
 
 Reads SAINServerMod/Presets/zzap.json (TwitchPlayers hardcore aim/shoot values + zzap tactics) and writes
   zzap 쉬움.json            - SAIN "easy" tuning on top of zzap (same tactics, much weaker aim/sight/hearing)
   zzap 보통.json            - halfway between easy and zzap
-  zzap 저사양 [테스트].json  - zzap 보통 + performance settings (performance mode, AI-vs-AI limits)
 The tuning mirrors SAINServerMod/Extensions/PresetTunerExtensions.cs (ApplyEasy / ApplyNormal) but scales zzap's own
 per-bot values (zzap fires 3x faster than SAIN defaults, aims in 0.3s), so easy/normal stay in the same order relative
 to zzap. Re-run after changing zzap.json so the variants keep its tactics.
@@ -141,10 +140,8 @@ def main():
     write(normal, "zzap 보통",
           "zzap 난이도 2/3 (보통). " + tactics + " 쉬움과 zzap의 중간: 반동 zzap의 8배(쉬움 30배), 시야 거리 SAIN 기본의 1.4배(zzap의 70%), 발견·청각 약간 약함, "
           "시야각 160°, 연사 zzap의 75%, PMC 조준 최소 0.6초(zzap 0.3초), 사람 같은 실수 1.25배. 문 전술 ×0.75(봇 문 박치기: 방 진입 35%·도망 55%·돌격 50%·수색 35%·그 밖의 전투 이동 25%), 페이크·미끼·코너 흔들기 조금 줄임, 수류탄 38m까지, 스텝 중 쏠 때 멈추기는 12m 이상에서만.")
-    write(lowspec(normal), "zzap 저사양 [테스트]",
-          "[테스트] 저사양 PC용. zzap 보통 + 성능 설정(성능 모드 켬, 멀리 있는 봇끼리의 업데이트·시야·청각 제한 켬, 조준선 자리 찾기 범위 축소). "
-          "프레임은 조금 나아질 수 있지만, 멀리서 벌어지는 봇끼리의 싸움은 덜 정교해질 수 있음. 의도한 전투 경험과 다를 수 있는 시험용. "
-          "같은 설정을 다른 난이도에 쓰려면 웹 프리셋 화면 '빠른 설정 › 저사양 PC' 스위치.")
+    # "zzap 저사양 [테스트]" is no longer shipped (user 2026-10-24): the Quick settings low-spec PC switch does it on any
+    # preset, and the server removes the old file (PresetService.RetiredBundled). lowspec() stays as that switch's reference.
 
     # The door check is no longer an F6 preset (user 2026-10-13: "I meant a preset at the sim stage"): sim preset
     # "문 전술·박치기 점검" + the sim page's door check switch (SimLabDefaults / SimLabZzapCheck.ApplyDoorTest).

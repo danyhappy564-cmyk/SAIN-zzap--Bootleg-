@@ -187,6 +187,11 @@ public sealed class PresetService(ModHelper modHelper, JsonFileStoreUtil jsonFil
 
     public bool DeleteCustom(string name)
     {
+        // zzap (user 2026-10-24): shipped presets are read-only - edits are saved as a [Modified] copy, and only copies can be deleted.
+        if (PresetSavePolicy.IsProtected(name))
+        {
+            return false;
+        }
         string path = CustomPathFor(name);
         if (!File.Exists(path))
         {
@@ -200,9 +205,10 @@ public sealed class PresetService(ModHelper modHelper, JsonFileStoreUtil jsonFil
     /// <summary>
     /// zzap: presets this mod used to ship and no longer does - an update copied over an older install leaves their files in
     /// Presets/. "zzap TEST 문 모드 [시뮬 전용]" (2026-10-13, user: "the door preset was meant at the sim stage, not in F6") is now
-    /// the sim preset "문 전술·박치기 점검" with the sim's door check switch.
+    /// the sim preset "문 전술·박치기 점검" with the sim's door check switch. "zzap 저사양 [테스트]" (2026-10-24, user: "저사양 프리셋
+    /// 지워버려") - the Quick settings low-spec PC switch does the same on any preset. A player's "[Modified]" copy of it is kept.
     /// </summary>
-    private static readonly string[] RetiredBundled = ["zzap TEST 문 모드 [시뮬 전용]"];
+    private static readonly string[] RetiredBundled = ["zzap TEST 문 모드 [시뮬 전용]", "zzap 저사양 [테스트]"];
 
     public void RemoveRetiredBundled()
     {
@@ -212,7 +218,7 @@ public sealed class PresetService(ModHelper modHelper, JsonFileStoreUtil jsonFil
             if (File.Exists(path))
             {
                 File.Delete(path);
-                logger.Info($"[SAIN] Removed retired bundled preset '{name}' (now a sim preset on the sim page)");
+                logger.Info($"[SAIN] Removed retired bundled preset '{name}' (no longer shipped)");
             }
         }
     }

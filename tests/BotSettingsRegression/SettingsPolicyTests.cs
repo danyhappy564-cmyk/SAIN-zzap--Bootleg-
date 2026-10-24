@@ -78,7 +78,7 @@ partial class Program
         });
         Test("editor default reference keeps exact preset families and protects similarly named customs", () =>
         {
-            foreach(string name in new[]{"zzap", "zzap 쉬움", "zzap 보통", "zzap 저사양 [테스트]", "zzap TEST [시뮬 전용]"})
+            foreach(string name in new[]{"zzap", "zzap 쉬움", "zzap 보통", "zzap TEST [시뮬 전용]"})
             {
                 Check((string)Call("PresetEditorReference","BaseName",name)==name,"wrong base "+name);
                 Check((string)Call("PresetEditorReference","BaseName",name+" [Modified 2]")==name,"wrong copy base "+name);
@@ -181,6 +181,17 @@ partial class Program
             Check(!(bool)Call("PresetSavePolicy", "IsProtected", "zzap 보통 [Modified]"), "user copy treated as bundled original");
             name = (string)Call("PresetSavePolicy", "NameForSave", "zzap 보통 [Modified]", "zzap 보통 [Modified]", taken);
             Check(name == "zzap 보통 [Modified]", "second save cloned user copy again");
+        });
+        Test("shipped originals are the four bundled presets and the retired low-spec preset is gone", () =>
+        {
+            string root=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../../"));
+            foreach (string shipped in new[]{"zzap", "zzap 쉬움", "zzap 보통", "zzap TEST [시뮬 전용]"})
+            {
+                Check((bool)Call("PresetSavePolicy", "IsProtected", shipped), "original not protected "+shipped);
+                Check(File.Exists(Path.Combine(root, "SAINServerMod", "Presets", shipped + ".json")), "bundled file missing "+shipped);
+            }
+            Check(!(bool)Call("PresetSavePolicy", "IsProtected", "zzap 저사양 [테스트]"), "retired low-spec preset still protected (its old file could not be removed)");
+            Check(!File.Exists(Path.Combine(root, "SAINServerMod", "Presets", "zzap 저사양 [테스트].json")), "retired low-spec preset still shipped");
         });
         Test("zzap family level follows easy and normal including Modified copies", () =>
         {

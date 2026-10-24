@@ -256,6 +256,12 @@ public static class PresetSelection
 
     private static bool checkDeletePreset()
     {
+        // zzap (user 2026-10-24 "원본 프리셋은 삭제 안 되게"): shipped presets are read-only; only copies can be deleted.
+        if (SAINPresetClass.Instance.Info.IsCustom && PresetSavePolicy.IsProtected(SAINPresetClass.Instance.Info.Name))
+        {
+            Label(EditorText.Korean ? "기본 zzap 프리셋은 삭제할 수 없습니다 (고치면 복사본으로 저장)" : "Bundled zzap presets can't be deleted (edits save as a copy)", Width(250f));
+            return false;
+        }
         if (SAINPresetClass.Instance.Info.IsCustom)
         {
             BeginVertical();
@@ -298,7 +304,7 @@ public static class PresetSelection
 
     public static void DeletePreset(SAINPresetDefinition preset)
     {
-        if (preset.IsCustom)
+        if (preset.IsCustom && !PresetSavePolicy.IsProtected(preset.Name))
         {
             PresetSync.DeleteCustomPreset(preset.Name);
         }

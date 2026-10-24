@@ -352,6 +352,11 @@ public static class QuickSettingsGUI
     private static void Delete(SAINPresetDefinition def)
     {
         _pendingDelete = null;
+        if (PresetSavePolicy.IsProtected(def.Name))
+        {
+            Sounds.PlaySound(EUISoundType.ErrorMessage);
+            return;
+        }
         if (SAINPlugin.LoadedPreset.Info.Name == def.Name)
         {
             PresetHandler.loadDefault();

@@ -432,6 +432,11 @@ public static class PresetSync
 
     public static void DeleteCustomPreset(string name)
     {
+        if (PresetSavePolicy.IsProtected(name))
+        {
+            Logger.LogWarning($"[SAIN] Bundled preset '{name}' can't be deleted - only your copies can.");
+            return;
+        }
         _customBundles.Remove(name);
         _customJson.Remove(name);
         _savedCustomBundles.Remove(name);
