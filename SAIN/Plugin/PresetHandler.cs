@@ -278,24 +278,32 @@ internal class PresetHandler
         InitPresetFromDefinition(def);
     }
 
-    public static void InitPresetFromDefinition(SAINPresetDefinition def, bool isCopy = false)
+    /// <summary>False only when a copy (<paramref name="isCopy"/>) could not be saved; the loaded preset is then unchanged.</summary>
+    public static bool InitPresetFromDefinition(SAINPresetDefinition def, bool isCopy = false)
     {
         if (def == null || def.IsCustom == false)
         {
             loadDefault();
             UpdateExistingBots();
             ExportEditorDefaults();
-            return;
+            return true;
         }
 
         try
         {
-            var defaultPreset = GetDefaultPreset(def.BaseSAINDifficulty);
-
-            if (isCopy)
+            if (isCopy && !PresetSync.PublishCustom(LoadedPreset, def))
             {
-                if (!PresetSync.PublishCustom(LoadedPreset, def)) return;
+                // zzap (2026-10-24): a refused copy (bundled name, editing off, server error) must not stay listed, and the
+                // loaded preset keeps its edits (still unsaved).
+                if (!PresetSync.TryGetCustomBundle(def.Name, out _))
+                {
+                    CustomPresetOptions.Remove(def);
+                }
+                return false;
             }
+
+            // Built after the publish: constructing a preset makes it current, and a refused copy above must leave the loaded one.
+            var defaultPreset = GetDefaultPreset(def.BaseSAINDifficulty);
 
             if (!PresetSync.TryGetCustomBundle(def.Name, out var bundle))
             {
@@ -303,7 +311,7 @@ internal class PresetHandler
                 loadDefault();
                 UpdateExistingBots();
                 ExportEditorDefaults();
-                return;
+                return true;
             }
 
             LoadedPreset = new SAINPresetClass(bundle);
@@ -322,6 +330,7 @@ internal class PresetHandler
         }
         UpdateExistingBots();
         ExportEditorDefaults();
+        return true;
     }
 
     public static void ExportEditorDefaults()

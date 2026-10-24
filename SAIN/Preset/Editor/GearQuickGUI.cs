@@ -20,15 +20,15 @@ public static class GearQuickGUI
     {
         var all=SAINPlugin.LoadedPreset.GearStealthValuesClass.ItemStealthValues;
         if (!all.TryGetValue(type,out var items)) return;
-        var saved=QuickObjectGUI.Saved()?.GearStealthValues.Values.SelectMany(v=>v).GroupBy(Key).ToDictionary(g=>g.Key,g=>g.First().StealthValue)
+        var saved=QuickObjectGUI.Saved()?.GearStealthValues?.Values.SelectMany(v=>v).GroupBy(Key).ToDictionary(g=>g.Key,g=>g.First().StealthValue)
             ?? new Dictionary<string,float>();
         QuickObjectGUI.ReferenceBar();
         GUILayout.Label(T("높을수록 먼 거리에서 눈에 덜 띕니다 · 1배=기본 · 30m 이내 미적용, 30~60m 점진 적용 · 소음과 무관", "Higher = harder to see at range · 1 = neutral · fades in from 30–60m · not sound"),ZzapUI.Small);
         string search=ZzapUI.Search(_query,T("장비 이름 / ID 검색", "Search name / ID"));
         if (search!=_query) ZzapUI.Defer(()=>_query=search);
         var visible=items.Where(i=>string.IsNullOrWhiteSpace(_query) || (i.Name??"").IndexOf(_query,StringComparison.OrdinalIgnoreCase)>=0 || (i.ItemID??"").IndexOf(_query,StringComparison.OrdinalIgnoreCase)>=0).ToList();
-        var comparison = QuickObjectGUI.Reference()?.GearStealthValues.Values.SelectMany(v => v).GroupBy(Key).ToDictionary(g => g.Key, g => g.First().StealthValue) ?? saved;
-        var defaults = QuickObjectGUI.Defaults()?.GearStealthValues.Values.SelectMany(v => v).GroupBy(Key).ToDictionary(g => g.Key, g => g.First().StealthValue) ?? saved;
+        var comparison = QuickObjectGUI.Reference()?.GearStealthValues?.Values.SelectMany(v => v).GroupBy(Key).ToDictionary(g => g.Key, g => g.First().StealthValue) ?? saved;
+        var defaults = QuickObjectGUI.Defaults()?.GearStealthValues?.Values.SelectMany(v => v).GroupBy(Key).ToDictionary(g => g.Key, g => g.First().StealthValue) ?? saved;
         GUILayout.BeginHorizontal();
         if (GUILayout.Button(T("검색 결과 선택", "Select results"),ZzapUI.Button)) ZzapUI.Defer(()=>{foreach(var i in visible) _selected.Add(Key(i));});
         if (GUILayout.Button(T("선택 해제", "Clear selection"),ZzapUI.Button)) ZzapUI.Defer(()=>_selected.Clear());

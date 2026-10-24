@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using SPT.Common.Http;
 using SPT.Common.Utils;
@@ -27,7 +28,12 @@ public static class ServerPresetClient
     public static void SaveCustom(string name, string presetJson)
     {
         string body = Json.Serialize(new PresetSaveBody { Name = name, PresetJson = presetJson });
-        RequestHandler.PutJson("/sain/presets/custom/save", body);
+        string json = RequestHandler.PutJson("/sain/presets/custom/save", body);
+        // zzap (2026-10-24): the server answers {Ok:false} when it refuses (editing not allowed, shipped name) - not a saved preset.
+        if (json != null && json.IndexOf("false", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            throw new InvalidOperationException($"server refused to save '{name}'");
+        }
     }
 
     public static bool DeleteCustom(string name)

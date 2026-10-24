@@ -96,7 +96,8 @@ public sealed class SainPresetEditService(
 
     /// <param name="copyOf">The bundled zzap preset this save is a "[Modified]" copy of: the game switches to the copy if it uses
     /// that preset (SAINPresetSyncMessage.CopyOf).</param>
-    public async Task SaveAsync(SAINPresetBundle bundle, string? renamedFrom = null, string? copyOf = null)
+    /// <summary>Saves and returns the name actually written (a shipped original's own name becomes its [Modified] copy).</summary>
+    public async Task<string> SaveAsync(SAINPresetBundle bundle, string? renamedFrom = null, string? copyOf = null)
     {
         bundle.Info ??= new SAINPresetDefinition();
         string original = copyOf ?? renamedFrom ?? bundle.Info.Name;
@@ -118,6 +119,7 @@ public sealed class SainPresetEditService(
         }
 
         await webSocket.BroadcastPresetChanged(bundle.Info.Name, EPresetSyncChange.Saved, copyOf: copyOf);
+        return bundle.Info.Name;
     }
 
     public async Task<bool> DeleteAsync(string name)
@@ -146,7 +148,6 @@ public sealed class SainPresetEditService(
         opened.Bundle.Info.Name = newName;
         opened.Bundle.Info.CanEditName = true;
         opened.Bundle.Info.IsCustom = true;
-        await SaveAsync(opened.Bundle);
-        return newName;
+        return await SaveAsync(opened.Bundle);
     }
 }

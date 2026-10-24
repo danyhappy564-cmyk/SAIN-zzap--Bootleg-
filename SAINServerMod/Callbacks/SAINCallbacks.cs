@@ -107,6 +107,13 @@ public sealed class SAINCallbacks(
                 ?? throw new InvalidOperationException("Could not serialize custom preset save!");
         }
 
+        // zzap (2026-10-24): a shipped preset's own name is refused (read-only originals) - answer "not saved", don't throw.
+        if (PresetSavePolicy.IsProtected(info.Name))
+        {
+            return jsonUtil.Serialize(new OkResponse { Ok = false })
+                ?? throw new InvalidOperationException("Could not serialize custom preset save!");
+        }
+
         await presetService.SaveCustomAsync(info.Name, info.PresetJson);
         await presetSync.BroadcastPresetChanged(info.Name, EPresetSyncChange.Saved, sessionID);
         return jsonUtil.Serialize(new OkResponse { Ok = true })

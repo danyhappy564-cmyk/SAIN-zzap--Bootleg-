@@ -364,8 +364,7 @@
         }
 
         var renamedFrom = _opened.IsNewCustom || zzapCopy ? null : _opened.OriginalName;
-        var savedName = _bundle.Info.Name;
-        await Presets.SaveAsync(_bundle, renamedFrom, zzapCopy ? _opened.OriginalName : null);
+        var savedName = await Presets.SaveAsync(_bundle, renamedFrom, zzapCopy ? _opened.OriginalName : null);
         // zzap (user 2026-10-20): the game switches to the copy by itself when it uses this zzap preset (or an earlier copy of it).
         Snackbar.Add(zzapCopy
             ? T($"'{_opened.OriginalName}'은(는) 그대로 두고 '{savedName}'(으)로 저장했습니다. 게임이 '{_opened.OriginalName}'(또는 그 복사본)을 쓰고 있으면 이 프리셋으로 바로 바뀝니다 — 레이드 중이면 레이드가 끝난 뒤. 다른 프리셋을 쓰고 있으면 F6에서 고르세요.",

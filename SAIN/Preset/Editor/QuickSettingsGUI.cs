@@ -337,7 +337,12 @@ public static class QuickSettingsGUI
         copy.SAINVersion = SAINVersionInfo.SAINPresetVersion;
         copy.DateCreated = System.DateTime.Today.ToString();
         PresetHandler.SavePresetDefinition(copy);
-        PresetHandler.InitPresetFromDefinition(copy, true);
+        if (!PresetHandler.InitPresetFromDefinition(copy, true))
+        {
+            // Not saved (refused by the server or a shipped name): keep the edits marked unsaved.
+            Sounds.PlaySound(EUISoundType.ErrorMessage);
+            return;
+        }
         PresetHandler.LoadCustomPresetOptions();
         ConfigEditingTracker.Clear();
         Sounds.PlaySound(EUISoundType.InsuranceInsured);

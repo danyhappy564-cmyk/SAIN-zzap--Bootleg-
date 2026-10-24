@@ -309,7 +309,7 @@
                 }
                 @foreach (var section in _advancedSections)
                 {
-                    <MudText Typo="Typo.subtitle2" Class="spt-title mt-3 mb-1">@section.Label</MudText>
+                    <MudText Typo="Typo.subtitle2" Class="spt-title mt-3 mb-1">@(section.Label)</MudText>
                     @foreach (var row in section.Rows)
                     {
                         <div class="sain-bot-advanced-row" @key="row">

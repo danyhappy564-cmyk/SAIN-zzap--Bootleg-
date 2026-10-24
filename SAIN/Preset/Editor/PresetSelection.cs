@@ -209,10 +209,23 @@ public static class PresetSelection
                 newInfo.Description = NewDescription;
                 newInfo.Creator = NewCreator;
 
-                DeletePreset(info);
-
-                PresetHandler.SavePresetDefinition(newInfo);
-                PresetHandler.InitPresetFromDefinition(newInfo, true);
+                // zzap (2026-10-24): the old file is removed only after the new one is saved (deleting first lost the preset when
+                // the save was refused), and a rename never removes a shipped preset - its original stays and this becomes a copy.
+                if (string.Equals(newInfo.Name, oldName, StringComparison.Ordinal))
+                {
+                    if (PresetSync.PublishCustom(SAINPlugin.LoadedPreset, newInfo))
+                    {
+                        PresetHandler.InitPresetFromDefinition(newInfo);
+                    }
+                }
+                else
+                {
+                    PresetHandler.SavePresetDefinition(newInfo);
+                    if (PresetHandler.InitPresetFromDefinition(newInfo, true) && !PresetSavePolicy.IsProtected(oldName))
+                    {
+                        DeletePreset(info);
+                    }
+                }
                 PresetHandler.LoadCustomPresetOptions();
             }
             if (Button(EditorText.UI("Save A New Preset"), EFT.UI.EUISoundType.InsuranceInsured, Height(30f)))

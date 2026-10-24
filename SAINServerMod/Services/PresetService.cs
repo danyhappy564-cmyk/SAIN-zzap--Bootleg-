@@ -236,7 +236,8 @@ public sealed class PresetService(ModHelper modHelper, JsonFileStoreUtil jsonFil
                 continue;
             }
 
-            if (info.IsCustom && !existing.Contains(info.Name))
+            // zzap (2026-10-24): an old folder carrying a shipped preset's name can't be imported over it (read-only originals).
+            if (info.IsCustom && !existing.Contains(info.Name) && !PresetSavePolicy.IsProtected(info.Name))
             {
                 GeneratedPreset? preset;
                 try

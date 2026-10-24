@@ -119,9 +119,11 @@ public class SAINPresetClass
             newPreset.Description = "[Modified] " + newPreset.Description;
             newPreset.DateCreated = DateTime.Today.ToString();
 
-            if (!PresetSync.PublishCustom(preset, newPreset)) return;
+            // zzap (2026-10-24): list the copy under its free name BEFORE publishing. Publishing first made the name "taken", so
+            // SavePresetDefinition renamed the definition to "... Copy(0)", which the server never had - the load then fell back
+            // to the shipped preset and the saved copy was not used. The publish happens inside (isCopy); a refusal keeps the edits.
             PresetHandler.SavePresetDefinition(newPreset);
-            PresetHandler.InitPresetFromDefinition(newPreset);
+            if (!PresetHandler.InitPresetFromDefinition(newPreset, true)) return;
             ConfigEditingTracker.Clear();
             PresetHandler.UpdateExistingBots();
             if (bundledZzap)
