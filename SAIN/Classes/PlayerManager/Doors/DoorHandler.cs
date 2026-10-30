@@ -29,6 +29,8 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
         SAIN.SAINComponent.Classes.Mover.BotDoorBreacher.Tick(currentTime);
         // zzap: reversed leaves pushed back by a stuck bot (ReversedLeafUnjam).
         SAIN.SAINComponent.Classes.Mover.ReversedLeafUnjam.Tick(currentTime);
+        // zzap: open leaves cut out of the walkable mesh with the door's own carver (OpenLeafCarver).
+        SAIN.SAINComponent.Classes.Mover.OpenLeafCarver.Tick(currentTime);
     }
 
     // A forced door can still have BSG's smooth-open coroutine finishing its old interaction afterwards; re-check those

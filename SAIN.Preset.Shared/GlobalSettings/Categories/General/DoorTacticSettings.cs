@@ -195,6 +195,12 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     [Description("Vanilla SAIN closes any open door its path runs into (6s grace for doors it just opened). With a door that opens toward the bot that means: open, walk into the leaf, jitter/spin, close it, open it again... and bots closing open doors all over the map. Off (default): bots only open shut doors while moving.")]
     public bool AutoCloseDoors = false;
 
+    // zzap (2026-10-31): EFT's own "opened leaf" carvers never run in this build (OpenLeafCarver) - paths went through open leaves.
+    [DataMember]
+    [Name("Bots Walk Around Open Door Leaves")]
+    [Description("Cuts an open door leaf's spot out of the bots' walkable paths (EFT's own carver for that door, which the game leaves switched off), so bots go around the leaf instead of running into it and standing there. Turned on once nobody stands next to the leaf, off again when the door closes. Changes take effect next raid.")]
+    public bool CarveOpenLeaves = true;
+
     // zzap (2026-10-13): bot sprint ram - SAIN's own (ported from doordash + DualSideDoorBreach), no other mod needed. doordash's
     // config only affects the player; installed or not, bots use the values below.
 
