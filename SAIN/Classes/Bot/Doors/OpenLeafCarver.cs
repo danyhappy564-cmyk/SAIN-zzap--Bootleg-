@@ -29,6 +29,17 @@ public static class OpenLeafCarver
     private const float CLEAR_RADIUS = 2f;
     private const int MAX_CARVES_PER_CHECK = 16;
     private const float FIND_LINKS_TIMEOUT = 60f;
+    private const float CUT_MEMORY = 60f;
+    private const float PATH_NEAR = 2.5f;
+
+    private struct Cut
+    {
+        public Vector3 Mid;
+        public float Time;
+    }
+
+    private static readonly List<Cut> _cuts = new();
+    private static readonly List<NavMeshDoorLink> _gone = new();
 
     private static readonly List<NavMeshDoorLink> _links = new();
     private static readonly List<NavMeshDoorLink> _waiting = new();
@@ -55,6 +66,7 @@ public static class OpenLeafCarver
             TryStart(time);
             return;
         }
+        DropGone(time);
         int carved = 0;
         for (int i = _waiting.Count - 1; i >= 0 && carved < MAX_CARVES_PER_CHECK; i--)
         {
@@ -64,7 +76,7 @@ public static class OpenLeafCarver
                 _waiting.RemoveAt(i);
                 continue;
             }
-            if (ReversedLeafUnjam.IsReversed(link.Door))
+            if (!Live(link.Door) || ReversedLeafUnjam.IsReversed(link.Door))
             {
                 continue;
             }
@@ -76,6 +88,71 @@ public static class OpenLeafCarver
             SetCarve(link, true);
             carved++;
         }
+    }
+
+    /// <summary>The door is in the level (F6 Disable All Doors switches doors off without a state change - DoorHandler.DisableDoor).</summary>
+    private static bool Live(Door door) => door.enabled && door.gameObject.activeInHierarchy;
+
+    /// <summary>A carved link whose door went away (disabled) loses its cut; it waits to be carved again if the door comes back
+    /// still open. Old cut records past CUT_MEMORY are dropped.</summary>
+    private static void DropGone(float time)
+    {
+        _gone.Clear();
+        foreach (NavMeshDoorLink link in _carved)
+        {
+            if (link == null || link.Door == null || !Live(link.Door))
+            {
+                _gone.Add(link);
+            }
+        }
+        foreach (NavMeshDoorLink link in _gone)
+        {
+            SetCarve(link, false);
+            if (link != null && link.Door != null && link.Door.DoorState == EDoorState.Open && !_waiting.Contains(link))
+            {
+                _waiting.Add(link);
+            }
+        }
+        _gone.Clear();
+        _cuts.RemoveAll(c => time - c.Time > CUT_MEMORY);
+    }
+
+    /// <summary>
+    /// A route made at <paramref name="pathTime"/> whose rest (from the bot through the corners from <paramref name="from"/>) runs
+    /// within PATH_NEAR of a leaf cut out after the route was made. Mover paths are kept while the destination doesn't move
+    /// (BotPathData.TryUpdatePath), so without this a bot keeps walking the old line through the leaf. Cuts count from the next
+    /// frame on: Unity applies an obstacle's carve a frame later.
+    /// </summary>
+    public static bool CutAfter(float pathTime, List<BotPathCorner> corners, int from, Vector3 botPosition)
+    {
+        float now = Time.time;
+        for (int c = 0; c < _cuts.Count; c++)
+        {
+            Cut cut = _cuts[c];
+            if (cut.Time < pathTime || cut.Time >= now)
+            {
+                continue;
+            }
+            Vector3 prev = botPosition;
+            for (int i = Mathf.Max(0, from); i < corners.Count; i++)
+            {
+                Vector3 next = corners[i].Position;
+                if (DistanceToSegmentSqr(cut.Mid, prev, next) < PATH_NEAR * PATH_NEAR)
+                {
+                    return true;
+                }
+                prev = next;
+            }
+        }
+        return false;
+    }
+
+    private static float DistanceToSegmentSqr(Vector3 p, Vector3 a, Vector3 b)
+    {
+        Vector3 ab = b - a;
+        float len = ab.sqrMagnitude;
+        float t = len < 1e-6f ? 0f : Mathf.Clamp01(Vector3.Dot(p - a, ab) / len);
+        return (a + ab * t - p).sqrMagnitude;
     }
 
     private static void TryStart(float time)
@@ -150,6 +227,11 @@ public static class OpenLeafCarver
 
     private static void SetCarve(NavMeshDoorLink link, bool on)
     {
+        if (ReferenceEquals(link, null))
+        {
+            _carved.Remove(link);
+            return;
+        }
         if (on == _carved.Contains(link))
         {
             return;
@@ -157,6 +239,7 @@ public static class OpenLeafCarver
         if (on)
         {
             _carved.Add(link);
+            _cuts.Add(new Cut { Mid = link.MidOpen, Time = Time.time });
         }
         else
         {
@@ -209,6 +292,8 @@ public static class OpenLeafCarver
         _links.Clear();
         _waiting.Clear();
         _carved.Clear();
+        _cuts.Clear();
+        _gone.Clear();
         _ready = false;
         _firstTry = -1f;
         _nextCheck = 0f;

@@ -355,7 +355,11 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
         Destination = destination;
         PathLength = PathCorners.CalcPathLength();
         Status = EBotMoveStatus.ReadyToMove;
+        _madeAt = Time.time;
     }
+
+    // zzap (2026-10-31): when the route was made - an open leaf cut out of the mesh after that (OpenLeafCarver) means a new route.
+    private float _madeAt;
 
     private float _lastCheckStuckTime;
     private float _timeNotMoving;
@@ -403,6 +407,12 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
             // If the place being requested to move to is very close to where we are already moving to, we dont need to change anything.
             if ((Destination - possibleDestination).sqrMagnitude < MIN_DIST_CHANGE_DESTINATION)
             {
+                // zzap: the kept route still runs through a door leaf that has since been cut out of the mesh - path again
+                if (OpenLeafCarver.CutAfter(_madeAt, PathCorners, CurrentIndex, Bot.Position))
+                {
+                    SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("door.carve.repath");
+                    return false;
+                }
                 return true;
             }
         }
