@@ -118,7 +118,9 @@ public static class VisibleEnemyUtility
 
     private static List<(EStance stance, float score)> Score(BotComponent bot, Enemy enemy, float holdGroundInterval, bool hit, out string why)
     {
-        var sb = new StringBuilder();
+        // zzap (2026-10-31, game sim RamCleaner: SAIN made 70-80% of the mods' garbage, up to 131 MB/min; 1st stage: the decision
+        // tick ~0.3 MB per bot-minute): the reason text only feeds the [Utility] journal line - build it only when that can be written.
+        var sb = TacticDiagnostics.LogOn ? new StringBuilder() : null;
         var hs = bot.Memory.Health.HealthStatus;
         float health = hs switch
         {
@@ -186,26 +188,26 @@ public static class VisibleEnemyUtility
         {
             coverScore -= 0.6f + 0.3f * Mathf.Clamp01((12f - dist) / 6f);
         }
-        if (fearWhy.Length > 0) sb.Append(fearWhy).Append("; ");
-        if (!looking) sb.Append("he isn't looking at me; ");
-        if (busy) sb.Append($"he's {enemy.Status.VulnerableAction}; ");
-        if (weak >= 0.3f) sb.Append($"he's weak ({weakWhy}); ");
-        if (exposure > 0.6f && looking) sb.Append($"exposed {visibleFor:0.0}s while he looks at me; ");
-        if (hit) sb.Append("just got hit; ");
-        if (health < 1f) sb.Append($"I'm {hs}; ");
-        if (ammo < 0.25f) sb.Append($"mag {ammo:P0}; ");
-        if (pointBlankRun) sb.Append($"he's {dist:0}m and on me - a {cover:0.0}m run = shot in the back; ");
-        if (cover > 12f && dist < 25f) sb.Append($"cover {cover:0}m away - too far to run; ");
-        else if (runCost > 0.1f) sb.Append($"cover {cover:0.0}m - {cover / 3.5f:0.0}s back turned to get there; ");
-        else if (cover <= 6f) sb.Append($"cover {cover:0.0}m; ");
-        if (finishHim) sb.Append("he's nearly done - finish him; ");
-        if (tooClose) sb.Append($"too close for my long gun (ideal {load.IdealRange:0}m) - break off; ");
-        if (tooFar) sb.Append($"too far for my close-range gun (ideal {load.IdealRange:0}m); ");
-        if (goodRange) sb.Append("my gun's range; ");
-        sb.Append($"[{load.Summary}] ");
-        if (numbers > 0f) sb.Append("mates on him; ");
-        sb.Append($"{dist:0}m, {bot.Info.Personality}");
-        why = sb.ToString();
+        if (fearWhy.Length > 0) sb?.Append(fearWhy).Append("; ");
+        if (!looking) sb?.Append("he isn't looking at me; ");
+        if (busy) sb?.Append($"he's {enemy.Status.VulnerableAction}; ");
+        if (weak >= 0.3f) sb?.Append($"he's weak ({weakWhy}); ");
+        if (exposure > 0.6f && looking) sb?.Append($"exposed {visibleFor:0.0}s while he looks at me; ");
+        if (hit) sb?.Append("just got hit; ");
+        if (health < 1f) sb?.Append($"I'm {hs}; ");
+        if (ammo < 0.25f) sb?.Append($"mag {ammo:P0}; ");
+        if (pointBlankRun) sb?.Append($"he's {dist:0}m and on me - a {cover:0.0}m run = shot in the back; ");
+        if (cover > 12f && dist < 25f) sb?.Append($"cover {cover:0}m away - too far to run; ");
+        else if (runCost > 0.1f) sb?.Append($"cover {cover:0.0}m - {cover / 3.5f:0.0}s back turned to get there; ");
+        else if (cover <= 6f) sb?.Append($"cover {cover:0.0}m; ");
+        if (finishHim) sb?.Append("he's nearly done - finish him; ");
+        if (tooClose) sb?.Append($"too close for my long gun (ideal {load.IdealRange:0}m) - break off; ");
+        if (tooFar) sb?.Append($"too far for my close-range gun (ideal {load.IdealRange:0}m); ");
+        if (goodRange) sb?.Append("my gun's range; ");
+        sb?.Append($"[{load.Summary}] ");
+        if (numbers > 0f) sb?.Append("mates on him; ");
+        sb?.Append($"{dist:0}m, {bot.Info.Personality}");
+        why = sb?.ToString() ?? string.Empty;
 
         var list = new List<(EStance stance, float score)>
         {
@@ -213,20 +215,20 @@ public static class VisibleEnemyUtility
             (EStance.Cover, coverScore),
             (EStance.Push, push),
         };
-        for (int i = 0; i < list.Count; i++)
+        for (int i = 0; i < list.Count && SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Applies(enemy); i++)
         {
             float bonus = SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Bonus(bot, enemy,
                 SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Key("V", list[i].stance.ToString(), dist, bot));
             if (Mathf.Abs(bonus) > 0.02f)
             {
                 list[i] = (list[i].stance, list[i].score + bonus);
-                why += $" | learned {list[i].stance} {bonus:+0.00;-0.00}";
+                if (sb != null) why += $" | learned {list[i].stance} {bonus:+0.00;-0.00}";
             }
         }
         list.Sort((x, y) => y.score.CompareTo(x.score));
         if (UtilityMistake.Apply(bot, list, "visible"))
         {
-            why += " | (mistake)";
+            if (sb != null) why += " | (mistake)";
         }
         return list;
     }

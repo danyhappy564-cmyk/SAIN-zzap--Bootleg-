@@ -151,7 +151,7 @@ public static class HiddenEnemyUtility
                 var kept = ranked[keepIdx];
                 ranked.RemoveAt(keepIdx);
                 ranked.Insert(0, kept);
-                why += $" | kept {kept.stance} (within {margin:0.00} of best)";
+                if (TacticDiagnostics.LogOn) why += $" | kept {kept.stance} (within {margin:0.00} of best)";
                 if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("utility.keptPick");
             }
         }
@@ -181,7 +181,9 @@ public static class HiddenEnemyUtility
 
     private static List<(EStance stance, float score)> Score(BotComponent bot, Enemy enemy, CloseCombatSettings settings, float heldFor, out string why, out float commit, bool holdBanned = false)
     {
-        var sb = new StringBuilder();
+        // zzap (2026-10-31, game sim RamCleaner: SAIN made 70-80% of the mods' garbage, up to 131 MB/min; 1st stage: the decision
+        // tick ~0.3 MB per bot-minute): the reason text only feeds the [Utility] journal line - build it only when that can be written.
+        var sb = TacticDiagnostics.LogOn ? new StringBuilder() : null;
         float time = Time.time;
         var healthStatus = bot.Memory.Health.HealthStatus;
         float health = healthStatus switch
@@ -289,38 +291,38 @@ public static class HiddenEnemyUtility
         float knownDist = enemy.KnownPlaces.BotDistanceFromLastKnown;
         float farHold = 0.35f * Mathf.Clamp01((knownDist - freezeMax) / freezeMax) * (1f - 0.6f * load.Long);
         hold -= farHold;
-        if (fearWhy.Length > 0) sb.Append(fearWhy).Append("; ");
-        if (fatigue > 0f && !coming) sb.Append($"held {heldFor:0}s already, nothing came; ");
-        if (staleFallBack > 0.05f) sb.Append($"nothing from him for {infoAge:0}s - not just standing back; ");
-        if (openHold) sb.Append("standing in the open - no place to hold from; ");
-        if (farHold > 0.05f) sb.Append($"he's {knownDist:0}m off - too far to ambush; ");
-        if (weak >= 0.3f) sb.Append($"he's weak ({weakWhy}); ");
-        if (busy) sb.Append($"he's {enemy.Status.VulnerableAction}; ");
-        if (grenadeOut) sb.Append("he has a grenade out - don't walk into it; ");
-        if (holdsAngle) sb.Append("he's holding an angle on us; ");
-        if (justLost) sb.Append("just lost sight (momentum); ");
+        if (fearWhy.Length > 0) sb?.Append(fearWhy).Append("; ");
+        if (fatigue > 0f && !coming) sb?.Append($"held {heldFor:0}s already, nothing came; ");
+        if (staleFallBack > 0.05f) sb?.Append($"nothing from him for {infoAge:0}s - not just standing back; ");
+        if (openHold) sb?.Append("standing in the open - no place to hold from; ");
+        if (farHold > 0.05f) sb?.Append($"he's {knownDist:0}m off - too far to ambush; ");
+        if (weak >= 0.3f) sb?.Append($"he's weak ({weakWhy}); ");
+        if (busy) sb?.Append($"he's {enemy.Status.VulnerableAction}; ");
+        if (grenadeOut) sb?.Append("he has a grenade out - don't walk into it; ");
+        if (holdsAngle) sb?.Append("he's holding an angle on us; ");
+        if (justLost) sb?.Append("just lost sight (momentum); ");
         if (brokeOff)
         {
-            sb.Append("I just broke off to cover - not running back at him; ");
+            sb?.Append("I just broke off to cover - not running back at him; ");
             if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("utility.brokeOff");
         }
-        if (coming) sb.Append("he's coming our way; ");
-        if (quiet > 0.3f) sb.Append($"he's been quiet {infoAge:0}s (clock favors him); ");
-        if (info > 0.5f) sb.Append($"info {infoAge:0}s old; ");
-        if (health < 1f) sb.Append($"I'm {healthStatus}; ");
-        if (hurtInOpen) sb.Append("hurt out of cover - get to cover to heal; ");
-        if (ammo < 0.5f) sb.Append($"mag {ammo:P0}; ");
-        if (numbers > 0f) sb.Append("we outnumber him; ");
-        if (numbers < 0f) sb.Append("he has friends near; ");
-        if (pushyPlayer) sb.Append("this player pushes; ");
-        if (closingOnLongGun) sb.Append($"he's closing on my long gun (ideal {load.IdealRange:0}m) - keep distance; ");
-        sb.Append(path < 10000f ? $"path {path:0}m, " : "no path yet, ").Append($"{bot.Info.Personality} [{load.Summary}]");
+        if (coming) sb?.Append("he's coming our way; ");
+        if (quiet > 0.3f) sb?.Append($"he's been quiet {infoAge:0}s (clock favors him); ");
+        if (info > 0.5f) sb?.Append($"info {infoAge:0}s old; ");
+        if (health < 1f) sb?.Append($"I'm {healthStatus}; ");
+        if (hurtInOpen) sb?.Append("hurt out of cover - get to cover to heal; ");
+        if (ammo < 0.5f) sb?.Append($"mag {ammo:P0}; ");
+        if (numbers > 0f) sb?.Append("we outnumber him; ");
+        if (numbers < 0f) sb?.Append("he has friends near; ");
+        if (pushyPlayer) sb?.Append("this player pushes; ");
+        if (closingOnLongGun) sb?.Append($"he's closing on my long gun (ideal {load.IdealRange:0}m) - keep distance; ");
+        sb?.Append(path < 10000f ? $"path {path:0}m, " : "no path yet, ").Append($"{bot.Info.Personality} [{load.Summary}]");
         if (holdBanned)
         {
             hold = -1f;
-            sb.Append($" | held {HOLD_CAP:0}s with no news of him - not holding again until he shows");
+            sb?.Append($" | held {HOLD_CAP:0}s with no news of him - not holding again until he shows");
         }
-        why = sb.ToString();
+        why = sb?.ToString() ?? string.Empty;
 
         var list = new List<(EStance stance, float score)>
         {
@@ -332,14 +334,14 @@ public static class HiddenEnemyUtility
             (EStance.FallBack, fallBack),
         };
         // Learned against this player (outcomes of past responses in this kind of situation), when adaptation is on.
-        for (int i = 0; i < list.Count; i++)
+        for (int i = 0; i < list.Count && SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Applies(enemy); i++)
         {
             float bonus = SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Bonus(bot, enemy,
                 SAIN.Components.BotControllerSpace.Classes.PlayerOutcomeLearner.Key("H", list[i].stance.ToString(), path, bot));
             if (Mathf.Abs(bonus) > 0.02f)
             {
                 list[i] = (list[i].stance, list[i].score + bonus);
-                why += $" | learned {list[i].stance} {bonus:+0.00;-0.00}";
+                if (sb != null) why += $" | learned {list[i].stance} {bonus:+0.00;-0.00}";
             }
         }
         list.Sort((x, y) => y.Item2.CompareTo(x.Item2));
@@ -377,14 +379,14 @@ public static class HiddenEnemyUtility
                 list.RemoveAt(pick);
                 list.Insert(0, chosen);
                 diceDemoted = true;
-                why += $" | dice: took #{pick + 1} (p {w[pick] / sum:0.00})";
+                if (sb != null) why += $" | dice: took #{pick + 1} (p {w[pick] / sum:0.00})";
                 if (TacticDiagnostics.CountOn) TacticDiagnostics.Count($"utility.dice.{pick + 1}");
             }
         }
         // the dice already took a lower option -> no mistake on top (two demotions of the best in one pick)
         if (!diceDemoted && UtilityMistake.Apply(bot, list, "hidden"))
         {
-            why += " | (mistake)";
+            if (sb != null) why += " | (mistake)";
         }
         commit = list[0].Item1 == EStance.Hold ? Random.Range(4f, 7f) : Random.Range(2.5f, 4f);
         // remake5 measurement: footsteps coming our way -> held the angle (the listening side of footstep discipline)

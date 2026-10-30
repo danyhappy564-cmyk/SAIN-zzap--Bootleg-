@@ -85,7 +85,8 @@ public static class FearModel
         var p = bot.Info.Personality;
         float baseFear = _base.TryGetValue(p, out float b) ? b : 0.1f;
         float sens = _sensitivity.TryGetValue(p, out float s) ? s : 1f;
-        var sb = new StringBuilder();
+        // zzap (2026-10-31): the reason text only feeds the utilities' [Utility] journal lines (see HiddenEnemyUtility.Score)
+        var sb = SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn ? new StringBuilder() : null;
         float situ = 0f;
         float time = Time.time;
         var group = bot.BotOwner?.BotsGroup;
@@ -97,7 +98,7 @@ public static class FearModel
                 if (d.group == gid && time - d.time < 30f && (d.pos - bot.Position).sqrMagnitude < 40f * 40f)
                 {
                     situ += 0.3f;
-                    sb.Append($"mate died {time - d.time:0}s ago; ");
+                    sb?.Append($"mate died {time - d.time:0}s ago; ");
                     break;
                 }
             }
@@ -115,7 +116,7 @@ public static class FearModel
             if (streak > 0)
             {
                 situ += Mathf.Min(0.05f * streak, 0.25f);
-                sb.Append($"player on a {streak}-kill streak; ");
+                sb?.Append($"player on a {streak}-kill streak; ");
             }
         }
         if (health < 1f)
@@ -125,15 +126,15 @@ public static class FearModel
         if (outnumbered)
         {
             situ += 0.15f;
-            sb.Append("outnumbered; ");
+            sb?.Append("outnumbered; ");
         }
         if (bot.Suppression.IsHeavySuppressed)
         {
             situ += 0.1f;
-            sb.Append("pinned down; ");
+            sb?.Append("pinned down; ");
         }
         float fear = Mathf.Clamp01((baseFear + situ * sens) * settings.FearMultiplier);
-        if (fear > 0.2f)
+        if (fear > 0.2f && sb != null)
         {
             why = $"fear {fear:0.00}{(fear > 0.75f ? " PANIC" : "")} ({p} base {baseFear:0.00}; {sb})";
         }

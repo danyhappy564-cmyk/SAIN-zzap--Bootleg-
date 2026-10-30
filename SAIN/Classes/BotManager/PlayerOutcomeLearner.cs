@@ -182,6 +182,14 @@ public static class PlayerOutcomeLearner
     /// Learned bonus for this stance in this situation against the player: (its result rate - the family's average) x
     /// confidence (tries / (tries + 8)) x strength, capped at +-0.25. 0 when adaptation is off or too few tries.
     /// </summary>
+    /// <summary>zzap (2026-10-31): learning against this enemy can give a bonus (adaptation on, he is the player). The utilities
+    /// check it before building the six Key strings per score - bot vs bot they were built for nothing.</summary>
+    public static bool Applies(Enemy enemy)
+    {
+        var settings = GlobalSettingsClass.Instance?.General?.PlayerStyle;
+        return settings != null && settings.AdaptEnabled && settings.LearnFromOutcomes && IsPlayer(enemy);
+    }
+
     public static float Bonus(BotComponent bot, Enemy enemy, string key)
     {
         var settings = GlobalSettingsClass.Instance?.General?.PlayerStyle;
