@@ -301,6 +301,19 @@ public class EnemyDecisionClass : BotBase
             DecisionReasons.AppendLine($"8. Seek Cover: [{true}, {Bot.Cover.CoverSeekingState}]");
         }
 #endif
+        // zzap (2026-10-31 game sim: Labs boss Wedge "SeekCover/default:NoCover" 8 times at one spot over 5 min with the enemy
+        // 56-94 m off, a Reserve PMC 5 times): with no cover point and no path to the enemy this default ran SeekCover, whose
+        // no-cover fallback (DogFightMove) only moves along the path to him - so the bot stood in a moving decision. Hold the
+        // angle instead (Freeze: looks at his last known spot, breaks when hit or seen, hold fatigue ends it); a visible enemy
+        // still gets SeekCover's dogfight.
+        if (Bot.Cover.CoverInUse == null && Bot.Cover.CoverPoints.Count == 0 && !enemy.IsVisible
+            && enemy.Path.PathToEnemyStatus == NavMeshPathStatus.PathInvalid)
+        {
+            LastReason = "default:noCoverNoPath";
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("decision.noCoverNoPathHold");
+            result = ECombatDecision.Freeze;
+            return true;
+        }
         LastReason = $"default:{Bot.Cover.CoverSeekingState}";
         result = ECombatDecision.SeekCover;
         return true;
