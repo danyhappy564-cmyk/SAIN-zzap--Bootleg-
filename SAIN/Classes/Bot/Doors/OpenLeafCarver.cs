@@ -45,6 +45,9 @@ public static class OpenLeafCarver
     private static readonly List<NavMeshDoorLink> _waiting = new();
     private static readonly HashSet<NavMeshDoorLink> _carved = new();
     private static readonly Dictionary<Door, List<NavMeshDoorLink>> _byDoor = new();
+    private static readonly HashSet<Door> _enabledAtStart = new();
+    private static readonly HashSet<(NavMeshDoorLink, string)> _waitCounted = new();
+    private static bool _active;
     private static bool _ready;
     private static float _firstTry = -1f;
     private static float _nextCheck;
@@ -53,10 +56,21 @@ public static class OpenLeafCarver
 
     private static bool SettingOn => GlobalSettingsClass.Instance?.General?.DoorTactics?.CarveOpenLeaves != false;
 
+    /// <summary>
+    /// Raid start (DoorHandler.Init). Only a begun carver ticks: the door tick can still run after BotManagerComponent.OnDestroy
+    /// cleared it, and starting again then would refill the static lists with the dying raid's links (and CreateOrFind could
+    /// leave a new BotDoorsController in the scene) - 10/31 game sim, menu memory +1.5 GB per map.
+    /// </summary>
+    public static void Begin()
+    {
+        Clear();
+        _active = true;
+    }
+
     /// <summary>Every frame (DoorHandler).</summary>
     public static void Tick(float time)
     {
-        if (time < _nextCheck)
+        if (!_active || time < _nextCheck)
         {
             return;
         }
@@ -76,12 +90,19 @@ public static class OpenLeafCarver
                 _waiting.RemoveAt(i);
                 continue;
             }
-            if (!Live(link.Door) || ReversedLeafUnjam.IsReversed(link.Door))
+            if (!Live(link.Door))
             {
+                WaitWhy(link, "doorOff");
+                continue;
+            }
+            if (ReversedLeafUnjam.IsReversed(link.Door))
+            {
+                WaitWhy(link, "reversed");
                 continue;
             }
             if (SomeoneNear(link.MidOpen))
             {
+                WaitWhy(link, "someoneNear");
                 continue;
             }
             _waiting.RemoveAt(i);
@@ -90,8 +111,19 @@ public static class OpenLeafCarver
         }
     }
 
-    /// <summary>The door is in the level (F6 Disable All Doors switches doors off without a state change - DoorHandler.DisableDoor).</summary>
-    private static bool Live(Door door) => door.enabled && door.gameObject.activeInHierarchy;
+    /// <summary>The door is in the level. F6 Disable All Doors (DoorHandler.DisableDoor) switches an enabled door component off
+    /// without a state change; a door whose component was already off at raid start is judged by its GameObject only.</summary>
+    private static bool Live(Door door) =>
+        door.gameObject.activeInHierarchy && (door.enabled || !_enabledAtStart.Contains(door));
+
+    /// <summary>Why a queued open leaf waits (counted once per link and reason: door.carve.wait.*).</summary>
+    private static void WaitWhy(NavMeshDoorLink link, string why)
+    {
+        if (_waitCounted.Add((link, why)))
+        {
+            TacticDiagnostics.Count("door.carve.wait." + why);
+        }
+    }
 
     /// <summary>A carved link whose door went away (disabled) loses its cut; it waits to be carved again if the door comes back
     /// still open. Old cut records past CUT_MEMORY are dropped.</summary>
@@ -182,17 +214,39 @@ public static class OpenLeafCarver
             TacticDiagnostics.Count("door.carve.off");
             return;
         }
+        // 10/31 game sim: started on all three maps but carved nothing - every skip / wait reason is counted now
+        int noDoor = 0, noCarver = 0, shallTry = 0, doorOff = 0;
         foreach (NavMeshDoorLink link in links)
         {
-            if (link == null || link.Door == null || link.Carver_Opened == null || link.ShallTryInteract)
+            if (link == null || link.Door == null)
             {
+                noDoor++;
                 continue;
+            }
+            if (link.Carver_Opened == null)
+            {
+                noCarver++;
+                continue;
+            }
+            // ShallTryInteract links (none in the extracted maps) carve by EFT's own events, but their components are disabled by
+            // InitCarveStates the same way - they go through here too
+            if (link.ShallTryInteract)
+            {
+                shallTry++;
             }
             _links.Add(link);
             if (!_byDoor.TryGetValue(link.Door, out var list))
             {
                 _byDoor[link.Door] = list = new List<NavMeshDoorLink>();
                 link.Door.OnDoorStateChanged += OnDoorStateChanged;
+                if (link.Door.enabled)
+                {
+                    _enabledAtStart.Add(link.Door);
+                }
+                else
+                {
+                    doorOff++;
+                }
             }
             list.Add(link);
             if (link.Door.DoorState == EDoorState.Open)
@@ -200,8 +254,23 @@ public static class OpenLeafCarver
                 _waiting.Add(link);
             }
         }
-        Logger.LogDebug($"[OpenLeafCarver] {_links.Count} door links, {_waiting.Count} open at start");
+        Logger.LogInfo(
+            $"[OpenLeafCarver] {links.Count} door links: {_links.Count} used ({_byDoor.Count} doors, {_waiting.Count} open at start, "
+                + $"{shallTry} ShallTryInteract, {doorOff} door components off), skipped {noDoor} without a door, {noCarver} without a carver"
+        );
         TacticDiagnostics.Count("door.carve.start");
+        for (int i = 0; i < _waiting.Count; i++)
+        {
+            TacticDiagnostics.Count("door.carve.openAtStart");
+        }
+        for (int i = 0; i < noCarver; i++)
+        {
+            TacticDiagnostics.Count("door.carve.skip.noCarver");
+        }
+        for (int i = 0; i < noDoor; i++)
+        {
+            TacticDiagnostics.Count("door.carve.skip.noDoor");
+        }
     }
 
     private static void OnDoorStateChanged(WorldInteractiveObject obj, EDoorState prev, EDoorState next)
@@ -294,6 +363,9 @@ public static class OpenLeafCarver
         _carved.Clear();
         _cuts.Clear();
         _gone.Clear();
+        _enabledAtStart.Clear();
+        _waitCounted.Clear();
+        _active = false;
         _ready = false;
         _firstTry = -1f;
         _nextCheck = 0f;

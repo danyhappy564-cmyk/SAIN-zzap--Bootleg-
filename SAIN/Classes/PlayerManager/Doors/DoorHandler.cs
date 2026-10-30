@@ -17,7 +17,8 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
     public DoorHandler(GameWorldComponent component)
         : base(component) { }
 
-    public void Init() { }
+    // zzap: the open-leaf carver runs for this raid only (OpenLeafCarver.Begin; cleared in BotManagerComponent.OnDestroy).
+    public void Init() => SAIN.SAINComponent.Classes.Mover.OpenLeafCarver.Begin();
 
     public void ManualUpdate(float currentTime, float deltaTime)
     {
