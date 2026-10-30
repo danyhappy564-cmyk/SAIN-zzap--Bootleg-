@@ -246,6 +246,8 @@ public class BotComponent : BotComponentBase, ISPlayer
 
     private static void TickClassGroup(List<IBotClass> List, float CurrentTime)
     {
+        // zzap: sim mode only - each class's garbage (AllocMeter, alloc.* counters)
+        bool meter = SAIN.SAINComponent.Classes.Tactics.AllocMeter.Sampling;
         for (int i = 0; i < List.Count; i++)
         {
             var botClass = List[i];
@@ -256,7 +258,12 @@ public class BotComponent : BotComponentBase, ISPlayer
 
             try
             {
+                long before = meter ? SAIN.SAINComponent.Classes.Tactics.AllocMeter.Now() : 0L;
                 botClass.ManualUpdate();
+                if (meter)
+                {
+                    SAIN.SAINComponent.Classes.Tactics.AllocMeter.Add(botClass.GetType(), SAIN.SAINComponent.Classes.Tactics.AllocMeter.Now() - before);
+                }
             }
             catch (Exception error)
             {

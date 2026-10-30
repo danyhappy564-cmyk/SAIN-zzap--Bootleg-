@@ -137,6 +137,20 @@ internal static class TacticDiagnostics
         TrySummary();
     }
 
+    /// <summary>zzap (2026-10-31): add an amount at once (AllocMeter's KB) instead of one.</summary>
+    public static void Add(string key, int amount)
+    {
+        if (!Enabled || amount <= 0)
+        {
+            return;
+        }
+        CheckNewRaid();
+        _counts.TryGetValue(key, out int value);
+        _counts[key] = value + amount;
+        _changedSinceSummary = true;
+        TrySummary();
+    }
+
     private static void CheckNewRaid()
     {
         GameWorld world = Singleton<GameWorld>.Instance;
