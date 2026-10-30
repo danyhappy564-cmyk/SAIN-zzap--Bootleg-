@@ -146,7 +146,7 @@ internal static class TacticDiagnostics
         }
         CheckNewRaid();
         _counts.TryGetValue(key, out int value);
-        _counts[key] = value + amount;
+        _counts[key] = (int)System.Math.Min(int.MaxValue, (long)value + amount);
         _changedSinceSummary = true;
         TrySummary();
     }

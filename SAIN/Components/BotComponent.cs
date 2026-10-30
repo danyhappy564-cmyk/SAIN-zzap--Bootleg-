@@ -259,10 +259,11 @@ public class BotComponent : BotComponentBase, ISPlayer
             try
             {
                 long before = meter ? SAIN.SAINComponent.Classes.Tactics.AllocMeter.Now() : 0L;
+                int gcBefore = meter ? SAIN.SAINComponent.Classes.Tactics.AllocMeter.Collections() : 0;
                 botClass.ManualUpdate();
                 if (meter)
                 {
-                    SAIN.SAINComponent.Classes.Tactics.AllocMeter.Add(botClass.GetType(), SAIN.SAINComponent.Classes.Tactics.AllocMeter.Now() - before);
+                    SAIN.SAINComponent.Classes.Tactics.AllocMeter.Add(botClass.GetType(), SAIN.SAINComponent.Classes.Tactics.AllocMeter.Now() - before, gcBefore);
                 }
             }
             catch (Exception error)

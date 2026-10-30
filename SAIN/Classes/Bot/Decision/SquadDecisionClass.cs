@@ -199,10 +199,13 @@ public class SquadDecisionClass : BotBase
         }
 
         // zzap (2026-10-31, 1st stage + user saw it in game: "after a fight one searches, the leader and the rest just stand"):
-        // any member searching put every other member on GroupSearch, but FollowSearchParty walks to the LEADER - a leader on
-        // GroupSearch followed itself and stood, and the rest stood next to it (1st stage factory: 24% of GroupSearch time was the
-        // leader itself, 39% a leader that was itself on GroupSearch, only 35% a leader actually searching). Follow only a leader
-        // who is searching; the leader never takes GroupSearch and makes its own enemy decision (search, hold, ...).
+        // any member searching put every other member on GroupSearch. Followers walk to the LEADER (FollowSearchParty); a leader on
+        // GroupSearch runs SearchAction straight from the squad layer, past the enemy decision's search checks (already searched
+        // there, nothing new...), so once at his last known spot it stood while the other member kept the squad on GroupSearch,
+        // and the followers stood next to it (1st stage factory: 24% of GroupSearch time was the leader itself, 39% a leader on
+        // GroupSearch, only 35% a leader actually on Search). Follow only a leader whose own decision is Search; the leader never
+        // takes GroupSearch and decides for itself (search, hold, ...). Codex review 10/31 corrected the first reading ("the
+        // leader followed itself" - CombatSquadLayer gives a GroupSearch leader SearchAction).
         BotComponent leader = Bot.Squad.SquadInfo?.LeaderComponent;
         if (leader == null || leader == Bot || Bot.GoalEnemy == null)
         {

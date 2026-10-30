@@ -304,15 +304,30 @@ public class EnemyDecisionClass : BotBase
         // zzap (2026-10-31 game sim: Labs boss Wedge "SeekCover/default:NoCover" 8 times at one spot over 5 min with the enemy
         // 56-94 m off, a Reserve PMC 5 times): with no cover point and no path to the enemy this default ran SeekCover, whose
         // no-cover fallback (DogFightMove) only moves along the path to him - so the bot stood in a moving decision. Hold the
-        // angle instead (Freeze: looks at his last known spot, breaks when hit or seen, hold fatigue ends it); a visible enemy
-        // still gets SeekCover's dogfight.
-        if (Bot.Cover.CoverInUse == null && Bot.Cover.CoverPoints.Count == 0 && !enemy.IsVisible
-            && enemy.Path.PathToEnemyStatus == NavMeshPathStatus.PathInvalid)
+        // angle instead (Freeze: looks at his last known spot, breaks when seen). A visible enemy still gets SeekCover's dogfight.
+        // Codex review: not while being shot or hit in the last 5 s (SeekCover's dogfight backs away from the shooter without a
+        // path to him), and at most NO_COVER_HOLD_MAX at a time, then NO_COVER_HOLD_BAN of the old default (the utility's hold
+        // cap doesn't reach this fallback, and his path may stay invalid while neither of us moves).
+        float now = Time.time;
+        bool beingShot = BotOwner.Memory.IsUnderFire || Bot.Medical.TimeSinceShot < 5f || AnyEnemyShootingAtMe();
+        if (Bot.Cover.CoverInUse == null && Bot.Cover.CoverPoints.Count == 0 && !enemy.IsVisible && !beingShot
+            && enemy.Path.PathToEnemyStatus == NavMeshPathStatus.PathInvalid && now >= _noCoverHoldBanUntil)
         {
-            LastReason = "default:noCoverNoPath";
-            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("decision.noCoverNoPathHold");
-            result = ECombatDecision.Freeze;
-            return true;
+            if (_noCoverHoldSince < 0f || now - _noCoverHoldLast > 1f)
+            {
+                _noCoverHoldSince = now;
+            }
+            _noCoverHoldLast = now;
+            if (now - _noCoverHoldSince < NO_COVER_HOLD_MAX)
+            {
+                LastReason = "default:noCoverNoPath";
+                if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("decision.noCoverNoPathHold");
+                result = ECombatDecision.Freeze;
+                return true;
+            }
+            _noCoverHoldBanUntil = now + NO_COVER_HOLD_BAN;
+            _noCoverHoldSince = -1f;
+            if (TacticDiagnostics.CountOn) TacticDiagnostics.Count("decision.noCoverNoPathHold.capped");
         }
         LastReason = $"default:{Bot.Cover.CoverSeekingState}";
         result = ECombatDecision.SeekCover;
@@ -321,6 +336,12 @@ public class EnemyDecisionClass : BotBase
 
     /// <summary>zzap: why the last combat decision was made (raid journal).</summary>
     public string LastReason = string.Empty;
+
+    private const float NO_COVER_HOLD_MAX = 30f;
+    private const float NO_COVER_HOLD_BAN = 20f;
+    private float _noCoverHoldSince = -1f;
+    private float _noCoverHoldLast = -10f;
+    private float _noCoverHoldBanUntil;
 
     /// <summary>
     /// zzap: HiddenEnemyUtility ranks the stances; each is mapped onto SAIN's existing actions (with their own safety
