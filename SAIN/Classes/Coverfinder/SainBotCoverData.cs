@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using EFT.Interactive;
 using UnityEngine;
 
 namespace SAIN.SAINComponent.SubComponents.CoverFinder;
@@ -120,7 +121,7 @@ public class SainBotCoverData()
                 array[i] = null;
                 continue;
             }
-            if (_excludedColliderNames.Contains(collider.transform?.parent?.name))
+            if (_excludedColliderNames.Contains(collider.transform?.parent?.name) || IsDoorPart(collider))
             {
                 array[i] = null;
                 continue;
@@ -139,6 +140,52 @@ public class SainBotCoverData()
             array[i] = null;
         }
         return validCount;
+    }
+
+    /// <summary>
+    /// zzap (2026-10-31 game sim, Reserve 4 raids: bots "in cover" at the PTOR door 00028 that is open from the start, then
+    /// stalled there; a live read of every bot's cover points through the bridge found door frames and gate leaves among
+    /// them): a door leaf swings, is thin (woodthin / metalthin) and an open one is cut out of the NavMesh (OpenLeafCarver),
+    /// and a door frame's collider is hollow - its bounds centre is the doorway itself. Neither is cover. A leaf has the Door
+    /// in its parents; a frame is a sibling of the Door's object under the same door root, within 1.5 m of it.
+    /// </summary>
+    private static bool IsDoorPart(Collider collider)
+    {
+        int id = collider.GetInstanceID();
+        if (_doorPart.TryGetValue(id, out bool known))
+        {
+            return known;
+        }
+        bool part = collider.GetComponentInParent<Door>() != null || FrameOfDoor(collider);
+        _doorPart[id] = part;
+        return part;
+    }
+
+    private static bool FrameOfDoor(Collider collider)
+    {
+        Transform root = collider.transform.parent;
+        if (root == null)
+        {
+            return false;
+        }
+        Vector3 center = collider.bounds.center;
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Door door = root.GetChild(i).GetComponent<Door>();
+            if (door != null && (door.transform.position - center).sqrMagnitude < 1.5f * 1.5f)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // collider instance id -> door part; colliders don't change parents, so one look per collider per raid
+    private static readonly Dictionary<int, bool> _doorPart = new();
+
+    public static void ClearDoorParts()
+    {
+        _doorPart.Clear();
     }
 
     /// <summary>

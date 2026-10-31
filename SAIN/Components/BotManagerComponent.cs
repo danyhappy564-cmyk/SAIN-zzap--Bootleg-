@@ -150,6 +150,7 @@ public class BotManagerComponent : MonoBehaviour
         SAIN.SAINComponent.Classes.Mover.ReversedLeafUnjam.Clear();
         SAIN.SAINComponent.Classes.Mover.OpenLeafCarver.Clear();
         SAIN.SAINComponent.Classes.Tactics.AllocMeter.Clear();
+        SAIN.SAINComponent.SubComponents.CoverFinder.SainBotCoverData.ClearDoorParts();
         SAIN.SAINComponent.Classes.Tactics.FireLaneGuard.Clear();
         SAIN.SAINComponent.Classes.Tactics.SquadStorm.Clear();
         SAIN.SAINComponent.Classes.Tactics.SquadCombatClass.ClearStatic();
