@@ -16,9 +16,9 @@
 
 ## 변경 이력
 
-- 2026-10-24 16:42 — **Remake7 릴리즈 준비.** 릴리즈 이름 Remake7(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remix6.1 이후 바뀐 것 전부(게시 안 한 Remix6.2의 모드 봇 지원 포함)를 노트 3종(changelog/RELEASE_NOTES_Remake7*)으로 정리. 설치 안내 1번을 고침 — 전에는 'zzap*.json은 새로 들어오니 필요 없음'이라 적혀 있어 내가 고친 '[Modified]' 복사본까지 버리게 될 수 있었음. 이제 기본 4개만 새로 들어오고 [Modified] 파일은 꼭 챙기라고 안내. 확인: 서버 빌드 오류 0(기존 경고 16), 서버 zip에 웹 화면 파일과 기본 프리셋 4개 들어 있음, 클라 새 오류 0(Unity 2022 전용 레이캐스트 기준선 14개), 회귀 검사 35/0·웹 정적 검사 35/0. 배포용 클라 DLL·zip은 사용자 PC 빌드. 내부 번호 4.5.1은 프리셋 호환 때문에 그대로.
+- 2026-10-31 18:40 — **Remix7.1 릴리즈 준비.** 릴리즈 이름 Remix7.1(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remake7 이후 바뀐 것 전부(커밋 11개)를 노트 3종(changelog/RELEASE_NOTES_Remix7.1*)으로 정리, 열린 문짝 전/후 그림 첨부. 봇이 열린 문짝을 돌아서 지나감(새 설정, 기본 켬), 바닥 끝 밖에 선 봇이 몇 분씩 서 있던 것, 분대 수색 때 분대가 통째로 서 있던 것, 엄폐도 길도 없을 때 대기, 문틀·문짝은 엄폐로 안 씀. 클라 dll과 서버 모드 둘 다 덮어쓰기.
 
-전체 변경 이력 243개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-025.md`](changelog/CHANGELOG-025.md)).
+전체 변경 이력 249개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-025.md`](changelog/CHANGELOG-025.md)).
 
 # SAIN (zzap fork)
 
@@ -37,9 +37,11 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 
 변경 이력은 [`changelog/`](changelog/), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
 
-**최근 변경 (2026-10-24, Remake7 릴리즈):** 설정 화면 대개편 — 봇 종류별 설정은 봇 하나씩 보며 난이도(zzap 쉬움·보통·zzap 수준·더 세게)와 AI(SAIN/게임 기본)를 고르고 쉬운 손잡이 9개로 조절, 성격 후보는 모든 봇에서 여러 개 선택, 전역·성격·장비 설정에 프리셋 비교 막대. 기본 zzap 프리셋은 읽기 전용(고치면 '[Modified]' 복사본), 저사양 프리셋 삭제. 모드 봇(블랙 디비전·RUAF·UNTAR)이 포크 없이 SAIN으로 싸움(게임 시뮬에서 블랙 디비전 SAIN 0% → 67% 확인). 원래 봇 전투 방식·zzap 값은 Remix6.1과 같음. 상세는 [`Remake7 릴리즈 노트`](changelog/RELEASE_NOTES_Remake7.md)와 [전체 이력](changelog/).
+**최근 변경 (2026-10-31, Remix7.1 릴리즈):** 봇이 열린 문짝을 박지 않고 돌아서 지나감(새 설정 '봇이 열린 문짝을 돌아서 지나감', 기본 켬), 바닥 끝 밖에 선 봇이 길을 못 찾아 몇 분씩 서 있던 것 수정(게임 4맵 확인), 분대 수색 때 분대가 통째로 서 있던 것 수정, 엄폐도 길도 없으면 각 잡고 대기, 문틀·문짝은 엄폐로 안 씀. 상세는 [`Remix7.1 릴리즈 노트`](changelog/RELEASE_NOTES_Remix7.1.md).
 
-릴리즈별 변경 요약: [`Remake7`](changelog/RELEASE_NOTES_Remake7.md) (Remix6.1 대비, 게시 안 한 Remix6.2 포함) · [`Remix6.2`](changelog/RELEASE_NOTES_Remix6.2.md) (초안만, 게시 안 함) · [`Remix6.1`](changelog/RELEASE_NOTES_Remix6.1.md) (remake6 대비) · [`remake6`](changelog/RELEASE_NOTES_remake6.md) (Remix5.1 대비) · [`Remix5.1`](changelog/RELEASE_NOTES_Remix5.1.md) (remake5 대비) · [`remake5`](changelog/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](changelog/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](changelog/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
+**이전 (2026-10-24, Remake7 릴리즈):** 설정 화면 대개편 — 봇 종류별 설정은 봇 하나씩 보며 난이도(zzap 쉬움·보통·zzap 수준·더 세게)와 AI(SAIN/게임 기본)를 고르고 쉬운 손잡이 9개로 조절, 성격 후보는 모든 봇에서 여러 개 선택, 전역·성격·장비 설정에 프리셋 비교 막대. 기본 zzap 프리셋은 읽기 전용(고치면 '[Modified]' 복사본), 저사양 프리셋 삭제. 모드 봇(블랙 디비전·RUAF·UNTAR)이 포크 없이 SAIN으로 싸움(게임 시뮬에서 블랙 디비전 SAIN 0% → 67% 확인). 원래 봇 전투 방식·zzap 값은 Remix6.1과 같음. 상세는 [`Remake7 릴리즈 노트`](changelog/RELEASE_NOTES_Remake7.md)와 [전체 이력](changelog/).
+
+릴리즈별 변경 요약: [`Remix7.1`](changelog/RELEASE_NOTES_Remix7.1.md) (Remake7 대비) · [`Remake7`](changelog/RELEASE_NOTES_Remake7.md) (Remix6.1 대비, 게시 안 한 Remix6.2 포함) · [`Remix6.2`](changelog/RELEASE_NOTES_Remix6.2.md) (초안만, 게시 안 함) · [`Remix6.1`](changelog/RELEASE_NOTES_Remix6.1.md) (remake6 대비) · [`remake6`](changelog/RELEASE_NOTES_remake6.md) (Remix5.1 대비) · [`Remix5.1`](changelog/RELEASE_NOTES_Remix5.1.md) (remake5 대비) · [`remake5`](changelog/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](changelog/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](changelog/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
 
 ## 설치 / 업데이트
 
@@ -176,6 +178,7 @@ doordash와 다른 점: 봇은 코너를 조준하며 달리는 일이 많아 "�
 |---|---|
 | 문 낑김 | 문 감지 범위, 스턱 체크, 대기모드 진입 시 문 상호작용 멈춤, 문 상태 워치독(1.2초) 등 — 상세는 [`changelog/FIXES.md`](changelog/FIXES.md) |
 | 위층 적에게 벽·천장 사격 (10/13) | 위층(높이 차 2.3m 이상)에 있어 보이지도 않는 적을 소리만 듣고 제압 사격·블라인드 파이어·프리파이어로 벽·천장에 쏘던 것 → 안 보이는 적에게 쏠 때 총구에서 목표까지 막혀 있으면, 다른 층이거나 총구 2.5m 앞이 바로 벽인 경우 쏘지 않음 (블라인드 파이어는 엄폐물 위로 총을 드는 동작이라 '코앞 벽'은 예외). SUMMARY `shoot.blocked.*` (게임 미검증) |
+| 열린 문짝에 박고 서 있음 (10/31, Remix7.1) | 열린 문짝 자리가 봇 길에서 빠져 있지 않아 문짝을 향해 걷다 박고 서던 것 → 열린 문짝 자리를 길에서 뺌(EFT가 문마다 갖고 있지만 꺼 두는 장치를 켬, 문이 닫히면 끔). `Door Tactics (zzap) > Bots Walk Around Open Door Leaves`(봇이 열린 문짝을 돌아서 지나감, 기본 켬). 문틀·문짝은 엄폐로도 안 씀. 그림: [`remix7.1-open-door-leaf.png`](changelog/images/remix7.1-open-door-leaf.png) |
 | 열린 문짝 뒤 틈에 낑김 (10/13) | 적을 조준하며 움직일 때(근접 난전 뒷걸음, 다이아몬드 스텝 옆걸음) 열린 문짝과 벽 사이 틈으로 들어가 낑기던 것 → 그 두 동작이 열린 문짝을 벽처럼 피함 (게임 미검증) |
 | DMR·저격 장거리 명중률 (10/13) | 총을 쏜 뒤 남는 반동 조준 흔들림이 약 2초에 걸쳐 천천히 풀리는데, 반동 큰 DMR·저격총은 장거리에서 다음 한 발까지 그게 덜 풀린 채 쏴서 돌격소총보다 빗나감 → DMR·저격총은 3배 빨리 다시 조준을 잡음 (게임 미검증) |
 | 사라진 사수에게 맞은 오류 (10/13) | 이미 지워진 플레이어 몸이 준 피해를 받으면 EFT가 그 위치를 읽다 오류(NRE)를 내던 것 → 그 경우 "누구한테 맞았다" 반응만 건너뜀 |
