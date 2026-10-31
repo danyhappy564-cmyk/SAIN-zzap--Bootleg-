@@ -400,9 +400,20 @@ public class SAINBotUnstuckClass : BotComponentClassBase
         if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count($"stuck.layer.{layer}");
         bool wallAhead = Physics.Raycast(Bot.Position + Vector3.up * 1.2f, Player.LookDirection, 0.8f, LayersMaskController.HighPolyWithTerrainMask);
         var mover = BotOwner.Mover;
+        // 10/31 game sim: 56 of 98 stuck lines said "0m to go" - that is BSG's mover, which has no destination while SAIN moves
+        // the bot on its own path. Also log SAIN's path: straight-line distance to its destination vs the distance it counts
+        // as arrived, corner index and status - to tell "can't get the last bit to the point" from "blocked on the way".
+        var path = Bot.Mover.ActivePath;
+        string sainPath = "sain path none";
+        if (path != null)
+        {
+            Vector3 toEnd = path.Destination - Bot.Position;
+            toEnd.y = 0f;
+            sainPath = $"sain path {toEnd.magnitude:0.0}m to end (arrive {path.DestinationReachDistance:0.0}m) corner {path.CurrentIndex + 1}/{path.PathCorners.Count} {path.Status}";
+        }
         if (SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogOn) SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.LogCloseCombat(
             $"[Stuck] [{Bot.name}] [{Bot.Info.Personality}] no progress {stuckFor:0}s -> {action} | layer {layer} | combat={Bot.Decision.CurrentCombatDecision} "
-                + $"squad={Bot.Decision.CurrentSquadDecision} | {mover.DistDestination:0}m to go, wall ahead={wallAhead} | at ({Bot.Position.x:0},{Bot.Position.z:0})"
+                + $"squad={Bot.Decision.CurrentSquadDecision} | {mover.DistDestination:0}m to go (bsg), {sainPath}, wall ahead={wallAhead} | at ({Bot.Position.x:0},{Bot.Position.z:0})"
         );
     }
 
