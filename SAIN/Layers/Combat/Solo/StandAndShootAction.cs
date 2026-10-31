@@ -77,7 +77,7 @@ public class StandAndShootAction(BotOwner bot) : BotAction(bot, nameof(StandAndS
             if (NavMesh.SamplePosition(navData.Position + rotated, out var hit, 3f, -1))
             {
                 movePosition = hit.position;
-                if (NavMesh.Raycast(navData.Position, movePosition, out var rayHit, -1))
+                if (NavMesh.Raycast(navData.PathStart, movePosition, out var rayHit, -1))
                 {
                     movePosition = rayHit.position;
                 }

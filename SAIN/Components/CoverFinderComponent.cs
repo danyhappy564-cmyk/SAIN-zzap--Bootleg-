@@ -166,8 +166,9 @@ public class CoverFinderComponent : BotComponentBase
                         break;
                     }
                     Vector3 targetPosition = enemy.LastKnownPosition.Value;
-                    Vector3 botPosition = Bot.NavMeshPosition;
-                    Vector3 targetDirNormal = (targetPosition - botPosition).normalized;
+                    // botPosition only starts the cover path checks (CoverAnalyzer.CheckPath); the side of the enemy stays from NavMeshPosition
+                    Vector3 botPosition = Bot.PathStart;
+                    Vector3 targetDirNormal = (targetPosition - Bot.NavMeshPosition).normalized;
                     if (colliderData.CoverPoint != null)
                     {
                         if (

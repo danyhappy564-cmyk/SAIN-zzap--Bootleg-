@@ -142,7 +142,7 @@ public class SAINEnemyPath(EnemyData enemyData) : EnemyBase(enemyData, enemyData
         {
             Vector3 enemyPosition = Enemy.KnownPlaces.LastKnownPosition.Value;
             PathToEnemy.ClearCorners();
-            NavMesh.CalculatePath(Bot.NavMeshPosition, enemyPosition, NavMesh.AllAreas, PathToEnemy);
+            NavMesh.CalculatePath(Bot.PathStart, enemyPosition, NavMesh.AllAreas, PathToEnemy);
             CacheCorners();
             _newPath = true;
             int max = AllPathNodes.Length;
@@ -241,6 +241,10 @@ public class SAINEnemyPath(EnemyData enemyData) : EnemyBase(enemyData, enemyData
             return false;
         }
         _calcPathTime = currentTime;
+        // zzap (2026-10-31, Codex review): cache only when the path is really calculated - was cached before the delay check, so a
+        // move that ended inside the delay was never recalculated while the bot then stood there
+        _enemyLastPosChecked = LastKnown.Value;
+        _botLastPosChecked = Bot.Position;
         return true;
     }
 
@@ -486,10 +490,6 @@ public class SAINEnemyPath(EnemyData enemyData) : EnemyBase(enemyData, enemyData
         {
             return false;
         }
-
-        // cache the positions we are currently checking
-        _enemyLastPosChecked = enemyPosition;
-        _botLastPosChecked = botPosition;
         return true;
     }
 

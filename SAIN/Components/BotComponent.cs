@@ -34,6 +34,12 @@ public class BotComponent : BotComponentBase, ISPlayer
         get { return Transform.NavData.Position; }
     }
 
+    /// <summary>zzap: start point for NavMesh paths from this bot (a mesh point even when it stands past the edge).</summary>
+    public Vector3 PathStart
+    {
+        get { return Transform.NavData.PathStart; }
+    }
+
     public float GetDistanceToPlayer(string ProfileId)
     {
         return PlayerComponent.GetDistanceToPlayer(ProfileId);

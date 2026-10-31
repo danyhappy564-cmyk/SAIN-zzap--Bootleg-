@@ -96,7 +96,7 @@ public static class OpenGround
                 {
                     continue;
                 }
-                if (!NavMesh.CalculatePath(pos, p, -1, path) || path.status != NavMeshPathStatus.PathComplete || PathLength(path) > maxPath)
+                if (!NavMesh.CalculatePath(bot.PathStart, p, -1, path) || path.status != NavMeshPathStatus.PathComplete || PathLength(path) > maxPath)
                 {
                     continue;
                 }

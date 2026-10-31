@@ -216,7 +216,7 @@ public class BotPathDataManual(BotComponent bot, IBotPathFinder pathFinder) : IB
         if (currentDist < 1f && CurrentIndex + 1 < PathCorners.Count)
         {
             BotPathCorner nextCorner = PathCorners[CurrentIndex + 1];
-            if (!NavMesh.Raycast(Bot.NavMeshPosition, nextCorner.Position, out _, NavMesh.AllAreas))
+            if (!NavMesh.Raycast(Bot.PathStart, nextCorner.Position, out _, NavMesh.AllAreas))
             {
                 return true;
             }

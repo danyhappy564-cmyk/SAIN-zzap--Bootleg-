@@ -446,7 +446,7 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
         if (NavMesh.SamplePosition(point, out NavMeshHit targetHit, navSampleRange, -1))
         {
             path = new NavMeshPath();
-            if (NavMesh.CalculatePath(navData.Position, targetHit.position, -1, path) && path.corners.Length > 1)
+            if (NavMesh.CalculatePath(navData.PathStart, targetHit.position, -1, path) && path.corners.Length > 1)
             {
                 if (mustHaveCompletePath && path.status != NavMeshPathStatus.PathComplete)
                 {
@@ -486,7 +486,7 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
             if (coverPathData.TimeSinceLastUpdated > 0.5f)
             {
                 coverPathData.Path.ClearCorners();
-                NavMesh.CalculatePath(navData.Position, point.Position, -1, coverPathData.Path);
+                NavMesh.CalculatePath(navData.PathStart, point.Position, -1, coverPathData.Path);
             }
             if (coverPathData.Path.status == NavMeshPathStatus.PathComplete)
             {
@@ -500,7 +500,7 @@ public class SAINMoverClass : BotComponentClassBase, IBotPathFinder
     {
         coverPathData.Path.ClearCorners();
         if (
-            NavMesh.CalculatePath(navData.Position, point.Position, -1, coverPathData.Path)
+            NavMesh.CalculatePath(navData.PathStart, point.Position, -1, coverPathData.Path)
             && coverPathData.Path.status == NavMeshPathStatus.PathComplete
         )
         {

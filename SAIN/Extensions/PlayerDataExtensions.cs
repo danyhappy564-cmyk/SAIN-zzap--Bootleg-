@@ -16,6 +16,7 @@ public static class PlayerDataExtensions
     private const float NAVMESH_DISTANCE_ON = 0.35f;
     private const float NAVMESH_DISTANCE_CLOSE = 0.6f;
     private const float NAVMESH_DISTANCE_FAR = 1f;
+    private const float PATH_START_BACK_ON = 0.25f;
 
     public static PlayerHeadData Update(this PlayerHeadData headData, Vector3 headPosition, Quaternion headRotation, Vector3 headUpVector)
     {
@@ -108,6 +109,21 @@ public static class PlayerDataExtensions
             {
                 playerNavData.LastValidHit = hit;
                 playerNavData.Position = new Vector3(playerPosition.x, hit.position.y, playerPosition.z);
+                // zzap (2026-10-31 game sim: Factory Bot1 stood 644 s 0.8 m past its floor's edge above a pit, a Customs PMC
+                // 321 s in a stairwell gap, Labs Wedge at the parking gate): Position keeps the player's own x/z, so past the
+                // edge it is no NavMesh point and every path from it - to the enemy, to cover candidates, moves - came back
+                // invalid; the bot held "no cover, no path" for minutes. Paths start from the sampled point instead.
+                Vector3 side = hit.position - playerPosition;
+                side.y = 0f;
+                // back on below 0.25 m, so a player standing right at 0.35 m doesn't switch every frame
+                float edge = playerNavData.PathStartOffEdge ? PATH_START_BACK_ON : NAVMESH_DISTANCE_ON;
+                bool offEdge = side.sqrMagnitude > edge * edge;
+                if (offEdge && !playerNavData.PathStartOffEdge && isAI && SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.CountOn)
+                {
+                    SAIN.SAINComponent.Classes.Tactics.TacticDiagnostics.Count("nav.pathStartOffEdge");
+                }
+                playerNavData.PathStartOffEdge = offEdge;
+                playerNavData.PathStart = offEdge ? hit.position : playerNavData.Position;
             }
 
             Vector3 offset = playerNavData.Position - playerPosition;
