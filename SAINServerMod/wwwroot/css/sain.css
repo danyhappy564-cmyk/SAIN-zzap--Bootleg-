@@ -922,6 +922,11 @@
 .sain-bot-editor .sain-fold{width:22px;padding:4px;border:0;background:transparent;color:#71717a}
 .sain-bot-editor .sain-bot-faction-name{flex:1;text-align:left;font-weight:700;padding:4px 0;border:0;background:transparent;font-size:12px;color:#a1a1aa}
 .sain-bot-faction-name small{color:#71717a;font-size:10px;font-weight:400}
+/* MudBlazor makes every button an inline-flex box centred on both axes, so text-align and display:block on the inner
+   <small> do nothing there (2026-11-03: faction names centred, level subtitles on the same line). Lay these out as flex. */
+.sain-bot-editor .sain-bot-faction-name{display:flex;justify-content:flex-start;align-items:baseline;gap:6px}
+.sain-bot-editor .sain-bot-level{display:flex;flex-direction:column;align-items:center;justify-content:center}
+.sain-bot-editor .sain-bot-advanced{justify-content:flex-start}
 .sain-faction-count{font-size:10px;color:#71717a;padding-right:7px}
 .sain-bot-choice{display:flex;align-items:center;gap:2px;min-height:52px;margin:1px 0;border:1px solid transparent;border-radius:5px}
 .sain-bot-choice:hover{background:#27272a}
