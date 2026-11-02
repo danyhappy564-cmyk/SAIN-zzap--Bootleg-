@@ -199,6 +199,7 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     [DataMember]
     [Name("Bots Walk Around Open Door Leaves")]
     [Description("Cuts an open door leaf's spot out of the bots' walkable paths (EFT's own carver for that door, which the game leaves switched off), so bots go around the leaf instead of running into it and standing there. Turned on once nobody stands next to the leaf, off again when the door closes. Changes take effect next raid.")]
+    [NewIn("remake7")]
     public bool CarveOpenLeaves = true;
 
     // zzap (2026-10-13): bot sprint ram - SAIN's own (ported from doordash + DualSideDoorBreach), no other mod needed. doordash's

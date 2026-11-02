@@ -2,6 +2,12 @@ using System;
 
 namespace SAIN.Preset.Shared.Attributes;
 
+[AttributeUsage(AttributeTargets.Field)]
+public sealed class NewInAttribute : StringAttribute
+{
+    public NewInAttribute(string release) : base(release) { }
+}
+
 public sealed class NameAndDescriptionAttribute : BaseAttribute
 {
     public NameAndDescriptionAttribute(string name, string description = null)
