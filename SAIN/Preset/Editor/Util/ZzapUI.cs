@@ -43,6 +43,8 @@ public static class ZzapUI
 
     public static GUIStyle Title;
     public static GUIStyle Name;
+    /// <summary>Name on one line: knob and step titles squeezed into wrapped stacks with the wrapping Name (in game, 2026-11-03).</summary>
+    public static GUIStyle NameLine;
     public static GUIStyle Small;
     public static GUIStyle Section;
     public static GUIStyle Value;
@@ -178,6 +180,7 @@ public static class ZzapUI
         Title = Label(15, Color.white, FontStyle.Bold);
         Name = Label(14, Text);
         Name.wordWrap = true;
+        NameLine = new GUIStyle(Name) { wordWrap = false };
         Small = Label(12, Muted);
         Small.wordWrap = true;
         Small.alignment = TextAnchor.UpperLeft;
@@ -285,7 +288,7 @@ public static class ZzapUI
         GUILayout.Space(12f);
         GUILayout.BeginHorizontal();
         GUILayout.Label(number, Badge, GUILayout.ExpandWidth(false));
-        GUILayout.Label(title, Name, GUILayout.ExpandWidth(false));
+        GUILayout.Label(title, NameLine, GUILayout.ExpandWidth(false));
         GUILayout.FlexibleSpace();
         if (referenceMark)
         {
@@ -313,7 +316,8 @@ public static class ZzapUI
     {
         var bounds = RectLayout.MainWindow;
         Fill(new Rect(0, 0, bounds.width, bounds.height), new Color(0, 0, 0, .78f));
-        GUI.Button(new Rect(0, 0, bounds.width, bounds.height), GUIContent.none, GUIStyle.none);
+        // No full-window catch button here: drawn first, it took every click and the dialog's own buttons never fired
+        // (in game, 2026-11-03). SAINEditor already hides input from everything behind an open dialog.
         GUILayout.BeginArea(new Rect((bounds.width - width) / 2f, (bounds.height - height) / 2f, width, height), Modal);
     }
 

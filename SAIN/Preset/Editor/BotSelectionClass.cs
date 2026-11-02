@@ -237,7 +237,7 @@ public static class BotSelectionClass
             ? T("이름을 클릭하면 한 봇만 열립니다. 왼쪽 동그라미 또는 이름 Ctrl+클릭으로 묶음에 넣으면 동그라미가 노랗게 채워집니다. 팩션 동그라미는 그 팩션 전체를 고릅니다. 일부만 선택하면 반만 채워집니다.", "Click a name to open one bot. Use the circle or Ctrl+click a name to add it to the selection. A filled circle means selected; half-filled means some. A faction’s circle selects all its bot types.")
             : _helpStep == 2
             ? T("난이도 4개 중 하나를 고른 뒤 9개 손잡이로 조절해요. 묶음의 값이 서로 다르면 ‘섞임’으로 보입니다. 손잡이를 움직이면 같은 값이 모두에게 적용돼요. 노란 세로 금은 zzap 원본 자리, [원래대로]는 그 자리로 돌려요.", "Choose one of four Levels, then adjust the nine knobs. Different values in a selection appear as ‘mixed’. Moving a knob applies the same value to all selected bots. The yellow line marks zzap original; [Reset] restores it.")
-            : T("마음에 드는 값은 [＋ 지금 값 저장]으로 슬롯에 보관해요. ⋯에서 이름 바꾸기·덮어쓰기·삭제·공유를 할 수 있어요. F6와 웹이 같은 슬롯을 씁니다. 바꾼 값은 위의 [저장]을 눌러야 게임에 반영돼요. 기본 zzap 프리셋은 그대로 두고 ‘[Modified]’ 사본으로 저장됩니다.", "Keep values you like in a slot with [＋ Save current]. Use ⋯ to Rename, Overwrite, Delete, or share. Custom slots are shared by F6 and the web page. Click [Save] at the top to apply changes in game. Changes are saved as a '[Modified]' copy (the bundled zzap presets stay untouched)."), _wrapSmall);
+            : T("마음에 드는 값은 [＋ 지금 값 저장]으로 슬롯에 보관해요. [...]에서 이름 바꾸기·덮어쓰기·삭제·공유를 할 수 있어요. F6와 웹이 같은 슬롯을 씁니다. 바꾼 값은 위의 [저장]을 눌러야 게임에 반영돼요. 기본 zzap 프리셋은 그대로 두고 ‘[Modified]’ 사본으로 저장됩니다.", "Keep values you like in a slot with [＋ Save current]. Use [...] to Rename, Overwrite, Delete, or share. Custom slots are shared by F6 and the web page. Click [Save] at the top to apply changes in game. Changes are saved as a '[Modified]' copy (the bundled zzap presets stay untouched)."), _wrapSmall);
         GUILayout.FlexibleSpace();
         ZzapUI.Separator(8f);
         GUILayout.Label(T("언제든 오른쪽 위 [?]로 다시 열 수 있어요.", "Reopen this guide anytime with [?] at the top right."), ZzapUI.Small);
@@ -1012,7 +1012,7 @@ public static class BotSelectionClass
         GUILayout.BeginHorizontal();
         GUILayout.BeginVertical(GUILayout.Width(LABEL_WIDTH));
         GUILayout.BeginHorizontal();
-        GUILayout.Label(view.Label, ZzapUI.Name, GUILayout.Height(22f), GUILayout.ExpandWidth(false));
+        GUILayout.Label(view.Label, ZzapUI.NameLine, GUILayout.Height(22f), GUILayout.ExpandWidth(false));
         ZzapUI.ChangeMark(view.CanReset);
         if (view.Mixed) GUILayout.Label(T("섞임", "mixed"), ZzapUI.Badge, GUILayout.ExpandWidth(false));
         GUILayout.EndHorizontal();

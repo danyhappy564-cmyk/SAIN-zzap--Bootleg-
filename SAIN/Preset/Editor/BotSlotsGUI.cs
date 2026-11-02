@@ -33,7 +33,7 @@ internal static class BotSlotsGUI
             if(_slots!=null && (!ReferenceEquals(_labelsFor,_slots) || _labelsKorean!=EditorText.Korean)) {
                 _labelsFor=_slots; _labelsKorean=EditorText.Korean;
                 _labels=_slots.Slots.Select((slot,i)=>slot?.Name??T($"내 설정 {i+1}",$"Custom {i+1}")).ToArray();
-                _contents=_labels.Select(label=>new GUIContent(label.Length>12?label.Substring(0,12)+"⋯":label,label)).ToArray();
+                _contents=_labels.Select(label=>new GUIContent(label.Length>12?label.Substring(0,12)+"…":label,label)).ToArray();
             }
         }
         GUILayout.Space(10f);
@@ -48,7 +48,7 @@ internal static class BotSlotsGUI
                 int index=i; var slot=_slots.Slots[i];
                 if(GUILayout.Button(_contents[i],ZzapUI.Button,GUILayout.Height(28f),GUILayout.MaxWidth(124f),GUILayout.ExpandWidth(false)))
                     ZzapUI.Defer(()=> { if(slot==null) _message=T("비어 있음 — ＋로 저장","Empty — use ＋ to save"); else apply(slot); });
-                if(GUILayout.Button("⋯",ZzapUI.Button,GUILayout.Width(24f),GUILayout.Height(28f)))
+                if(GUILayout.Button("...",ZzapUI.Button,GUILayout.Width(28f),GUILayout.Height(28f)))
                     ZzapUI.Defer(()=> { _menu=_menu==index?-1:index; _name=_labels[index]; _rename=false; });
                 if(Event.current.type==EventType.Repaint && _menu==index) _anchor=GUIUtility.GUIToScreenPoint(GUILayoutUtility.GetLastRect().position);
             }
@@ -70,9 +70,11 @@ internal static class BotSlotsGUI
         bool hasSlot=_menu>=0 && _menu<_slots.Slots.Count && _slots.Slots[_menu]!=null;
         if(!_codeOpen && !_rename) {
             var bounds=RectLayout.MainWindow;
-            if(GUI.Button(new Rect(0,0,bounds.width,bounds.height),GUIContent.none,GUIStyle.none)) ZzapUI.Defer(Close);
             var point=GUIUtility.ScreenToGUIPoint(_anchor);
-            GUILayout.BeginArea(new Rect(Mathf.Clamp(point.x-140f,12f,bounds.width-200f),Mathf.Clamp(point.y+30f,60f,bounds.height-190f),190f,174f),ZzapUI.Modal);
+            var area=new Rect(Mathf.Clamp(point.x-140f,12f,bounds.width-200f),Mathf.Clamp(point.y+30f,60f,bounds.height-190f),190f,174f);
+            // A click outside closes the menu. Checked by hand: a full-window button drawn first took the menu's own clicks (2026-11-03).
+            if(Event.current.type==EventType.MouseDown && !area.Contains(Event.current.mousePosition)) ZzapUI.Defer(Close);
+            GUILayout.BeginArea(area,ZzapUI.Modal);
             int index=_menu;
             GUI.enabled=hasSlot;
             if(GUILayout.Button(T("이름 바꾸기","Rename"),ZzapUI.Quiet)) ZzapUI.Defer(()=>_rename=true);
