@@ -194,6 +194,7 @@ public static class BotSelectionClass
         }), note: _view.SlotNote);
         if(_slotMessage!=null) GUILayout.Label(_slotMessage,_wrapSmall);
     }
+    private static string TypesEn(int n) => n == 1 ? "1 bot type" : $"{n} bot types";
     public static bool HelpOpen => _help;
     public static void OpenHelp() => Write(() => { _help = true; _helpStep = 1; });
 
@@ -567,7 +568,7 @@ public static class BotSelectionClass
 
             BotCount = T($"{BotTypeDefinitions.BotTypes.Count}종", $"{BotTypeDefinitions.BotTypes.Count} types");
             var selectedNames = string.Join(" · ", BotTypeDefinitions.BotTypes.Values.Where(b => _selection.Contains(b)).Select(b => b.Name));
-            SelectionTitle = T($"선택한 {_selection.Count}종 함께 편집 ({selectedNames})", $"Editing {_selection.Count} bot types together ({selectedNames})");
+            SelectionTitle = T($"선택한 {_selection.Count}종 함께 편집 ({selectedNames})", $"Editing {TypesEn(_selection.Count)} together ({selectedNames})");
             KeptSelection = T($"지금은 {_selected?.Name} 한 봇만 편집합니다. 묶음은 유지됩니다.", $"Currently editing only {_selected?.Name}. Your selection is kept.");
             KnobHeading = T($"손잡이로 세부 조절 {BotQuickSettings.All.Length}개", $"Fine-tune with knobs {BotQuickSettings.All.Length}");
             Knobs.Clear();
@@ -585,7 +586,7 @@ public static class BotSelectionClass
             {
                 return;
             }
-            TargetTitle = IsBatch ? T($"선택한 {_selection.Count}종", $"{_selection.Count} selected bot types") : _bot.Name;
+            TargetTitle = IsBatch ? T($"선택한 {_selection.Count}종", $"{_selection.Count} selected bot {(_selection.Count == 1 ? "type" : "types")}") : _bot.Name;
             TargetLine = (IsBatch ? selectedNames : SectionLabel(_bot.Section) + " · " + _bot.Name) + "　" +
                 (Targets().Count == 1 ? T("이 봇의 값만 바뀝니다.", "Changes apply to this bot only.") : T("같은 설정을 여러 봇에 한 번에 바꿉니다.", "Change the same settings for all selected bots at once."));
             PoolText = PoolLabel();
@@ -764,7 +765,7 @@ public static class BotSelectionClass
             foreach (var level in Levels)
             {
                 counts.TryGetValue(level, out int n);
-                string text = $"<b>{LevelName(level)}</b>\n<size=11>{LevelDescription(level)} · {(Korean ? $"{n}종" : $"{n} types")}</size>";
+                string text = $"<b>{LevelName(level)}</b>\n<size=11>{LevelDescription(level)} · {(Korean ? $"{n}종" : (n == 1 ? "1 type" : $"{n} types"))}</size>";
                 LevelButtons.Add(new LevelView { Level = level, Content = new GUIContent(text), On = n == bots.Count && n > 0, Available = bots.Any(b => BotSelectionClass.Ai(b).CanEditSain && BotLevels.Available(level, Sources(b))) });
             }
         }

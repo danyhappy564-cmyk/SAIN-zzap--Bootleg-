@@ -139,6 +139,8 @@ partial class Program
             for(int i=0;i<9;i++) Check(slots.Add(new BotSettingsSlot{Name="x"})==i,"wrong slot reused");
             Check(slots.Add(new BotSettingsSlot{Name="full"})==-1,"more than nine slots");
             slots.Delete(3); Check(slots.Add(new BotSettingsSlot{Name="reuse"})==3,"empty cell not reused");
+            { var trim=new BotSettingsSlots(); for(int n=0;n<5;n++) trim.Add(new BotSettingsSlot{Name="t"+n}); trim.Delete(4); trim.Delete(3); Check(trim.Slots.Count==3,"trailing empty slots kept after delete");
+              trim.Delete(1); Check(trim.Slots.Count==3 && trim.Slots[1]==null,"middle delete changed the layout"); }
         });
         Test("selection level and slot use each target's level baseline without touching globals", () =>
         {

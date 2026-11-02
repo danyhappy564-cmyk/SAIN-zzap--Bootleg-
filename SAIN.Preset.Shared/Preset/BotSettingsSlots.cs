@@ -108,7 +108,12 @@ public sealed class BotSettingsSlots
         Slots.Add(slot); return Slots.Count-1;
     }
     public void Rename(int index,string name) { if(Slots[index]!=null) Slots[index].Name=CleanName(name); }
-    public void Delete(int index) { Slots[index]=null; }
+    /// <summary>빈 칸으로 만들고, 끝쪽 빈 칸은 기본 3칸까지 줄입니다(지운 슬롯이 '내 설정 4' 같은 빈 칸으로 남지 않게).</summary>
+    public void Delete(int index)
+    {
+        Slots[index]=null;
+        while(Slots.Count>3 && Slots[Slots.Count-1]==null) Slots.RemoveAt(Slots.Count-1);
+    }
 
     /// <summary>호출자는 전역·고정 바닐라를 제외합니다. 난이도→필드→AI 순서, 누락 필드/칸 개수를 반환합니다.</summary>
     public static int Apply(BotSettingsSlot slot,SAINSettingsGroupClass target,LevelSources sources)

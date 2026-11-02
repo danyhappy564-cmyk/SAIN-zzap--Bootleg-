@@ -61,7 +61,7 @@
         @if (_selection.Count>0)
         {
             <div class="sain-selection-bar">
-                <div class="sain-bundle-title"><strong>@T($"선택한 {_selection.Count}종 함께 편집",$"Editing {_selection.Count} bot types together") <small>(@string.Join(" · ",_allBots.Where(b=>_selection.Contains(b.Type)).Select(b=>b.Name)))</small></strong>
+                <div class="sain-bundle-title"><strong>@T($"선택한 {_selection.Count}종 함께 편집",$"Editing {(_selection.Count == 1 ? "1 bot type" : $"{_selection.Count} bot types")} together") <small>(@string.Join(" · ",_allBots.Where(b=>_selection.Contains(b.Type)).Select(b=>b.Name)))</small></strong>
                 <span>@(IsBatch ? T("아래 변경이 선택한 봇 모두에 적용됩니다.", "Changes below apply to all selected bots.") : T($"지금은 {BotName} 한 봇만 편집합니다. 묶음은 유지됩니다.", $"Currently editing only {BotName}. Your selection is kept."))</span></div>
                 @if(!IsBatch) { <button type="button" @onclick="EditSelection">@T("묶음 편집","Edit selection")</button> }
                 <button type="button" @onclick="ClearSelection">@T("선택 해제","Clear selection")</button>
@@ -98,7 +98,7 @@
         {
             <div class="sain-bot-heading">
                 <div class="sain-bot-actions">
-                    <MudText Typo="Typo.h6">@(IsBatch?T($"선택한 {_selection.Count}종",$"{_selection.Count} selected bot types"):BotName)</MudText>
+                    <MudText Typo="Typo.h6">@(IsBatch?T($"선택한 {_selection.Count}종",$"{_selection.Count} selected bot {(_selection.Count == 1 ? "type" : "types")}"):BotName)</MudText>
                     <span class="sain-target-tag">@(IsBatch?T("함께 편집","Together"):T("한 봇 편집","One bot"))</span>
                 </div>
                 <div class="sain-bot-actions">
@@ -135,7 +135,7 @@
                             aria-pressed="@(IsBatch?_factionBots.Count>0 && _factionCounts[level]==_factionBots.Count:_selectedView.Badge.Level==level)" disabled="@(!EditableViews().Any(v=>v.Available.Contains(level)))"
                             title="@(!_selectedView.Available.Contains(level) ? MissingLevel(level) : null)" @onclick="() => ApplyBotLevel(level)">
                         <b>@LevelName(level)</b><small>@LevelDescription(level)</small>
-                        @if(IsBatch) { <small>@T($"{_factionCounts[level]}종",$"{_factionCounts[level]} types")</small> }
+                        @if(IsBatch) { <small>@T($"{_factionCounts[level]}종",(_factionCounts[level] == 1 ? "1 type" : $"{_factionCounts[level]} types"))</small> }
                     </button>
                 }
             </div>
@@ -994,7 +994,7 @@
             }
         }
         CancelCopy();
-        Snackbar.Add(T($"{count}개 봇에 복사함", $"Copied to {count} bot types"), Severity.Success);
+        Snackbar.Add(T($"{count}개 봇에 복사함", (count == 1 ? "Copied to 1 bot type" : $"Copied to {count} bot types")), Severity.Success);
         if (count > 0) await NotifyBotsChanged(changed);
     }
 

@@ -1009,3 +1009,6 @@
 .sain-bot-editor .sain-select-dot{color:#a1a1aa}.sain-bot-editor .sain-select-dot[aria-pressed=true],.sain-bot-editor .sain-select-dot.partial{color:#facc15}
 .sain-bot-knob.sain-diffslider .mud-slider .mud-slider-input::-webkit-slider-thumb,.sain-bot-knob .sain-diffslider .mud-slider .mud-slider-input::-webkit-slider-thumb{background-color:#38bdf8!important;border:0!important}
 .sain-bot-knob .sain-diffslider .mud-slider .mud-slider-input::-moz-range-thumb{background-color:#38bdf8!important;border:0!important}
+/* Global settings tab: icon + name + green NEW pill, like the mockup (MudBlazor's own tab badge clipped it to "N"). */
+.sain-tab-icon{margin-inline-end:8px}
+.sain-tab-new{margin-inline-start:8px;padding:1px 6px;border-radius:9px;font-size:10px;font-weight:700;line-height:1.5;letter-spacing:.03em;color:#4ade80;background:#193b2b;border:1px solid #2f6b4a}

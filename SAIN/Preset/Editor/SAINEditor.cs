@@ -187,7 +187,8 @@ public static class SAINEditor
         SaveContent.tooltip = ConfigEditingTracker.UnsavedChanges ? ConfigEditingTracker.GetUnsavedValuesString() : EditorText.UI("Nothing to save yet.");
 
         bool advancedEnabled = PresetHandler.EditorDefaults.AdvancedBotConfigs;
-        string status = EditorText.UI(advancedEnabled ? "ON" : "OFF");
+        // "On"/"Off", not "ON"/"OFF": the Nalasmalssami translation mod rewrites an "OFF" on screen to "꺼짐" even in English (2026-11-03).
+        string status = advancedEnabled ? T("켬", "On") : T("끔", "Off");
         var advContent = new GUIContent(
             string.Format(EditorText.UI("Advanced Settings: [{0}]"), status),
             EditorText.UI("Also show the settings marked 'Advanced' (for experienced users).")

@@ -69,7 +69,7 @@ internal static class BotSlotsGUI
         if(!_codeOpen && !_rename) {
             // A small centred dialog, like the guide. It used to drop down under [...] from a screen-space anchor, but in game the
             // anchor and the click landed in different spaces, so every click counted as "outside" and closed it (2026-11-03).
-            ZzapUI.BeginModal(360f,300f);
+            ZzapUI.BeginModal(360f,240f);
             GUILayout.BeginHorizontal();
             GUILayout.Label(hasSlot?_labels[_menu]:T("내 설정","Custom"),ZzapUI.Title);
             if(GUILayout.Button("×",ZzapUI.Quiet,GUILayout.Width(30f))) ZzapUI.Defer(Close);
