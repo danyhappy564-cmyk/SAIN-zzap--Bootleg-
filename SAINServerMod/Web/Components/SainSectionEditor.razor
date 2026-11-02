@@ -1,4 +1,4 @@
-@namespace SAINServerMod.Web.Components
+﻿@namespace SAINServerMod.Web.Components
 @using System.Reflection
 
 @if (Target == null)
@@ -13,30 +13,13 @@ else
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search"
                       Clearable="true" Class="sain-editor-search" />
 
-        @if (!string.IsNullOrWhiteSpace(_query))
+        <div class="sain-setting-filters">
+            <MudSwitch T="bool" @bind-Value="_newOnly" Label="@T("새 항목만 보기","New only")" />
+            <MudSwitch T="bool" @bind-Value="_changedOnly" Label="@T("바뀐 항목만 보기","Changed only")" />
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_query) || _newOnly || _changedOnly)
         {
-            var hits = SainSearch.Collect(Target, _query!, ShowAdvanced, ShowDeveloper);
-            @if (hits.Count == 0)
-            {
-                <div class="sain-empty-inline">
-                    <MudText Typo="Typo.body2" Class="spt-muted">@T($"“{_query}”에 맞는 설정이 없습니다.", $"No settings match “{_query}”.")</MudText>
-                </div>
-            }
-            else
-            {
-                <div class="sain-editor-content">
-                    @foreach (var group in hits.GroupBy(h => h.Breadcrumb))
-                    {
-                        <MudText Typo="Typo.overline" Class="sain-category spt-muted">@group.Key</MudText>
-                        <div class="sain-leaf-group">
-                            @foreach (var hit in group)
-                            {
-                                <SainFieldEditor Value="hit.Member.ToValue()" OnChanged="OnChanged" />
-                            }
-                        </div>
-                    }
-                </div>
-            }
+            <SettingsFilteredEditor Target="Target" Baseline="@(Defaults??Original)" Search="_query" OnChanged="OnChanged" NewOnly="_newOnly" ChangedOnly="_changedOnly" ShowFilters="false" />
         }
         else
         {
@@ -68,30 +51,7 @@ else
                             <QuickObjectEditor Target="general.VanillaBots" Defaults="@((Project(Defaults,active) as SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings)?.VanillaBots)" References="ScopeReferences(active,true)" Original="@((originalTarget as SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings)?.VanillaBots)" OnChanged="OnChanged" />
                         }
                         <MudExpansionPanels Elevation="0" Class="mt-3"><MudExpansionPanel Text="@T("고급 · 모든 설정", "Advanced · all settings")">
-                    @if (active.Leaves != null)
-                    {
-                        <div class="sain-leaf-group">
-                            @foreach (var member in active.Leaves.Where(Visible))
-                            {
-                                <SainFieldEditor Value="member.ToValue()" OnChanged="OnChanged" />
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        @switch (active.Member!.Kind)
-                        {
-                            case SainFieldKind.Nested:
-                                <SainSettingsEditor Target="active.Member.GetValue()" Depth="1" OnChanged="OnChanged" />
-                                break;
-                            case SainFieldKind.Dictionary:
-                                <SainDictionaryEditor Member="active.Member" OnChanged="OnChanged" />
-                                break;
-                            case SainFieldKind.List:
-                                <SainListEditor Value="active.Member.ToValue()" OnChanged="OnChanged" />
-                                break;
-                        }
-                    }
+                    <SettingsFilteredEditor Target="quickTarget" Baseline="@(Project(Defaults,active)??originalTarget)" OnChanged="OnChanged" ShowFilters="false" />
                         </MudExpansionPanel></MudExpansionPanels>
                     }
                 </div>
@@ -115,6 +75,7 @@ else
     private List<Section> _sections = new();
     private string? _selected;
     private string _query = string.Empty;
+    private bool _newOnly, _changedOnly;
     private object? _lastTarget;
 
     protected override void OnParametersSet()

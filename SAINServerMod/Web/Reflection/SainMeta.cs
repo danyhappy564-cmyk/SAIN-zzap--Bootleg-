@@ -24,6 +24,7 @@ public sealed class SainMeta
     public bool Experimental { get; init; }
     public bool Hidden { get; init; }
     public bool SimpleValue { get; init; }
+    public bool New { get; init; }
 
     public float Round(float value)
     {
@@ -51,6 +52,7 @@ public sealed class SainMeta
         return new SainMeta
         {
             Name = name,
+            New = member is FieldInfo field && SAIN.Preset.Shared.Preset.SettingsFieldStatus.IsNew(field),
             Description = description,
             Category = member.GetCustomAttribute<CategoryAttribute>()?.Value ?? "General",
             Section = member.GetCustomAttribute<SectionAttribute>()?.Value,

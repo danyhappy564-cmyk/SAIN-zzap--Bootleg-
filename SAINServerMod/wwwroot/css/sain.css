@@ -902,3 +902,26 @@
         justify-content: flex-start;
     }
 }
+/* 봇 설정: 선택 묶음, 안내, 공용 내 설정 슬롯 (Remix7.3 예정) */
+.sain-bot-choice { display:flex; align-items:center; gap:4px; }
+.sain-select-dot { flex:0 0 28px; border:0; color:#facc15; background:transparent; font-size:20px; cursor:pointer; }
+.sain-select-dot:disabled { opacity:.35; cursor:default; }
+.sain-selection-bar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:12px; margin-bottom:12px; border:1px solid #8b732d; border-radius:8px; background:#332d1d; color:#f4d779; }
+.sain-selection-bar span { flex:1 1 200px; font-size:.8rem; }
+.sain-selection-bar button,.sain-guide button,.sain-custom-slots button { border:1px solid #52525b; border-radius:6px; padding:6px 10px; color:inherit; background:#27272a; cursor:pointer; }
+.sain-guide { margin-bottom:10px; }
+.sain-guide-button { float:right; min-width:32px; }
+.sain-guide-panel { clear:both; padding:16px; border:1px solid #52525b; border-radius:8px; margin-bottom:12px; }
+.sain-guide-panel nav { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+.sain-guide-panel [aria-pressed=true] { border-color:#e8b04a; color:#facc15; }
+.sain-custom-slots { padding:12px; margin:12px 0; border:1px solid #52525b; border-radius:8px; }
+.sain-custom-slots small { color:#a1a1aa; margin-left:8px; }
+.sain-slot-buttons,.sain-slot-menu { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px; }
+.sain-custom-slots .sain-slot-empty,.sain-custom-slots button:disabled { opacity:.45; }
+.sain-custom-slots textarea,.sain-custom-slots input { border:1px solid #52525b; border-radius:5px; background:#18181b; color:#e4e4e7; padding:8px; max-width:100%; }
+.sain-custom-slots textarea { display:block; width:100%; box-sizing:border-box; margin-top:10px; overflow-wrap:anywhere; }
+.sain-custom-slots [role=status] { font-size:.8rem; margin:8px 0 0; }
+.sain-setting-filters { display:flex; flex-wrap:wrap; gap:16px; align-items:center; }
+.sain-new,.sain-mixed { display:inline-block; border-radius:5px; padding:1px 6px; margin:0 5px; font-size:.7rem; }
+.sain-new { color:#7dd3fc; background:#173449; }
+.sain-mixed { color:#facc15; background:#3a321c; }

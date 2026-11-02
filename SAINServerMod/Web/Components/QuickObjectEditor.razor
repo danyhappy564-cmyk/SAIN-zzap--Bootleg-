@@ -1,4 +1,4 @@
-@namespace SAINServerMod.Web.Components
+﻿@namespace SAINServerMod.Web.Components
 
 @if (_fields.Count > 0)
 {
@@ -9,13 +9,13 @@
     <PresetReferencePicker Names="References.Select(r=>r.Name)" Value="_reference" ValueChanged="SelectReference" />
     @foreach (var field in _fields)
     {
-        bool changed = _saved.TryGetValue(field.Key, out var stored) && Math.Abs(field.Value - stored) > .00001f;
         bool hasDefault = _defaults.TryGetValue(field.Key,out float baseline);
         bool differs = hasDefault && Math.Abs(field.Value-baseline)>.00001f;
         float compared = _comparison.GetValueOrDefault(field.Key,field.Value);
         <div class="spt-panel pa-3 mb-2" @key="field.Key">
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
-                <MudText Typo="Typo.body2" Class="flex-grow-1">@Setting(field.Name) @(changed ? "●" : "")</MudText>
+                <MudText Typo="Typo.body2" Class="flex-grow-1">@Setting(field.Name) @if(differs) { <span class="sain-diff">●</span> }</MudText>
+                @if(SettingsFieldStatus.IsNew(field.Field)) { <span class="sain-new">@T("NEW","NEW")</span> }
                 @if (field.Toggle)
                 {
                     <MudSwitch T="bool" Value="@(field.Value >= .5f)" ValueChanged="v => Set(field, v ? 1 : 0)" Color="Color.Primary" />
@@ -25,7 +25,7 @@
                     <MudNumericField T="float" Value="field.Value" ValueChanged="v => Set(field, v)" Min="field.Min" Max="field.Max" Step="field.Step"
                                      Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Style="width:120px;flex:none" aria-label="@Setting(field.Name)" />
                 }
-                <MudButton Size="Size.Small" Disabled="@(!differs)" OnClick="() => Set(field, baseline)">@T("기본값", "Default")</MudButton>
+                <MudButton Size="Size.Small" Disabled="@(!differs)" OnClick="() => Set(field, baseline)">@T("원래대로", "Reset")</MudButton>
             </MudStack>
             @if (!field.Toggle)
             {

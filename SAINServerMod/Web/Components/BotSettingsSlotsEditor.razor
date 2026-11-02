@@ -1,0 +1,102 @@
+@namespace SAINServerMod.Web.Components
+@using SAIN.Preset.Shared.BotSettings.SAINSettings
+@using SAINServerMod.Generation
+@using Microsoft.JSInterop
+@inject ClientDataStorageService ClientData
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<section class="sain-custom-slots">
+    <strong>@T("내 설정","Custom")</strong> <small>@T("F6와 웹이 같은 슬롯을 씁니다","Custom slots are shared by F6 and the web page")</small>
+    @if(_slots!=null)
+    {
+        <div class="sain-slot-buttons">
+        @for(int i=0;i<_slots.Slots.Count;i++)
+        {
+            int index=i; var slot=_slots.Slots[i];
+            <button type="button" class="@(slot==null?"sain-slot-empty":null)" @onclick="() => Apply(slot)">@(slot?.Name??T($"내 설정 {i+1}",$"Custom {i+1}"))</button>
+            @if(slot!=null) { <button type="button" title="@T("내 설정 관리","Manage custom slot")" @onclick="() => Open(index)">⋯</button> }
+        }
+        <button type="button" disabled="@(Source==null || _slots.Slots.Count==9 && _slots.Slots.All(s=>s!=null))" @onclick="SaveCurrent">@T("＋ 지금 값 저장","＋ Save current")</button>
+        <button type="button" @onclick="StartImport">@T("공유 코드 붙여넣기","Paste share code")</button>
+        </div>
+        @if(_menu>=0 && _menu<_slots.Slots.Count && _slots.Slots[_menu]!=null)
+        {
+            <div class="sain-slot-menu">
+                <input aria-label="@T("내 설정 이름","Custom slot name")" maxlength="24" @bind="_name" />
+                <button type="button" @onclick="() => Save(s=>s.Rename(_menu,_name))">@T("이름 바꾸기","Rename")</button>
+                <button type="button" disabled="@(Source==null)" @onclick="() => Save(s=>s.Slots[_menu]=BotSettingsSlots.Capture(s.Slots[_menu].Name,Source!,Sources!))">@T("덮어쓰기","Overwrite")</button>
+                <button type="button" @onclick="() => Save(s=>s.Delete(_menu))">@T("삭제","Delete")</button>
+                <button type="button" @onclick="Copy">@T("공유 코드 복사","Copy share code")</button>
+            </div>
+        }
+        @if(_import || _code.Length>0)
+        {
+            <textarea @ref="_codeBox" aria-label="@T("공유 코드","Share code")" @bind="_code" @bind:event="oninput" rows="3"></textarea>
+            @if(_import) { <button type="button" @onclick="Import">@T("내 설정에 추가","Add to custom slots")</button> }
+        }
+    }
+    <p role="status">@_message</p>
+</section>
+@code {
+    [Parameter] public SAINSettingsGroupClass? Source { get; set; }
+    [Parameter] public LevelSources? Sources { get; set; }
+    [Parameter] public EventCallback<BotSettingsSlot> OnApply { get; set; }
+    private BotSettingsSlots? _slots;
+    private int _menu=-1;
+    private string _name="", _code="", _message="";
+    private bool _import, _selectCode;
+    private ElementReference _codeBox;
+    private IJSObjectReference? _module;
+    protected override async Task OnInitializedAsync()
+    {
+        try { _slots=BotSettingsSlots.Deserialize(await ClientData.GetAsync(BotSettingsSlots.DataKey)); }
+        catch { _message=T("내 설정을 불러오지 못했습니다. 다시 열어 주세요.","Could not load custom slots. Reopen this page."); }
+    }
+    private Task Apply(BotSettingsSlot? slot)
+    {
+        if(slot!=null) return OnApply.InvokeAsync(slot);
+        _message=T("비어 있음 — ＋로 저장","Empty — use ＋ to save"); return Task.CompletedTask;
+    }
+    private void StartImport() { _import=true; _code=""; }
+    private void Open(int index) { _menu=_menu==index?-1:index; _name=_slots!.Slots[index].Name; }
+    private async Task Save(Action<BotSettingsSlots> change)
+    {
+        try
+        {
+            var next=BotSettingsSlots.Deserialize(_slots!.Serialize()); change(next);
+            await ClientData.SaveAsync(BotSettingsSlots.DataKey,next.Serialize()); _slots=next; _menu=-1;
+            _message=T("내 설정을 저장했습니다.","Custom slots saved.");
+        }
+        catch { _message=T("저장하지 못했습니다. 이름과 슬롯 수(최대 9칸)를 확인하세요.","Could not save. Check the name, or the 9-slot limit."); }
+    }
+    private Task SaveCurrent() => Save(s=>
+    {
+        int index=s.Slots.FindIndex(slot=>slot==null); if(index<0) index=s.Slots.Count;
+        if(s.Add(BotSettingsSlots.Capture(T($"내 설정 {index+1}",$"Custom {index+1}"),Source!,Sources!))<0) throw new InvalidOperationException();
+    });
+    private async Task Import()
+    {
+        if(!BotSettingsSlots.TryReadShare(_code,out var slot,out int skipped,out var reason)) { _message=BotSettingsSlots.Error(reason,Korean); return; }
+        await Save(s=> { if(s.Add(slot)<0) throw new InvalidOperationException(); });
+        if(skipped>0) _message+=T($" 모르는 필드 {skipped}개를 건너뛰었습니다.",$" Skipped {skipped} unknown field(s).");
+    }
+    private async Task Copy()
+    {
+        try
+        {
+            _code=BotSettingsSlots.Share(_slots!.Slots[_menu]); _import=false;
+            _module??=await JS.InvokeAsync<IJSObjectReference>("import","/SAIN/js/bot-settings.js");
+            await _module.InvokeVoidAsync("copy",_code); _message=T("공유 코드를 복사했습니다.","Share code copied.");
+        }
+        catch(JSException) { _selectCode=true; _message=T("복사하지 못했습니다. 아래 글상자를 선택해 복사하세요.","Couldn't copy. Select the code below and press Ctrl+C."); }
+        catch { _message=T("공유 코드를 만들지 못했습니다.","Could not create share code."); }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(!_selectCode || _module==null) return;
+        _selectCode=false;
+        try { await _module.InvokeVoidAsync("selectCode",_codeBox); } catch(JSException) { }
+    }
+    public async ValueTask DisposeAsync() { if(_module!=null) { try { await _module.DisposeAsync(); } catch(JSDisconnectedException) { } } }
+}

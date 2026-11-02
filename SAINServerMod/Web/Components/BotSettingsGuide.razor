@@ -1,0 +1,48 @@
+@namespace SAINServerMod.Web.Components
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="sain-guide">
+    <button type="button" class="sain-guide-button" title="@T("3단계 안내","3-step guide")" @onclick="() => _open=!_open">?</button>
+    @if (!_dismissed)
+    {
+        <div class="sain-selection-bar">
+            <strong>@T("처음이라면 여기부터","New here? Start here")</strong>
+            <span>@T("이름을 누르면 한 봇, ○를 누르면 여러 봇을 함께 조절해요. 손잡이를 움직인 뒤 [저장]을 눌러요.","Click a name to edit one bot, or use ○ to select several. Adjust the knobs, then Save.")</span>
+            <button type="button" @onclick="() => _open=true">@T("3단계 안내","3-step guide")</button>
+            <button type="button" @onclick="Dismiss">@T("알겠어요","Got it")</button>
+        </div>
+    }
+    @if (_open)
+    {
+        <div class="sain-guide-panel">
+            <strong>@T("3단계 안내","3-step guide")</strong>
+            <nav>@for(int i=1;i<=3;i++) { int step=i; <button type="button" aria-pressed="@(_step==step)" @onclick="() => _step=step">@step · @Titles[step-1]</button> }</nav>
+            <p>@Texts[_step-1]</p>
+            <button type="button" @onclick="() => _open=false">@T("닫기","Close")</button>
+        </div>
+    }
+</div>
+@code {
+    private bool _dismissed, _open;
+    private int _step=1;
+    private IJSObjectReference? _module;
+    private string[] Titles => new[]{T("봇 고르기","Choose bot types"),T("난이도와 손잡이","Level and knobs"),T("저장 · 슬롯 · 공유","Save · slots · sharing")};
+    private string[] Texts => new[]{
+        T("이름을 클릭하면 한 봇만 열립니다. 왼쪽 ○ 또는 이름 Ctrl+클릭으로 묶음에 넣으면 ●가 됩니다. 팩션 ○는 그 팩션 전체를 고릅니다. 일부만 선택하면 ◐입니다.","Click a name to open one bot. Click ○ or Ctrl+click a name to add it to the selection (●). A faction's ○ selects all its editable bots; ◐ means only some are."),
+        T("난이도 4개 중 하나를 고른 뒤 9개 손잡이로 조절해요. 묶음의 값이 서로 다르면 ‘섞임’으로 보입니다. 움직이면 같은 값이 모두에게 적용돼요. [원래대로]는 봇마다 기준값으로 돌려요.","Choose one of four Levels, then adjust the nine knobs. If the selected bots differ, the value shows 'mixed'. Moving a knob gives all of them the same value. Reset puts each bot back to its own original value."),
+        T("[＋ 지금 값 저장]으로 슬롯에 보관해요. ⋯에서 이름 바꾸기·덮어쓰기·삭제·공유를 합니다. F6와 웹이 같은 슬롯을 씁니다. 위 [저장]을 눌러야 게임에 반영됩니다. 기본 zzap 프리셋은 '[Modified]' 사본으로 저장됩니다.","Keep values you like with ＋ Save current. Use ⋯ to Rename, Overwrite, Delete or Copy share code. Custom slots are shared by F6 and the web page. Press Save to apply changes in game. Edits to a bundled zzap preset are saved as a '[Modified]' copy, so the original stays untouched.")};
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(!firstRender) return;
+        try { _module=await JS.InvokeAsync<IJSObjectReference>("import","/SAIN/js/bot-settings.js"); _dismissed=await _module.InvokeAsync<bool>("introDismissed"); StateHasChanged(); }
+        catch(JSException) { }
+    }
+    private async Task Dismiss()
+    {
+        _dismissed=true;
+        try { if(_module!=null) await _module.InvokeVoidAsync("dismissIntro"); } catch(JSException) { }
+    }
+    public async ValueTask DisposeAsync() { if(_module!=null) { try { await _module.DisposeAsync(); } catch(JSDisconnectedException) { } } }
+}

@@ -3,6 +3,7 @@
 <div class="sain-field">
     <div class="sain-field-label">
         <MudText Typo="Typo.body2" Class="sain-field-name">@Setting(Value.Meta.Name)</MudText>
+        @if(Value.Meta.New) { <span class="sain-new">@T("NEW","NEW")</span> }
         @if (!string.IsNullOrWhiteSpace(Value.Meta.Description))
         {
             <MudTooltip Text="@Setting(Value.Meta.Description)" Arrow="true" Placement="Placement.Top">

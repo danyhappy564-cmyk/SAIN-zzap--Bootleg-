@@ -1,0 +1,52 @@
+@namespace SAINServerMod.Web.Components
+
+@if(ShowFilters) {
+<div class="sain-setting-filters">
+    <MudSwitch T="bool" @bind-Value="_newOnly" Label="@T("새 항목만 보기","New only")" />
+    <MudSwitch T="bool" @bind-Value="_changedOnly" Label="@T("바뀐 항목만 보기","Changed only")" />
+</div>
+}
+@{ string? heading=null; }
+@foreach(var row in Rows())
+{
+    var member=new SainMember(row.Owner,row.Field);
+    var editor=new SainValue { Meta=member.Meta,ValueType=member.ValueType,Getter=member.GetValue,Setter=member.SetValue,CanWrite=member.CanWrite };
+    <div class="sain-bot-advanced-row">
+        @if(heading!=row.Heading) { heading=row.Heading; <strong>@string.Join(" › ",row.Heading.Split(" › ").Select(Setting))</strong> }
+        @if(row.Changed) { <span class="sain-diff">●</span> <button type="button" @onclick="() => Reset(row)">@T("원래대로","Reset")</button> }
+        @switch(member.Kind)
+        {
+            case SainFieldKind.Dictionary:
+                <SainDictionaryEditor Member="member" OnChanged="OnChanged" />
+                break;
+            case SainFieldKind.List:
+                <SainListEditor Value="editor" OnChanged="OnChanged" />
+                break;
+            default:
+                <SainFieldEditor Value="editor" OnChanged="OnChanged" />
+                break;
+        }
+    </div>
+}
+@code {
+    [Parameter] public object? Target { get; set; }
+    [Parameter] public object? Baseline { get; set; }
+    [Parameter] public string? Search { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+    [Parameter] public bool ShowFilters { get; set; }=true;
+    [Parameter] public bool NewOnly { get; set; }
+    [Parameter] public bool ChangedOnly { get; set; }
+    [CascadingParameter(Name="ShowAdvanced")] public bool ShowAdvanced { get; set; }=true;
+    [CascadingParameter(Name="ShowDeveloper")] public bool ShowDeveloper { get; set; }
+    private bool _newOnly,_changedOnly;
+    private IEnumerable<SettingsObjectField> Rows() => SettingsFieldStatus.Rows(Target!,Baseline!).Where(r=>
+        (!(_newOnly || NewOnly) || r.New) && (!(_changedOnly || ChangedOnly) || r.Changed)
+        && SainReflection.IsVisible(SainMeta.Read(r.Field),ShowAdvanced,ShowDeveloper)
+        && (string.IsNullOrWhiteSpace(Search) || (r.Path+" "+Setting(SainMeta.Read(r.Field).Name)+" "+SainMeta.Read(r.Field).Name+" "+Setting(SainMeta.Read(r.Field).Description??"")).Contains(Search,StringComparison.OrdinalIgnoreCase)));
+    private async Task Reset(SettingsObjectField row)
+    {
+        var options=SAINServerMod.Utils.SAINJsonUtil.Indented;
+        var copy=System.Text.Json.JsonSerializer.Deserialize(System.Text.Json.JsonSerializer.Serialize(row.Baseline,options),row.Field.FieldType,options);
+        row.Field.SetValue(row.Owner,copy); await OnChanged.InvokeAsync();
+    }
+}
