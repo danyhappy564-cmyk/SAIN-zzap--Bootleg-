@@ -48,14 +48,14 @@ internal static class BotSlotsGUI
                 if(GUILayout.Button(_contents[i],ZzapUI.Button,GUILayout.Height(28f),GUILayout.MaxWidth(124f),GUILayout.ExpandWidth(false)))
                     ZzapUI.Defer(()=> { if(slot==null) _message=T("비어 있음 — ＋로 저장","Empty — use ＋ to save"); else apply(slot); });
                 if(GUILayout.Button("...",ZzapUI.Button,GUILayout.Width(36f),GUILayout.Height(28f)))
-                    ZzapUI.Defer(()=> { _menu=_menu==index?-1:index; _name=_labels[index]; _rename=false; });
+                    ZzapUI.Defer(()=> { _menu=_menu==index?-1:index; _name=_labels[index]; _rename=false; _message=null; });
             }
             GUI.enabled=canSave && source!=null && (_slots.Slots.Any(s=>s==null)||_slots.Slots.Count<BotSettingsSlots.MaxSlots);
             if(GUILayout.Button(T("＋ 지금 값 저장","＋ Save current"),ZzapUI.Quiet,GUILayout.Height(28f),GUILayout.ExpandWidth(false)))
                 Save(next=>next.Add(BotSettingsSlots.Capture(T($"내 설정 {NextNumber()}",$"Custom {NextNumber()}"),source,sources)));
             GUI.enabled=true;
             if(GUILayout.Button(T("공유 코드 붙여넣기","Paste share code"),ZzapUI.Quiet,GUILayout.Height(28f),GUILayout.ExpandWidth(false)))
-                ZzapUI.Defer(()=> { _code=GUIUtility.systemCopyBuffer??""; _menu=-2; _codeOpen=true; });
+                ZzapUI.Defer(()=> { _code=GUIUtility.systemCopyBuffer??""; _menu=-2; _codeOpen=true; _message=null; });
         }
         GUILayout.FlexibleSpace(); GUILayout.EndHorizontal();
         GUILayout.Label(note??T("F6와 웹은 같은 내 설정 슬롯을 함께 씁니다. 슬롯을 누르면 지금 편집 중인 봇에 적용됩니다.","Custom slots are shared by F6 and the web page. Click a slot to apply it to the bots being edited."),ZzapUI.Small);
@@ -83,7 +83,7 @@ internal static class BotSlotsGUI
             GUI.enabled=hasSlot;
             if(GUILayout.Button(T("삭제","Delete"),ZzapUI.Quiet)) Save(next=>next.Delete(index));
             if(GUILayout.Button(T("공유 코드 복사","Copy share code"),ZzapUI.Quiet)) ZzapUI.Defer(()=> {
-                try { _code=BotSettingsSlots.Share(_slots.Slots[index]); _codeOpen=true; }
+                try { _code=BotSettingsSlots.Share(_slots.Slots[index]); _codeOpen=true; _message=null; }
                 catch { _message=T("공유 코드가 너무 큽니다.","Share code is too large."); }
             });
             GUI.enabled=true; ZzapUI.EndModal(); return;
@@ -101,7 +101,8 @@ internal static class BotSlotsGUI
             GUILayout.Label(_menu==-2?T("공유 코드를 붙여 넣으면 새 내 설정 슬롯이 생깁니다.","Paste a share code to create a new custom slot."):T("다른 화면에서 붙여넣으면 같은 슬롯이 생깁니다.","Paste it into another view to create the same slot."),ZzapUI.Small);
             string code=GUILayout.TextArea(_code,ZzapUI.FieldStyle,GUILayout.Height(130f));
             if(code!=_code && _menu==-2) ZzapUI.Defer(()=>_code=code);
-            GUILayout.Label(T("복사되지 않으면 코드를 선택하고 Ctrl+C를 눌러 주세요.","If copying is blocked, select the code and press Ctrl+C."),ZzapUI.Small);
+            GUILayout.Label(_menu==-2?T("코드가 안 들어오면 칸을 누르고 Ctrl+V를 눌러 주세요.","If the code is not filled in, click the box and press Ctrl+V.")
+                :T("복사되지 않으면 코드를 선택하고 Ctrl+C를 눌러 주세요.","If copying is blocked, select the code and press Ctrl+C."),ZzapUI.Small);
         }
         if(_message!=null) GUILayout.Label(_message,ZzapUI.Small);
         GUILayout.FlexibleSpace(); GUILayout.BeginHorizontal(); GUILayout.FlexibleSpace();

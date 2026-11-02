@@ -488,12 +488,17 @@
         _lastKorean = Korean;
         if (bundleChanged)
         {
-            var sectionByType = PresetGeneration.AllBotTypes().GroupBy(b => b.WildSpawnType)
+            var definitions = PresetGeneration.AllBotTypes().ToList();
+            var sectionByType = definitions.GroupBy(b => b.WildSpawnType)
                 .ToDictionary(g => g.Key, g => g.First().Section ?? "Other");
+            // Same order as F6: factions and bots as the bot type list defines them (Scavs, PMCs, Goons, ...), not alphabetical.
+            var sectionOrder = definitions.Select(b => b.Section ?? "Other").Distinct().Select((name, i) => (name, i)).ToDictionary(x => x.name, x => x.i);
+            var botOrder = definitions.Select((b, i) => (b.WildSpawnType, i)).GroupBy(x => x.WildSpawnType).ToDictionary(g => g.Key, g => g.First().i);
             _allBots = (Bundle.BotSettings ?? new()).Where(kv => kv.Value != null)
                 .Select(kv => new BotOption(kv.Key, kv.Value.Name ?? kv.Key.ToString(),
                     sectionByType.TryGetValue(kv.Key, out var section) ? section : "Other"))
-                .OrderBy(b => b.Section).ThenBy(b => b.Name).ToList();
+                .OrderBy(b => sectionOrder.TryGetValue(b.Section, out int i) ? i : int.MaxValue)
+                .ThenBy(b => botOrder.TryGetValue(b.Type, out int i) ? i : int.MaxValue).ThenBy(b => b.Name).ToList();
             if (_allBots.All(b => b.Type != _botType))
             {
                 _botType = _allBots.FirstOrDefault()?.Type ?? default;
