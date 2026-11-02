@@ -33,6 +33,15 @@ public class BotSpawnController : BotManagerBase
 
     public static BotSpawnController Instance { get; private set; }
 
+    /// <summary>zzap (2026-11-02): BotManagerComponent.OnDestroy - the static kept the old manager (and its GameWorld) in the menu.</summary>
+    public static void ReleaseFor(BotManagerComponent owner)
+    {
+        if (Instance != null && Instance.BotController == owner)
+        {
+            Instance = null;
+        }
+    }
+
     public Dictionary<string, BotComponent> BotDictionary { get; } = [];
     private static IReadOnlyList<WildSpawnType> StrictExclusionList { get; set; } = [];
 

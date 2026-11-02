@@ -19,6 +19,15 @@ public class SAINWeatherClass : BotManagerBase
 
     public static SAINWeatherClass Instance { get; private set; }
 
+    /// <summary>zzap (2026-11-02): BotManagerComponent.OnDestroy - the static kept the old manager (and its GameWorld) in the menu.</summary>
+    public static void ReleaseFor(BotManagerComponent owner)
+    {
+        if (Instance != null && Instance.BotController == owner)
+        {
+            Instance = null;
+        }
+    }
+
     public SAINWeatherClass(BotManagerComponent botController)
         : base(botController)
     {

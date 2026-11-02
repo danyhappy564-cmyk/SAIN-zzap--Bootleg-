@@ -99,7 +99,11 @@ public class EnemyTalk : BotBase
         {
             Singleton<GlobalEventDispatcher>.Instance.OnGrenadeExplosive -= tryFakeDeathGrenade;
         }
-        BotManagerComponent.Instance.BotHearing.PlayerTalk -= playerTalked;
+        var hearing = BotManagerComponent.Instance?.BotHearing;
+        if (hearing != null)
+        {
+            hearing.PlayerTalk -= playerTalked;
+        }
         if (Bot?.EnemyController != null)
         {
             Bot.EnemyController.Events.OnEnemyKilled -= enemyKilled;

@@ -314,7 +314,11 @@ public class HearingInput(HearingSensor hearingSensor) : BotSubClass<HearingSens
 
     public override void Dispose()
     {
-        BotManagerComponent.Instance.BotHearing.BulletImpact -= BulletImpacted;
+        var hearing = BotManagerComponent.Instance?.BotHearing;
+        if (hearing != null)
+        {
+            hearing.BulletImpact -= BulletImpacted;
+        }
         PlayerComponent.OnBulletFlyBy -= OnBulletFlyBy;
         base.Dispose();
     }

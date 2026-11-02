@@ -41,6 +41,15 @@ public static class SoundWatch
         }
     }
 
+    /// <summary>zzap (2026-11-02): a late OnDestroy of the previous raid's manager must not unhook the new raid's hearing.</summary>
+    public static void Detach(BotHearingClass owner)
+    {
+        if (_hearing == null || _hearing == owner)
+        {
+            Detach();
+        }
+    }
+
     public static void Detach()
     {
         if (_hearing != null)

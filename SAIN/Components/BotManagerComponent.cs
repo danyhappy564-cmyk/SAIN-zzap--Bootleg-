@@ -167,8 +167,16 @@ public class BotManagerComponent : MonoBehaviour
         SAIN.SAINComponent.Classes.Tactics.CorpseDecalRelease.Clear();
         SAIN.Patches.Generic.UnprocessedDeathRescue.Clear();
         SAIN.SAINComponent.Classes.Tactics.ThreatPicker.Clear();
-        SAIN.SAINComponent.Classes.Tactics.SoundWatch.Detach();
+        SAIN.SAINComponent.Classes.Tactics.SoundWatch.Detach(BotHearing);
         SAIN.SAINComponent.Classes.Tactics.RaidJournal.End("botManagerDestroyed");
+        SAIN.Components.BotController.BotSpawnController.ReleaseFor(this);
+        SAIN.Components.BotController.SAINWeatherClass.ReleaseFor(this);
+        // zzap (2026-11-02): the static kept the last raid's manager -> SAINGameWorld -> GameWorld alive in the menu
+        // until the next raid (RAM cleaner leak report). Only this instance clears it, so a newer raid's manager stays.
+        if (Instance == this)
+        {
+            Instance = null;
+        }
     }
 
     // Instance ids, so a bot is named once rather than once a frame.
