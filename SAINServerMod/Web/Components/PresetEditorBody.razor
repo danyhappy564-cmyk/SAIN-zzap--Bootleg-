@@ -11,10 +11,10 @@
     <MudTabPanel Text="@T("바꾼 값", "Changed values")" Icon="@Icons.Material.Outlined.Difference" BadgeData="@(ChangedCount > 0 ? ChangedCount : null)" BadgeColor="Color.Warning">
         <PresetChanges Bundle="Bundle" Original="Original" Zzap="Zzap" OnChanged="OnChanged" />
     </MudTabPanel>
-    <MudTabPanel Text="@T("전역 설정 (전체)", "Global settings (all)")" Icon="@Icons.Material.Outlined.Public">
+    <MudTabPanel Text="@T("전역 설정", "Global settings")" Icon="@Icons.Material.Outlined.Public" BadgeData="@("NEW")" BadgeColor="Color.Success">
         <SainSectionEditor Target="Bundle.GlobalSettings" Original="Original?.GlobalSettings" Defaults="DefaultBundle?.GlobalSettings" References="Columns.Select(r=>(r.Name,(object)r.Bundle.GlobalSettings)).ToArray()" OnChanged="OnChanged" />
     </MudTabPanel>
-    <MudTabPanel Text="@T("봇 종류별", "Bot types")" Icon="@Icons.Material.Outlined.SmartToy">
+    <MudTabPanel Text="@T("봇별 설정", "Bot settings")" Icon="@Icons.Material.Outlined.SmartToy">
         <BotSettingsEditor Bundle="Bundle" Original="Original" Zzap="Zzap" References="Columns" OnChanged="OnChanged" />
     </MudTabPanel>
     <MudTabPanel Text="@T("성격", "Personalities")" Icon="@Icons.Material.Outlined.Psychology">

@@ -7,41 +7,55 @@
 @implements IAsyncDisposable
 
 <section class="sain-custom-slots">
-    <strong>@T("내 설정","Custom")</strong> <small>@T("F6와 웹이 같은 슬롯을 씁니다","Custom slots are shared by F6 and the web page")</small>
-    @if(_slots!=null)
-    {
-        <div class="sain-slot-buttons">
-        @for(int i=0;i<_slots.Slots.Count;i++)
-        {
+    <div class="sain-slot-buttons"><strong>@T("내 설정","Custom")</strong>
+    @if(_slots!=null) {
+        @for(int i=0;i<_slots.Slots.Count;i++) {
             int index=i; var slot=_slots.Slots[i];
-            <button type="button" class="@(slot==null?"sain-slot-empty":null)" @onclick="() => Apply(slot)">@(slot?.Name??T($"내 설정 {i+1}",$"Custom {i+1}"))</button>
-            @if(slot!=null) { <button type="button" title="@T("내 설정 관리","Manage custom slot")" @onclick="() => Open(index)">⋯</button> }
+            <div class="sain-slot">
+                <button type="button" class="@(slot==null?"sain-slot-empty":null)" @onclick="() => Apply(slot)">@(slot?.Name??T($"내 설정 {i+1}",$"Custom {i+1}"))</button>
+                <button type="button" class="sain-slot-more" aria-label="@T("내 설정 관리","Manage custom slot")" aria-expanded="@(_menu==index)" @onclick="() => Open(index)">⋯</button>
+                @if(_menu==index && !_rename && !_import && _code.Length==0) {
+                    <div class="sain-slot-menu" role="menu">
+                        <button type="button" role="menuitem" disabled="@(slot==null)" @onclick="() => _rename=true">@T("이름 바꾸기","Rename")</button>
+                        <button type="button" role="menuitem" disabled="@(slot==null || Source==null)" @onclick="() => Save(s=>s.Slots[index]=BotSettingsSlots.Capture(s.Slots[index].Name,Source!,Sources!))">@T("덮어쓰기","Overwrite")</button>
+                        <button type="button" role="menuitem" disabled="@(slot==null)" @onclick="() => Save(s=>s.Delete(index))">@T("삭제","Delete")</button>
+                        <button type="button" role="menuitem" disabled="@(slot==null)" @onclick="Copy">@T("공유 코드 복사","Copy share code")</button>
+                    </div>
+                }
+            </div>
         }
         <button type="button" disabled="@(Source==null || _slots.Slots.Count==9 && _slots.Slots.All(s=>s!=null))" @onclick="SaveCurrent">@T("＋ 지금 값 저장","＋ Save current")</button>
         <button type="button" @onclick="StartImport">@T("공유 코드 붙여넣기","Paste share code")</button>
-        </div>
-        @if(_menu>=0 && _menu<_slots.Slots.Count && _slots.Slots[_menu]!=null)
-        {
-            <div class="sain-slot-menu">
-                <input aria-label="@T("내 설정 이름","Custom slot name")" maxlength="24" @bind="_name" />
-                <button type="button" @onclick="() => Save(s=>s.Rename(_menu,_name))">@T("이름 바꾸기","Rename")</button>
-                <button type="button" disabled="@(Source==null)" @onclick="() => Save(s=>s.Slots[_menu]=BotSettingsSlots.Capture(s.Slots[_menu].Name,Source!,Sources!))">@T("덮어쓰기","Overwrite")</button>
-                <button type="button" @onclick="() => Save(s=>s.Delete(_menu))">@T("삭제","Delete")</button>
-                <button type="button" @onclick="Copy">@T("공유 코드 복사","Copy share code")</button>
-            </div>
-        }
-        @if(_import || _code.Length>0)
-        {
-            <textarea @ref="_codeBox" aria-label="@T("공유 코드","Share code")" @bind="_code" @bind:event="oninput" rows="3"></textarea>
-            @if(_import) { <button type="button" @onclick="Import">@T("내 설정에 추가","Add to custom slots")</button> }
-        }
     }
-    <p role="status">@_message</p>
+    </div>
+    <p class="sain-slot-note">@T("F6와 웹은 같은 내 설정 슬롯을 함께 씁니다.","Custom slots are shared by F6 and the web page.") @(MixedSource==null?T("슬롯을 누르면 지금 편집 중인 봇에 적용됩니다.","Click a slot to apply it to the bots being edited."):T($"섞인 값 저장 시 {MixedSource} 값을 저장합니다.",$"When values are mixed, {MixedSource} values are saved."))</p>
+    @if(!string.IsNullOrEmpty(_message)) { <p role="status">@_message</p> }
 </section>
+@if(_rename || _import || _code.Length>0) {
+    <div class="sain-modal-overlay"><section class="sain-modal" role="dialog" aria-modal="true" aria-labelledby="sain-slot-dialog-title" tabindex="-1" @onkeydown="KeyDown">
+        <header><h2 id="sain-slot-dialog-title">@(_rename?T("내 설정 이름 바꾸기","Rename custom slot"):_import?T("공유 코드 붙여넣기","Paste share code"):T("공유 코드 복사","Copy share code"))</h2><button type="button" aria-label="@T("닫기","Close")" @onclick="Close">×</button></header>
+        @if(_rename) {
+            <label for="sain-slot-name">@T("새 이름", "New name") <small>@T("최대 24자", "Up to 24 characters")</small></label>
+            <input id="sain-slot-name" maxlength="24" @bind="_name" />
+        } else {
+            <p>@(_import?T("공유 코드를 붙여 넣으면 새 내 설정 슬롯이 생깁니다.","Paste a share code to create a new custom slot."):T("다른 화면에서 붙여넣으면 같은 슬롯이 생깁니다.","Paste it into another view to create the same slot."))</p>
+            <textarea @ref="_codeBox" aria-label="@T("공유 코드","Share code")" @bind="_code" @bind:event="oninput" readonly="@(!_import)" rows="5" spellcheck="false"></textarea>
+            @if(!_import) { <p class="sain-slot-note">@T("복사가 허용되지 않는 브라우저에서는 코드를 선택하고 Ctrl+C를 눌러 주세요.","If your browser blocks copying, select the code and press Ctrl+C.")</p> }
+        }
+        <p role="status">@_message</p>
+        <footer><button type="button" @onclick="Close">@T("닫기","Close")</button>
+            @if(_rename) { <button type="button" class="primary" @onclick="() => Save(s=>s.Rename(_menu,_name))">@T("이름 바꾸기","Rename")</button> }
+            else if(_import) { <button type="button" class="primary" @onclick="Import">@T("새 슬롯 만들기","Create new slot")</button> }
+            else { <button type="button" class="primary" @onclick="Copy">@T("코드 복사","Copy code")</button> }
+        </footer>
+    </section></div>
+}
 @code {
     [Parameter] public SAINSettingsGroupClass? Source { get; set; }
     [Parameter] public LevelSources? Sources { get; set; }
     [Parameter] public EventCallback<BotSettingsSlot> OnApply { get; set; }
+    [Parameter] public string? MixedSource { get; set; }
+    private bool _rename;
     private BotSettingsSlots? _slots;
     private int _menu=-1;
     private string _name="", _code="", _message="";
@@ -58,14 +72,16 @@
         if(slot!=null) return OnApply.InvokeAsync(slot);
         _message=T("비어 있음 — ＋로 저장","Empty — use ＋ to save"); return Task.CompletedTask;
     }
-    private void StartImport() { _import=true; _code=""; }
-    private void Open(int index) { _menu=_menu==index?-1:index; _name=_slots!.Slots[index].Name; }
+    private void StartImport() { _rename=false; _import=true; _code=""; _menu=-1; }
+    private void Close() { _rename=false; _import=false; _code=""; _menu=-1; }
+    private void KeyDown(KeyboardEventArgs e) { if(e.Key=="Escape") Close(); }
+    private void Open(int index) { _menu=_menu==index?-1:index; _name=_slots!.Slots[index]?.Name??""; _rename=false; _import=false; _code=""; }
     private async Task Save(Action<BotSettingsSlots> change)
     {
         try
         {
             var next=BotSettingsSlots.Deserialize(_slots!.Serialize()); change(next);
-            await ClientData.SaveAsync(BotSettingsSlots.DataKey,next.Serialize()); _slots=next; _menu=-1;
+            await ClientData.SaveAsync(BotSettingsSlots.DataKey,next.Serialize()); _slots=next; Close();
             _message=T("내 설정을 저장했습니다.","Custom slots saved.");
         }
         catch { _message=T("저장하지 못했습니다. 이름과 슬롯 수(최대 9칸)를 확인하세요.","Could not save. Check the name, or the 9-slot limit."); }

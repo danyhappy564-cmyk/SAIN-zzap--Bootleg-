@@ -902,26 +902,105 @@
         justify-content: flex-start;
     }
 }
-/* 봇 설정: 선택 묶음, 안내, 공용 내 설정 슬롯 (Remix7.3 예정) */
-.sain-bot-choice { display:flex; align-items:center; gap:4px; }
-.sain-select-dot { flex:0 0 28px; border:0; color:#facc15; background:transparent; font-size:20px; cursor:pointer; }
-.sain-select-dot:disabled { opacity:.35; cursor:default; }
-.sain-selection-bar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:12px; margin-bottom:12px; border:1px solid #8b732d; border-radius:8px; background:#332d1d; color:#f4d779; }
-.sain-selection-bar span { flex:1 1 200px; font-size:.8rem; }
-.sain-selection-bar button,.sain-guide button,.sain-custom-slots button { border:1px solid #52525b; border-radius:6px; padding:6px 10px; color:inherit; background:#27272a; cursor:pointer; }
-.sain-guide { margin-bottom:10px; }
-.sain-guide-button { float:right; min-width:32px; }
-.sain-guide-panel { clear:both; padding:16px; border:1px solid #52525b; border-radius:8px; margin-bottom:12px; }
-.sain-guide-panel nav { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
-.sain-guide-panel [aria-pressed=true] { border-color:#e8b04a; color:#facc15; }
-.sain-custom-slots { padding:12px; margin:12px 0; border:1px solid #52525b; border-radius:8px; }
-.sain-custom-slots small { color:#a1a1aa; margin-left:8px; }
-.sain-slot-buttons,.sain-slot-menu { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px; }
-.sain-custom-slots .sain-slot-empty,.sain-custom-slots button:disabled { opacity:.45; }
-.sain-custom-slots textarea,.sain-custom-slots input { border:1px solid #52525b; border-radius:5px; background:#18181b; color:#e4e4e7; padding:8px; max-width:100%; }
-.sain-custom-slots textarea { display:block; width:100%; box-sizing:border-box; margin-top:10px; overflow-wrap:anywhere; }
-.sain-custom-slots [role=status] { font-size:.8rem; margin:8px 0 0; }
-.sain-setting-filters { display:flex; flex-wrap:wrap; gap:16px; align-items:center; }
-.sain-new,.sain-mixed { display:inline-block; border-radius:5px; padding:1px 6px; margin:0 5px; font-size:.7rem; }
-.sain-new { color:#7dd3fc; background:#173449; }
-.sain-mixed { color:#facc15; background:#3a321c; }
+/* 목업 v002 웹 탭: 구조는 F6와 공유하고 파란 선택·웹 난이도 색을 유지합니다. */
+.sain-bot-editor{display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:stretch;height:calc(100vh - 286px);min-height:620px;font-size:13px;color:#e4e4e7}
+.sain-bot-editor button,.sain-custom-slots button,.sain-modal button,.sain-intro button,.sain-guide-button,.sain-filtered-reference button,.sain-bot-field-reference button{font:inherit;cursor:pointer;color:#e4e4e7;background:#26262d;border:1px solid #303038;border-radius:6px;padding:5px 8px;line-height:1.4;text-transform:none}
+.sain-bot-editor button:hover,.sain-custom-slots button:hover,.sain-modal button:hover{background:#33333c}
+.sain-bot-editor button:disabled,.sain-custom-slots button:disabled,.sain-modal button:disabled,.sain-filtered-reference button:disabled{opacity:.35;cursor:default}
+.sain-bot-editor button:focus-visible,.sain-modal :focus-visible{outline:2px solid #38bdf8;outline-offset:3px}
+.sain-bot-nav,.sain-bot-main{background:#18181b;border:1px solid #303038;border-radius:6px;min-width:0}
+.sain-bot-nav{display:flex;flex-direction:column;overflow:hidden;padding:0!important}
+.sain-nav-top{padding:14px 14px 10px;border-bottom:1px solid #303038}
+.sain-nav-heading{display:flex;align-items:center;justify-content:space-between}
+.sain-nav-heading small,.sain-nav-top p,.sain-nav-foot{font-size:11px;color:#a1a1aa;line-height:1.7}
+.sain-nav-top .mud-input-control{margin:10px 0 8px}
+.sain-nav-top p{margin:0}
+.sain-bot-list{overflow-y:auto;flex:1;padding:6px 8px 12px;scrollbar-width:thin;scrollbar-color:#3f3f46 transparent}
+.sain-bot-faction-head{display:flex;align-items:center;gap:3px;margin:6px 0 3px;min-height:32px;color:#a1a1aa;font-size:12px}
+.sain-bot-editor .sain-select-dot{width:29px;min-width:29px;flex:0 0 29px;border:0;background:transparent;padding:2px;font-size:21px;line-height:1;color:#facc15}
+.sain-bot-editor .sain-select-dot:hover{background:transparent;color:#fde047}
+.sain-bot-editor .sain-fold{width:22px;padding:4px;border:0;background:transparent;color:#71717a}
+.sain-bot-editor .sain-bot-faction-name{flex:1;text-align:left;font-weight:700;padding:4px 0;border:0;background:transparent;font-size:12px;color:#a1a1aa}
+.sain-bot-faction-name small{color:#71717a;font-size:10px;font-weight:400}
+.sain-faction-count{font-size:10px;color:#71717a;padding-right:7px}
+.sain-bot-choice{display:flex;align-items:center;gap:2px;min-height:52px;margin:1px 0;border:1px solid transparent;border-radius:5px}
+.sain-bot-choice:hover{background:#27272a}
+.sain-bot-choice.on{background:#203d57;border-color:#39749d}
+.sain-bot-choice.in-faction:not(.on){background:#22303f}
+.sain-bot-editor .sain-bot-item{padding:5px 4px 5px 3px;border:0;background:transparent;text-align:left;flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px;font-size:13px;overflow-wrap:anywhere}
+.sain-bot-editor .sain-bot-item:hover{background:transparent}
+.sain-bot-badge{font-size:10px;font-weight:400;color:#cfd6e2;background:#303038;padding:1px 6px;border-radius:10px;display:inline-block}
+.sain-bot-badge.easy{background:#1f3b4d;color:#9fd3f5}.sain-bot-badge.hard{background:#4d3a1f;color:#f5c98f}.sain-bot-badge.impossible{background:#4d1f24;color:#f59aa3}
+.sain-nav-foot{padding:10px 14px;border-top:1px solid #303038;color:#71717a;font-size:10px}
+.sain-bot-main{overflow-y:auto;padding:18px 22px!important;scrollbar-width:thin;scrollbar-color:#3f3f46 transparent}
+.sain-selection-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 12px;border:1px solid #39749d;background:#142433;margin-bottom:16px;border-radius:6px}
+.sain-bundle-title{flex:1;min-width:180px;color:#7dd3fc;font-size:13px;overflow-wrap:anywhere}
+.sain-bundle-title small{font-size:11px}
+.sain-bundle-title>span{display:block;color:#a1a1aa;font-size:11px;font-weight:400;margin-top:4px}
+.sain-bot-heading{display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:12px;margin-bottom:10px}
+.sain-bot-heading h6{font-size:18px;font-weight:700}
+.sain-bot-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.sain-bot-actions .mud-button{font-size:11px;color:#e4e4e7;background:#26262d;border:1px solid #303038;padding:5px 8px;min-width:0}
+.sain-bot-actions .mud-button .mud-button-icon-start{display:none}
+.sain-target-tag{font-size:10px;background:#26262d;color:#a1a1aa;padding:4px 7px;border-radius:3px}
+.sain-bot-help{font-size:11px;color:#a1a1aa;line-height:1.6;margin:0}
+.sain-bot-help>span{color:#71717a}
+.sain-bot-ai{display:flex;gap:7px;flex-wrap:wrap;align-items:center;border:1px solid #3f3f46;padding:9px 12px;margin:13px 0;border-radius:6px}
+.sain-bot-ai>b{font-size:12px;min-width:90px}
+.sain-ai-help{color:#71717a;font-size:11px;margin-left:auto}
+.sain-bot-editor .sain-refchip{font-size:11px;padding:5px 8px;background:#26262d;border:1px solid #303038;color:#e4e4e7;border-radius:6px}
+.sain-bot-editor .sain-refchip.on,.sain-modal button.on{color:#facc15;background:#2b250d;border-color:#6b5b19}
+.sain-step-heading{display:flex;gap:8px;align-items:center;margin:14px 0 9px}
+.sain-step{font-size:10px;color:#facc15;background:#2b250d;padding:3px 6px}
+.sain-step-heading strong{font-size:13px}
+.sain-step-heading>small{margin-left:auto;font-size:11px;color:#71717a}
+.sain-blue{color:#38bdf8}.sain-ref-line{display:inline-block;width:2px;height:10px;background:#facc15;vertical-align:middle}
+.sain-bot-levels{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.sain-bot-editor .sain-bot-level{min-height:52px;border:1px solid #52525b;background:transparent;font-weight:700;padding:5px 10px;font-size:13px}
+.sain-bot-level small{display:block;font-weight:400;color:#a1a1aa;font-size:10px;margin-top:3px}
+.sain-bot-editor .sain-bot-level.easy.on{background:#1f3b4d;border-color:#6caad1;color:#9fd3f5}.sain-bot-editor .sain-bot-level.normal.on{background:#303038;border-color:#a1a1aa}.sain-bot-editor .sain-bot-level.hard.on{background:#4d3a1f;border-color:#e8b04a;color:#f5c98f}.sain-bot-editor .sain-bot-level.impossible.on{background:#4d1f24;border-color:#d96c78;color:#f59aa3}
+.sain-bot-warning{color:#f5c98f;font-size:11px;margin:8px 0}.sain-bot-dim{opacity:.55}
+.sain-custom-slots{margin-top:12px;border:1px solid #303038;padding:10px 12px;background:rgba(0,0,0,.12)}
+.sain-slot-buttons{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.sain-slot-buttons>strong{font-size:12px;margin-right:5px}
+.sain-custom-slots button{font-size:11px}
+.sain-slot{display:flex;position:relative}
+.sain-slot>button:first-child{border-radius:6px 0 0 6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sain-slot>.sain-slot-more{border-radius:0 6px 6px 0;border-left:0;padding:5px 7px;color:#a1a1aa}
+.sain-slot-menu{position:absolute;left:0;top:calc(100% + 7px);z-index:20;min-width:156px;padding:5px;background:#26262d;border:1px solid #52525b;box-shadow:0 12px 28px #0009;display:flex;flex-direction:column}
+.sain-slot-menu button{border:0;background:transparent;border-radius:0;padding:7px 10px;text-align:left}
+.sain-slot-note,.sain-custom-slots [role=status]{color:#71717a;font-size:10px;line-height:1.6;margin:7px 0 0}
+.sain-bot-knob.sain-qrow{display:grid;grid-template-columns:minmax(140px,1.05fr) minmax(150px,1.3fr) 100px 72px;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid #303038}
+.sain-bot-knob-label,.sain-bot-knob-control{min-width:0}.sain-bot-knob .sain-qrow-name{font-size:12px;font-weight:700}
+.sain-bot-knob .sain-quick-desc{font-size:10px;color:#71717a;line-height:1.5;margin-top:4px}
+.sain-bot-knob-control{display:flex;align-items:center;gap:6px}.sain-bot-slider{flex:1;min-width:70px}
+.sain-bot-knob .sain-dl .b{background:#38bdf8!important}.sain-bot-knob .sain-dl .d{background:#38bdf8!important}.sain-bot-knob .sain-dl .r{background:#facc15;width:2px;height:18px;top:50%;transform:translateY(-50%)}
+.sain-bot-knob .mud-slider .mud-slider-track-fill{background:#38bdf8!important}.sain-bot-knob .mud-slider .mud-slider-thumb{color:#38bdf8!important;background:#38bdf8!important}
+.sain-bot-knob .sain-bot-slider .mud-slider{color:#38bdf8}.sain-bot-knob .sain-dl{pointer-events:none}
+.sain-bot-delta{text-align:right;min-width:0;font-size:12px;color:#fff;white-space:normal;overflow:visible}
+.sain-bot-delta small{display:block;color:#71717a;font-size:10px;margin-top:5px}
+.sain-bot-reset{text-align:right}.sain-bot-reset button{font-size:10px;white-space:nowrap;background:transparent}
+.sain-bot-byslot{display:none}.sain-bot-main .sain-quick-head{margin:16px 0 3px!important}.sain-bot-main .sain-quick-head .spt-title{font-size:11px;color:#a1a1aa;font-weight:400}
+.sain-diff{color:#facc15;margin-left:5px;font-size:12px}
+.sain-new,.sain-mixed{display:inline-block;border-radius:2px;padding:2px 5px;margin:0 5px;font-size:10px;font-weight:400;white-space:nowrap}
+.sain-new{color:#4ade80;background:#193b2b;border:1px solid #2d6b49}.sain-mixed{color:#facc15;background:#2b250d}
+.sain-bot-editor .sain-bot-advanced{display:block;width:100%;margin-top:20px;padding:13px 12px;border:1px dashed #52525b;background:transparent;text-align:left;font-size:12px}
+.sain-advanced-body{border:1px dashed #52525b;border-top:0;padding:14px}
+.sain-setting-filters{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin:14px 0 12px;border-bottom:1px solid #303038;padding-bottom:10px;font-size:12px}
+.sain-setting-filters small{color:#71717a;font-size:10px}.sain-setting-filters .mud-switch{margin:0}.sain-setting-filters .mud-typography{font-size:12px}
+.sain-bot-advanced-row{border-bottom:1px solid #303038;padding:9px 0}.sain-bot-field-help{font-size:10px;color:#71717a}.sain-bot-field-reference{display:flex;justify-content:flex-end;align-items:center;gap:10px;font-size:10px}
+.sain-bot-shown{font-size:11px;color:#71717a;line-height:1.6}.sain-bot-slots span+span:before{content:' · '}.sain-bot-scope{display:flex;gap:5px;flex-wrap:wrap;margin:10px 0}.sain-bot-unseen{opacity:.6}
+.sain-global-heading{margin-bottom:14px}.sain-global-heading h2{font-size:18px;font-weight:700}.sain-global-heading p{font-size:11px;color:#a1a1aa;margin-top:8px}
+.sain-filtered-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}.sain-filtered-row>strong{grid-column:1/-1;font-size:12px;color:#a1a1aa}.sain-filtered-field{min-width:0}.sain-filtered-reference{display:flex;align-items:center;gap:12px}.sain-filtered-reference small{font-size:10px;color:#71717a}
+.sain-intro{display:flex;align-items:center;gap:14px;border:1px solid #665416;background:#2b250d;padding:10px 14px;margin-bottom:15px;line-height:1.5}
+.sain-intro p{flex:1;color:#e7dfa9;font-size:12px;margin:0}.sain-intro strong{color:#facc15}.sain-intro button{font-size:11px;white-space:nowrap}.sain-guide-button{width:34px;font-size:16px;font-weight:700}.sain-save-count{font-size:12px;color:#a1a1aa;white-space:nowrap}
+.sain-modal-overlay{position:fixed;inset:0;z-index:1800;background:#000c;display:flex;align-items:center;justify-content:center;padding:20px}
+.sain-modal{background:#18181b;color:#e4e4e7;border:1px solid #52525b;border-radius:6px;box-shadow:0 25px 80px #000b;width:560px;max-width:100%;max-height:calc(100vh - 40px);overflow-y:auto;padding:24px;font-size:13px;line-height:1.6}
+.sain-modal header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.sain-modal h2{font-size:18px;font-weight:700;margin:0}.sain-modal header button{background:transparent;font-size:12px;padding:4px 8px}.sain-modal p{color:#a1a1aa;margin:8px 0}.sain-modal footer{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}.sain-modal button.primary{background:#facc15;border-color:#facc15;color:#1a1a1a;font-weight:700}
+.sain-modal textarea,.sain-modal input{width:100%;color:#e4e4e7;background:#101014;border:1px solid #303038;border-radius:6px;padding:10px;margin:8px 0;font:inherit}.sain-modal textarea{font-family:monospace;font-size:12px;resize:vertical;overflow-wrap:anywhere}
+.sain-guide-steps{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}.sain-guide-steps button{font-size:11px}.sain-help-step{padding:12px 0 16px;border-bottom:1px solid #303038}.sain-help-step strong{font-size:14px}.sain-help-step strong span{color:#facc15}.sain-guide-progress{font-size:12px;margin-top:12px!important}
+@media(max-width:1100px){.sain-bot-editor{grid-template-columns:230px minmax(0,1fr)}.sain-bot-knob.sain-qrow{grid-template-columns:minmax(110px,1fr) minmax(110px,1fr) 80px 64px;gap:8px}.sain-step-heading>small{max-width:45%;text-align:right}.sain-bot-ai .sain-ai-help{flex-basis:100%}}
+@media(max-width:760px){.sain-bot-editor{grid-template-columns:minmax(0,1fr);height:auto}.sain-bot-nav{max-height:320px}.sain-bot-main{max-height:80vh}.sain-bot-knob.sain-qrow{grid-template-columns:minmax(90px,1fr) minmax(100px,1fr) 75px}.sain-bot-reset{grid-column:3}.sain-intro{flex-wrap:wrap}.sain-save-count{display:none}.sain-filtered-row{grid-template-columns:minmax(0,1fr)}.sain-filtered-reference{justify-content:flex-end}}
+.sain-bot-editor .sain-select-dot{color:#a1a1aa}.sain-bot-editor .sain-select-dot[aria-pressed=true],.sain-bot-editor .sain-select-dot.partial{color:#facc15}
+.sain-bot-knob.sain-diffslider .mud-slider .mud-slider-input::-webkit-slider-thumb,.sain-bot-knob .sain-diffslider .mud-slider .mud-slider-input::-webkit-slider-thumb{background-color:#38bdf8!important;border:0!important}
+.sain-bot-knob .sain-diffslider .mud-slider .mud-slider-input::-moz-range-thumb{background-color:#38bdf8!important;border:0!important}

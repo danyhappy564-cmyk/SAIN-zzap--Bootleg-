@@ -21,7 +21,7 @@
                         <MudIcon Icon="@Icons.Material.Filled.Tune" Color="Color.Warning" Size="Size.Large" />
                     </div>
                     <div>
-                        <MudText Typo="Typo.h5" Class="spt-title">@T("SAIN 프리셋", "SAIN Presets")</MudText>
+                        <MudText Typo="Typo.h5" Class="spt-title">@(_bundle!=null?T("봇 설정","Bot settings"):T("SAIN 프리셋", "SAIN Presets"))</MudText>
                         <MudText Typo="Typo.caption" Class="spt-muted">
                             @if (_bundle != null)
                             {
@@ -43,6 +43,7 @@
                     </div>
                 </MudStack>
                 <MudStack Row AlignItems="AlignItems.Center" Spacing="3">
+                    @if(_bundle==null) {
                     <div class="sain-stat">
                         <MudText Typo="Typo.caption">@T("프리셋", "Presets")</MudText>
                         <MudText Typo="Typo.h5">@_items.Count</MudText>
@@ -51,21 +52,21 @@
                         <MudText Typo="Typo.caption">@T("사용자", "Custom")</MudText>
                         <MudText Typo="Typo.h5">@_items.Count(i => i.IsCustom)</MudText>
                     </div>
+                    }
                     @if (_bundle != null)
                     {
-                        @if (_dirty)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">@(_changed > 0 ? T($"저장 안 한 변경 {_changed}개", $"{_changed} unsaved changes") : T("저장 안 한 변경", "Unsaved changes"))</MudChip>
-                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Undo" OnClick="RevertAsync">@T("되돌리기", "Revert")</MudButton>
-                        }
                         <MudSwitch T="bool" @bind-Value="_showAdvanced" Color="Color.Primary" Label="@T("고급", "Advanced")" />
                         <MudSwitch T="bool" @bind-Value="_showDeveloper" Color="Color.Secondary" Label="@T("개발자", "Developer")" />
-                        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Save"
+                        @if (_dirty) { <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="RevertAsync">@T("되돌리기", "Revert")</MudButton> }
+                        <span class="sain-save-count">@T($"저장 안 한 변경 {_changed}개",$"{_changed} unsaved changes")</span>
+                        <MudButton Variant="Variant.Filled" Color="Color.Warning"
                                    OnClick="SaveAsync">@T("저장", "Save")</MudButton>
+                        <button type="button" class="sain-guide-button" title="@T("3단계 안내","3-step guide")" @onclick="() => _guide?.Open()">?</button>
                     }
                 </MudStack>
             </MudStack>
         </MudPaper>
+        @if(_bundle!=null) { <BotSettingsGuide @ref="_guide" ShowButton="false" /> }
 
         <div class="sain-shell">
             <div class="sain-shell-nav">
@@ -129,6 +130,7 @@
 </div>
 
 @code {
+    private BotSettingsGuide? _guide;
     private IReadOnlyList<PresetListItem> _items = Array.Empty<PresetListItem>();
     private SAINPresetBundle? _original;
     private SAINPresetBundle? _zzap;

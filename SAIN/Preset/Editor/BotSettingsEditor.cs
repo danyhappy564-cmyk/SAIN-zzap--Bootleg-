@@ -148,10 +148,10 @@ public static class BotSettingsEditor
         Space(12f);
 
         GUILayout.BeginVertical(ZzapUI.Panel1, Height(ZzapUI.PANEL_HEIGHT), GUILayout.ExpandWidth(true));
-        SettingsFilterGUI.Filters();
         if (searching || SettingsFilterGUI.Active)
         {
-            ZzapUI.PanelHeading(searching?string.Format(EditorText.UI("Search: '{0}'"), search):T("설정 필터","Filtered settings"), searching?EditorText.UI("Every setting whose name or description matches. Clear the box to go back to the groups."):T("조건에 맞는 항목만 표시합니다. 필터를 끄면 그룹 목록으로 돌아갑니다.","Showing matching settings only. Turn the filters off to see all groups."));
+            ZzapUI.PanelHeading(T("전역 설정","Global settings"),T("모든 봇에 공통으로 적용합니다. 노란 점은 원본과 다른 값입니다.","Applies to all bots. A yellow dot marks values that differ from zzap original."));
+            SettingsFilterGUI.Filters();
             container.Scroll = BeginScrollView(container.Scroll, GUILayout.ExpandHeight(true));
             SettingsFilterGUI.Draw(settings,QuickObjectGUI.Defaults()?.GlobalSettings,search);
             EndScrollView();
@@ -161,6 +161,7 @@ public static class BotSettingsEditor
             var current = groups.First(g => g.Key == selectedKey);
             string title = current.SubInfo != null ? $"{current.Category.CategoryInfo.Name} › {current.SubInfo.Name}" : current.Category.CategoryInfo.Name;
             ZzapUI.PanelHeading(title, current.SubInfo?.Description ?? current.Category.CategoryInfo.Description);
+            SettingsFilterGUI.Filters();
             container.Scroll = BeginScrollView(container.Scroll, GUILayout.ExpandHeight(true));
             object categoryObject = current.Category.GetValue(settings);
             var baseline = QuickObjectGUI.Saved()?.GlobalSettings;

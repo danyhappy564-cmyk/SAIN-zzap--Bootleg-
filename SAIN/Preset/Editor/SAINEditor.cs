@@ -16,6 +16,7 @@ namespace SAIN.Editor;
 
 public static class SAINEditor
 {
+    private static string T(string ko, string en) => EditorText.Korean ? ko : en;
     static SAINEditor()
     {
         ConsoleScreen.Processor.RegisterCommand("saineditor", new Action(ToggleGUI));
@@ -128,13 +129,20 @@ public static class SAINEditor
             ToggleGUI();
             return;
         }
+        // Keep Layout/Repaint intact, but route input exclusively to an open overlay.
+        EventType inputType = Event.current.type;
+        bool overlay = BotSelectionClass.HelpOpen || BotSlotsGUI.OverlayOpen;
+        if (overlay && inputType != EventType.Layout && inputType != EventType.Repaint) Event.current.type = EventType.Ignore;
         CreateDragBar();
         CreateTopBarOptions();
         EEditorTab selectedTab = EditTabsClass.TabSelectMenu(35f, 3f, 0.5f);
         float space = DragRect.height + EditTabsClass.TabMenuRect.height;
         Space(space + 10f);
         GUITabs.CreateTabs(selectedTab);
-        DrawTooltip();
+        if (overlay && inputType != EventType.Layout && inputType != EventType.Repaint) Event.current.type = inputType;
+        if (BotSelectionClass.HelpOpen) BotSelectionClass.DrawHelp();
+        else if (BotSlotsGUI.OverlayOpen) BotSlotsGUI.DrawOverlay();
+        else DrawTooltip();
     }
 
     // zzap fork (2026-10-18, mockup 5): header = name, preset in yellow, a yellow "N unsaved changes" pill; on the right the
@@ -153,16 +161,20 @@ public static class SAINEditor
         var content = new GUIContent(title);
         float titleWidth = Mathf.Min(ZzapUI.Header.CalcSize(content).x + 4f, DragRect.width - 230f);
         GUI.Label(new Rect(DragRect.x, DragRect.y, titleWidth, DragRect.height), content, ZzapUI.Header);
-        if (ConfigEditingTracker.UnsavedChanges)
+        if (Event.current.type == EventType.Layout && (_unsavedCount != ConfigEditingTracker.EditedConfigValues.Count || _unsavedKorean != EditorText.Korean))
         {
-            string pill = string.Format(EditorText.UI("Unsaved changes: {0}"), ConfigEditingTracker.EditedConfigValues.Count);
-            float pillWidth = ZzapUI.Pill.CalcSize(new GUIContent(pill)).x + 8f;
-            GUI.Box(new Rect(DragRect.x + titleWidth + 10f, DragRect.center.y - 13f, pillWidth, 26f), new GUIContent(pill, ConfigEditingTracker.GetUnsavedValuesString()), ZzapUI.Pill);
+            _unsavedCount = ConfigEditingTracker.EditedConfigValues.Count;
+            _unsavedKorean = EditorText.Korean;
+            _unsavedText = T($"저장 안 한 변경 {_unsavedCount}개", $"{_unsavedCount} unsaved changes");
         }
+        GUI.Label(new Rect(SaveAllRect.x, DragRect.y, 154f, DragRect.height), _unsavedText, ZzapUI.Count);
         GUI.DragWindow(DragRect);
     }
 
     public static string ExceptionString = string.Empty;
+    private static string _unsavedText;
+    private static int _unsavedCount = -1;
+    private static bool _unsavedKorean;
 
     private static readonly GUIContent SaveContent = new(
         "Save All Changes",
@@ -171,7 +183,7 @@ public static class SAINEditor
 
     private static void CreateTopBarOptions()
     {
-        SaveContent.text = EditorText.UI("Save (applies to the game and bots)");
+        SaveContent.text = T("저장", "Save");
         SaveContent.tooltip = ConfigEditingTracker.UnsavedChanges ? ConfigEditingTracker.GetUnsavedValuesString() : EditorText.UI("Nothing to save yet.");
 
         bool advancedEnabled = PresetHandler.EditorDefaults.AdvancedBotConfigs;
@@ -183,8 +195,7 @@ public static class SAINEditor
         if (GUI.Button(AdvRect, advContent, advancedEnabled ? ZzapUI.Pill : ZzapUI.Button))
         {
             PlaySound(EUISoundType.MenuEscape);
-            PresetHandler.EditorDefaults.AdvancedBotConfigs = !advancedEnabled;
-            PresetHandler.ExportEditorDefaults();
+            ZzapUI.Defer(() => { PresetHandler.EditorDefaults.AdvancedBotConfigs = !advancedEnabled; PresetHandler.ExportEditorDefaults(); });
         }
 
         // zzap fork: Korean / English switch for the whole editor.
@@ -193,17 +204,19 @@ public static class SAINEditor
         if (GUI.Button(LangRect, langContent, ZzapUI.Button))
         {
             PlaySound(EUISoundType.MenuEscape);
-            PresetHandler.EditorDefaults.KoreanUI = !korean;
-            PresetHandler.ExportEditorDefaults();
+            ZzapUI.Defer(() => { PresetHandler.EditorDefaults.KoreanUI = !korean; PresetHandler.ExportEditorDefaults(); });
         }
 
         GUI.enabled = PresetHandler.CanEditCurrentPreset;
-        if (GUI.Button(SaveAllRect, SaveContent, ZzapUI.ButtonPrimary))
+        var compactSave = new Rect(SaveAllRect.x + 162f, SaveAllRect.y, 56f, SaveAllRect.height);
+        if (GUI.Button(compactSave, SaveContent, ZzapUI.ButtonPrimary))
         {
             PlaySound(EUISoundType.InsuranceInsured);
-            SAINPresetClass.ExportAll(SAINPlugin.LoadedPreset);
+            ZzapUI.Defer(() => SAINPresetClass.ExportAll(SAINPlugin.LoadedPreset));
         }
         GUI.enabled = true;
+
+        if (GUI.Button(new Rect(compactSave.xMax + 6f, compactSave.y, 30f, compactSave.height), "?", ZzapUI.Button)) BotSelectionClass.OpenHelp();
 
         if (GUI.Button(ExitRect, new GUIContent("X", EditorText.UI("Close (F6)")), ZzapUI.Button))
         {

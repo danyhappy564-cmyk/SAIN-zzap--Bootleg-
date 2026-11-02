@@ -8,6 +8,7 @@
 else
 {
     <div class="sain-editor">
+        <div class="sain-global-heading"><h2>@T("전역 설정","Global settings")</h2><p>@T("모든 봇에 공통으로 적용합니다. ","Applies to all bots. ")<span class="sain-diff">●</span>@T("는 zzap 원본과 다른 값입니다."," marks values that differ from zzap original.")</p></div>
         <MudTextField T="string" @bind-Value="_query" Immediate="true" DebounceInterval="200"
                       Placeholder="@T("설정 검색… (한글·영어 모두)", "Search settings…")" Variant="Variant.Outlined" Margin="Margin.Dense"
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search"
@@ -16,6 +17,7 @@ else
         <div class="sain-setting-filters">
             <MudSwitch T="bool" @bind-Value="_newOnly" Label="@T("새 항목만 보기","New only")" />
             <MudSwitch T="bool" @bind-Value="_changedOnly" Label="@T("바뀐 항목만 보기","Changed only")" />
+            <small>@T("기준: zzap 원본 · 두 필터는 함께 적용됩니다","Compared with zzap original · both filters apply together")</small>
         </div>
         @if (!string.IsNullOrWhiteSpace(_query) || _newOnly || _changedOnly)
         {

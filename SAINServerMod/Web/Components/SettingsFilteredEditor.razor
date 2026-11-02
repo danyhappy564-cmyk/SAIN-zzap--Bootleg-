@@ -4,6 +4,7 @@
 <div class="sain-setting-filters">
     <MudSwitch T="bool" @bind-Value="_newOnly" Label="@T("새 항목만 보기","New only")" />
     <MudSwitch T="bool" @bind-Value="_changedOnly" Label="@T("바뀐 항목만 보기","Changed only")" />
+    <small>@T("기준: zzap 원본 · 두 필터는 함께 적용됩니다","Compared with zzap original · both filters apply together")</small>
 </div>
 }
 @{ string? heading=null; }
@@ -11,9 +12,9 @@
 {
     var member=new SainMember(row.Owner,row.Field);
     var editor=new SainValue { Meta=member.Meta,ValueType=member.ValueType,Getter=member.GetValue,Setter=member.SetValue,CanWrite=member.CanWrite };
-    <div class="sain-bot-advanced-row">
+    <div class="sain-bot-advanced-row sain-filtered-row">
         @if(heading!=row.Heading) { heading=row.Heading; <strong>@string.Join(" › ",row.Heading.Split(" › ").Select(Setting))</strong> }
-        @if(row.Changed) { <span class="sain-diff">●</span> <button type="button" @onclick="() => Reset(row)">@T("원래대로","Reset")</button> }
+        <div class="sain-filtered-field">
         @switch(member.Kind)
         {
             case SainFieldKind.Dictionary:
@@ -23,9 +24,11 @@
                 <SainListEditor Value="editor" OnChanged="OnChanged" />
                 break;
             default:
-                <SainFieldEditor Value="editor" OnChanged="OnChanged" />
+                <SainFieldEditor Value="editor" OnChanged="OnChanged" Changed="row.Changed" />
                 break;
         }
+        </div>
+        <div class="sain-filtered-reference"><small>@T("zzap ","zzap ")@Value(row.Baseline!)</small><button type="button" disabled="@(!row.Changed)" @onclick="() => Reset(row)">@T("원래대로","Reset")</button></div>
     </div>
 }
 @code {

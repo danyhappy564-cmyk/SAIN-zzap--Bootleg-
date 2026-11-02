@@ -1,4 +1,4 @@
-﻿@namespace SAINServerMod.Web.Components
+@namespace SAINServerMod.Web.Components
 @using System.Globalization
 @using System.Reflection
 @using System.Text.Json
@@ -14,28 +14,32 @@
 @inject ILogger<BotSettingsEditor> Logger
 
 <div class="sain-bot-editor">
-    <aside class="spt-panel sain-bot-nav pa-3">
+    <aside class="spt-panel sain-bot-nav">
+        <div class="sain-nav-top">
+        <div class="sain-nav-heading"><strong>@T("봇 고르기", "Choose bot types")</strong><small>@T($"{_allBots.Count}종", $"{_allBots.Count} types")</small></div>
         <MudTextField T="string" Value="_query" ValueChanged="Search" Immediate="true" DebounceInterval="200"
                       Placeholder="@T("봇 이름 검색", "Search bot types")" Variant="Variant.Outlined" Margin="Margin.Dense"
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" Clearable="true" />
+        <p>@T("이름 클릭: 한 봇 열기", "Click a name: open one bot")<br />@T("○ 또는 Ctrl+클릭: 함께 편집할 묶음", "○ or Ctrl+click: add to selection")</p>
+        </div><div class="sain-bot-list">
         @foreach (var section in _visibleSections)
         {
             <div class="sain-bot-faction-head">
-                <button type="button" aria-label="@T("팩션 묶음 선택","Select whole faction")" disabled="@(section.Bots.All(b=>!CanChooseAI(b.Type)))" @onclick="() => SelectFaction(section.Name)">@FactionMark(section)</button>
-                <button type="button" aria-expanded="@((!string.IsNullOrWhiteSpace(_query) || !_collapsedSections.Contains(section.Name)))"
+                <button type="button" class="sain-select-dot @(FactionMark(section)=="◐"?"partial":null)" aria-pressed="@(FactionMark(section)=="●")" aria-label="@T("팩션 묶음 선택","Select whole faction")" disabled="@(section.Bots.All(b=>!CanChooseAI(b.Type)))" @onclick="() => SelectFaction(section.Name)">@FactionMark(section)</button>
+                <button type="button" class="sain-fold" aria-expanded="@((!string.IsNullOrWhiteSpace(_query) || !_collapsedSections.Contains(section.Name)))"
                         aria-label="@T($"{SectionName(section.Name)} 접기/펼치기", $"Collapse/expand {SectionName(section.Name)}")"
                         @onclick="() => ToggleSection(section.Name)">@(_collapsedSections.Contains(section.Name) ? "▸" : "▾")</button>
                 <button type="button" class="sain-bot-faction-name"
-                        @onclick="() => ToggleSection(section.Name)">@SectionName(section.Name)</button>
-                <span class="spt-muted">@T($"{section.Bots.Count}종", $"{section.Bots.Count} types")</span>
+                        @onclick="() => ToggleSection(section.Name)">@SectionName(section.Name) @if(Korean && SectionName(section.Name)!=section.Name) { <small>@section.Name</small> }</button>
+                <span class="sain-faction-count">@FactionCount(section)</span>
             </div>
             @if ((!string.IsNullOrWhiteSpace(_query) || !_collapsedSections.Contains(section.Name)))
             {
                 @foreach (var bot in section.Bots)
                 {
                     var view = _levelViews[bot.Type];
-                    <div class="sain-bot-choice">
-                    <button type="button" class="sain-select-dot" aria-label="@T("묶음에 넣기/빼기","Add to / remove from selection")" disabled="@(!CanChooseAI(bot.Type))" @onclick="() => ToggleSelection(bot.Type)">@(_selection.Contains(bot.Type)?"●":"○")</button>
+                    <div class="sain-bot-choice @(!IsBatch && _botType == bot.Type ? "on" : null) @(_selection.Contains(bot.Type) ? "in-faction" : null)">
+                    <button type="button" class="sain-select-dot" aria-pressed="@_selection.Contains(bot.Type)" aria-label="@T("묶음에 넣기/빼기","Add to / remove from selection")" disabled="@(!CanChooseAI(bot.Type))" @onclick="() => ToggleSelection(bot.Type)">@(_selection.Contains(bot.Type)?"●":"○")</button>
                     <button type="button" class="sain-bot-item @(!IsBatch && _botType == bot.Type ? "on" : null) @(_selection.Contains(bot.Type) ? "in-faction" : null)"
                             aria-pressed="@(!IsBatch && _botType == bot.Type)" @onclick="e => ClickBot(bot.Type,e)">
                         <span>@bot.Name</span>
@@ -45,20 +49,20 @@
                 }
             }
         }
-        <small>@T("○/● · 이름 Ctrl+클릭으로 묶음 선택","○/● or Ctrl+click a name to select")</small>
+
         @if (_visibleSections.Count == 0)
         {
             <MudText Typo="Typo.caption" Class="spt-muted">@T("맞는 봇 종류가 없습니다.", "No matching bot types.")</MudText>
         }
+        </div><div class="sain-nav-foot">@T("이름 옆은 현재 난이도입니다.", "Next to the name is the current Level.")<br /><span class="sain-diff">@T("(조정됨)", "(adjusted)")</span>@T("은 난이도를 고른 뒤 값을 더 바꿨다는 뜻입니다.", " means changed after choosing a Level.")</div>
     </aside>
 
     <div class="spt-panel sain-bot-main pa-3">
-        <BotSettingsGuide />
         @if (_selection.Count>0)
         {
             <div class="sain-selection-bar">
-                <strong>@T($"선택한 {_selection.Count}종 함께 편집",$"Editing {_selection.Count} bot types together")</strong>
-                <span>@string.Join(" · ",_allBots.Where(b=>_selection.Contains(b.Type)).Select(b=>b.Name))</span>
+                <div class="sain-bundle-title"><strong>@T($"선택한 {_selection.Count}종 함께 편집",$"Editing {_selection.Count} bot types together") <small>(@string.Join(" · ",_allBots.Where(b=>_selection.Contains(b.Type)).Select(b=>b.Name)))</small></strong>
+                <span>@(IsBatch ? T("아래 변경이 선택한 봇 모두에 적용됩니다.", "Changes below apply to all selected bots.") : T($"지금은 {BotName} 한 봇만 편집합니다. 묶음은 유지됩니다.", $"Currently editing only {BotName}. Your selection is kept."))</span></div>
                 @if(!IsBatch) { <button type="button" @onclick="EditSelection">@T("묶음 편집","Edit selection")</button> }
                 <button type="button" @onclick="ClearSelection">@T("선택 해제","Clear selection")</button>
             </div>
@@ -94,8 +98,8 @@
         {
             <div class="sain-bot-heading">
                 <div class="sain-bot-actions">
-                    <MudText Typo="Typo.h6">@(IsBatch?T($"선택한 {_selection.Count}종 함께 편집",$"Editing {_selection.Count} bot types together"):BotName)</MudText>
-                    @if(!IsBatch) { <span class="sain-bot-badge @BadgeClass(_selectedView)">@BadgeText(_selectedView)</span> }
+                    <MudText Typo="Typo.h6">@(IsBatch?T($"선택한 {_selection.Count}종",$"{_selection.Count} selected bot types"):BotName)</MudText>
+                    <span class="sain-target-tag">@(IsBatch?T("함께 편집","Together"):T("한 봇 편집","One bot"))</span>
                 </div>
                 <div class="sain-bot-actions">
                     @if (SavedGroup(_botType) != null)
@@ -103,32 +107,34 @@
                         <MudButton Size="Size.Small" Variant="Variant.Outlined" Disabled="@(!EditableViews().Any())" OnClick="RevertBot">@T("되돌리기", "Revert")</MudButton>
                     }
                     <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" Disabled="@(!EditableViews().Any())" OnClick="ResetBot">@T("원본 사용", "Use original")</MudButton>
-                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Style="@(IsBatch?"display:none":null)" StartIcon="@Icons.Material.Outlined.ContentCopy" Disabled="@(!EditableViews().Any())" OnClick="StartCopy">
-                        @T("이 봇 설정을 다른 봇에 복사", "Copy this bot to other bots")
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.ContentCopy" Disabled="@(IsBatch || !EditableViews().Any())" OnClick="StartCopy">
+                        @T("다른 봇에 복사", "Copy to other bots")
                     </MudButton>
                 </div>
             </div>
+            <p class="sain-bot-help">@(IsBatch ? string.Join(" · ",_allBots.Where(b=>_selection.Contains(b.Type)).Select(b=>b.Name)) : SectionName(_allBots.First(b=>b.Type==_botType).Section)+" · "+BotName)　<span>@(TargetViews().Count()==1?T("이 봇의 값만 바뀝니다.","Changes apply to this bot only."):T("같은 설정을 여러 봇에 한 번에 바꿉니다.","Change the same settings for all selected bots at once."))</span></p>
             <div class="sain-bot-ai">
-                <b>@T("이 봇의 AI", "This bot's AI")</b>
+                <b>@T("사용할 AI", "AI to use")</b>
                 <button type="button" class="sain-refchip @((IsBatch?_factionVanilla==false:!_selectedView.Ai.UsesVanilla) ? "on" : null)" aria-pressed="@(IsBatch?_factionVanilla==false:!_selectedView.Ai.UsesVanilla)" disabled="@(!TargetViews().Any(v=>v.Ai.CanChooseAI))" @onclick="() => SetBotAI(false)">SAIN</button>
                 @if(IsBatch && !_factionVanilla.HasValue) { <span class="sain-mixed">@T("섞임","mixed")</span> }
                 <button type="button" class="sain-refchip @((IsBatch?_factionVanilla==true:_selectedView.Ai.UsesVanilla) ? "on" : null)" aria-pressed="@(IsBatch?_factionVanilla==true:_selectedView.Ai.UsesVanilla)" disabled="@(!TargetViews().Any(v=>v.Ai.CanChooseAI))" @onclick="() => SetBotAI(true)">@T("게임 기본 (바닐라)", "EFT's own (vanilla)")</button>
+                <span class="sain-ai-help">@T("AI 변경은 게임 재시작 후 적용", "Applies after a game restart")</span>
             </div>
-            <div class="sain-bot-help spt-muted">@T("게임 재시작 후 적용 · 전역·고정 바닐라는 일괄 편집과 복사에서 건너뜁니다", "Applies after a game restart · a global 'Vanilla …' group toggle wins")</div>
+            @if (_selectedView.Ai.UsesVanilla) {
             <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">@T("현재 적용: ", "Effective: ") @AiText(_selectedView.Ai)
                 @T(" · 보관 중인 봇별 선택: ", " · Stored per-bot choice: ") @(_group.UseVanillaAI ? T("바닐라", "Vanilla") : "SAIN")
                 @if (_selectedView.Ai.UsesVanilla) { <span> · @T("SAIN 값은 보관됩니다. 바닐라를 끄면 다시 적용됩니다.", "Stored SAIN values resume when vanilla is disabled.")</span> }
             </MudAlert>
-            <BotSettingsSlotsEditor Source="_group" Sources="_selectedView.Sources" OnApply="ApplySlot" />
-            @if(IsBatch) { <small>@T($"슬롯에는 현재 표시한 {BotName}의 값을 저장합니다. 적용은 선택한 봇 전체에 됩니다.",$"Saves the values of {BotName} (the bot shown). Applying a slot changes every selected bot.")</small> }
+            }
             <fieldset disabled="@(!EditableViews().Any())" style="border:0;padding:0;min-width:0" class="@(_selectedView.Ai.UsesVanilla ? "sain-bot-dim" : null)">
+            <div class="sain-step-heading"><span class="sain-step">01</span><strong>@T("난이도 고르기", "Choose Level")</strong><small>@T("고르면 아래 값이 해당 단계로 바뀝니다", "Sets the values below to this Level")</small></div>
             <div class="sain-bot-levels">
                 @foreach (var level in Levels)
                 {
                     <button type="button" class="sain-bot-level @LevelClass(level) @((IsBatch?_factionBots.Count>0 && _factionCounts[level]==_factionBots.Count:_selectedView.Badge.Level==level) ? "on" : null)"
                             aria-pressed="@(IsBatch?_factionBots.Count>0 && _factionCounts[level]==_factionBots.Count:_selectedView.Badge.Level==level)" disabled="@(!EditableViews().Any(v=>v.Available.Contains(level)))"
                             title="@(!_selectedView.Available.Contains(level) ? MissingLevel(level) : null)" @onclick="() => ApplyBotLevel(level)">
-                        <b>@LevelName(level) (@LevelDescription(level))</b>
+                        <b>@LevelName(level)</b><small>@LevelDescription(level)</small>
                         @if(IsBatch) { <small>@T($"{_factionCounts[level]}종",$"{_factionCounts[level]} types")</small> }
                     </button>
                 }
@@ -137,7 +143,10 @@
             {
                 <div class="sain-bot-warning">@T($"⚠ 손으로 조정한 값이 {_selectedView.AdjustedCount}개 있습니다 — 다른 난이도를 누르면 그 단계 값으로 바뀝니다", $"⚠ {_selectedView.AdjustedCount} hand-adjusted value(s) - another level replaces them with that level's values")</div>
             }
-            <div class="sain-bot-help spt-muted">@T("행동(문 전술 등)은 성격과 전역 설정을 따릅니다", "Behaviour (door tactics etc.) follows the personality and global settings")</div>
+            </fieldset>
+            <BotSettingsSlotsEditor Source="_group" Sources="_selectedView.Sources" OnApply="ApplySlot" MixedSource="@(IsBatch ? BotName : null)" />
+            <fieldset disabled="@(!EditableViews().Any())" style="border:0;padding:0;min-width:0" class="@(_selectedView.Ai.UsesVanilla ? "sain-bot-dim" : null)">
+            <div class="sain-step-heading"><span class="sain-step">02</span><strong>@T("손잡이로 세부 조절 9개", "Fine-tune with knobs 9")</strong><small><i class="sain-ref-line"></i> @T("zzap 원본", "zzap original")　<span class="sain-blue">@T("오른쪽일수록 강하게 →", "Stronger to the right →")</span></small></div>
 
             @if (_settings == null)
             {
@@ -145,7 +154,7 @@
             }
             else
             {
-                <div class="sain-bot-shown spt-muted">@T("오른쪽으로 갈수록 강하게", "Stronger to the right")</div>
+
                 @foreach (var section in KnobSections)
                 {
                     <div class="sain-quick-head mt-3">
@@ -154,14 +163,16 @@
                     @foreach (var knob in section.Knobs)
                     {
                         float current = knob.Get(_settings);
-                        float baseline = _referenceSettings == null ? current : knob.Get(_referenceSettings);
+                        var baseSlot = _fieldBaselines.TryGetValue(_botType,out var baseGroup) ? BotLevels.NormalSlot(baseGroup!) : _referenceSettings;
+                        float baseline = baseSlot == null ? current : knob.Get(baseSlot);
+                        bool mixed = IsBatch && BotSelectionSettings.KnobMixed(EditableViews().Select(v=>v.Group),knob);
                         int direction = knob.Direction(current, baseline);
                         double currentPos = Percent(knob, current);
                         double referencePos = Percent(knob, baseline);
                         <div class="sain-qrow sain-bot-knob" @key="knob.Id">
                             <div class="sain-bot-knob-label">
                                 <span class="sain-qrow-name">@knob.Name(Korean)</span>
-                                @if(IsBatch && BotSelectionSettings.KnobMixed(EditableViews().Select(v=>v.Group),knob)) { <span class="sain-mixed">@T("섞임","mixed")</span> }
+                                @if (_changedKnobs.Contains(knob.Id)) { <span class="sain-diff" title="@T("원본과 다름", "Differs from zzap original")">●</span> }
                                 @if (knob.Kind is BotKnobKind.Personality or BotKnobKind.Toggle)
                                 {
                                     <span class="sain-bot-byslot">@T("난이도와 무관", "Not affected by the level")</span>
@@ -190,13 +201,9 @@
                                     <div class="sain-quick-slider sain-diffslider sain-bot-slider">
                                         <div class="sain-dl">
                                             <span class="t"></span>
-                                            <span class="b" style="width:@(Css(Math.Min(currentPos, referencePos)))%"></span>
+                                            <span class="b" style="width:@(Css(currentPos))%"></span>
                                             @if (_referenceSettings != null)
                                             {
-                                                @if (direction != 0)
-                                                {
-                                                    <span class="d @(direction > 0 ? "up" : "down")" style="left:@(Css(Math.Min(currentPos, referencePos)))%;width:@(Css(Math.Abs(currentPos - referencePos)))%"></span>
-                                                }
                                                 <span class="r" style="left:@(Css(referencePos))%" title="@knob.Format(baseline, Korean)"></span>
                                             }
                                         </div>
@@ -205,47 +212,32 @@
                                     </div>
                                 }
                             </div>
-                            <div class="sain-qrow-delta sain-bot-delta">
-                                @if (_referenceSettings == null)
-                                {
-                                    <span class="sain-qref">@T("기준 없음", "No reference")</span>
-                                }
-                                @if (knob.Kind is BotKnobKind.Number or BotKnobKind.ToggleNumber)
-                                {
-                                    @if (_referenceSettings != null)
-                                    {
-                                        <span class="dir @(direction > 0 ? "up" : direction < 0 ? "down" : "same")">@knob.DeltaText(current, baseline, Korean)</span>
-                                    }
-                                    <div><span class="ref">@knob.Format(baseline, Korean)</span> → <b>@knob.Format(current, Korean)</b></div>
-                                }
-                                @if (knob.Kind is BotKnobKind.Toggle or BotKnobKind.ToggleNumber or BotKnobKind.Personality)
-                                {
-                                    @if (_referenceSettings != null)
-                                    {
-                                        <span class="sain-qref">@ChoiceReference(knob)</span>
-                                    }
-                                    @if (knob.Kind == BotKnobKind.Personality)
-                                    {
-                                        <div>@string.Join(" / ", Pool)</div>
-                                    }
+                            <div class="sain-bot-delta">
+                                @if(mixed) { <span class="sain-mixed">@T("섞임", "mixed")</span><small>@T("원본은 봇마다 다름", "original differs per bot")</small> }
+                                else {
+                                    <span>@KnobText(knob,_settings)</span>
+                                    <small>@T("원본 ", "original ")@KnobText(knob,baseSlot)</small>
                                 }
                             </div>
-                            <div class="sain-bot-reset">
-                                @if (_changedKnobs.Contains(knob.Id))
-                                {
-                                    <MudButton Size="Size.Small" Color="Color.Warning" OnClick="() => ResetKnob(knob)">@T("원래대로", "Reset")</MudButton>
-                                }
-                            </div>
+                            <div class="sain-bot-reset"><button type="button" disabled="@(!_changedKnobs.Contains(knob.Id))" @onclick="() => ResetKnob(knob)">@T("원래대로", "Reset")</button></div>
                         </div>
                     }
                 }
             }
 
             <button type="button" class="sain-bot-advanced" aria-expanded="@_advancedOpen" @onclick="() => _advancedOpen = !_advancedOpen">
-                @(_advancedOpen ? "▾" : "▸") @T($"고급 — 숫자 전부 보기 ({_advancedRows.Count}개 · 바꾼 값 {_advancedChanged}개)", $"Advanced - every number ({_advancedRows.Count} · {_advancedChanged} changed)")
+                <span class="sain-step">03</span> @(_advancedOpen ? "▾" : "▸") @T($"고급 · 숫자로 직접 설정 {_advancedRows.Count}개", $"Advanced · exact numbers {_advancedRows.Count}") <span class="sain-new">NEW @_advancedRows.Count(r=>r.Editor.Meta.New)</span>
             </button>
             @if (_advancedOpen)
             {
+                <div class="sain-advanced-body">
+                <p class="sain-bot-help">@T("같은 숫자를 편집 대상 전체에 적용합니다. 각 항목의 원래대로는 봇마다 원래 값을 되살립니다.", "Numbers apply to all bots being edited. Reset restores each bot’s original value for that setting.")</p>
+                <div class="sain-setting-filters">
+                    <MudSwitch T="bool" @bind-Value="_newOnly" Label="@T("새 항목만 보기","New only")" />
+                    <MudSwitch T="bool" @bind-Value="_changedOnly" Label="@T("바뀐 항목만 보기","Changed only")" />
+                    <small>@T("기준: zzap 원본 · 두 필터는 함께 적용됩니다", "Compared with zzap original · both filters apply together")</small>
+                </div>
+
                 <MudText Typo="Typo.subtitle2" Class="spt-title mt-3">@T("난이도별로 따로 바꾸기", "Per-difficulty editing")</MudText>
                 <div class="sain-refbar sain-bot-scope">
                     <button type="button" class="sain-refchip @(!_scope.HasValue ? "on" : null)" aria-pressed="@(!_scope.HasValue)" @onclick="() => SelectScope(null)">@T("난이도 4칸 전부", "All 4 difficulties")</button>
@@ -277,10 +269,6 @@
                 {
                     <MudText Typo="Typo.body2" Class="spt-muted mt-2">@T("이 난이도 칸에는 설정이 없습니다. 다른 칸을 골라 주세요.", "No settings in this difficulty slot. Pick another slot.")</MudText>
                 }
-                <div class="sain-setting-filters">
-                    <MudSwitch T="bool" @bind-Value="_newOnly" Label="@T("새 항목만 보기","New only")" />
-                    <MudSwitch T="bool" @bind-Value="_changedOnly" Label="@T("바뀐 항목만 보기","Changed only")" />
-                </div>
                 @foreach (var section in _advancedSections.Where(s=>s.Rows.Any(VisibleRow)))
                 {
                     <MudText Typo="Typo.subtitle2" Class="spt-title mt-3 mb-1">@(section.Label)</MudText>
@@ -291,7 +279,7 @@
                             {
                                 <div class="sain-bot-field-help spt-muted">@row.Context</div>
                             }
-                            <SainFieldEditor Value="row.Editor" OnChanged="NotifyChange" />
+                            <SainFieldEditor Value="row.Editor" OnChanged="NotifyChange" Changed="row.Changed" />
                             @if (!string.IsNullOrWhiteSpace(row.Editor.Meta.Description))
                             {
                                 <div class="sain-bot-field-help spt-muted">@Setting(row.Editor.Meta.Description)</div>
@@ -303,97 +291,17 @@
                                 {
                                     <span class="spt-muted">@T("봇 종류 전체에 적용", "Applies to this whole bot type")</span>
                                 }
-                                @if (row.Changed)
-                                {
-                                    <span class="sain-diff">●</span>
-                                    <MudButton Size="Size.Small" Color="Color.Warning" OnClick="() => ResetField(row)">@T("원래대로", "Reset")</MudButton>
-                                }
+                                <button type="button" disabled="@(!row.Changed)" @onclick="() => ResetField(row)">@T("원래대로", "Reset")</button>
                             </div>
                         </div>
                     }
                 }
+                </div>
             }
             </fieldset>
         }
     </div>
 </div>
-
-<style>
-    /* zzap (2026-10-23): local bot page layout; the existing sain-q* rules draw the reference bars. */
-    .sain-bot-editor { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
-    .sain-bot-nav { max-height: 78vh; overflow-y: auto; }
-    .sain-bot-main { min-width: 0; }
-    .sain-bot-section { font-size: .75rem; color: #a1a1aa; margin: 14px 0 6px; }
-    .sain-bot-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 5px; width: 100%; padding: 8px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: inherit; text-align: left; font-size: .85rem; cursor: pointer; }
-    .sain-bot-item:hover { background: #27272a; }
-    .sain-bot-item.on { background: #203d57; border-color: #39749d; }
-    .sain-bot-badge { border-radius: 10px; padding: 1px 6px; background: #303038; color: #a1a1aa; font-size: .65rem; }
-    .sain-bot-badge.easy { background: #1f3b4d; color: #9fd3f5; }
-    .sain-bot-badge.normal, .sain-bot-badge.vanilla { background: #303038; color: #cfd6e2; }
-    .sain-bot-badge.hard { background: #4d3a1f; color: #f5c98f; }
-    .sain-bot-badge.impossible { background: #4d1f24; color: #f59aa3; }
-    .sain-bot-badge.custom { background: #352742; color: #d4b1ed; }
-    .sain-bot-faction-head { display: flex; align-items: center; gap: 5px; margin-top: 10px; border-radius: 5px; font-size: .75rem; }
-    .sain-bot-faction-head button, .sain-bot-table button { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 6px; text-align: left; }
-    .sain-bot-faction-head .sain-bot-faction-name { flex: 1; font-weight: 700; }
-    .sain-bot-faction-head.on { background: #203d57; }
-    .sain-bot-item.in-faction { background: #22303f; }
-    .sain-bot-actions, .sain-bot-ai { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-    .sain-bot-ai { margin: 12px 0 4px; padding: 8px; border: 1px solid #3f3f46; border-radius: 6px; }
-    .sain-bot-levels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 12px 0 6px; }
-    .sain-bot-level { padding: 10px 6px; border: 1px solid #52525b; border-radius: 6px; color: inherit; background: transparent; cursor: pointer; }
-    .sain-bot-level small { display: block; color: #a1a1aa; margin-top: 3px; }
-    .sain-bot-level.easy.on { background: #1f3b4d; border-color: #6caad1; }
-    .sain-bot-level.normal.on { background: #303038; border-color: #a1a1aa; }
-    .sain-bot-level.hard.on { background: #4d3a1f; border-color: #e8b04a; }
-    .sain-bot-level.impossible.on { background: #4d1f24; border-color: #d96c78; }
-    .sain-bot-level:disabled { opacity: .45; cursor: not-allowed; }
-    .sain-bot-dim { opacity: .55; }
-    .sain-bot-help { font-size: .75rem; }
-    .sain-bot-warning { color: #f5c98f; font-size: .8rem; margin: 8px 0; }
-    .sain-bot-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .85rem; }
-    .sain-bot-table th, .sain-bot-table td { padding: 8px 6px; text-align: left; border-bottom: 1px solid #3f3f46; }
-    .sain-bot-heading, .sain-bot-copy-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
-    .sain-bot-scope { margin-top: 12px; }
-    .sain-bot-scope .sain-bot-unseen { opacity: .6; }
-    .sain-bot-scope .sain-bot-unseen.on { opacity: .85; }
-    .sain-bot-reference { margin-left: auto; font-size: .75rem; }
-    .sain-bot-shown { font-size: .75rem; }
-    .sain-bot-slots span + span::before { content: " · "; color: #71717a; font-weight: 400; }
-    .sain-bot-slots .on { color: #e4e4e7; font-weight: 700; }
-    .sain-bot-byslot { margin-left: 6px; padding: 0 6px; border-radius: 8px; background: #303038; color: #a1a1aa; font-size: .65rem; }
-    .sain-bot-knob { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(160px, 1.5fr) minmax(150px, 1fr) 78px; gap: 12px; align-items: center; padding: 12px 0; }
-    .sain-bot-knob-label, .sain-bot-knob-control { min-width: 0; }
-    .sain-bot-knob-control { display: flex; align-items: center; gap: 6px; }
-    .sain-bot-slider { flex: 1; min-width: 70px; }
-    .sain-bot-delta { white-space: normal; overflow: visible; }
-    .sain-bot-delta .dir { display: block; margin: 0; }
-    .sain-bot-delta .sain-qref { white-space: normal; }
-    .sain-bot-reset { text-align: right; }
-    .sain-bot-advanced { display: block; width: 100%; margin-top: 18px; padding: 10px; border: 1px dashed #52525b; border-radius: 6px; background: transparent; color: #d4d4d8; text-align: left; cursor: pointer; }
-    .sain-bot-advanced-row { border-bottom: 1px solid #27272a; }
-    .sain-bot-field-reference { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; padding: 0 8px 8px; font-size: .75rem; }
-    .sain-bot-field-help { font-size: .75rem; padding: 0 8px 4px; }
-    .sain-bot-copy-list { max-height: 60vh; overflow-y: auto; margin-top: 12px; }
-    .sain-bot-copy-list > .mud-input-control { display: flex; }
-    @@media (max-width: 1200px) {
-        .sain-bot-editor { grid-template-columns: 220px minmax(0, 1fr); }
-        .sain-bot-knob { grid-template-columns: minmax(120px, 1fr) minmax(140px, 1.5fr) 78px; }
-        .sain-bot-delta { grid-column: 1 / 3; text-align: left; }
-        .sain-bot-reset { grid-column: 3; grid-row: 1 / 3; }
-    }
-    @@media (max-width: 760px) {
-        .sain-bot-editor { grid-template-columns: minmax(0, 1fr); }
-        .sain-bot-nav { max-height: 260px; }
-        .sain-bot-reference { flex-basis: 100%; }
-    }
-    @@media (max-width: 480px) {
-        .sain-bot-levels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .sain-bot-knob { grid-template-columns: minmax(0, 1fr) 78px; }
-        .sain-bot-knob-control, .sain-bot-delta { grid-column: 1 / -1; }
-        .sain-bot-reset { grid-column: 2; grid-row: 1; }
-    }
-</style>
 
 @code {
     [Parameter, EditorRequired] public SAINPresetBundle Bundle { get; set; } = default!;
@@ -1102,9 +1010,9 @@
     };
     private static string LevelDescription(EBotLevel level) => level switch
     {
-        EBotLevel.Easy => T("zzap 쉬움 프리셋 수준", "zzap easy preset level"),
-        EBotLevel.Normal => T("zzap 보통 프리셋 수준", "zzap normal preset level"),
-        EBotLevel.Hard => T("zzap 프리셋 수준", "zzap preset level"), _ => T("zzap보다 더 세게", "stronger than zzap"),
+        EBotLevel.Easy => T("여유롭게", "Relaxed"),
+        EBotLevel.Normal => T("균형 있게", "Balanced"),
+        EBotLevel.Hard => T("긴장감 있게", "Challenging"), _ => T("아주 강하게", "Very tough"),
     };
     private static string MissingLevel(EBotLevel level)
     {
@@ -1117,7 +1025,17 @@
         => view.Ai.UsesVanilla ? AiText(view.Ai) : view.Badge.Custom ? T("직접 설정", "custom")
             : LevelName(view.Badge.Level) + (view.Badge.Adjusted ? T(" (조정됨)", " (adjusted)") : "");
     private static string PersonalityName(EPersonality personality) => personality == EPersonality.None ? T("지정 안 함", "Unassigned") : Value(personality);
-    private static string SectionName(string section) => section == "Other" ? T("기타", "Other") : Setting(section);
+    private static string SectionName(string section) => section switch {
+        "Scavs"=>T("스캐브","Scavs"), "PMCs"=>T("PMC","PMCs"), "Goons"=>T("군즈","Goons"),
+        "Bosses"=>T("보스","Bosses"), "Followers"=>T("추종자","Followers"), "Other"=>T("기타","Other"),
+        "Black Division"=>T("블랙 디비전","Black Division"), "RUAF"=>T("러시아군","RUAF"), "Remnant"=>T("잔당","Remnant"), _=>Setting(section) };
+    private string FactionCount(BotSection section) {
+        int selected=section.Bots.Count(b=>_selection.Contains(b.Type));
+        return selected>0?$"{selected}/{section.Bots.Count}":section.Bots.Count.ToString();
+    }
+    private static string KnobText(BotKnob knob,SAINSettingsClass? slot) => slot==null ? T("기준 없음","No reference")
+        : knob.Kind==BotKnobKind.Toggle ? (knob.GetOn(slot)?T("켬","On"):T("끔","Off"))
+        : knob.Kind==BotKnobKind.Personality ? PersonalityName(knob.GetPersonality(slot)) : knob.Format(knob.Get(slot),Korean);
     private static string KnobSectionName(string section) => section switch { "aim" => T("조준", "Aim"), "sense" => T("감각", "Senses"), _ => T("성향", "Mind") };
     private static string AdvancedSectionName(string section) => section switch { "vanilla" => T("게임 기본값", "EFT's own values"), "modifier" => Setting("Difficulty Modifier"), _ => Setting(SainMeta.Read(typeof(SAINSettingsClass).GetField(section)!).Name) };
     private static string FieldText(object? value) => value switch

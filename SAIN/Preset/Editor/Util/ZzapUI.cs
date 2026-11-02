@@ -65,6 +65,7 @@ public static class ZzapUI
     public static GUIStyle SwitchText;
     public static GUIStyle SwitchTextOn;
     public static GUIStyle Header;
+    public static GUIStyle Frame, Notice, DarkFrame, Quiet, Level, LevelOn, Tag, NewTag, Modal, SelectedRow, NoticeText;
 
     private static readonly Dictionary<Color, Texture2D> _textures = new();
     private static Texture2D _circle;
@@ -131,18 +132,18 @@ public static class ZzapUI
     /// The ○ / ● / ◐ selection button, drawn as shapes: EFT's font has no such glyphs (in game, 2026-11-03, ● came out as a
     /// tiny dot and ○ as a small "ɔ"). state 0 = empty ring, 1 = filled, 2 = left half filled (part of a faction).
     /// </summary>
-    public static bool SelectMark(int state, string tooltip, float width, float height)
+    public static bool SelectMark(int state, string tooltip, float width, float height, bool tinted = false)
     {
-        bool clicked = GUILayout.Button(new GUIContent(string.Empty, tooltip), Button, GUILayout.Width(width), GUILayout.Height(height));
+        bool clicked = GUILayout.Button(new GUIContent(string.Empty, tooltip), tinted ? SelectedRow : Quiet, GUILayout.Width(width), GUILayout.Height(height));
         if (Event.current.type != EventType.Repaint)
         {
             return clicked;
         }
         Rect button = GUILayoutUtility.GetLastRect();
-        const float size = 14f;
+        const float size = 19f;
         var mark = new Rect(button.center.x - size / 2f, button.center.y - size / 2f, size, size);
         Color color = GUI.enabled ? (state == 0 ? Muted : Yellow) : Track;
-        Color inside = GUI.enabled && button.Contains(Event.current.mousePosition) ? ControlHover : Control;
+        Color inside = tinted ? YellowTint : Panel;
         Disc(mark, color);
         if (state != 1)
         {
@@ -237,7 +238,86 @@ public static class ZzapUI
         TextColor(Pill, Yellow);
 
         Badge = new GUIStyle(Pill) { fontSize = 11, padding = new RectOffset(6, 6, 1, 1), margin = new RectOffset(2, 6, 6, 6) };
+        Frame = Bordered(Panel1, Panel, Line);
+        Notice = Bordered(Panel1, YellowTint, Hex(0x6b5b19));
+        NoticeText = new GUIStyle(Section) { wordWrap = true, alignment = TextAnchor.UpperLeft };
+        DarkFrame = Bordered(Panel1, Field, Line);
+        Quiet = new GUIStyle(Button);
+        Background(Quiet, Panel, PanelHover);
+        Level = Bordered(Button, Control, Track);
+        Level.richText = true;
+        Level.wordWrap = true;
+        LevelOn = Bordered(Level, YellowTint, Yellow);
+        TextColor(LevelOn, Yellow);
+        Tag = new GUIStyle(Badge) { margin = new RectOffset(4, 4, 2, 2) };
+        Background(Tag, Control, Control);
+        TextColor(Tag, Muted);
+        NewTag = new GUIStyle(Tag);
+        Background(NewTag, Hex(0x193b2b), Hex(0x193b2b));
+        TextColor(NewTag, Green);
+        Modal = Bordered(Panel1, Panel, Hex(0x52525b));
+        Modal.padding = new RectOffset(24, 24, 22, 22);
+        SelectedRow = new GUIStyle(GUIStyle.none);
+        Background(SelectedRow, YellowTint, YellowTint);
     }
+
+    private static GUIStyle Bordered(GUIStyle source, Color fill, Color border)
+    {
+        var style = new GUIStyle(source) { border = new RectOffset(1, 1, 1, 1) };
+        var texture = new Texture2D(3, 3) { hideFlags = HideFlags.HideAndDontSave, filterMode = FilterMode.Point };
+        for (int y = 0; y < 3; y++)
+            for (int x = 0; x < 3; x++) texture.SetPixel(x, y, x == 1 && y == 1 ? fill : border);
+        texture.Apply();
+        style.normal.background = style.hover.background = style.active.background = texture;
+        style.onNormal.background = style.onHover.background = style.onActive.background = texture;
+        return style;
+    }
+
+    public static void ChangeMark(bool changed, float height = 22f)
+    {
+        Rect rect = GUILayoutUtility.GetRect(12f, height, GUILayout.Width(12f), GUILayout.Height(height));
+        if (changed && Event.current.type == EventType.Repaint)
+            Disc(new Rect(rect.x + 2f, rect.center.y - 4f, 8f, 8f), Yellow);
+    }
+
+    public static void StepHeading(string number, string title, string help = null, bool referenceMark = false)
+    {
+        GUILayout.Space(12f);
+        GUILayout.BeginHorizontal();
+        GUILayout.Label(number, Badge, GUILayout.ExpandWidth(false));
+        GUILayout.Label(title, Name, GUILayout.ExpandWidth(false));
+        GUILayout.FlexibleSpace();
+        if (referenceMark)
+        {
+            Rect tick = GUILayoutUtility.GetRect(8f, 22f, GUILayout.Width(8f), GUILayout.Height(22f));
+            if (Event.current.type == EventType.Repaint) Fill(new Rect(tick.center.x, tick.center.y - 5f, 2f, 10f), Yellow);
+        }
+        if (help != null) GUILayout.Label(help, Small, GUILayout.ExpandWidth(false));
+        GUILayout.EndHorizontal();
+        GUILayout.Space(6f);
+    }
+
+    public static bool FoldHeading(string number, string title, string tag, bool open)
+    {
+        GUILayout.Space(14f);
+        GUILayout.BeginHorizontal(Frame);
+        GUILayout.Label(number, Badge, GUILayout.ExpandWidth(false));
+        bool clicked = GUILayout.Button(open ? "▾" : "▸", Quiet, GUILayout.Width(24f));
+        clicked |= GUILayout.Button(title, Quiet, GUILayout.ExpandWidth(true));
+        if (tag != null) GUILayout.Label(tag, NewTag, GUILayout.ExpandWidth(false));
+        GUILayout.EndHorizontal();
+        return clicked;
+    }
+
+    public static void BeginModal(float width, float height)
+    {
+        var bounds = RectLayout.MainWindow;
+        Fill(new Rect(0, 0, bounds.width, bounds.height), new Color(0, 0, 0, .78f));
+        GUI.Button(new Rect(0, 0, bounds.width, bounds.height), GUIContent.none, GUIStyle.none);
+        GUILayout.BeginArea(new Rect((bounds.width - width) / 2f, (bounds.height - height) / 2f, width, height), Modal);
+    }
+
+    public static void EndModal() => GUILayout.EndArea();
 
     private static GUIStyle Label(int size, Color color, FontStyle fontStyle = FontStyle.Normal)
     {
@@ -317,7 +397,7 @@ public static class ZzapUI
     // ---------------------------------------------------------------- widgets
 
     /// <summary>An on/off switch (blue when on) with "On"/"Off" next to it. Rows pass their height so it sits centred.</summary>
-    public static bool Switch(bool value, float height = ROW_HEIGHT, string onText = null, string offText = null)
+    public static bool Switch(bool value, float height = ROW_HEIGHT, string onText = null, string offText = null, bool showState = true)
     {
         EnsureStyles();
         Rect rect = GUILayoutUtility.GetRect(44f, height, GUILayout.Width(44f), GUILayout.Height(height));
@@ -331,7 +411,7 @@ public static class ZzapUI
         }
         bool clicked = GUI.Button(rect, GUIContent.none, GUIStyle.none);
         string text = value ? onText ?? EditorText.UI("On") : offText ?? EditorText.UI("Off");
-        GUILayout.Label(text, value ? SwitchTextOn : SwitchText, GUILayout.Height(height), GUILayout.ExpandWidth(false));
+        if (showState) GUILayout.Label(text, value ? SwitchTextOn : SwitchText, GUILayout.Height(height), GUILayout.ExpandWidth(false));
         if (clicked)
         {
             Sounds.PlaySound(EUISoundType.MenuCheckBox);
@@ -415,7 +495,7 @@ public static class ZzapUI
     }
 
     /// <summary>One row of a left-hand list: yellow bar and tint when selected, a count on the right.</summary>
-    public static bool ListItem(string text, string right, bool selected, string tooltip = null, float indent = 0f, float height = 30f, bool detailOnNewLine = false)
+    public static bool ListItem(string text, string right, bool selected, string tooltip = null, float indent = 0f, float height = 30f, bool detailOnNewLine = false, bool inSelection = false, bool joined = false)
     {
         EnsureStyles();
         float measuredRight = string.IsNullOrEmpty(right) ? 0f : Count.CalcSize(new GUIContent(right)).x + 8f;
@@ -426,10 +506,10 @@ public static class ZzapUI
         Rect rect = GUILayoutUtility.GetRect(10f, height, GUILayout.Height(height), GUILayout.ExpandWidth(true));
         if (Event.current.type == EventType.Repaint)
         {
-            if (selected)
+            if (selected || inSelection)
             {
                 Fill(rect, YellowTint);
-                Fill(new Rect(rect.x, rect.y, 3f, rect.height), Yellow);
+                if (selected && !joined) Fill(new Rect(rect.x, rect.y, 3f, rect.height), Yellow);
             }
             else if (rect.Contains(Event.current.mousePosition))
             {
@@ -450,6 +530,18 @@ public static class ZzapUI
             Sounds.PlaySound(EUISoundType.MenuDropdown);
         }
         return clicked;
+    }
+
+    public static void BeginListRow(bool highlighted) => GUILayout.BeginHorizontal(highlighted ? SelectedRow : GUIStyle.none);
+
+    public static void EndListRow(bool active)
+    {
+        GUILayout.EndHorizontal();
+        if (active && Event.current.type == EventType.Repaint)
+        {
+            Rect row = GUILayoutUtility.GetLastRect();
+            Fill(new Rect(row.x, row.y, 3f, row.height), Yellow);
+        }
     }
 
     /// <summary>A search box with a grey hint while empty and a clear button (always drawn, so typing never changes the layout).</summary>

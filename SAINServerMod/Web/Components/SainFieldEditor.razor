@@ -3,6 +3,7 @@
 <div class="sain-field">
     <div class="sain-field-label">
         <MudText Typo="Typo.body2" Class="sain-field-name">@Setting(Value.Meta.Name)</MudText>
+        @if(Changed) { <span class="sain-diff" title="@T("원본과 다름","Differs from zzap original")">●</span> }
         @if(Value.Meta.New) { <span class="sain-new">@T("NEW","NEW")</span> }
         @if (!string.IsNullOrWhiteSpace(Value.Meta.Description))
         {
@@ -86,6 +87,7 @@
 </div>
 
 @code {
+    [Parameter] public bool Changed { get; set; }
     [Parameter, EditorRequired] public SainValue Value { get; set; } = default!;
     [Parameter] public EventCallback OnChanged { get; set; }
 

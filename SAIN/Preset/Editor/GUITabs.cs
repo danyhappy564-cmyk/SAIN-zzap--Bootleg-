@@ -18,6 +18,7 @@ public static class GUITabs
         EditTabsClass.BeginScrollView();
         BeginHorizontal(12f);
         BeginVertical();
+        if (selectedTab == EEditorTab.BotSettings || selectedTab == EEditorTab.Home) BotSelectionClass.Guidance();
         switch (selectedTab)
         {
             case EEditorTab.Quick:
