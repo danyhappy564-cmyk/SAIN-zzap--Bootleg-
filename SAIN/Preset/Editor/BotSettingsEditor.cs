@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -14,6 +14,7 @@ namespace SAIN.Editor.GUISections;
 public static class BotSettingsEditor
 {
     private static readonly StringBuilder _stringBuilder = new();
+    private static string T(string ko,string en)=>EditorText.Korean?ko:en;
 
     // zzap fork (2026-10-18, mockup 5): left panel = search box + group list, right panel = the picked group (or the search hits).
     // Save lives in the header now, so the old top row (name box, search label, red "unsaved" bar, second Save button) is gone.
@@ -147,11 +148,12 @@ public static class BotSettingsEditor
         Space(12f);
 
         GUILayout.BeginVertical(ZzapUI.Panel1, Height(ZzapUI.PANEL_HEIGHT), GUILayout.ExpandWidth(true));
-        if (searching)
+        SettingsFilterGUI.Filters();
+        if (searching || SettingsFilterGUI.Active)
         {
-            ZzapUI.PanelHeading(string.Format(EditorText.UI("Search: '{0}'"), search), EditorText.UI("Every setting whose name or description matches. Clear the box to go back to the groups."));
+            ZzapUI.PanelHeading(searching?string.Format(EditorText.UI("Search: '{0}'"), search):T("설정 필터","Filtered settings"), searching?EditorText.UI("Every setting whose name or description matches. Clear the box to go back to the groups."):T("조건에 맞는 항목만 표시합니다. 필터를 끄면 그룹 목록으로 돌아갑니다.","Showing matching settings only. Turn the filters off to see all groups."));
             container.Scroll = BeginScrollView(container.Scroll, GUILayout.ExpandHeight(true));
-            CategoryOpenable(container.Categories, settings, out wasEdited, search.ToLowerInvariant());
+            SettingsFilterGUI.Draw(settings,QuickObjectGUI.Defaults()?.GlobalSettings,search);
             EndScrollView();
         }
         else
@@ -182,7 +184,7 @@ public static class BotSettingsEditor
             }
             if (QuickObjectGUI.Advanced(current.Key))
             {
-                if (quickObject != null) AttributesGUI.EditAllValuesInObj(quickObject, out wasEdited);
+                if (quickObject != null) SettingsFilterGUI.Draw(quickObject,Select(QuickObjectGUI.Defaults()));
             }
             EndScrollView();
         }

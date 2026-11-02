@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -90,14 +90,13 @@ public static class QuickObjectGUI
         foreach (var field in fields)
         {
             float value = field.Value;
-            bool edited = saved.TryGetValue(field.Key, out float stored) && Math.Abs(value - stored) > .00001f;
             bool hasDefault = defaults.TryGetValue(field.Key, out float baseline);
             bool differs = hasDefault && Math.Abs(value - baseline) > .00001f;
             float reference = comparison.TryGetValue(field.Key, out float compared) ? compared : value;
             int direction = Math.Abs(value - reference) < .00001f ? 0 : value > reference ? 1 : -1;
             GUILayout.BeginVertical(ZzapUI.Panel1);
             GUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent("<b>" + EditorText.Setting(field.Name) + "</b>" + (edited ? " <color=#facc15>●</color>" : ""), EditorText.Setting(field.Help)), ZzapUI.Name, GUILayout.MinWidth(100f), GUILayout.ExpandWidth(true));
+            GUILayout.Label(new GUIContent("<b>" + EditorText.Setting(field.Name) + "</b>" + (SettingsFieldStatus.IsNew(field.Field)?" <color=#38bdf8>"+T("NEW","NEW")+"</color>":"") + (differs ? " <color=#facc15>●</color>" : ""), EditorText.Setting(field.Help)), ZzapUI.Name, GUILayout.MinWidth(100f), GUILayout.ExpandWidth(true));
             if (field.Toggle)
             {
                 bool on = ZzapUI.Switch(value >= .5f, 28f);
@@ -109,7 +108,7 @@ public static class QuickObjectGUI
                 if (Math.Abs(next - value) > .00001f) Set(field, next, key);
             }
             GUI.enabled = differs;
-            if (GUILayout.Button(T("기본값", "Default"), ZzapUI.Button, GUILayout.Width(80f), GUILayout.Height(26f))) Set(field, baseline, key);
+            if (GUILayout.Button(T("원래대로", "Reset"), ZzapUI.Button, GUILayout.Width(80f), GUILayout.Height(26f))) Set(field, baseline, key);
             GUI.enabled = true;
             GUILayout.EndHorizontal();
             if (!field.Toggle)

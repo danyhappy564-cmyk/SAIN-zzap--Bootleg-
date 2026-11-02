@@ -50,6 +50,9 @@ public class PresetEditorDefaults : SAINSettingsBase<PresetEditorDefaults>, ISAI
     [Hidden]
     public bool ZzapPresetApplied = false;
 
+    [Hidden]
+    public bool BotSelectionIntroDismissed = false;
+
     [Name("GUI Size Scaling")]
     [Category("GUI Dimensions")]
     [MinMax(1f, 2f, 100f)]

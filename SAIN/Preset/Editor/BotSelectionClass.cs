@@ -24,7 +24,8 @@ namespace SAIN.Editor;
 /// Normal / Hard follow the bundled "zzap 쉬움" / "zzap 보통" / "zzap" presets for that bot, Impossible goes past zzap
 /// (BotLevels, shared with the web page) - and the list shows each bot's level. Per bot: SAIN or EFT's own AI, revert, use
 /// original, nine knobs to fine-tune (always all four slots), every number under "Advanced" with per-difficulty editing.
-/// Clicking a faction name edits every bot in it at once (level, AI, revert, original); the arrow folds it.
+/// ○/● and Ctrl+click build an explicit selection; ordinary name clicks open one bot and keep that selection.
+/// Faction names fold the list; the faction circle toggles its editable bots.
 /// Everything drawn comes from a view rebuilt on Layout events only and every write goes through ZzapUI.Defer, so a value
 /// that flips a row can't add a control between Layout and Repaint (v1 final review).
 /// </summary>
@@ -43,7 +44,12 @@ public static class BotSelectionClass
     private static readonly Dictionary<string, List<BotType>> BotsBySection = Sections.ToDictionary(s => s, s => BotTypeDefinitions.BotTypes.Values.Where(b => b.Section == s).ToList());
 
     private static BotType _selected;
-    private static string _selectedSection; // a faction is selected instead of a bot
+    private static string _selectedSection; // non-null = edit the explicit selection
+    private static readonly HashSet<BotType> _selection = new();
+    private static bool _newOnly, _changedOnly;
+    private static bool _help;
+    private static int _helpStep=1;
+    private static string _slotMessage;
     private static readonly HashSet<string> _folded = new(Sections);
     private static ESainBotDifficulty? _advScope; // Advanced only; knobs always write all four slots
     private static string _search = string.Empty;
@@ -89,6 +95,7 @@ public static class BotSelectionClass
         {
             // (Re)opened, or just saved: fetch the record again, take fresh revert copies, recheck every badge.
             Task.Run(() => _loaded = SpawnDifficultyRecorder.Load());
+            BotSlotsGUI.Reopen();
             TakeSnapshots();
             _view.AllBadgesStale = true;
             _dirty = true;
@@ -106,6 +113,8 @@ public static class BotSelectionClass
         GUILayout.Space(12f);
         GUILayout.BeginVertical(ZzapUI.Panel1, GUILayout.Height(ZzapUI.PANEL_HEIGHT), GUILayout.ExpandWidth(true));
         _rightScroll = GUILayout.BeginScrollView(_rightScroll, GUILayout.ExpandHeight(true));
+        Guidance();
+        SelectionBar();
         if (_view.SectionName != null)
         {
             SectionPanel();
@@ -144,7 +153,70 @@ public static class BotSelectionClass
         {
             action();
             _dirty = true;
+            _view.AllBadgesStale = true;
         });
+    }
+
+    private static bool IsBatch => _selectedSection!=null;
+    private static List<BotType> Targets() => IsBatch ? BotTypeDefinitions.BotTypes.Values.Where(b=>_selection.Contains(b) && Group(b)!=null).ToList()
+        : _selected==null ? new List<BotType>() : new List<BotType>{_selected};
+    private static IEnumerable<BotType> EditBots() => Targets().Where(b=>Ai(b).CanEditSain);
+    private static IEnumerable<SAINSettingsGroupClass> EditGroups() => EditBots().Select(Group);
+    private static void ToggleSelection(BotType bot)
+    {
+        if(Group(bot)==null || !Ai(bot).CanChooseAI) return;
+        if(!_selection.Remove(bot)) _selection.Add(bot);
+        _selectedSection=_selection.Count==0?null:"selection";
+        _copyOpen=false;
+        _rightScroll=Vector2.zero;
+    }
+    private static void SelectionBar()
+    {
+        if(_selection.Count==0) return;
+        GUILayout.BeginHorizontal(ZzapUI.Panel1);
+        GUILayout.Label("<color=#facc15>"+T($"선택한 {_selection.Count}종 함께 편집",$"Editing {_selection.Count} bot types together")+"</color> · "+string.Join(" · ",_selection.Select(b=>b.Name)),_wrapSmall);
+        if(!IsBatch && GUILayout.Button(T("묶음 편집","Edit selection"),ZzapUI.Button,GUILayout.Width(110f))) Write(()=>{_selectedSection="selection";_copyOpen=false;});
+        if(GUILayout.Button(T("선택 해제","Clear selection"),ZzapUI.Button,GUILayout.Width(110f))) Write(()=>{_selection.Clear();_selectedSection=null;});
+        GUILayout.EndHorizontal();
+    }
+    private static void SlotsRow()
+    {
+        var source=_view.Group;
+        BotSlotsGUI.Draw(source,_view.Src,slot=>Write(()=>
+        {
+            int skipped=0;
+            var targets=Targets().Where(b=>Ai(b).CanChooseAI).ToArray();
+            if(targets.Length==0) { _slotMessage=T("편집 가능한 봇이 없습니다. 전역·고정 바닐라는 건너뜁니다.","No editable bots here. Bots locked to EFT's own AI (vanilla) are skipped."); return; }
+            foreach(var bot in targets) skipped+=BotSettingsSlots.Apply(slot,Group(bot),Sources(bot));
+            ConfigEditingTracker.Add(T("내 설정","Custom"),slot.Name);
+            _slotMessage=T($"없는 필드·난이도 칸 {skipped}개를 건너뛰었습니다.",$"Skipped {skipped} setting(s) this bot doesn't have.");
+        }));
+        if(IsBatch) GUILayout.Label(T($"슬롯에는 현재 표시한 {source?.Name}의 값을 저장합니다. 적용은 선택한 봇 전체에 됩니다.",$"Saves the values of {source?.Name} (the bot shown). Applying a slot changes every selected bot."),_wrapSmall);
+        if(_slotMessage!=null) GUILayout.Label(_slotMessage,_wrapSmall);
+    }
+    private static void Guidance()
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.FlexibleSpace();
+        if(GUILayout.Button(new GUIContent("?",T("3단계 안내","3-step guide")),ZzapUI.Button,GUILayout.Width(30f))) Write(()=>_help=!_help);
+        GUILayout.EndHorizontal();
+        if(!PresetHandler.EditorDefaults.BotSelectionIntroDismissed)
+        {
+            GUILayout.BeginHorizontal(ZzapUI.Panel1);
+            GUILayout.Label("<color=#facc15><b>"+T("처음이라면 여기부터","New here? Start here")+"</b></color> · "+T("이름을 누르면 한 봇, ○를 누르면 여러 봇을 함께 조절해요. 손잡이를 움직인 뒤 [저장]을 눌러요.","Click a name to edit one bot, or use ○ to select several. Adjust the knobs, then Save."),_wrapSmall);
+            if(GUILayout.Button(T("알겠어요","Got it"),ZzapUI.Button,GUILayout.Width(90f))) Write(()=>{PresetHandler.EditorDefaults.BotSelectionIntroDismissed=true;PresetHandler.ExportEditorDefaults();});
+            GUILayout.EndHorizontal();
+        }
+        if(!_help) return;
+        string[] titles={T("봇 고르기","Choose bot types"),T("난이도와 손잡이","Level and knobs"),T("저장 · 슬롯 · 공유","Save · slots · sharing")};
+        string[] texts={
+            T("이름을 클릭하면 한 봇만 열립니다. 왼쪽 ○ 또는 이름 Ctrl+클릭으로 묶음에 넣으면 ●가 됩니다. 팩션 ○는 그 팩션 전체를 고릅니다. 일부만 선택하면 ◐입니다.","Click a name to open one bot. Click ○ or Ctrl+click a name to add it to the selection (●). A faction's ○ selects all its editable bots; ◐ means only some are."),
+            T("난이도 4개 중 하나를 고른 뒤 9개 손잡이로 조절해요. 묶음의 값이 서로 다르면 ‘섞임’으로 보입니다. 움직이면 같은 값이 모두에게 적용돼요. [원래대로]는 봇마다 기준값으로 돌려요.","Choose one of four Levels, then adjust the nine knobs. If the selected bots differ, the value shows 'mixed'. Moving a knob gives all of them the same value. Reset puts each bot back to its own original value."),
+            T("[＋ 지금 값 저장]으로 슬롯에 보관해요. ⋯에서 이름 바꾸기·덮어쓰기·삭제·공유를 합니다. F6와 웹이 같은 슬롯을 씁니다. 위 [저장]을 눌러야 게임에 반영됩니다. 기본 zzap 프리셋은 '[Modified]' 사본으로 저장됩니다.","Keep values you like with ＋ Save current. Use ⋯ to Rename, Overwrite, Delete or Copy share code. Custom slots are shared by F6 and the web page. Press Save to apply changes in game. Edits to a bundled zzap preset are saved as a '[Modified]' copy, so the original stays untouched.")};
+        GUILayout.BeginHorizontal();
+        for(int i=1;i<=3;i++) { int step=i; if(GUILayout.Button(i+" · "+titles[i-1],_helpStep==i?ZzapUI.Pill:ZzapUI.Button)) Write(()=>_helpStep=step); }
+        GUILayout.EndHorizontal();
+        GUILayout.Label(texts[_helpStep-1],_wrapSmall);
     }
 
     // ---------------------------------------------------------------- data
@@ -395,6 +467,7 @@ public static class BotSelectionClass
         private string _section;
         private ESainBotDifficulty? _scope;
         private readonly Dictionary<BotFieldRow, ConfigInfoClass> _infos = new();
+        private readonly Dictionary<BotType,SAINSettingsGroupClass> _baselines = new();
 
         public void Update()
         {
@@ -431,12 +504,11 @@ public static class BotSelectionClass
             Pills.Clear();
             LevelButtons.Clear();
             SectionRows.Clear();
+            _baselines.Clear();
+            foreach(var bot in EditBots()) _baselines[bot]=BotSelectionSettings.Baseline(BotSelectionClass.Group(bot),Sources(bot));
             SectionName = _section;
             if (_section != null)
-            {
-                UpdateSection();
-                return;
-            }
+                _bot=Targets().FirstOrDefault(b=>BotSelectionClass.Ai(b).CanEditSain) ?? Targets().FirstOrDefault();
             Group = Group(_bot);
             if (Group == null)
             {
@@ -499,7 +571,7 @@ public static class BotSelectionClass
             foreach (var knob in BotQuickSettings.All)
             {
                 bool affected = BotLevels.AffectsKnob(knob);
-                bool changed = BotLevels.KnobChanged(knob, Group, Src);
+                bool changed = _baselines.TryGetValue(_bot,out var baseline) && BotQuickSettings.IsChanged(knob,Group,baseline);
                 var view = new KnobView
                 {
                     Knob = knob,
@@ -524,6 +596,15 @@ public static class BotSelectionClass
                 Knobs.Add(view);
             }
 
+            if (IsBatch)
+            {
+                foreach(var kv in Knobs)
+                {
+                    if (BotSelectionSettings.KnobMixed(EditGroups(),kv.Knob)) kv.Label.text += T(" <color=#facc15>[섞임]</color>"," <color=#facc15>[mixed]</color>");
+                    kv.CanReset=EditBots().Any(b=>BotQuickSettings.IsChanged(kv.Knob,BotSelectionClass.Group(b),_baselines[b]));
+                }
+                UpdateSection();
+            }
             int changedCount = 0;
             string lastGroup = null;
             foreach (var row in BotAdvancedFields.Rows())
@@ -536,7 +617,8 @@ public static class BotSelectionClass
                 {
                     continue;
                 }
-                bool changed = BotAdvancedEdit.Changed(Group, Reference, _scope, row);
+                bool changed = EditBots().Any(b=>BotAdvancedEdit.Changed(BotSelectionClass.Group(b), _baselines[b], _scope, row));
+                if ((_newOnly && !SettingsFieldStatus.IsNew(row.Field)) || (_changedOnly && !changed)) continue;
                 if (changed)
                 {
                     changedCount++;
@@ -553,9 +635,9 @@ public static class BotSelectionClass
                     Row = row,
                     Info = info,
                     Heading = heading,
-                    Label = new GUIContent(name + (changed ? "  <color=#facc15>●</color>" : string.Empty), info.Description),
+                    Label = new GUIContent(name + (SettingsFieldStatus.IsNew(row.Field) ? " <color=#38bdf8>NEW</color>" : "") + (IsBatch && BotSelectionSettings.FieldMixed(EditGroups(),row,Shown) ? T(" [섞임]", " [mixed]") : "") + (changed ? "  <color=#facc15>●</color>" : string.Empty), info.Description),
                     RefText = refSlot != null ? $"<color=#71717a>{T("기준", "ref")} {row.Get(refSlot)}</color>" : null,
-                    Changed = changed && Reference != null,
+                    Changed = changed,
                 });
             }
             AdvancedTitle = Korean
@@ -565,8 +647,8 @@ public static class BotSelectionClass
 
         private void UpdateSection()
         {
-            Group = null;
-            var bots = BotsBySection.TryGetValue(_section, out var list) ? list : new List<BotType>();
+            LevelButtons.Clear();
+            var bots = Targets();
             var counts = new Dictionary<EBotLevel, int>();
             bool anyVanilla = false, anySain = false;
             foreach (var bot in bots)
@@ -608,7 +690,8 @@ public static class BotSelectionClass
     private static void BotList()
     {
         GUILayout.BeginVertical(ZzapUI.Panel1, GUILayout.Width(ZzapUI.SIDE_WIDTH), GUILayout.Height(ZzapUI.PANEL_HEIGHT));
-        _search = ZzapUI.Search(_search, T("봇 이름 검색", "Search bot types"));
+        string query = ZzapUI.Search(_search, T("봇 이름 검색", "Search bot types"));
+        if(query!=_search) Write(()=>_search=query);
         GUILayout.Space(6f);
         _listScroll = GUILayout.BeginScrollView(_listScroll, GUILayout.ExpandHeight(true));
         string search = (_search ?? string.Empty).Trim();
@@ -622,6 +705,12 @@ public static class BotSelectionClass
             }
             bool folded = _folded.Contains(section) && search.Length == 0;
             GUILayout.BeginHorizontal();
+            var eligible=bots.Where(b=>Group(b)!=null && Ai(b).CanChooseAI).ToList();
+            int picked=eligible.Count(b=>_selection.Contains(b));
+            GUI.enabled=eligible.Count>0;
+            if(GUILayout.Button(picked==0?"○":picked==eligible.Count?"●":"◐",ZzapUI.Button,GUILayout.Width(26f),GUILayout.Height(28f)))
+                Write(()=> { if(eligible.All(b=>_selection.Contains(b))) _selection.ExceptWith(eligible); else _selection.UnionWith(eligible); _selectedSection=_selection.Count==0?null:"selection"; _copyOpen=false; });
+            GUI.enabled=true;
             if (GUILayout.Button(folded ? "▸" : "▾", ZzapUI.Button, GUILayout.Width(26f), GUILayout.Height(28f)))
             {
                 string captured = section;
@@ -634,12 +723,12 @@ public static class BotSelectionClass
                 });
             }
             _view.SectionCounts.TryGetValue(section, out string count);
-            if (ZzapUI.ListItem("<b>" + section + "</b>", count, _selectedSection == section, T("누르면 이 팩션 봇 전체를 한꺼번에", "Click to edit every bot in this faction"), 0f, 28f))
+            if (ZzapUI.ListItem("<b>" + section + "</b>", count, false, T("누르면 접기/펼치기", "Click to collapse/expand"), 0f, 28f))
             {
                 string captured = section;
                 Write(() =>
                 {
-                    _selectedSection = captured;
+                    if(!_folded.Remove(captured)) _folded.Add(captured);
                     _copyOpen = false;
                     _rightScroll = Vector2.zero;
                 });
@@ -657,10 +746,16 @@ public static class BotSelectionClass
                 }
                 _view.Badges.TryGetValue(bot, out string badge);
                 var captured = bot;
+                GUILayout.BeginHorizontal();
+                GUI.enabled=Group(bot)!=null && Ai(bot).CanChooseAI;
+                if(GUILayout.Button(_selection.Contains(bot)?"●":"○",ZzapUI.Button,GUILayout.Width(26f),GUILayout.Height(36f))) Write(()=>ToggleSelection(captured));
+                GUI.enabled=true;
+                bool ctrl=Event.current.control || SAINEditor.CtrlKeyPressed;
                 if (ZzapUI.ListItem(bot.Name, badge, _selectedSection == null && bot == _selected, bot.Description, 26f, 52f, detailOnNewLine: true))
                 {
                     Write(() =>
                     {
+                        if(ctrl) { ToggleSelection(captured); return; }
                         _selected = captured;
                         _selectedSection = null;
                         _copyOpen = false;
@@ -668,9 +763,11 @@ public static class BotSelectionClass
                         _rightScroll = Vector2.zero;
                     });
                 }
+                GUILayout.EndHorizontal();
             }
         }
         GUILayout.EndScrollView();
+        GUILayout.Label(T("○/● · 이름 Ctrl+클릭으로 묶음 선택", "○/● or Ctrl+click a name to select"),_wrapSmall);
         GUILayout.Label(T("이름 옆 = 이 봇의 난이도 · (조정됨) = 고른 뒤 더 만짐 · 직접 설정 = 난이도를 고른 적 없고 zzap과 다름", "Next to the name = the bot's level · (adjusted) = changed since · custom = never picked, differs from zzap"), _wrapSmall);
         GUILayout.EndVertical();
     }
@@ -771,6 +868,7 @@ public static class BotSelectionClass
         });
         if (!_view.Ai.CanEditSain)
         {
+            SlotsRow();
             GUILayout.Label(T("현재 적용: ", "Effective AI: ") + AiLabel(_view.Ai), _wrapSmall);
             GUILayout.Label(T("보관 중인 봇별 선택: ", "Stored per-bot choice: ") + (group.UseVanillaAI ? T("바닐라", "Vanilla") : "SAIN"), _wrapSmall);
             GUILayout.Label(T("SAIN 값은 보관됩니다. 전역 바닐라를 끄거나 이 봇을 SAIN으로 바꾸면 다시 편집·적용됩니다.", "Stored SAIN values resume when the vanilla override is removed."), _wrapSmall);
@@ -794,6 +892,7 @@ public static class BotSelectionClass
         GUILayout.Label(T("행동(문 전술 등)은 성격과 전역 설정을 따릅니다.", "Behaviour (door tactics etc.) follows the personality and global settings."), _wrapSmall);
         ZzapUI.Separator(4f);
 
+        SlotsRow();
         foreach (string knobGroup in KnobGroups)
         {
             GUILayout.Space(8f);
@@ -853,7 +952,7 @@ public static class BotSelectionClass
                     {
                         Write(() =>
                         {
-                            BotQuickSettings.Apply(knob, group, null, ESainBotDifficulty.normal, newValue);
+                            BotSelectionSettings.Apply(EditGroups(),knob,newValue);
                             ConfigEditingTracker.Add(knob.NameEn, newValue);
                         });
                     }
@@ -863,12 +962,12 @@ public static class BotSelectionClass
 
         if (view.CanReset)
         {
-            if (GUILayout.Button(new GUIContent(T("되돌리기", "Reset"), T("고른 난이도의 값으로", "Back to the picked level's value")), ZzapUI.Button, GUILayout.Width(RESET_WIDTH), GUILayout.Height(26f)))
+            if (GUILayout.Button(new GUIContent(T("원래대로", "Reset"), T("고른 난이도의 값으로", "Back to the chosen Level's value")), ZzapUI.Button, GUILayout.Width(RESET_WIDTH), GUILayout.Height(26f)))
             {
                 var sources = _view.Src;
                 Write(() =>
                 {
-                    BotLevels.ResetKnobToBaseline(knob, group, sources);
+                    BotSelectionSettings.Reset(EditGroups(),knob,g=>Sources(EditBots().First(b=>ReferenceEquals(Group(b),g))));
                     ConfigEditingTracker.Add(knob.NameEn, "reset");
                 });
             }
@@ -894,7 +993,7 @@ public static class BotSelectionClass
             var group = _view.Group;
             Write(() =>
             {
-                BotQuickSettings.ApplyToggle(knob, group, null, newOn);
+                BotSelectionSettings.ApplyToggle(EditGroups(),knob,newOn);
                 ConfigEditingTracker.Add(knob.NameEn, newOn);
             });
         }
@@ -902,14 +1001,14 @@ public static class BotSelectionClass
 
     private static string PoolLabel()
     {
-        var pool = BotPersonalityPool.Candidates(_selected.WildSpawnType.ToESain(), BotLevels.NormalSlot(_view.Group)?.Mind);
+        var pool = BotPersonalityPool.Candidates(_view.Group.WildSpawnType, BotLevels.NormalSlot(_view.Group)?.Mind);
         return pool.Count == 0 ? T("자동 배정", "Automatic") : string.Join(" / ", pool);
     }
 
     private static void PersonalityChoices(BotKnob knob)
     {
         GUILayout.Label(T("여러 개 선택하면 생성할 때 균등 무작위 · 한 개는 고정 · 전부 해제하면 자동", "Multiple = uniform random at spawn · one = fixed · none = automatic"), _wrapSmall);
-        var pool = BotPersonalityPool.Candidates(_selected.WildSpawnType.ToESain(), BotLevels.NormalSlot(_view.Group)?.Mind);
+        var pool = BotPersonalityPool.Candidates(_view.Group.WildSpawnType, BotLevels.NormalSlot(_view.Group)?.Mind);
         foreach (var personality in Personalities.Where(p => p != EPersonality.None))
         {
             bool selected = pool.Contains(personality);
@@ -918,9 +1017,9 @@ public static class BotSelectionClass
                 var captured = personality;
                 Write(() =>
                 {
-                    var values = BotPersonalityPool.Candidates(_selected.WildSpawnType.ToESain(), BotLevels.NormalSlot(_view.Group)?.Mind).ToList();
+                    var values = BotPersonalityPool.Candidates(_view.Group.WildSpawnType, BotLevels.NormalSlot(_view.Group)?.Mind).ToList();
                     if (!values.Remove(captured)) values.Add(captured);
-                    BotPersonalityPool.Set(_view.Group, values);
+                    foreach(var target in EditGroups()) BotPersonalityPool.Set(target, values);
                     ConfigEditingTracker.Add(knob.NameEn, string.Join(",", values));
                 });
             }
@@ -964,6 +1063,15 @@ public static class BotSelectionClass
             GUILayout.Label(_view.SlotsLine, _wrapSmall);
         }
 
+        GUILayout.BeginHorizontal();
+        GUILayout.Label(T("새 항목만 보기","New only"),ZzapUI.Small);
+        bool newOnly=ZzapUI.Switch(_newOnly,26f);
+        if(newOnly!=_newOnly) Write(()=>_newOnly=newOnly);
+        GUILayout.Label(T("바뀐 항목만 보기","Changed only"),ZzapUI.Small);
+        bool changedOnly=ZzapUI.Switch(_changedOnly,26f);
+        if(changedOnly!=_changedOnly) Write(()=>_changedOnly=changedOnly);
+        GUILayout.FlexibleSpace();
+        GUILayout.EndHorizontal();
         _entryConfig ??= new GUIEntryConfig();
         foreach (var view in _view.Rows)
         {
@@ -991,12 +1099,12 @@ public static class BotSelectionClass
             var scope = _advScope;
             if (view.Changed)
             {
-                if (GUILayout.Button(new GUIContent(T("되돌리기", "Reset"), T("zzap 값으로", "Back to zzap's value")), ZzapUI.Button, GUILayout.Width(RESET_WIDTH), GUILayout.Height(AttributesGUI.RowHeight)))
+                if (GUILayout.Button(new GUIContent(T("원래대로", "Reset"), T("zzap 값으로", "Back to the zzap original")), ZzapUI.Button, GUILayout.Width(RESET_WIDTH), GUILayout.Height(AttributesGUI.RowHeight)))
                 {
                     var reference = _view.Reference;
                     Write(() =>
                     {
-                        BotAdvancedEdit.Reset(group, reference, scope, row);
+                        foreach(var target in EditGroups()) BotAdvancedEdit.Reset(target,BotSelectionSettings.Baseline(target,Sources(EditBots().First(b=>ReferenceEquals(Group(b),target)))),scope,row);
                         ConfigEditingTracker.Add(view.Info.Name, "reset");
                     });
                 }
@@ -1011,7 +1119,8 @@ public static class BotSelectionClass
                 object newValue = value;
                 Write(() =>
                 {
-                    BotAdvancedEdit.Apply(group, scope, shown, row, newValue);
+                    if(IsBatch) BotSelectionSettings.ApplyField(EditGroups(),row,scope,newValue);
+                    else BotAdvancedEdit.Apply(group, scope, shown, row, newValue);
                     ConfigEditingTracker.Add(view.Info.Name, newValue);
                 });
             }
@@ -1020,14 +1129,14 @@ public static class BotSelectionClass
         }
     }
 
-    // ---------------------------------------------------------------- a whole faction
+    // ---------------------------------------------------------------- the explicit selection
 
     private static void SectionPanel()
     {
-        string section = _view.SectionName;
-        var bots = BotsBySection.TryGetValue(section, out var list) ? list : new List<BotType>();
+        string section = T("선택 묶음", "Selection");
+        var bots = Targets();
         GUILayout.BeginHorizontal();
-        GUILayout.Label("<b>" + (Korean ? $"{section} 전체 ({bots.Count}종)" : $"All of {section} ({bots.Count})") + "</b>", ZzapUI.Title);
+        GUILayout.Label("<b>" + T($"선택한 {bots.Count}종 함께 편집",$"Editing {bots.Count} bot types together") + "</b>", ZzapUI.Title);
         GUILayout.FlexibleSpace();
         HeaderButtons(
             () =>
@@ -1068,16 +1177,23 @@ public static class BotSelectionClass
         GUILayout.Space(6f);
         LevelRow(level =>
         {
-            foreach (var bot in bots.Where(b => Ai(b).CanEditSain))
-            {
-                BotLevels.Apply(level, Group(bot), Sources(bot));
-            }
+            BotSelectionSettings.ApplyLevel(EditGroups(),level,g=>Sources(EditBots().First(b=>ReferenceEquals(Group(b),g))));
             ConfigEditingTracker.Add(section, level);
             _view.AllBadgesStale = true;
         });
         GUILayout.Label(T("버튼 아래 = 어느 zzap 프리셋 수준인지 · 지금 그 난이도인 봇 수", "Under each button = which zzap preset level · bots at that level now"), _wrapSmall);
-        GUILayout.Label(T("행동(문 전술 등)은 성격과 전역 설정을 따릅니다. 손잡이(조준 속도 등)는 봇을 하나 골라서.", "Behaviour follows the personality and global settings. Knobs: pick one bot."), _wrapSmall);
+        GUILayout.Label(T("같은 값으로 함께 편집합니다. 원래 값은 봇마다 다릅니다.", "Sets the same value for all selected bots; original differs per bot."), _wrapSmall);
         ZzapUI.Separator(4f);
+        SlotsRow();
+        if(EditBots().Any())
+        {
+            foreach(string knobGroup in KnobGroups)
+            {
+                GUILayout.Label(GroupName(knobGroup),ZzapUI.Section);
+                foreach(var knob in _view.Knobs.Where(k=>k.Knob.Group==knobGroup)) KnobRow(knob);
+            }
+            Advanced();
+        }
         foreach (var row in _view.SectionRows)
         {
             GUILayout.BeginHorizontal();
