@@ -46,20 +46,23 @@ public sealed class BotSettingsSlots
     private const string ModifierPath="DifficultyModifier";
     private static readonly Dictionary<string,BotFieldRow> Paths=BuildPaths();
     private static bool Plain(Type type) => type==typeof(float) || type==typeof(int) || type==typeof(bool) || type.IsEnum || type==typeof(List<EPersonality>);
+    // Each category's "Defaults" copy is [IgnoreDataMember]: EFT fills it in game, so it is not a setting and would make every
+    // value look changed (11/03 in game: a slot captured all ~90 fields per difficulty).
+    private static bool Saved(FieldInfo field) => !field.IsDefined(typeof(IgnoreDataMemberAttribute),true);
     private static Dictionary<string,BotFieldRow> BuildPaths()
     {
         var paths=BotAdvancedFields.Rows().ToDictionary(PathOf,StringComparer.Ordinal);
         foreach(var category in typeof(SAINSettingsClass).GetFields(BindingFlags.Public|BindingFlags.Instance))
         {
-            if(!category.FieldType.IsClass || category.FieldType==typeof(string)) continue;
-            foreach(var field in category.FieldType.GetFields(BindingFlags.Public|BindingFlags.Instance))
+            if(!category.FieldType.IsClass || category.FieldType==typeof(string) || !Saved(category)) continue;
+            foreach(var field in category.FieldType.GetFields(BindingFlags.Public|BindingFlags.Instance).Where(Saved))
             {
                 if(Plain(field.FieldType))
                 {
                     var row=new BotFieldRow(category.Name,category,null,field); paths[PathOf(row)]=row;
                 }
                 else if(field.FieldType.IsClass && field.FieldType!=typeof(string) && !typeof(System.Collections.IEnumerable).IsAssignableFrom(field.FieldType))
-                    foreach(var leaf in field.FieldType.GetFields(BindingFlags.Public|BindingFlags.Instance).Where(f=>Plain(f.FieldType)))
+                    foreach(var leaf in field.FieldType.GetFields(BindingFlags.Public|BindingFlags.Instance).Where(f=>Plain(f.FieldType) && Saved(f)))
                     { var row=new BotFieldRow(category.Name,category,field,leaf); paths[PathOf(row)]=row; }
             }
         }

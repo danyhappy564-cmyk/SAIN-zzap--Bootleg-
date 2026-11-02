@@ -49,6 +49,13 @@ partial class Program
             BotSelectionSettings.Reset(targets,sight,g=>new LevelSources{Reference=g==a?first:second});
             Check(BotLevels.NormalSlot(a).Core.VisibleDistance==100 && BotLevels.NormalSlot(b).Core.VisibleDistance==200,"reset flattened originals");
         });
+        Test("slot ignores the Defaults copy EFT fills in game", () =>
+        {
+            var original=New(); var source=BotLevels.Snapshot(original);
+            var core=source.Settings[ESainBotDifficulty.normal].Core; core.CreateDefault(); core.Defaults.VisibleDistance=999;
+            var slot=BotSettingsSlots.Capture("test",source,new LevelSources{Reference=original});
+            Check(slot.Fields.Count==0,"Defaults copy stored as a change");
+        });
         Test("slot stores only changes and applies to a different bot", () =>
         {
             var original=New(); var source=BotLevels.Snapshot(original); var target=New();

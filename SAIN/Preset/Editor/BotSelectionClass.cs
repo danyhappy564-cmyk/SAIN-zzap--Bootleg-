@@ -203,14 +203,14 @@ public static class BotSelectionClass
         if(!PresetHandler.EditorDefaults.BotSelectionIntroDismissed)
         {
             GUILayout.BeginHorizontal(ZzapUI.Panel1);
-            GUILayout.Label("<color=#facc15><b>"+T("처음이라면 여기부터","New here? Start here")+"</b></color> · "+T("이름을 누르면 한 봇, ○를 누르면 여러 봇을 함께 조절해요. 손잡이를 움직인 뒤 [저장]을 눌러요.","Click a name to edit one bot, or use ○ to select several. Adjust the knobs, then Save."),_wrapSmall);
+            GUILayout.Label("<color=#facc15><b>"+T("처음이라면 여기부터","New here? Start here")+"</b></color> · "+T("이름을 누르면 한 봇, 왼쪽 동그라미를 누르면 여러 봇을 함께 조절해요. 손잡이를 움직인 뒤 [저장]을 눌러요.","Click a name to edit one bot, or the circle on its left to select several. Adjust the knobs, then Save."),_wrapSmall);
             if(GUILayout.Button(T("알겠어요","Got it"),ZzapUI.Button,GUILayout.Width(90f))) Write(()=>{PresetHandler.EditorDefaults.BotSelectionIntroDismissed=true;PresetHandler.ExportEditorDefaults();});
             GUILayout.EndHorizontal();
         }
         if(!_help) return;
         string[] titles={T("봇 고르기","Choose bot types"),T("난이도와 손잡이","Level and knobs"),T("저장 · 슬롯 · 공유","Save · slots · sharing")};
         string[] texts={
-            T("이름을 클릭하면 한 봇만 열립니다. 왼쪽 ○ 또는 이름 Ctrl+클릭으로 묶음에 넣으면 ●가 됩니다. 팩션 ○는 그 팩션 전체를 고릅니다. 일부만 선택하면 ◐입니다.","Click a name to open one bot. Click ○ or Ctrl+click a name to add it to the selection (●). A faction's ○ selects all its editable bots; ◐ means only some are."),
+            T("이름을 클릭하면 한 봇만 열립니다. 왼쪽 동그라미나 이름 Ctrl+클릭으로 묶음에 넣으면 동그라미가 노랗게 채워집니다. 팩션 동그라미는 그 팩션 전체를 고르고, 일부만 골랐으면 반만 채워집니다.","Click a name to open one bot. Click the circle on its left, or Ctrl+click the name, to add it to the selection; the circle fills yellow. A faction's circle selects all its editable bots; a half-filled one means only some are."),
             T("난이도 4개 중 하나를 고른 뒤 9개 손잡이로 조절해요. 묶음의 값이 서로 다르면 ‘섞임’으로 보입니다. 움직이면 같은 값이 모두에게 적용돼요. [원래대로]는 봇마다 기준값으로 돌려요.","Choose one of four Levels, then adjust the nine knobs. If the selected bots differ, the value shows 'mixed'. Moving a knob gives all of them the same value. Reset puts each bot back to its own original value."),
             T("[＋ 지금 값 저장]으로 슬롯에 보관해요. ⋯에서 이름 바꾸기·덮어쓰기·삭제·공유를 합니다. F6와 웹이 같은 슬롯을 씁니다. 위 [저장]을 눌러야 게임에 반영됩니다. 기본 zzap 프리셋은 '[Modified]' 사본으로 저장됩니다.","Keep values you like with ＋ Save current. Use ⋯ to Rename, Overwrite, Delete or Copy share code. Custom slots are shared by F6 and the web page. Press Save to apply changes in game. Edits to a bundled zzap preset are saved as a '[Modified]' copy, so the original stays untouched.")};
         GUILayout.BeginHorizontal();
@@ -708,7 +708,7 @@ public static class BotSelectionClass
             var eligible=bots.Where(b=>Group(b)!=null && Ai(b).CanChooseAI).ToList();
             int picked=eligible.Count(b=>_selection.Contains(b));
             GUI.enabled=eligible.Count>0;
-            if(GUILayout.Button(picked==0?"○":picked==eligible.Count?"●":"◐",ZzapUI.Button,GUILayout.Width(26f),GUILayout.Height(28f)))
+            if(ZzapUI.SelectMark(picked==0?0:picked==eligible.Count?1:2,T("팩션 전체 선택","Select whole faction"),26f,28f))
                 Write(()=> { if(eligible.All(b=>_selection.Contains(b))) _selection.ExceptWith(eligible); else _selection.UnionWith(eligible); _selectedSection=_selection.Count==0?null:"selection"; _copyOpen=false; });
             GUI.enabled=true;
             if (GUILayout.Button(folded ? "▸" : "▾", ZzapUI.Button, GUILayout.Width(26f), GUILayout.Height(28f)))
@@ -748,7 +748,7 @@ public static class BotSelectionClass
                 var captured = bot;
                 GUILayout.BeginHorizontal();
                 GUI.enabled=Group(bot)!=null && Ai(bot).CanChooseAI;
-                if(GUILayout.Button(_selection.Contains(bot)?"●":"○",ZzapUI.Button,GUILayout.Width(26f),GUILayout.Height(36f))) Write(()=>ToggleSelection(captured));
+                if(ZzapUI.SelectMark(_selection.Contains(bot)?1:0,T("묶음에 넣기/빼기","Add to / remove from selection"),26f,36f)) Write(()=>ToggleSelection(captured));
                 GUI.enabled=true;
                 bool ctrl=Event.current.control || SAINEditor.CtrlKeyPressed;
                 if (ZzapUI.ListItem(bot.Name, badge, _selectedSection == null && bot == _selected, bot.Description, 26f, 52f, detailOnNewLine: true))
@@ -767,7 +767,7 @@ public static class BotSelectionClass
             }
         }
         GUILayout.EndScrollView();
-        GUILayout.Label(T("○/● · 이름 Ctrl+클릭으로 묶음 선택", "○/● or Ctrl+click a name to select"),_wrapSmall);
+        GUILayout.Label(T("동그라미 · 이름 Ctrl+클릭으로 묶음 선택", "Circle or Ctrl+click a name to select"),_wrapSmall);
         GUILayout.Label(T("이름 옆 = 이 봇의 난이도 · (조정됨) = 고른 뒤 더 만짐 · 직접 설정 = 난이도를 고른 적 없고 zzap과 다름", "Next to the name = the bot's level · (adjusted) = changed since · custom = never picked, differs from zzap"), _wrapSmall);
         GUILayout.EndVertical();
     }

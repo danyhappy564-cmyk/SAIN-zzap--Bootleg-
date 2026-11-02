@@ -127,6 +127,36 @@ public static class ZzapUI
         GUI.DrawTexture(rect, Circle, ScaleMode.StretchToFill, true, 0, color, 0, 0);
     }
 
+    /// <summary>
+    /// The ○ / ● / ◐ selection button, drawn as shapes: EFT's font has no such glyphs (in game, 2026-11-03, ● came out as a
+    /// tiny dot and ○ as a small "ɔ"). state 0 = empty ring, 1 = filled, 2 = left half filled (part of a faction).
+    /// </summary>
+    public static bool SelectMark(int state, string tooltip, float width, float height)
+    {
+        bool clicked = GUILayout.Button(new GUIContent(string.Empty, tooltip), Button, GUILayout.Width(width), GUILayout.Height(height));
+        if (Event.current.type != EventType.Repaint)
+        {
+            return clicked;
+        }
+        Rect button = GUILayoutUtility.GetLastRect();
+        const float size = 14f;
+        var mark = new Rect(button.center.x - size / 2f, button.center.y - size / 2f, size, size);
+        Color color = GUI.enabled ? (state == 0 ? Muted : Yellow) : Track;
+        Color inside = GUI.enabled && button.Contains(Event.current.mousePosition) ? ControlHover : Control;
+        Disc(mark, color);
+        if (state != 1)
+        {
+            Disc(new Rect(mark.x + 2f, mark.y + 2f, size - 4f, size - 4f), inside);
+        }
+        if (state == 2)
+        {
+            GUI.BeginGroup(new Rect(mark.x, mark.y, size / 2f, size));
+            Disc(new Rect(0f, 0f, size, size), color);
+            GUI.EndGroup();
+        }
+        return clicked;
+    }
+
     // Round-ended bar: two discs and the rectangle between them.
     public static void PillRect(Rect rect, Color color)
     {
