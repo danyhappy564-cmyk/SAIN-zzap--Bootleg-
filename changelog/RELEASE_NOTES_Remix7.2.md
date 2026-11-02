@@ -27,7 +27,7 @@
 
 **<설치 / 업데이트>**
 
-- **Remix7.1에서 올라오는 경우:** 클라이언트 `SAIN.dll`·`SAIN.Preset.Shared.dll`과 서버 모드를 덮어써 주세요. 고친 코드는 클라이언트에만 있고, 서버 모드는 버전 이름(웹 업데이트 페이지)만 바뀝니다. 설정·프리셋은 그대로입니다.
+- **Remix7.1에서 올라오는 경우:** `SAIN.REMIX.7.2.7z`를 풀어서 SPT 폴더(`EscapeFromTarkov.exe`가 있는 곳)에 덮어써 주세요. 클라이언트(`BepInEx`)와 서버 모드(`SPT_Runtime`)가 같이 들어 있습니다. 고친 코드는 클라이언트에만 있고, 서버 모드는 버전 이름(웹 업데이트 페이지)만 바뀝니다. 설정·프리셋은 그대로입니다.
 - **Remix7.1보다 전 판에서 올라오는 경우:** 그 판 이후 노트의 설치 순서대로 한 뒤 위처럼 덮어써 주세요. 지우고 새로 설치할 때는 `Presets/` 안의 **이름에 `[Modified]`가 붙은 파일과 직접 만든 프리셋**을 먼저 따로 복사해 두세요.
 
 ---
@@ -48,7 +48,7 @@
 
 **알려진 점**
 - 봇이 처음 나올 때 한 번 생기는 약 0.3초 멈칫은 문짝 장치와 상관없이 있습니다(원인 조사 중).
-- 문제가 있으면 스크린샷과 `BepInEx/LogOutput.log`를 보내 주세요. Remix7.1로 되돌리려면 Remix7.1 zip을 다시 덮어쓰면 됩니다.
+- 문제가 있으면 스크린샷과 `BepInEx/LogOutput.log`를 보내 주세요. Remix7.1로 되돌리려면 SAIN.REMIX.7.1.7z를 다시 덮어쓰면 됩니다.
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -56,13 +56,13 @@
 
 **Previous release:** Remix7.1 (`remix7.1`, published 10/31, 1 commit since) → **this: Remix7.2**, a bug fix. Bot behaviour, settings screens and zzap preset values are the same as Remix7.1.
 
-**Install / update:** overwrite the client (`SAIN.dll`, `SAIN.Preset.Shared.dll`) and the server mod. The fix is client-only; the server mod only changes the release name on the web updates page. Settings and presets are kept. On a clean install, keep your `[Modified]` and own preset files.
+**Install / update:** extract `SAIN.REMIX.7.2.7z` into your SPT folder (where `EscapeFromTarkov.exe` is) and overwrite - it holds both the client (`BepInEx`) and the server mod (`SPT_Runtime`). The fix is client-only; the server mod only changes the release name on the web updates page. Settings and presets are kept. On a clean install, keep your `[Modified]` and own preset files.
 
 **1. The last raid stayed in memory in the menu** - after a raid, the last raid's map and bot data stayed alive in the menu until the next raid started; the RAM cleaner leak report listed SAIN as the top 'certain' holder. Three SAIN bot-manager parts (the manager itself, bot spawning, weather) kept their 'current raid' static after the raid ended, and the whole raid hung off it. They are cleared at raid end now, only by their owner, so a newer raid that already started keeps its own; the sound watcher detaches only its own hearing (it could detach the new raid's), and hearing / talk unsubscribe is null-safe. In game (Reserve 20 min sim, 3 raids): SAIN is gone from the RAM cleaner leak list after the raid (left: other mods - ORBIT, the bot placement mod, LootNet), 0 SAIN errors. Codex reviewed twice.
 
 **2. Checked only: open door leaf carver and hitches (Remix7.1 known issue)** - the Remix7.1 note said raids with the carver on had a few more short hitches, without a like-for-like off run (the RAM cleaner records hitches only while the game window is focused, so unfocused raids were missing numbers). Reserve 20 min, one raid each, same setup: SAIN hitches on 7 / off 5, average frame 14.8 ms (about 67 fps) both. The only difference is two 0.08 s hitches in the first ~15 s after the first bots spawn, when the carver switches on for the ~200 doors open at that moment. The big hitch at the first bot spawn (about 0.3 s) happens with it off too. The default stays on; no code change.
 
-**Known issues** - the one-time ~0.3 s hitch at the first bot spawn is there with or without the carver (under investigation). Send a screenshot and `BepInEx/LogOutput.log` if anything is off. To go back, overwrite with the Remix7.1 zip.
+**Known issues** - the one-time ~0.3 s hitch at the first bot spawn is there with or without the carver (under investigation). Send a screenshot and `BepInEx/LogOutput.log` if anything is off. To go back, overwrite with SAIN.REMIX.7.1.7z.
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 
