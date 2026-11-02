@@ -300,6 +300,46 @@ F6 `General > 시뮬레이션 랩 (zzap)`의 `시뮬레이션 모드`가 켜진 
 
 위 모드를 설치하지 않았으면 이 내용은 아무 영향이 없습니다. ISB·Scourge가 실행 중에 이름으로 찾는 SAIN 코드(클래스·메서드 이름)는 바꾸지 않습니다.
 
+### 같이 써도 되는 모드 (확인한 것만, 2026-11-03)
+
+확인 방법은 두 가지입니다.
+- **게임**: SAIN zzap과 같이 깔고 레이드를 돌려 오류가 없었습니다.
+- **코드**: 두 모드의 코드를 맞대어 겹치거나 깨지는 곳이 없는 걸 확인했습니다. 게임에서는 아직 돌려 보지 않았습니다.
+
+여기 없는 모드가 안 된다는 뜻은 아닙니다. 아직 확인하지 않았을 뿐입니다.
+
+| 모드 (확인한 버전) | 확인 | 메모 |
+|---|---|---|
+| ORBIT 3.1.0 | 게임·코드 | zzap 프리셋 넷 모두 ORBIT 권장 설정이 들어 있습니다(탈출은 ORBIT이 맡음) |
+| Black Division 1.3.1 · RUAF Come Home 1.2.1 (MoreBotsAPI 2.1.1) | 게임 | 위 "다른 봇 모드" 표 참고 |
+| Bot Placement System (ABPS) 2.1.0 · Progressive Bot System (APBS) 2.4.1 | 게임 | 시뮬 판에서만 zzap이 스폰을 맡고, 보통 판은 그대로입니다 |
+| BigBrain 1.5.0 · Waypoints 1.9.0 | 게임 | SAIN 필수 모드 |
+| Bot Callsigns 2.0.5 | 게임·코드 | PMC 이름만 늘리고 SAIN은 건드리지 않습니다 |
+| Twitch Players 3.1.2 | 코드 | Bot Callsigns가 필요합니다. 방송인 이름 봇에 Wreckless·SnappingTurtle 성격이 그대로 들어갑니다. 같이 오는 `Twitch Players` 프리셋도 zzap에서 그대로 열립니다(zzap에서 새로 생긴 설정은 기본값으로 채워짐). F6에서 PMC "성격 지정"을 직접 정하면 그 값이 먼저입니다 |
+| Harmony Profiles (PBT) 1.0.0 | 코드 | PMC 이름·레벨·장비·전적만 다루고 봇 AI는 건드리지 않습니다. PBT의 성격은 전적·채팅용이라 SAIN 전투 성격과 따로입니다 |
+| Blackout 4.1.1 | 게임 | 시뮬 판에서만 정전이 일어나지 않게 합니다 |
+| Manimal CS Gas 2.0.0 | 게임 | Black Division 봇은 가스에 면역입니다 |
+| MapVariants 1.0.3 (FactoryClassic 1.0.2) | 게임 | |
+| TYR DeClutter 2.1.1 · CompoundingPerf 2.3.0 · RAM Cleaner Interval 2.15.0 | 게임·코드 | 겹치는 패치가 없습니다 |
+
+### Compatible mods (verified only, 2026-11-03)
+
+**In game** = run together with SAIN zzap in raids with no errors. **Code** = both mods' code checked side by side with nothing overlapping or breaking; not yet run in game. A mod missing from this list isn't known to be broken; it just hasn't been checked yet.
+
+| Mod (version checked) | Checked | Notes |
+|---|---|---|
+| ORBIT 3.1.0 | In game, code | All four zzap presets include ORBIT's recommended settings (ORBIT handles extraction) |
+| Black Division 1.3.1 · RUAF Come Home 1.2.1 (MoreBotsAPI 2.1.1) | In game | SAIN adds its combat layers to these bots |
+| Bot Placement System (ABPS) 2.1.0 · Progressive Bot System (APBS) 2.4.1 | In game | zzap takes over spawning only in sim raids; normal raids are unchanged |
+| BigBrain 1.5.0 · Waypoints 1.9.0 | In game | Required by SAIN |
+| Bot Callsigns 2.0.5 | In game, code | Only adds PMC names; doesn't touch SAIN |
+| Twitch Players 3.1.2 | Code | Needs Bot Callsigns. Streamer-named bots still get Wreckless or SnappingTurtle. Its bundled `Twitch Players` preset opens in zzap as is (settings new in zzap use their defaults). A personality you set for PMCs in F6 takes priority |
+| Harmony Profiles (PBT) 1.0.0 | Code | Handles PMC names, levels, gear and stats only, not bot AI. PBT's personalities are for stats and chat, separate from SAIN's combat personalities |
+| Blackout 4.1.1 | In game | Blackouts are turned off in sim raids only |
+| Manimal CS Gas 2.0.0 | In game | Black Division bots are immune to the gas |
+| MapVariants 1.0.3 (FactoryClassic 1.0.2) | In game | |
+| TYR DeClutter 2.1.1 · CompoundingPerf 2.3.0 · RAM Cleaner Interval 2.15.0 | In game, code | No overlapping patches |
+
 ### 상류 버그 하나를 같이 고쳤습니다
 
 **상류 v4.5.1 은 서버 모드가 아예 빌드되지 않습니다.** `SainSectionEditor.razor` 의 foreach
