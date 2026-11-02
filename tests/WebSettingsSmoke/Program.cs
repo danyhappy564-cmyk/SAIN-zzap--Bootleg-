@@ -52,6 +52,7 @@ foreach(var mode in new[]{"sain","perbot","global","fixed"})
     var html=await Render<BotSettingsEditor>("bot-"+mode,new(){{"Bundle",bundle},{"Original",Read("zzap 쉬움")},{"References",refs},{"Zzap",hard}});
     Check(!html.Split("</aside>")[0].Contains("class=\"sain-bot-item "),mode+" bot groups initially collapsed");
     Check(html.Contains("이 봇의 AI"),mode+" can open bot panel and AI controls");
+    Check(html.Contains("Ctrl+클릭") && html.Contains("처음이라면 여기부터"),mode+" selection hints and first-use guide render");
     Check(html.Contains("쉬움 (zzap 쉬움 프리셋 수준)"),mode+" combined difficulty label");
     bool disabled=html.Contains("<fieldset disabled");
     Check(disabled==(mode!="sain"),mode+" effective SAIN edit lock");
@@ -61,6 +62,9 @@ foreach(var mode in new[]{"sain","perbot","global","fixed"})
 }
 var globalHtml=await Render<SainSectionEditor>("global",new(){{"Target",easy.GlobalSettings},{"Original",normal.GlobalSettings}});
 Check(globalHtml.Contains("빠른 조절")&&globalHtml.Contains("고급 · 모든 설정"),"global quick and advanced controls render");
+Check(globalHtml.Contains("새 항목만 보기")&&globalHtml.Contains("바뀐 항목만 보기"),"global new and changed filters render above settings");
+var guideHtml=await Render<BotSettingsGuide>("guide-ko",new());
+Check(guideHtml.Contains("알겠어요")&&guideHtml.Contains("3단계 안내"),"guide includes dismiss and help actions");
 var personalityHtml=await Render<PersonalityEditor>("personality",new(){{"Bundle",easy},{"Original",normal}});
 Check(personalityHtml.Contains("기본값으로")&&!personalityHtml.Contains("수치 −10%")&&!personalityHtml.Contains("수치 +10%"),"personality toolbar contains only the defaults action");
 var gearHtml=await Render<GearStealthEditor>("gear",new(){{"Bundle",easy},{"Original",normal}});
