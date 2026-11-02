@@ -16,7 +16,6 @@ internal static class BotSlotsGUI
     private static int _menu=-1;
     private static string[] _labels;
     private static GUIContent[] _contents;
-    private static Vector2 _anchor;
     private static SAINSettingsGroupClass _source;
     private static LevelSources _sources;
     private static bool _canSave;
@@ -48,9 +47,8 @@ internal static class BotSlotsGUI
                 int index=i; var slot=_slots.Slots[i];
                 if(GUILayout.Button(_contents[i],ZzapUI.Button,GUILayout.Height(28f),GUILayout.MaxWidth(124f),GUILayout.ExpandWidth(false)))
                     ZzapUI.Defer(()=> { if(slot==null) _message=T("비어 있음 — ＋로 저장","Empty — use ＋ to save"); else apply(slot); });
-                if(GUILayout.Button("...",ZzapUI.Button,GUILayout.Width(28f),GUILayout.Height(28f)))
+                if(GUILayout.Button("...",ZzapUI.Button,GUILayout.Width(36f),GUILayout.Height(28f)))
                     ZzapUI.Defer(()=> { _menu=_menu==index?-1:index; _name=_labels[index]; _rename=false; });
-                if(Event.current.type==EventType.Repaint && _menu==index) _anchor=GUIUtility.GUIToScreenPoint(GUILayoutUtility.GetLastRect().position);
             }
             GUI.enabled=canSave && source!=null && (_slots.Slots.Any(s=>s==null)||_slots.Slots.Count<BotSettingsSlots.MaxSlots);
             if(GUILayout.Button(T("＋ 지금 값 저장","＋ Save current"),ZzapUI.Quiet,GUILayout.Height(28f),GUILayout.ExpandWidth(false)))
@@ -69,12 +67,14 @@ internal static class BotSlotsGUI
         if(!OverlayOpen || _slots==null) return;
         bool hasSlot=_menu>=0 && _menu<_slots.Slots.Count && _slots.Slots[_menu]!=null;
         if(!_codeOpen && !_rename) {
-            var bounds=RectLayout.MainWindow;
-            var point=GUIUtility.ScreenToGUIPoint(_anchor);
-            var area=new Rect(Mathf.Clamp(point.x-140f,12f,bounds.width-200f),Mathf.Clamp(point.y+30f,60f,bounds.height-190f),190f,174f);
-            // A click outside closes the menu. Checked by hand: a full-window button drawn first took the menu's own clicks (2026-11-03).
-            if(Event.current.type==EventType.MouseDown && !area.Contains(Event.current.mousePosition)) ZzapUI.Defer(Close);
-            GUILayout.BeginArea(area,ZzapUI.Modal);
+            // A small centred dialog, like the guide. It used to drop down under [...] from a screen-space anchor, but in game the
+            // anchor and the click landed in different spaces, so every click counted as "outside" and closed it (2026-11-03).
+            ZzapUI.BeginModal(360f,300f);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(hasSlot?_labels[_menu]:T("내 설정","Custom"),ZzapUI.Title);
+            if(GUILayout.Button("×",ZzapUI.Quiet,GUILayout.Width(30f))) ZzapUI.Defer(Close);
+            GUILayout.EndHorizontal();
+            GUILayout.Space(8f);
             int index=_menu;
             GUI.enabled=hasSlot;
             if(GUILayout.Button(T("이름 바꾸기","Rename"),ZzapUI.Quiet)) ZzapUI.Defer(()=>_rename=true);
@@ -86,7 +86,7 @@ internal static class BotSlotsGUI
                 try { _code=BotSettingsSlots.Share(_slots.Slots[index]); _codeOpen=true; }
                 catch { _message=T("공유 코드가 너무 큽니다.","Share code is too large."); }
             });
-            GUI.enabled=true; GUILayout.EndArea(); return;
+            GUI.enabled=true; ZzapUI.EndModal(); return;
         }
         ZzapUI.BeginModal(640f,_rename?250f:350f);
         GUILayout.BeginHorizontal();

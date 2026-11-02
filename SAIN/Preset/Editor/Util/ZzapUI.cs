@@ -45,6 +45,7 @@ public static class ZzapUI
     public static GUIStyle Name;
     /// <summary>Name on one line: knob and step titles squeezed into wrapped stacks with the wrapping Name (in game, 2026-11-03).</summary>
     public static GUIStyle NameLine;
+    public static GUIStyle SmallLine, QuietLeft;
     public static GUIStyle Small;
     public static GUIStyle Section;
     public static GUIStyle Value;
@@ -247,6 +248,8 @@ public static class ZzapUI
         DarkFrame = Bordered(Panel1, Field, Line);
         Quiet = new GUIStyle(Button);
         Background(Quiet, Panel, PanelHover);
+        QuietLeft = new GUIStyle(Quiet) { alignment = TextAnchor.MiddleLeft };
+        SmallLine = new GUIStyle(Small) { wordWrap = false };
         Level = Bordered(Button, Control, Track);
         Level.richText = true;
         Level.wordWrap = true;
@@ -306,7 +309,7 @@ public static class ZzapUI
         GUILayout.BeginHorizontal(Frame);
         GUILayout.Label(number, Badge, GUILayout.ExpandWidth(false));
         bool clicked = GUILayout.Button(open ? "▾" : "▸", Quiet, GUILayout.Width(24f));
-        clicked |= GUILayout.Button(title, Quiet, GUILayout.ExpandWidth(true));
+        clicked |= GUILayout.Button(title, QuietLeft, GUILayout.ExpandWidth(true));
         if (tag != null) GUILayout.Label(tag, NewTag, GUILayout.ExpandWidth(false));
         GUILayout.EndHorizontal();
         return clicked;

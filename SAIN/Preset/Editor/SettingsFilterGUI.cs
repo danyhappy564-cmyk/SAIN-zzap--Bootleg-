@@ -29,11 +29,13 @@ internal static class SettingsFilterGUI
         GUILayout.BeginHorizontal();
         bool next=ZzapUI.Switch(_newOnly,26f,showState:false);
         if(next!=_newOnly) ZzapUI.Defer(()=>_newOnly=next);
-        GUILayout.Label(T("새 항목만 보기","New only"),ZzapUI.Small,GUILayout.ExpandWidth(false));
+        GUILayout.Label(T("새 항목만 보기","New only"),ZzapUI.SmallLine,GUILayout.Height(26f),GUILayout.ExpandWidth(false));
+        GUILayout.Space(18f);
         bool changed=ZzapUI.Switch(_changedOnly,26f,showState:false);
         if(changed!=_changedOnly) ZzapUI.Defer(()=>_changedOnly=changed);
-        GUILayout.Label(T("바뀐 항목만 보기","Changed only"),ZzapUI.Small,GUILayout.ExpandWidth(false));
-        GUILayout.Label(T("기준: zzap 원본 · 두 필터는 함께 적용됩니다","Compared with zzap original · both filters apply together"),ZzapUI.Count);
+        GUILayout.Label(T("바뀐 항목만 보기","Changed only"),ZzapUI.SmallLine,GUILayout.Height(26f),GUILayout.ExpandWidth(false));
+        GUILayout.Space(18f);
+        GUILayout.Label(T("기준: zzap 원본 · 두 필터는 함께 적용됩니다","Compared with zzap original · both filters apply together"),ZzapUI.SmallLine,GUILayout.Height(26f),GUILayout.ExpandWidth(false));
         GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
     }
