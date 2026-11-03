@@ -26,4 +26,4 @@ Huge thanks to @Zybergeris! Your feedback made it so much easier to restructure 
 @알림 @테스터
 
 원본모드 : https://github.com/Solarint/SAIN
-다운로드 :
+다운로드 : https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/releases/tag/remix7.3
