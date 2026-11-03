@@ -126,7 +126,7 @@ public static class QuickSettingsGUI
         {
             GUILayout.Label(
                 string.Format(T("서버가 프리셋 '{0}'을(를) 고정했습니다. 고르기는 잠겨 있고, 값은 바꿀 수 있습니다.", "The server forced the preset '{0}'. Picking is locked; values can still be changed."),
-                    SAINPlugin.LoadedPreset.Info.Name),
+                    QuickSettings.DisplayName(SAINPlugin.LoadedPreset.Info.Name, Korean)),
                 _muted);
             return;
         }
@@ -169,7 +169,17 @@ public static class QuickSettingsGUI
         {
             ZzapUI.Defer(CreateCopy);
         }
+        var loaded = SAINPlugin.LoadedPreset.Info;
+        if (loaded.IsCustom && !PresetSavePolicy.IsProtected(loaded.Name)
+            && GUILayout.Button(new GUIContent(T("이름 바꾸기", "Rename"), string.Format(T("지금 프리셋 '{0}'의 이름을 왼쪽 칸의 이름으로 바꿉니다", "Rename the current preset '{0}' to the name on the left"), loaded.Name)), ZzapUI.Button, GUILayout.Width(100f), GUILayout.Height(30f)))
+        {
+            ZzapUI.Defer(RenameCurrent);
+        }
         GUILayout.EndHorizontal();
+        if (_renameNote != null)
+        {
+            GUILayout.Label(_renameNote, _muted);
+        }
         GUILayout.Label(T("카드를 누르면 바로 그 프리셋으로 바뀝니다.", "Click a card to switch to that preset."), _muted);
     }
 
@@ -180,7 +190,8 @@ public static class QuickSettingsGUI
         bool selected = SAINPlugin.LoadedPreset.Info.Name == def.Name;
         bool deletable = def.IsCustom && zzap == null;
         string tagText = zzap?.TagKo == null ? null : zzap.Tag(Korean);
-        bool showTag = tagText != null && def.Name.IndexOf("[" + tagText + "]", System.StringComparison.Ordinal) < 0;
+        string shownName = QuickSettings.DisplayName(def.Name, Korean);
+        bool showTag = tagText != null && shownName.IndexOf("[" + tagText + "]", System.StringComparison.Ordinal) < 0;
         string summary = zzap != null ? zzap.Summary(Korean) : Short(def.Description);
         bool legacy = zzap?.Legacy == true;
 
@@ -207,7 +218,7 @@ public static class QuickSettingsGUI
                 }
             }
         }
-        string title = "<b>" + def.Name + "</b>" + (showTag ? "  <color=#facc15>[" + tagText + "]</color>" : string.Empty);
+        string title = "<b>" + shownName + "</b>" + (showTag ? "  <color=#facc15>[" + tagText + "]</color>" : string.Empty);
         GUI.Label(new Rect(rect.x + 12f, rect.y + 6f, rect.width - 24f - (zzap != null ? 70f : 0f), 24f), title, legacy ? _cardTitleLegacy : _cardTitle);
         if (summaryHeight > 0f)
         {
@@ -349,6 +360,47 @@ public static class QuickSettingsGUI
         _newName = string.Empty;
     }
 
+    private static string _renameNote;
+
+    // zzap (user 2026-11-04 "let me rename my presets"): renames the loaded preset - saved under the new name first, the old file
+    // removed only after that worked (same order as the old preset-management "Save Info"). Shipped zzap presets can't be renamed.
+    private static void RenameCurrent()
+    {
+        _renameNote = null;
+        var info = SAINPlugin.LoadedPreset.Info;
+        string name = System.Text.RegularExpressions.Regex.Replace((_newName ?? string.Empty).Trim(), @"[^\w \-\[\]]", "");
+        if (!info.IsCustom || PresetSavePolicy.IsProtected(info.Name) || PresetSavePolicy.IsProtected(name))
+        {
+            Sounds.PlaySound(EUISoundType.ErrorMessage);
+            return;
+        }
+        if (ConfigEditingTracker.UnsavedChanges)
+        {
+            _renameNote = T("저장 안 한 변경이 있습니다. 먼저 저장하거나 되돌린 뒤 이름을 바꾸세요.", "There are unsaved changes. Save or revert them first, then rename.");
+            Sounds.PlaySound(EUISoundType.ErrorMessage);
+            return;
+        }
+        if (name.Length == 0 || name == info.Name || PresetHandler.CustomPresetOptions.Any(d => d.Name == name))
+        {
+            _renameNote = T("새 이름을 왼쪽 칸에 적으세요(이미 있는 이름은 안 됨).", "Type a new name in the box on the left (not one that already exists).");
+            Sounds.PlaySound(EUISoundType.ErrorMessage);
+            return;
+        }
+        var old = info;
+        var renamed = info.Clone();
+        renamed.Name = name;
+        PresetHandler.SavePresetDefinition(renamed);
+        if (!PresetHandler.InitPresetFromDefinition(renamed, true))
+        {
+            Sounds.PlaySound(EUISoundType.ErrorMessage);
+            return;
+        }
+        PresetSelection.DeletePreset(old);
+        PresetHandler.LoadCustomPresetOptions();
+        Sounds.PlaySound(EUISoundType.InsuranceInsured);
+        _newName = string.Empty;
+    }
+
     private static void Delete(SAINPresetDefinition def)
     {
         _pendingDelete = null;
@@ -414,23 +466,11 @@ public static class QuickSettingsGUI
     // ---------------------------------------------------------------- comparison reference (mockup 7)
 
     private const string SAVED = "";
-    private static readonly string[] _referenceNames = { "zzap", "zzap 쉬움", "zzap 보통", SAVED };
+    private static readonly string[] _referenceNames = QuickSettings.ReferenceOrder;
     private static string _reference = "zzap";
     private static Dictionary<string, float> _refValues = new();
 
-    private static string ReferenceLabel(string name)
-    {
-        if (name == SAVED)
-        {
-            return T("저장된 값", "Saved");
-        }
-        return name switch
-        {
-            "zzap 쉬움" => T("쉬움", "Easy"),
-            "zzap 보통" => T("보통", "Normal"),
-            _ => name,
-        };
-    }
+    private static string ReferenceLabel(string name) => QuickSettings.ReferenceLabel(name, Korean);
 
     // The reference preset's quick values. The preset being edited and "Saved" both use the snapshot taken when it was
     // loaded or last saved, so the bars show exactly what changed since then.

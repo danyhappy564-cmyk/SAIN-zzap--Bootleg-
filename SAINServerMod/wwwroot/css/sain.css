@@ -688,6 +688,7 @@
 .sain-pcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .sain-pcard-name { color: #f8fafc; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sain-pcard-desc { margin-top: 4px; color: var(--spt-text-muted, #a1a1aa); font-size: 0.78rem; line-height: 1.45; }
+.sain-pcard-rename { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
 .sain-pcard-actions { display: inline-flex; flex: none; }
 .sain-pcard.sain-preset-disabled { opacity: 0.55; }
 .sain-lv { display: inline-flex; gap: 3px; flex: none; }

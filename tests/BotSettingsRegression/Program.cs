@@ -64,6 +64,16 @@ partial class Program
         Test("vanilla global locks agree with exclusion across all role groups", () => { LoadFixture(); var settings = PresetHandler.LoadedPreset.GlobalSettings.General.VanillaBots; (string Flag, WildSpawnType Role)[] cases = { ("VanillaScavs", WildSpawnType.marksman), ("VanillaBosses", WildSpawnType.bossKilla), ("VanillaFollowers", WildSpawnType.followerBully), ("VanillaGoons", WildSpawnType.followerBirdEye), ("VanillaCultists", WildSpawnType.sectantPriest), ("VanillaRogues", WildSpawnType.exUsec), ("VanillaRaiders", WildSpawnType.pmcBot), ("VanillaBloodHounds", WildSpawnType.arenaFighterEvent), ("VanillaLabyrinthBots", WildSpawnType.bossTagillaAgro), ("VanillaSpecialBots", WildSpawnType.gifter) }; foreach (var c in cases) { foreach (var f in settings.GetType().GetFields().Where(f => f.FieldType == typeof(bool))) f.SetValue(settings, false); settings.GetType().GetField(c.Flag).SetValue(settings, true); Check(SAINEnableClass.ShallExludeByWildSpawnType(c.Role, Bot(c.Role)), c.Flag + " exclusion fixture"); Check(BigBrainHandler.BrainAssignment.VanillaByGroupSetting(c.Role, out _), c.Flag + " not locked"); Check(!BigBrainHandler.BrainAssignment.VanillaByGroupSetting(WildSpawnType.pmcUSEC, out _), c.Flag + " locked PMC"); Check(!BigBrainHandler.BrainAssignment.VanillaByGroupSetting((WildSpawnType) 848421, out _), c.Flag + " locked modded role sharing brain"); } });
         Test("SAIN enabled PMC remains enabled without per-bot override", () => { LoadFixture(); Role(WildSpawnType.pmcUSEC, "PmcUsec", false); Check(!SAINEnableClass.IsBotExcluded(Bot(WildSpawnType.pmcUSEC)), "unselected PMC disabled"); });
         SettingsPolicyTests();
+        Test("English preset names keep the stored key", () =>
+        {
+            Check(QuickSettings.DisplayName("zzap 쉬움", false) == "zzap Easy", "easy");
+            Check(QuickSettings.DisplayName("zzap 보통 [Modified 2]", false) == "zzap Normal [Modified 2]", "modified copy");
+            Check(QuickSettings.DisplayName("zzap TEST [시뮬 전용]", false) == "zzap TEST [sim only]", "test");
+            Check(QuickSettings.DisplayName("zzap 쉬움", true) == "zzap 쉬움", "korean unchanged");
+            Check(QuickSettings.DisplayName("내 프리셋", false) == "내 프리셋", "user name unchanged");
+            Check(QuickSettings.ZzapPresets.All(z => PresetSavePolicy.IsProtected(z.Name)), "bundled keys");
+            Check(string.Join("|", QuickSettings.ReferenceOrder.Select(n => QuickSettings.ReferenceLabel(n, true))) == "쉬움|보통|zzap (어려움)|저장된 값", "reference order");
+        });
         SelectionSlotTests();
         Console.WriteLine($"regression: {passed} passed, {failed} failed"); return failed == 0 ? 0 : 1;
     }

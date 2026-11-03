@@ -25,7 +25,7 @@
                         <MudText Typo="Typo.caption" Class="spt-muted">
                             @if (_bundle != null)
                             {
-                                @T($"편집 중: {_bundle.Info.Name}", $"Editing {_bundle.Info.Name}")
+                                @T($"편집 중: {_bundle.Info.Name}", $"Editing {QuickSettings.DisplayName(_bundle.Info.Name, false)}")
                                 @if (_opened!.IsNewCustom)
                                 {
                                     <span>@T(" (기본 프리셋 — 저장하면 편집 가능한 복사본이 만들어짐)", " (a default, saving creates an editable copy)")</span>
@@ -97,7 +97,7 @@
                                    Margin="Margin.Dense" Dense="true">
                             @foreach (var def in ZzapItems())
                             {
-                                <MudSelectItem T="string" Value="@def.Name">@def.Name</MudSelectItem>
+                                <MudSelectItem T="string" Value="@def.Name">@QuickSettings.DisplayName(def.Name, Korean)</MudSelectItem>
                             }
                         </MudSelect>
                         <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Add"
@@ -155,11 +155,12 @@
         var z = QuickSettings.FindZzap(item.Name);
         bool isZzap = z != null;
         string desc = isZzap ? z!.Summary(Korean) : Short(item.Description);
+        string shown = QuickSettings.DisplayName(item.Name, Korean);
         <div class="sain-pcard @(item.Name == _selectedName ? "sain-pcard-sel" : null) @(item.Disabled || z?.Legacy == true ? "sain-preset-disabled" : null)" @onclick="@(() => SelectAsync(item.Name))">
             <div class="sain-pcard-top">
                 <span class="sain-pcard-name">
-                    @item.Name
-                    @if (isZzap && z!.TagKo != null)
+                    @shown
+                    @if (isZzap && z!.TagKo != null && !shown.Contains("[" + z.Tag(Korean) + "]"))
                     {
                         <span class="sain-tagchip @(z.TagEn == "pick" ? "sain-tag-y" : z.TagEn == "sim only" ? "sain-tag-p" : null)">@z.Tag(Korean)</span>
                     }
@@ -178,6 +179,9 @@
                         </MudTooltip>
                         @if (item.IsCustom && !isZzap)
                         {
+                            <MudTooltip Text="@T("이름 바꾸기", "Rename")">
+                                <MudIconButton Icon="@Icons.Material.Outlined.DriveFileRenameOutline" Size="Size.Small" OnClick="@(() => StartRename(item.Name))" />
+                            </MudTooltip>
                             @if (_pendingDelete == item.Name)
                             {
                                 <MudIconButton Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteAsync(item.Name))" OnClick:stopPropagation="true" />
@@ -192,6 +196,14 @@
                         }
                 </span>
             </div>
+            @if (_renaming == item.Name)
+            {
+                <div class="sain-pcard-rename" @onclick:stopPropagation="true">
+                    <MudTextField T="string" @bind-Value="_renameText" Label="@T("새 이름", "New name")" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" OnClick="@(() => RenameAsync(item.Name))" />
+                    <MudIconButton Icon="@Icons.Material.Outlined.Close" Size="Size.Small" OnClick="@(() => _renaming = null)" />
+                </div>
+            }
             @if (!string.IsNullOrWhiteSpace(desc))
             {
                 <div class="sain-pcard-desc">@desc</div>
@@ -415,6 +427,51 @@
             await SelectAsync(created);
             Snackbar.Add(T($"'{created}'로 복제.", $"Duplicated to '{created}'."), Severity.Success);
         }
+    }
+
+    private string? _renaming;
+    private string _renameText = string.Empty;
+
+    private void StartRename(string name)
+    {
+        _pendingDelete = null;
+        _renaming = name;
+        _renameText = name;
+    }
+
+    // zzap (user 2026-11-04 "let me rename my presets"): only the player's own presets; unsaved edits of that preset first.
+    private async Task RenameAsync(string oldName)
+    {
+        string newName = System.Text.RegularExpressions.Regex.Replace((_renameText ?? string.Empty).Trim(), @"[^\w \-\[\]]", "");
+        if (newName.Length == 0 || newName == oldName)
+        {
+            _renaming = null;
+            return;
+        }
+        if (_dirty && string.Equals(_selectedName, oldName, StringComparison.Ordinal))
+        {
+            Snackbar.Add(T("저장 안 한 변경이 있습니다. 먼저 저장하거나 되돌린 뒤 이름을 바꾸세요.", "There are unsaved changes. Save or revert them first, then rename."), Severity.Warning);
+            return;
+        }
+        if (PresetSavePolicy.IsProtected(newName) || Presets.CustomExists(newName))
+        {
+            Snackbar.Add(T($"'{newName}' 이름은 쓸 수 없습니다(이미 있거나 기본 프리셋 이름).", $"'{newName}' can't be used (already taken or a bundled preset's name)."), Severity.Warning);
+            return;
+        }
+        var renamed = await Presets.RenameAsync(oldName, newName);
+        if (renamed == null)
+        {
+            Snackbar.Add(T("이름을 바꾸지 못했습니다.", "Could not rename the preset."), Severity.Error);
+            return;
+        }
+        _renaming = null;
+        bool wasOpen = string.Equals(_selectedName, oldName, StringComparison.Ordinal);
+        Reload();
+        if (wasOpen)
+        {
+            await SelectAsync(renamed);
+        }
+        Snackbar.Add(T($"'{oldName}' → '{renamed}' 이름을 바꿨습니다. 게임이 이 프리셋을 쓰고 있으면 새 이름으로 따라갑니다.", $"Renamed '{oldName}' to '{renamed}'. A game using it follows the new name."), Severity.Success);
     }
 
     private async Task DeleteAsync(string name)

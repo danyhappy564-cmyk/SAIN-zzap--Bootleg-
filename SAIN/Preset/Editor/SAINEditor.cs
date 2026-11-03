@@ -6,6 +6,7 @@ using SAIN.Editor.Util;
 using SAIN.Plugin;
 using SAIN.Preset;
 using SAIN.Preset.Shared;
+using SAIN.Preset.Shared.Preset;
 using UnityEngine;
 using static SAIN.Editor.RectLayout;
 using static SAIN.Editor.SAINLayout;
@@ -157,7 +158,7 @@ public static class SAINEditor
         }
         string title =
             $"<b>{EditorText.UI("SAIN zzap settings (F6)")}</b>  <color=#facc15>{SAINVersionInfo.ZzapRelease}</color>   |   "
-            + $"{EditorText.UI("Preset")}: <color=#facc15><b>{SAINPlugin.LoadedPreset.Info.Name}</b></color>";
+            + $"{EditorText.UI("Preset")}: <color=#facc15><b>{QuickSettings.DisplayName(SAINPlugin.LoadedPreset.Info.Name, EditorText.Korean)}</b></color>";
         var content = new GUIContent(title);
         float titleWidth = Mathf.Min(ZzapUI.Header.CalcSize(content).x + 4f, DragRect.width - 230f);
         GUI.Label(new Rect(DragRect.x, DragRect.y, titleWidth, DragRect.height), content, ZzapUI.Header);

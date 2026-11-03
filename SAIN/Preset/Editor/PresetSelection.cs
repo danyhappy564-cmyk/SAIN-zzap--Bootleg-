@@ -130,7 +130,7 @@ public static class PresetSelection
             if (
                 Toggle(
                     selected,
-                    $"{preset.Name}",
+                    QuickSettings.DisplayName(preset.Name, EditorText.Korean),
                     preset.Description,
                     EUISoundType.MenuCheckBox,
                     Height(PRESET_OPTION_HEIGHT),
@@ -164,7 +164,7 @@ public static class PresetSelection
                 if (
                     Toggle(
                         selected,
-                        $"{preset.Name}",
+                        QuickSettings.DisplayName(preset.Name, EditorText.Korean),
                         preset.Description,
                         EUISoundType.MenuCheckBox,
                         Height(PRESET_OPTION_HEIGHT),

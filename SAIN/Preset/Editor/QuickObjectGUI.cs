@@ -41,9 +41,9 @@ public static class QuickObjectGUI
             ZzapUI.Defer(() => { if (!_advanced.Remove(key)) _advanced.Add(key); });
         return open;
     }
-    private static readonly string[] ReferenceNames = { "zzap", "zzap 쉬움", "zzap 보통", "" };
+    private static readonly string[] ReferenceNames = QuickSettings.ReferenceOrder;
     private static string _reference = "zzap";
-    public static string ReferenceLabel => _reference.Length == 0 ? T("저장값", "Saved") : _reference;
+    public static string ReferenceLabel => QuickSettings.ReferenceLabel(_reference, EditorText.Korean);
     public static SAINPresetBundle Reference()
         => _reference.Length == 0 ? Saved() : PresetSync.TryGetSavedCustomBundle(_reference, out var bundle) ? bundle : Saved();
     public static SAINPresetBundle Defaults()
@@ -58,7 +58,7 @@ public static class QuickObjectGUI
         foreach (string name in ReferenceNames)
         {
             if (name.Length > 0 && !PresetSync.TryGetSavedCustomBundle(name, out _)) continue;
-            string label = name.Length == 0 ? T("저장값", "Saved") : name;
+            string label = QuickSettings.ReferenceLabel(name, EditorText.Korean);
             if (GUILayout.Button(label, _reference == name ? ZzapUI.Pill : ZzapUI.Button, GUILayout.MinWidth(72f), GUILayout.Height(28f)))
             {
                 string captured = name; ZzapUI.Defer(() => _reference = captured);

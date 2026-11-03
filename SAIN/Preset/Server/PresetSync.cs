@@ -338,7 +338,9 @@ public static class PresetSync
             PresetHandler.LoadCustomPresetOptions();
             Logger.LogInfo($"[SAIN] Custom preset '{name}' was deleted on the server.");
 
-            if (isLoaded)
+            // A web rename sends the new name first (as a copy of this one); in a raid that switch waits for the raid's end and
+            // must not be replaced by the default preset here.
+            if (isLoaded && _pendingSwitchTarget == null)
             {
                 ReapplyLivePreset(null);
             }

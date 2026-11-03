@@ -6,6 +6,7 @@ using SAIN.Helpers;
 using SAIN.Plugin;
 using SAIN.Preset;
 using SAIN.Preset.Shared.Enums;
+using SAIN.Preset.Shared.Preset;
 using SAIN.Preset.Shared.GearStealthValues;
 using static SAIN.Editor.SAINLayout;
 
@@ -75,7 +76,7 @@ public static class GUITabs
             SAINPlugin.LoadedPreset.GlobalSettings,
             out bool newEdit,
             "Global Settings",
-            string.Format(EditorText.UI("Server preset '{0}'"), SAINPlugin.LoadedPreset.Info.Name),
+            string.Format(EditorText.UI("Server preset '{0}'"), QuickSettings.DisplayName(SAINPlugin.LoadedPreset.Info.Name, EditorText.Korean)),
             35f,
             out bool saved
         );

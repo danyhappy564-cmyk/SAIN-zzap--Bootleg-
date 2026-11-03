@@ -137,6 +137,29 @@ public sealed class SainPresetEditService(
         return deleted;
     }
 
+    /// <summary>zzap (user 2026-11-04): renames a custom preset. Saved under the new name first (a game on the old name follows it,
+    /// see PresetSync.ApplyRemoteChange CopyOf), then the old file is removed and the games are told. Null when refused.</summary>
+    public async Task<string?> RenameAsync(string oldName, string newName)
+    {
+        newName = newName.Trim();
+        if (PresetSavePolicy.IsProtected(oldName) || PresetSavePolicy.IsProtected(newName) || newName.Length == 0 || CustomExists(newName))
+        {
+            return null;
+        }
+        var opened = await OpenAsync(oldName);
+        if (opened == null || opened.IsNewCustom)
+        {
+            return null;
+        }
+        opened.Bundle.Info.Name = newName;
+        string saved = await SaveAsync(opened.Bundle, copyOf: oldName);
+        if (presetService.DeleteCustom(oldName))
+        {
+            await webSocket.BroadcastPresetChanged(oldName, EPresetSyncChange.Deleted);
+        }
+        return saved;
+    }
+
     public async Task<string?> DuplicateAsync(string sourceName, string newName)
     {
         var opened = await OpenAsync(sourceName);

@@ -165,6 +165,49 @@ public static class QuickSettings
 
     public static ZzapPresetCard FindZzap(string name) => ZzapPresets.FirstOrDefault(z => z.Name == name);
 
+    // zzap (user 2026-11-04 "English UI shows the preset names in Korean"): the shipped file names stay Korean - they are
+    // the key players' saved picks and "[Modified]" copies point at - and only what the English UI shows is translated.
+    private static readonly (string Ko, string En)[] _displayNames =
+    {
+        ("zzap TEST [시뮬 전용]", "zzap TEST [sim only]"),
+        ("zzap 쉬움", "zzap Easy"),
+        ("zzap 보통", "zzap Normal"),
+    };
+
+    /// <summary>"Compare with" choices, easiest first (user 2026-11-04: Easy / Normal / zzap (Hard) / Saved). "" = the state the
+    /// preset was opened or last saved in. F6 and the web both use this order and <see cref="ReferenceLabel"/>.</summary>
+    public static readonly string[] ReferenceOrder = { "zzap 쉬움", "zzap 보통", "zzap", "" };
+
+    public static string ReferenceLabel(string name, bool korean)
+    {
+        return name switch
+        {
+            "" => korean ? "저장된 값" : "Saved",
+            "zzap 쉬움" => korean ? "쉬움" : "Easy",
+            "zzap 보통" => korean ? "보통" : "Normal",
+            "zzap" => korean ? "zzap (어려움)" : "zzap (Hard)",
+            _ => DisplayName(name, korean),
+        };
+    }
+
+    /// <summary>The preset name as shown: the stored name in Korean, the English wording of a bundled name (and of its
+    /// "[Modified]" copies) otherwise. Never use the result as a key.</summary>
+    public static string DisplayName(string name, bool korean)
+    {
+        if (korean || string.IsNullOrEmpty(name))
+        {
+            return name;
+        }
+        foreach (var (ko, en) in _displayNames)
+        {
+            if (name.StartsWith(ko, StringComparison.Ordinal))
+            {
+                return en + name.Substring(ko.Length);
+            }
+        }
+        return name;
+    }
+
     /// <summary>
     /// zzap (user 2026-10-18 "make a copy"): saving a bundled zzap preset writes "name [Modified]" instead of the file itself -
     /// a mod update replaces the bundled files, which used to wipe the player's changes. Next free name: [Modified], [Modified 2] ... [Modified 99].

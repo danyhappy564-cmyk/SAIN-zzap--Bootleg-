@@ -145,7 +145,7 @@
     // zzap fork (2026-10-18, mockup 7 adopted for F6 and the web): compare every value with a reference - zzap, easy, normal
     // or the state the preset was opened in - as "reference -> now" text and a red (stronger) / green (weaker) stretch.
     private const string Saved = "";
-    private static readonly string[] ReferenceOrder = { "zzap", "zzap 쉬움", "zzap 보통", Saved };
+    private static readonly string[] ReferenceOrder = QuickSettings.ReferenceOrder;
     private string _reference = "zzap";
 
     private IEnumerable<string> ReferenceNames()
@@ -173,16 +173,7 @@
         return match.Bundle != null ? SainPresetEditService.View(match.Bundle) : zzap;
     }
 
-    private static string RefLabel(string name)
-    {
-        return name switch
-        {
-            Saved => T("저장된 값", "Saved"),
-            "zzap 쉬움" => T("쉬움", "Easy"),
-            "zzap 보통" => T("보통", "Normal"),
-            _ => name,
-        };
-    }
+    private static string RefLabel(string name) => QuickSettings.ReferenceLabel(name, Korean);
 
     private static double Pct(QuickSetting q, float value)
     {
