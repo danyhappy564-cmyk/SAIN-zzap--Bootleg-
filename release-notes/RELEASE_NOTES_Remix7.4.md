@@ -62,7 +62,6 @@
 - 제보 받은 요청("연구소에서는 봇이 소리를 덜 듣게, 리저브는 그대로")을 넣었습니다. 봇 종류마다, 맵마다 **청각 거리·시야 거리·발견 속도·공격성·탄 퍼짐·정밀 조준 속도·조준 맞추는 시간**을 배수로 줍니다. 1.0 = 그대로.
 - 전역 '맵별 보정'(모든 봇 공통) 위에 곱해집니다. 예: 전역 연구소 0.8배 × 이 봇 연구소 0.5배 = 0.4배. 화면에 그 맵의 전역 값도 같이 보입니다.
 - 바꾼 맵에만 값이 저장되고 다른 맵은 그대로입니다. 레이드에 봇이 생길 때 적용되므로 **다음 레이드부터** 반영됩니다.
-- 이번 판은 숫자 보정만 넣었습니다. '이 맵에서만 게임 기본 AI(바닐라)'는 AI를 바꾸려면 게임을 다시 켜야 해서 따로 검토합니다.
 
 **확인**
 - 게임 F6와 크롬 웹 화면에서 한국어·영어로 직접 눌러 봤습니다: 영어 프리셋 이름, 비교 기준, 이름 바꾸기 버튼, ZZAP·시뮬레이션 탭과 한눈에 스위치, 봇 설정 탭 5개, 봇별 ZZAP 스위치, 맵별 보정 슬라이더, 고급 묶음 고르기. 이때 찾은 두 가지(바닐라 봇에서 ZZAP 탭 숫자가 7로 나옴, 손잡이 개수)를 고쳤습니다.
@@ -94,7 +93,7 @@
 
 **5. ZZAP per bot type (ZZAP tab)** - door tactics, squad combat, reposition, **all close-combat zzap moves**, **diamond step**, **QEQE lean shooting** and corner jiggle peek can each be **Global / On / Off** per bot type (all four difficulty slots; works on a selection of bots too). **On** wins over the global switch and Skip Scavs (scavs can diamond-step too); personality rules such as who diamond-steps stay. **Off** turns that tactic off for that bot type only (e.g. no QEQE for PMCs). The number next to the tab name counts switches not on Global.
 
-**6. Per-map multipliers per bot type (Per map tab)** - from a player request ("bots on Labs should hear less, Reserve stays default"): per bot type and per map, set **hearing distance, vision distance, spotting speed, aggression, scatter, precision speed and aim time** as multipliers (1.0 = unchanged). They multiply the global per-map modifiers (e.g. global Labs 0.8x × this bot on Labs 0.5x = 0.4x); the global value for that map is shown next to each row. Only changed maps are stored. Applied when a bot spawns, so from the **next raid**. This release has the numbers only; "vanilla AI on this map only" needs a game restart to switch AI, so it is being looked at separately.
+**6. Per-map multipliers per bot type (Per map tab)** - from a player request ("bots on Labs should hear less, Reserve stays default"): per bot type and per map, set **hearing distance, vision distance, spotting speed, aggression, scatter, precision speed and aim time** as multipliers (1.0 = unchanged). They multiply the global per-map modifiers (e.g. global Labs 0.8x × this bot on Labs 0.5x = 0.4x); the global value for that map is shown next to each row. Only changed maps are stored. Applied when a bot spawns, so from the **next raid**.
 
 **Checked** - clicked through in game (F6) and in Chrome (web), in Korean and English: English preset names, compare order, rename, ZZAP and Simulation tabs with the at-a-glance switches, the five bot settings tabs, per-bot ZZAP switches, per-map sliders, advanced groups; two things found there were fixed (ZZAP tab count showed 7 on a vanilla bot, knob count). A Reserve test raid with a test preset read the in-game bot values directly: with QEQE and close-combat Off for PMCs the bot really skips the close-combat zzap moves, and with Reserve hearing 0.5x on Usec only, that raid's Usec had 0.5x and Bear 1x. No SAIN errors in that raid's game log. Loading presets from before this release gives Global / 1x everywhere and the same play (automated tests: 54 + 53 web passed).
 
