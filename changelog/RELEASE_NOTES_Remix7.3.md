@@ -35,6 +35,8 @@
 
 **<변경점>**
 
+![Remix7.3 봇 설정 (한국어)](https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/raw/master/changelog/images/sain-remix7.3-bot-settings-ko.gif)
+
 **1. 봇 여러 종을 묶어서 한꺼번에 설정 (F6·웹)**
 - 전에는 봇 종류를 하나씩 열어 같은 값을 여러 번 바꿔야 했습니다.
 - 이제 왼쪽 봇 목록에서 이름 옆 **동그라미**를 누르거나 이름을 **Ctrl+클릭**하면 묶음에 들어갑니다. 팩션 줄의 동그라미는 그 팩션 전체를 고르고, 팩션 일부만 고르면 개수가 `1/2`처럼 나옵니다. 이름만 누르면 묶음은 그대로 두고 그 봇 하나를 봅니다.
@@ -78,6 +80,8 @@
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 
 **<Changes (English)>**
+
+![Remix7.3 bot settings (English)](https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/raw/master/changelog/images/sain-remix7.3-bot-settings-en.gif)
 
 **Previous release:** Remix7.2 (`remix7.2`, published 11/02, 13 commits since) → **this: Remix7.3**, a bot settings screen overhaul for F6 and the web page. Bot behaviour and zzap preset values are the same as Remix7.2, and saving works as before (the bundled zzap presets save to a `[Modified]` copy).
 
