@@ -1,3 +1,4 @@
+using SAIN.Preset.Shared.BotSettings.SAINSettings.Categories;
 using SAIN.Components;
 using SAIN.Preset.Shared.Enums;
 using SAIN.Preset.Shared.GlobalSettings;
@@ -72,7 +73,9 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             return false;
         }
         var settings = GlobalSettingsClass.Instance?.General?.CloseCombat;
-        if (settings == null || !settings.DiamondStep)
+        // zzap (2026-11-04): the bot type's Diamond Step switch wins over the ZZAP tab's; On also lets scavs do it.
+        var diamond = Bot.Info.Zzap?.DiamondStep ?? EZzapToggle.Global;
+        if (settings == null || !SAINZzapBotSettings.Allows(diamond, settings.DiamondStep))
         {
             return Stop("off");
         }
@@ -85,7 +88,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         }
         if (!settings.DiamondStepTestMode)
         {
-            if (settings.PmcOnly && Bot.Info.Profile.SkippedByPmcOnly)
+            if (diamond != EZzapToggle.On && Bot.Info.SkipsZzapCloseCombat(settings.PmcOnly))
             {
                 return Stop("scav");
             }
@@ -115,7 +118,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
         {
             _diamondActive = true;
             float leanChance = settings.LeanSpamChance + SAIN.Components.BotControllerSpace.Classes.PlayerAdaptation.LeanSpamBonus(Bot, enemy);
-            _leanSpam = settings.LeanSpam && TacticDiagnostics.Roll("leanSpam", leanChance);
+            _leanSpam = SAINZzapBotSettings.Allows(Bot.Info.Zzap?.LeanSpam ?? EZzapToggle.Global, settings.LeanSpam) && TacticDiagnostics.Roll("leanSpam", leanChance);
             // zzap (user 2026-10-02 19:46 sim: "the dance got monotone - every bot the same, some just stand there taking hits"):
             // planting is a style, rolled per engagement, not something every bot does on every burst.
             _plantStyle = settings.DiamondStepPlant && TacticDiagnostics.Roll("diamondPlant", settings.DiamondStepPlantChance);
@@ -180,7 +183,7 @@ public sealed class DiamondStepper(BotComponent bot, string owner)
             if (!sameFight)
             {
                 _rollEnemyId = enemy.EnemyProfileId;
-                _rollWantsJiggle = settings.CornerJiggle && TacticDiagnostics.Roll("cornerJiggle", settings.CornerJiggleChance);
+                _rollWantsJiggle = SAINZzapBotSettings.Allows(Bot.Info.Zzap?.CornerJiggle ?? EZzapToggle.Global, settings.CornerJiggle) && TacticDiagnostics.Roll("cornerJiggle", settings.CornerJiggleChance);
                 _peekStyle = PickPeekStyle(settings);
                 _jumpPeeks = 0;
                 _runByDone = false;

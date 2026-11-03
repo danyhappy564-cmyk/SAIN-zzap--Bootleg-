@@ -64,6 +64,27 @@ partial class Program
         Test("vanilla global locks agree with exclusion across all role groups", () => { LoadFixture(); var settings = PresetHandler.LoadedPreset.GlobalSettings.General.VanillaBots; (string Flag, WildSpawnType Role)[] cases = { ("VanillaScavs", WildSpawnType.marksman), ("VanillaBosses", WildSpawnType.bossKilla), ("VanillaFollowers", WildSpawnType.followerBully), ("VanillaGoons", WildSpawnType.followerBirdEye), ("VanillaCultists", WildSpawnType.sectantPriest), ("VanillaRogues", WildSpawnType.exUsec), ("VanillaRaiders", WildSpawnType.pmcBot), ("VanillaBloodHounds", WildSpawnType.arenaFighterEvent), ("VanillaLabyrinthBots", WildSpawnType.bossTagillaAgro), ("VanillaSpecialBots", WildSpawnType.gifter) }; foreach (var c in cases) { foreach (var f in settings.GetType().GetFields().Where(f => f.FieldType == typeof(bool))) f.SetValue(settings, false); settings.GetType().GetField(c.Flag).SetValue(settings, true); Check(SAINEnableClass.ShallExludeByWildSpawnType(c.Role, Bot(c.Role)), c.Flag + " exclusion fixture"); Check(BigBrainHandler.BrainAssignment.VanillaByGroupSetting(c.Role, out _), c.Flag + " not locked"); Check(!BigBrainHandler.BrainAssignment.VanillaByGroupSetting(WildSpawnType.pmcUSEC, out _), c.Flag + " locked PMC"); Check(!BigBrainHandler.BrainAssignment.VanillaByGroupSetting((WildSpawnType) 848421, out _), c.Flag + " locked modded role sharing brain"); } });
         Test("SAIN enabled PMC remains enabled without per-bot override", () => { LoadFixture(); Role(WildSpawnType.pmcUSEC, "PmcUsec", false); Check(!SAINEnableClass.IsBotExcluded(Bot(WildSpawnType.pmcUSEC)), "unselected PMC disabled"); });
         SettingsPolicyTests();
+        Test("per-bot map modifiers and ZZAP switches keep old presets unchanged", () =>
+        {
+            // A bot group saved before 7.4 (no MapModifiers, no Zzap) reads back as 1x everywhere and Global everywhere.
+            var old = Fixture();
+            string json = JsonConvert.SerializeObject(old, JsonSettings).Replace("\"MapModifiers\"", "\"MapModifiersRemoved\"").Replace("\"Zzap\"", "\"ZzapRemoved\"");
+            var back = JsonConvert.DeserializeObject<SAINPresetBundle>(json, JsonSettings);
+            var g = Group(back);
+            Check(g.MapModifiers != null && g.MapModifiers.Count == 0, "old preset map modifiers");
+            foreach (var s in g.Settings.Values) Check(s.Zzap != null && s.Zzap.DoorTactics == SAIN.Preset.Shared.BotSettings.SAINSettings.Categories.EZzapToggle.Global && s.Zzap.CloseCombat == SAIN.Preset.Shared.BotSettings.SAINSettings.Categories.EZzapToggle.Global, "old preset zzap switches");
+            var hearing = BotMapModifiers.Fields.First(f => f.Field.Name == "HearingDistanceCoef");
+            BotMapModifiers.Set(g, ELocation.Labs, hearing, 0.6f);
+            Check(BotMapModifiers.Value(g, ELocation.Labs, hearing) == 0.6f && BotMapModifiers.Value(g, ELocation.Reserve, hearing) == 1f, "labs only");
+            var again = JsonConvert.DeserializeObject<SAINPresetBundle>(JsonConvert.SerializeObject(back, JsonSettings), JsonSettings);
+            Check(BotMapModifiers.Value(Group(again), ELocation.Labs, hearing) == 0.6f, "round trip");
+            BotMapModifiers.Set(g, ELocation.Labs, hearing, 1f);
+            Check(g.MapModifiers.Count == 0, "back to 1x drops the map");
+            Check(SAIN.Preset.Shared.BotSettings.SAINSettings.Categories.SAINZzapBotSettings.Allows(SAIN.Preset.Shared.BotSettings.SAINSettings.Categories.EZzapToggle.Global, true), "global on");
+            Check(!SAIN.Preset.Shared.BotSettings.SAINSettings.Categories.SAINZzapBotSettings.Allows(SAIN.Preset.Shared.BotSettings.SAINSettings.Categories.EZzapToggle.Off, true), "off wins");
+            Check(SAIN.Preset.Shared.BotSettings.SAINSettings.Categories.SAINZzapBotSettings.Allows(SAIN.Preset.Shared.BotSettings.SAINSettings.Categories.EZzapToggle.On, false), "on wins");
+            Check(BotAdvancedFields.Rows().Any(r => r.Category.Name == "Zzap"), "ZZAP rows in the advanced list");
+        });
         Test("ZZAP and Simulation tabs split the global settings", () =>
         {
             Check(ZzapTactics.TabOf("General.DoorTactics.Enabled") == ZzapTactics.TabZzap, "door");

@@ -34,7 +34,7 @@ public class QuickReloadPatch : ModulePatch
         {
             return true;
         }
-        if (settings.PmcOnly && bot.Info.Profile.SkippedByPmcOnly)
+        if (bot.Info.SkipsZzapCloseCombat(settings.PmcOnly))
         {
             return true;
         }

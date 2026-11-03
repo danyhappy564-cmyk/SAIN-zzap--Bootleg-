@@ -2,6 +2,8 @@ using SAIN.Components;
 using SAIN.Extensions;
 using SAIN.Helpers;
 using SAIN.Preset;
+using SAIN.Preset.Shared;
+using SAIN.Preset.Shared.Preset;
 
 namespace SAIN.SAINComponent.Classes;
 
@@ -62,6 +64,24 @@ public class BotDifficultyClass : BotBase
 
         HearingDistanceModifier *= locationSettings.HearingDistanceCoef;
         AggressionModifier *= locationSettings.AggressionCoef;
+
+        var botMap = BotMapSettings(preset);
+        if (botMap != null)
+        {
+            HearingDistanceModifier *= botMap.HearingDistanceCoef;
+            AggressionModifier *= botMap.AggressionCoef;
+        }
+    }
+
+    /// <summary>zzap (2026-11-04): this bot type's own multipliers for the current map (bot settings), null when it has none.</summary>
+    private DifficultySettings BotMapSettings(SAINPresetClass preset)
+    {
+        var map = GameWorldComponent.Instance?.Location?.Location;
+        if (map == null || !preset.BotSettings.SAINSettings.TryGetValue(Bot.Info.Profile.WildSpawnType, out var group))
+        {
+            return null;
+        }
+        return BotMapModifiers.Get(group, map.Value);
     }
 
     private void applyGlobal(SAINPresetClass preset)
@@ -101,14 +121,16 @@ public class BotDifficultyClass : BotBase
             return;
         }
         var mods = LocationDifficultyModifiers.Modifiers;
+        // The map's own bot-type multipliers (bot settings) go on top of the map's global ones; 1x when none.
+        var botMap = BotMapSettings(preset);
 
-        mods.AccuratySpeedCoef = locationSettings.ACCURACY_SPEED_COEF;
-        mods.PrecicingSpeedCoef = locationSettings.PRECISION_SPEED_COEF;
-        mods.VisibleDistCoef = locationSettings.VisibleDistCoef;
-        mods.ScatteringCoef = locationSettings.ScatteringCoef;
+        mods.AccuratySpeedCoef = locationSettings.ACCURACY_SPEED_COEF * (botMap?.ACCURACY_SPEED_COEF ?? 1f);
+        mods.PrecicingSpeedCoef = locationSettings.PRECISION_SPEED_COEF * (botMap?.PRECISION_SPEED_COEF ?? 1f);
+        mods.VisibleDistCoef = locationSettings.VisibleDistCoef * (botMap?.VisibleDistCoef ?? 1f);
+        mods.ScatteringCoef = locationSettings.ScatteringCoef * (botMap?.ScatteringCoef ?? 1f);
         //mods.PriorityScatteringCoef = locationSettings.PriorityScatteringCoef;
-        mods.RuntimeVisionEffectK = locationSettings.GainSightCoef;
-        mods.HearingDistCoef = locationSettings.HearingDistanceCoef;
+        mods.RuntimeVisionEffectK = locationSettings.GainSightCoef * (botMap?.GainSightCoef ?? 1f);
+        mods.HearingDistCoef = locationSettings.HearingDistanceCoef * (botMap?.HearingDistanceCoef ?? 1f);
     }
 
     private void applyPersonality(SAINPresetClass preset)

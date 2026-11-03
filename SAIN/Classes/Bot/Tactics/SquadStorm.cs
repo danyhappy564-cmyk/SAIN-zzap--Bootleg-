@@ -1,3 +1,4 @@
+using SAIN.Preset.Shared.BotSettings.SAINSettings.Categories;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using EFT;
@@ -54,7 +55,7 @@ public static class SquadStorm
     {
         reason = string.Empty;
         var settings = GlobalSettingsClass.Instance?.General?.SquadCombat;
-        if (settings == null || !settings.Enabled || !settings.SquadStorm || enemy?.EnemyPlayer == null)
+        if (settings == null || !SAINZzapBotSettings.Allows(bot.Info.Zzap?.SquadCombat ?? EZzapToggle.Global, settings.Enabled) || !settings.SquadStorm || enemy?.EnemyPlayer == null)
         {
             return false;
         }

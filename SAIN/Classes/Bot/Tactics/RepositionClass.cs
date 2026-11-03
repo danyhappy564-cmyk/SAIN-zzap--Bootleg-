@@ -1,3 +1,4 @@
+using SAIN.Preset.Shared.BotSettings.SAINSettings.Categories;
 using System.Collections.Generic;
 using EFT;
 using EFT.InventoryLogic;
@@ -114,6 +115,12 @@ public class RepositionClass : BotComponentClassBase
         get
         {
             var settings = GlobalSettingsClass.Instance?.General?.Reposition;
+            // zzap (2026-11-04): the bot type's Reposition switch wins; Global = this switch and its Skip Scavs, as before.
+            var toggle = Bot.Info.Zzap?.Reposition ?? EZzapToggle.Global;
+            if (toggle != EZzapToggle.Global)
+            {
+                return settings != null && toggle == EZzapToggle.On;
+            }
             return settings != null && settings.Enabled && (!settings.PmcOnly || !Bot.Info.Profile.SkippedByPmcOnly);
         }
     }

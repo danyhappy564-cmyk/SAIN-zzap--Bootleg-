@@ -1318,7 +1318,7 @@ public class EnemyDecisionClass : BotBase
         {
             return false;
         }
-        if (settings.PmcOnly && Bot.Info.Profile.SkippedByPmcOnly)
+        if (Bot.Info.SkipsZzapCloseCombat(settings.PmcOnly))
         {
             return false;
         }

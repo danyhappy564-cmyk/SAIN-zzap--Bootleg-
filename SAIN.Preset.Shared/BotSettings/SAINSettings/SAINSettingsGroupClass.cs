@@ -67,4 +67,12 @@ public class SAINSettingsGroupClass
     /// </summary>
     [DataMember]
     public Dictionary<string, float> LevelBase = new();
+
+    /// <summary>
+    /// zzap (user 2026-11-04, player feedback: "bots on Labs should hear less while Reserve stays default, per bot type"): this
+    /// bot type's multipliers per map, applied on top of the global "Location Specific Modifiers". Only changed maps are kept;
+    /// a map that isn't listed is 1x, so presets from before this change behave exactly as before.
+    /// </summary>
+    [DataMember]
+    public Dictionary<ELocation, DifficultySettings> MapModifiers = new();
 }

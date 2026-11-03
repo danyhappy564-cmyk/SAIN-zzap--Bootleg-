@@ -49,6 +49,10 @@ public class SAINSettingsClass : SettingsGroupBase<SAINSettingsClass>
     [DataMember]
     public SAINShootSettings Shoot = new();
 
+    /// <summary>zzap (2026-11-04): this bot type's ZZAP tactic switches (Global = the ZZAP tab).</summary>
+    [DataMember]
+    public SAINZzapBotSettings Zzap = new();
+
     public override void InitList()
     {
         SettingsList.Clear();
@@ -65,5 +69,6 @@ public class SAINSettingsClass : SettingsGroupBase<SAINSettingsClass>
         SettingsList.Add(Patrol);
         SettingsList.Add(Scattering);
         SettingsList.Add(Shoot);
+        SettingsList.Add(Zzap);
     }
 }

@@ -11,6 +11,11 @@ public static class KoreanValueText
 {
     public static readonly Dictionary<string, string> Map = new()
     {
+        // zzap 2026-11-04: per-bot ZZAP switches
+        { "EZzapToggle.Global", "전역 따름" },
+        { "EZzapToggle.On", "켬" },
+        { "EZzapToggle.Off", "끔" },
+
         // Personality > Search > Heard From Peace Behavior
         { "EHeardFromPeaceBehavior.None", "기본 반응" },
         { "EHeardFromPeaceBehavior.Freeze", "정지 및 매복" },

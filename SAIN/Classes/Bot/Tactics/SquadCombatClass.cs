@@ -1,3 +1,4 @@
+using SAIN.Preset.Shared.BotSettings.SAINSettings.Categories;
 using System.Collections.Generic;
 using EFT;
 using HarmonyLib;
@@ -69,6 +70,9 @@ public class SquadCombatClass : BotComponentClassBase
         get { return _session?.Look; }
     }
 
+    /// <summary>zzap (2026-11-04): squad combat on for this bot - its bot type's switch, else the ZZAP tab's.</summary>
+    private bool TacticsOn => SAINZzapBotSettings.Allows(Bot.Info.Zzap?.SquadCombat ?? EZzapToggle.Global, Settings.Enabled);
+
     private static SquadCombatSettings Settings
     {
         get { return GlobalSettingsClass.Instance.General.SquadCombat; }
@@ -127,7 +131,7 @@ public class SquadCombatClass : BotComponentClassBase
         _nextDecisionTime = time + DECISION_THROTTLE;
         TrackTeammates(time);
 
-        if (!Settings.Enabled || _cooldownUntil > time)
+        if (!TacticsOn || _cooldownUntil > time)
         {
             reason = "disabledOrCooldown";
             return false;
@@ -282,7 +286,7 @@ public class SquadCombatClass : BotComponentClassBase
     public bool ShallTrade(Enemy enemy, out string reason)
     {
         reason = string.Empty;
-        if (_session != null || !Settings.Enabled || !Settings.Trade)
+        if (_session != null || !TacticsOn || !Settings.Trade)
         {
             return false;
         }
@@ -1096,7 +1100,7 @@ public class SquadCombatClass : BotComponentClassBase
             return false; // a running session is kept by ShallUse
         }
         float time = Time.time;
-        if (!Settings.Enabled || !Settings.Maneuver || time < _nextManeuverCheck || time < _cooldownUntil)
+        if (!TacticsOn || !Settings.Maneuver || time < _nextManeuverCheck || time < _cooldownUntil)
         {
             return false;
         }

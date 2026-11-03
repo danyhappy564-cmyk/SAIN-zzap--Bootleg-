@@ -1,3 +1,4 @@
+using SAIN.Preset.Shared.BotSettings.SAINSettings.Categories;
 using System.Collections.Generic;
 using Comfort.Common;
 using EFT;
@@ -325,9 +326,12 @@ public partial class DoorTacticClass : BotComponentClassBase
         get { return _session != null && !_session.IsSupport ? _session.Door.Id : -1; }
     }
 
+    /// <summary>zzap (2026-11-04): door tactics on for this bot - its bot type's switch, else the ZZAP tab's.</summary>
+    private bool TacticsOn => SAINZzapBotSettings.Allows(Bot.Info.Zzap?.DoorTactics ?? EZzapToggle.Global, Settings.Enabled);
+
     private bool TryStart(Enemy enemy, bool holdStance, out string reason, bool shortHold = false, bool searchClear = false)
     {
-        if (!Settings.Enabled)
+        if (!TacticsOn)
         {
             reason = "disabled";
             return false;
@@ -2851,7 +2855,7 @@ public partial class DoorTacticClass : BotComponentClassBase
             return false;
         }
         _pendingRole = null;
-        if (!Settings.Enabled || !Settings.SquadRoles)
+        if (!TacticsOn || !Settings.SquadRoles)
         {
             reason = "rolesDisabled";
             return false;

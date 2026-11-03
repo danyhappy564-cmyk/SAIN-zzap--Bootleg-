@@ -4,6 +4,7 @@ using SAIN.Extensions;
 using SAIN.Helpers;
 using SAIN.Preset;
 using SAIN.Preset.Shared.BotSettings.SAINSettings;
+using SAIN.Preset.Shared.BotSettings.SAINSettings.Categories;
 using SAIN.Preset.Shared.Models.Preset.Personalities;
 using SAIN.Preset.Shared.Personalities.BasePersonality;
 using SAIN.Preset.Shared.Personalities.BasePersonality.Categories;
@@ -55,6 +56,17 @@ public class SAINBotInfoClass : BotComponentClassBase
             }
             return _fileSettings;
         }
+    }
+
+    /// <summary>zzap (2026-11-04): this bot type's ZZAP switches from the bot settings (Global = the ZZAP tab).</summary>
+    public SAINZzapBotSettings Zzap => FileSettings?.Zzap;
+
+    /// <summary>zzap (2026-11-04): close-combat zzap moves skipped for this bot - the bot type's "Close Combat Moves" switch first,
+    /// otherwise "Skip Scavs" (<paramref name="pmcOnly"/>) for scavs, as before.</summary>
+    public bool SkipsZzapCloseCombat(bool pmcOnly)
+    {
+        var toggle = Zzap?.CloseCombat ?? EZzapToggle.Global;
+        return toggle == EZzapToggle.Global ? pmcOnly && Profile.SkippedByPmcOnly : toggle == EZzapToggle.Off;
     }
 
     public BotDifficultyClass Difficulty { get; }
