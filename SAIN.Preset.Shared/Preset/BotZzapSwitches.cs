@@ -81,7 +81,11 @@ public static class BotZzapSwitches
     /// <summary>Count of switches not on Global in these groups (for the tab badge).</summary>
     public static int Changed(IEnumerable<SAINSettingsGroupClass> groups)
     {
-        var list = groups.ToList();
+        var list = groups.Where(g => g != null).ToList();
+        if (list.Count == 0)
+        {
+            return 0; // nothing editable (vanilla bots) - not "mixed"
+        }
         return All.Count(sw => Get(list, sw) is EZzapToggle v ? v != EZzapToggle.Global : true);
     }
 

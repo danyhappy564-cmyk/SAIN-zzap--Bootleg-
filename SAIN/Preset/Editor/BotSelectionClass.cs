@@ -570,7 +570,8 @@ public static class BotSelectionClass
             var selectedNames = string.Join(" · ", BotTypeDefinitions.BotTypes.Values.Where(b => _selection.Contains(b)).Select(b => b.Name));
             SelectionTitle = T($"선택한 {_selection.Count}종 함께 편집 ({selectedNames})", $"Editing {TypesEn(_selection.Count)} together ({selectedNames})");
             KeptSelection = T($"지금은 {_selected?.Name} 한 봇만 편집합니다. 묶음은 유지됩니다.", $"Currently editing only {_selected?.Name}. Your selection is kept.");
-            KnobHeading = T($"손잡이로 세부 조절 {BotQuickSettings.All.Length}개", $"Fine-tune with knobs {BotQuickSettings.All.Length}");
+            int knobCount = BotQuickSettings.All.Count(k => k.Id != PERSONALITY); // the personality pick has its own tab
+            KnobHeading = T($"손잡이로 세부 조절 {knobCount}개", $"Fine-tune with knobs {knobCount}");
             Knobs.Clear();
             Rows.Clear();
             Pills.Clear();
