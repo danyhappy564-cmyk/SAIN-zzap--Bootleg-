@@ -18,6 +18,8 @@
 - 슬롯 적용만으로는 저장 안 됨 — 위쪽 '저장'을 눌러야 게임에 반영
 - '되돌리기' 뒤에도 '저장 안 한 변경' 개수가 안 줄어듦(전 판부터, 저장하면 정상)
 
+Huge thanks to @Zybergeris! Your feedback made it so much easier to restructure and work on the SAIN settings. Really appreciate it!
+
 ^^7
 
 -----------------

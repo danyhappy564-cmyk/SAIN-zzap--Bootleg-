@@ -22,6 +22,8 @@
 > F6와 웹의 **봇 종류별 설정 화면**을 손본 판입니다. 봇 여러 종을 묶어서 한꺼번에 조절하고, 마음에 드는 값을 **내 설정 슬롯**에 담아 두었다가 다시 쓰거나 **공유 코드**로 주고받을 수 있습니다.
 > 봇 행동(전투 방식)과 zzap 프리셋 값은 Remix7.2와 같습니다. 저장 방식(기본 zzap 프리셋은 `[Modified]` 사본으로 저장)도 그대로입니다.
 
+**Huge thanks to @Zybergeris! Your feedback made it so much easier to restructure and work on the SAIN settings. Really appreciate it!**
+
 ---
 
 **<설치 / 업데이트>**
