@@ -18,6 +18,13 @@
             <SainSectionEditor Target="Bundle.GlobalSettings" Original="Original?.GlobalSettings" Defaults="DefaultBundle?.GlobalSettings" References="Columns.Select(r=>(r.Name,(object)r.Bundle.GlobalSettings)).ToArray()" OnChanged="OnChanged" />
         </ChildContent>
     </MudTabPanel>
+    @* zzap (user 2026-11-04): the zzap tactics and the simulation settings on their own tabs, same split as F6. *@
+    <MudTabPanel Text="@T("ZZAP (전술 등..)", "ZZAP (tactics etc.)")" Icon="@Icons.Material.Outlined.Bolt">
+        <SainSectionEditor Scope="@ZzapTactics.TabZzap" Target="Bundle.GlobalSettings" Original="Original?.GlobalSettings" Defaults="DefaultBundle?.GlobalSettings" References="Columns.Select(r=>(r.Name,(object)r.Bundle.GlobalSettings)).ToArray()" OnChanged="OnChanged" />
+    </MudTabPanel>
+    <MudTabPanel Text="@T("시뮬레이션", "Simulation")" Icon="@Icons.Material.Outlined.Science">
+        <SainSectionEditor Scope="@ZzapTactics.TabSim" Target="Bundle.GlobalSettings" Original="Original?.GlobalSettings" Defaults="DefaultBundle?.GlobalSettings" References="Columns.Select(r=>(r.Name,(object)r.Bundle.GlobalSettings)).ToArray()" OnChanged="OnChanged" />
+    </MudTabPanel>
     <MudTabPanel Text="@T("봇별 설정", "Bot settings")" Icon="@Icons.Material.Outlined.SmartToy">
         <BotSettingsEditor Bundle="Bundle" Original="Original" Zzap="Zzap" References="Columns" OnChanged="OnChanged" />
     </MudTabPanel>

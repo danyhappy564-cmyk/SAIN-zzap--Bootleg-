@@ -39,13 +39,16 @@ internal static class SettingsFilterGUI
         GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
     }
-    public static void Draw(object target,object baseline,string search=null)
+    /// <param name="keep">zzap (2026-11-04): which rows to list, by their path inside <paramref name="target"/> (the ZZAP and Simulation
+    /// tabs). One call per frame - the rows are rebuilt on the layout pass and reused when drawing.</param>
+    public static void Draw(object target,object baseline,string search=null,System.Func<string,bool> keep=null)
     {
         if(Event.current.type==EventType.Layout)
         {
             _rows.Clear();
             foreach(var value in SettingsFieldStatus.Rows(target,baseline))
             {
+                if(keep!=null && !keep(value.Path)) continue;
                 var info=AttributesGUI.GetAttributeInfo(value.Field);
                 if(info==null || info.DoNotShowGUI || (_newOnly && !value.New) || (_changedOnly && !value.Changed)) continue;
                 if(!string.IsNullOrEmpty(search) && AttributesGUI.SkipForSearch(info,search.ToLowerInvariant())) continue;

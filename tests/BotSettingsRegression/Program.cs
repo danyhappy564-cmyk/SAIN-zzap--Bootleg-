@@ -64,6 +64,18 @@ partial class Program
         Test("vanilla global locks agree with exclusion across all role groups", () => { LoadFixture(); var settings = PresetHandler.LoadedPreset.GlobalSettings.General.VanillaBots; (string Flag, WildSpawnType Role)[] cases = { ("VanillaScavs", WildSpawnType.marksman), ("VanillaBosses", WildSpawnType.bossKilla), ("VanillaFollowers", WildSpawnType.followerBully), ("VanillaGoons", WildSpawnType.followerBirdEye), ("VanillaCultists", WildSpawnType.sectantPriest), ("VanillaRogues", WildSpawnType.exUsec), ("VanillaRaiders", WildSpawnType.pmcBot), ("VanillaBloodHounds", WildSpawnType.arenaFighterEvent), ("VanillaLabyrinthBots", WildSpawnType.bossTagillaAgro), ("VanillaSpecialBots", WildSpawnType.gifter) }; foreach (var c in cases) { foreach (var f in settings.GetType().GetFields().Where(f => f.FieldType == typeof(bool))) f.SetValue(settings, false); settings.GetType().GetField(c.Flag).SetValue(settings, true); Check(SAINEnableClass.ShallExludeByWildSpawnType(c.Role, Bot(c.Role)), c.Flag + " exclusion fixture"); Check(BigBrainHandler.BrainAssignment.VanillaByGroupSetting(c.Role, out _), c.Flag + " not locked"); Check(!BigBrainHandler.BrainAssignment.VanillaByGroupSetting(WildSpawnType.pmcUSEC, out _), c.Flag + " locked PMC"); Check(!BigBrainHandler.BrainAssignment.VanillaByGroupSetting((WildSpawnType) 848421, out _), c.Flag + " locked modded role sharing brain"); } });
         Test("SAIN enabled PMC remains enabled without per-bot override", () => { LoadFixture(); Role(WildSpawnType.pmcUSEC, "PmcUsec", false); Check(!SAINEnableClass.IsBotExcluded(Bot(WildSpawnType.pmcUSEC)), "unselected PMC disabled"); });
         SettingsPolicyTests();
+        Test("ZZAP and Simulation tabs split the global settings", () =>
+        {
+            Check(ZzapTactics.TabOf("General.DoorTactics.Enabled") == ZzapTactics.TabZzap, "door");
+            Check(ZzapTactics.TabOf("General.CloseCombat.DiamondStep") == ZzapTactics.TabZzap, "close combat");
+            Check(ZzapTactics.TabOf("General.SimLab.Enabled") == ZzapTactics.TabSim, "sim");
+            Check(ZzapTactics.TabOf("General.Doors.CloseDoors") == ZzapTactics.TabAll, "vanilla doors stay");
+            Check(ZzapTactics.TabOf("Aiming.X") == ZzapTactics.TabAll, "other categories stay");
+            var g = new SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass();
+            var general = typeof(SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings);
+            foreach (var name in ZzapTactics.ZzapSections.Concat(ZzapTactics.SimSections)) Check(general.GetField(name) != null, "missing section " + name);
+            foreach (var t in ZzapTactics.All) { bool v = t.Get(g); t.Set(g, !v); Check(t.Get(g) == !v, "switch " + t.Id); t.Set(g, v); }
+        });
         Test("English preset names keep the stored key", () =>
         {
             Check(QuickSettings.DisplayName("zzap 쉬움", false) == "zzap Easy", "easy");

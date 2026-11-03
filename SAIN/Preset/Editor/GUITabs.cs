@@ -30,6 +30,14 @@ public static class GUITabs
                 Home();
                 break;
 
+            case EEditorTab.Zzap:
+                ScopedGlobal(BotSettingsEditor.GlobalScope.Zzap);
+                break;
+
+            case EEditorTab.Simulation:
+                ScopedGlobal(BotSettingsEditor.GlobalScope.Sim);
+                break;
+
             case EEditorTab.BotSettings:
                 BotSettings();
                 break;
@@ -86,6 +94,19 @@ public static class GUITabs
             SAINPresetClass.ExportAll(SAINPlugin.LoadedPreset);
             ConfigEditingTracker.Clear();
         }
+    }
+
+    private static void ScopedGlobal(BotSettingsEditor.GlobalScope scope)
+    {
+        BotSettingsEditor.ShowAllSettingsGUI(
+            SAINPlugin.LoadedPreset.GlobalSettings,
+            out _,
+            "Global Settings",
+            string.Empty,
+            35f,
+            out _,
+            scope
+        );
     }
 
     public static void BotSettings()

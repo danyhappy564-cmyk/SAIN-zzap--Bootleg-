@@ -1,0 +1,41 @@
+@namespace SAINServerMod.Web.Components
+
+@* zzap (user 2026-11-04: "ZZAP settings are too hard - simply: can it QEQE, does it diamond step"): the main zzap switches in
+   plain words, same list as F6 (ZzapTactics). The exact numbers stay in each section on the left. *@
+<div class="sain-global-heading">
+    <p>@T("모든 봇에 적용됩니다. 봇 종류마다 다르게 하려면 '봇별 설정' 탭의 ZZAP 칸에서 바꾸세요. 세부 숫자는 왼쪽 각 묶음에 있습니다.",
+          "Applies to all bots. To differ by bot type use the ZZAP part of the Bot settings tab. Exact numbers are in each section on the left.")</p>
+</div>
+<div class="sain-zzap-overview">
+    @foreach (var tactic in ZzapTactics.All)
+    {
+        var t = tactic;
+        bool on = t.Get(Target);
+        var reference = Reference();
+        bool differs = reference != null && t.Get(reference) != on;
+        <div class="sain-zzap-row">
+            <div class="sain-zzap-text">
+                <strong>@t.Name(Korean)</strong>
+                @if (differs) { <span class="sain-diff" title="@T("비교 기준과 다름", "Differs from the reference")">●</span> }
+                <small>@t.Help(Korean)</small>
+            </div>
+            <MudSwitch T="bool" Value="on" ValueChanged="@(v => Set(t, v))" Color="Color.Primary" Label="@(on ? T("켬", "On") : T("끔", "Off"))" />
+        </div>
+    }
+</div>
+<small class="spt-muted">@T("● = zzap 원본과 다름", "● = differs from zzap original")</small>
+
+@code {
+    [Parameter, EditorRequired] public SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass Target { get; set; } = default!;
+    [Parameter] public IReadOnlyList<(string Name, object Target)> References { get; set; } = Array.Empty<(string, object)>();
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass? Reference()
+        => References.FirstOrDefault(r => r.Name == "zzap").Target as SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass;
+
+    private async Task Set(ZzapTactic tactic, bool value)
+    {
+        tactic.Set(Target, value);
+        await OnChanged.InvokeAsync();
+    }
+}

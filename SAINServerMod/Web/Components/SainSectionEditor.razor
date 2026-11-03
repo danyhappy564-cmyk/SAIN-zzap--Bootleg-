@@ -8,7 +8,7 @@
 else
 {
     <div class="sain-editor">
-        <div class="sain-global-heading"><h2>@T("전역 설정","Global settings")</h2><p>@T("모든 봇에 공통으로 적용합니다. ","Applies to all bots. ")<span class="sain-diff">●</span>@T("는 zzap 원본과 다른 값입니다."," marks values that differ from zzap original.")</p></div>
+        <div class="sain-global-heading"><h2>@Heading()</h2><p>@T("모든 봇에 공통으로 적용합니다. ","Applies to all bots. ")<span class="sain-diff">●</span>@T("는 zzap 원본과 다른 값입니다."," marks values that differ from zzap original.")</p></div>
         <MudTextField T="string" @bind-Value="_query" Immediate="true" DebounceInterval="200"
                       Placeholder="@T("설정 검색… (한글·영어 모두)", "Search settings…")" Variant="Variant.Outlined" Margin="Margin.Dense"
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search"
@@ -21,7 +21,7 @@ else
         </div>
         @if (!string.IsNullOrWhiteSpace(_query) || _newOnly || _changedOnly)
         {
-            <SettingsFilteredEditor Target="Target" Baseline="@(Defaults??Original)" Search="_query" OnChanged="OnChanged" NewOnly="_newOnly" ChangedOnly="_changedOnly" ShowFilters="false" />
+            <SettingsFilteredEditor Target="Target" Baseline="@(Defaults??Original)" Search="_query" OnChanged="OnChanged" NewOnly="_newOnly" ChangedOnly="_changedOnly" ShowFilters="false" Keep="@(path => ZzapTactics.TabOf(path) == Scope)" />
         }
         else
         {
@@ -31,7 +31,7 @@ else
                              Dense="true" Color="Color.Primary">
                         @foreach (var sectionItem in _sections)
                         {
-                            <MudListItem T="string" Value="@sectionItem.Name" Text="@Setting(sectionItem.Name)" />
+                            <MudListItem T="string" Value="@sectionItem.Name" Text="@(sectionItem.Name == Overview ? T("★ 한눈에 켜고 끄기", "★ At a glance") : Setting(sectionItem.Name))" />
                         }
                     </MudList>
                 </div>
@@ -41,11 +41,14 @@ else
                     {
                         <MudText Typo="Typo.caption" Class="spt-muted">@T("설정 없음.", "No settings.")</MudText>
                     }
+                    else if (active.Name == Overview && Target is SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass globals)
+                    {
+                        <ZzapOverview Target="globals" References="References" OnChanged="OnChanged" />
+                    }
                     else
                     {
                         var quickTarget = active.Member?.GetValue() ?? Target;
-                        var originalTarget = active.Member != null && Original != null
-                            ? Original.GetType().GetField(active.Member.Member.Name)?.GetValue(Original) : Original;
+                        var originalTarget = Project(Original, active);
                         <QuickObjectEditor Target="quickTarget" Original="originalTarget" Defaults="Project(Defaults,active)" References="ScopeReferences(active)" OnChanged="OnChanged" />
                         @if (quickTarget is SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings general)
                         {
@@ -53,7 +56,7 @@ else
                             <QuickObjectEditor Target="general.VanillaBots" Defaults="@((Project(Defaults,active) as SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings)?.VanillaBots)" References="ScopeReferences(active,true)" Original="@((originalTarget as SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings)?.VanillaBots)" OnChanged="OnChanged" />
                         }
                         <MudExpansionPanels Elevation="0" Class="mt-3"><MudExpansionPanel Text="@T("고급 · 모든 설정", "Advanced · all settings")">
-                    <SettingsFilteredEditor Target="quickTarget" Baseline="@(Project(Defaults,active)??originalTarget)" OnChanged="OnChanged" ShowFilters="false" />
+                    <SettingsFilteredEditor Target="quickTarget" Baseline="@(Project(Defaults,active)??originalTarget)" OnChanged="OnChanged" ShowFilters="false" Keep="@(active.Member?.Member.Name == "General" ? path => ZzapTactics.TabOf("General." + path) == ZzapTactics.TabAll : null)" />
                         </MudExpansionPanel></MudExpansionPanels>
                     }
                 </div>
@@ -68,24 +71,34 @@ else
     [Parameter] public object? Defaults { get; set; }
     [Parameter] public IReadOnlyList<(string Name,object Target)> References { get; set; } = Array.Empty<(string,object)>();
     [Parameter] public EventCallback OnChanged { get; set; }
+    /// <summary>zzap (user 2026-11-04): ZzapTactics.TabAll / TabZzap / TabSim - the global settings split over three tabs.</summary>
+    [Parameter] public string Scope { get; set; } = ZzapTactics.TabAll;
 
     [CascadingParameter(Name = "ShowAdvanced")] public bool ShowAdvanced { get; set; } = true;
     [CascadingParameter(Name = "ShowDeveloper")] public bool ShowDeveloper { get; set; }
 
-    private sealed record Section(string Name, SainMember? Member, List<SainMember>? Leaves);
+    /// <param name="Parent">Set for a section that lives inside General (the ZZAP / Simulation tabs list those directly).</param>
+    private sealed record Section(string Name, SainMember? Member, List<SainMember>? Leaves, string? Parent = null);
+
+    private const string Overview = "__zzap_overview";
+
+    private string Heading() => Scope == ZzapTactics.TabZzap ? T("ZZAP (전술 등..)", "ZZAP (tactics etc.)")
+        : Scope == ZzapTactics.TabSim ? T("시뮬레이션", "Simulation") : T("전역 설정", "Global settings");
 
     private List<Section> _sections = new();
     private string? _selected;
     private string _query = string.Empty;
     private bool _newOnly, _changedOnly;
     private object? _lastTarget;
+    private string? _lastScope;
 
     protected override void OnParametersSet()
     {
-        if (ReferenceEquals(_lastTarget, Target))
+        if (ReferenceEquals(_lastTarget, Target) && _lastScope == Scope)
         {
             return;
         }
+        _lastScope = Scope;
         _lastTarget = Target;
         _sections = BuildSections();
         _selected = _sections.FirstOrDefault()?.Name;
@@ -101,6 +114,25 @@ else
         }
 
         var members = SainReflection.Members(Target);
+        if (Scope != ZzapTactics.TabAll)
+        {
+            if (Scope == ZzapTactics.TabZzap && Target is SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass)
+            {
+                sections.Add(new Section(Overview, null, null));
+            }
+            var general = members.FirstOrDefault(m => m.Member.Name == "General")?.GetValue();
+            if (general != null)
+            {
+                foreach (var member in SainReflection.Members(general))
+                {
+                    if (ZzapTactics.TabOf("General." + member.Member.Name) == Scope)
+                    {
+                        sections.Add(new Section(member.Meta.Name, member, null, "General"));
+                    }
+                }
+            }
+            return sections;
+        }
         var leaves = members.Where(IsLeaf).ToList();
         if (leaves.Count > 0)
         {
@@ -116,8 +148,11 @@ else
     }
 
     private static object? Project(object? root, Section section)
-        => root == null || section.Member == null ? root
-            : SainReflection.Members(root).FirstOrDefault(m=>m.Member.Name==section.Member.Member.Name)?.GetValue();
+    {
+        if (root == null || section.Member == null) return root;
+        if (section.Parent != null) root = SainReflection.Members(root).FirstOrDefault(m => m.Member.Name == section.Parent)?.GetValue();
+        return root == null ? null : SainReflection.Members(root).FirstOrDefault(m=>m.Member.Name==section.Member.Member.Name)?.GetValue();
+    }
     private IReadOnlyList<(string Name,object Target)> ScopeReferences(Section section,bool vanilla=false)
         => References.Select(r=>(r.Name,Target: vanilla ? (Project(r.Target,section) as SAIN.Preset.Shared.GlobalSettings.Categories.General.GeneralSettings)?.VanillaBots : Project(r.Target,section)))
             .Where(r=>r.Target!=null).Select(r=>(r.Name,r.Target!)).ToArray();

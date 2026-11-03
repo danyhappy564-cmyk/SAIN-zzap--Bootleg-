@@ -6,6 +6,7 @@ using EFT.UI;
 using SAIN.Attributes;
 using SAIN.Plugin;
 using SAIN.Preset.Shared.GlobalSettings;
+using SAIN.Preset.Shared.Preset;
 using UnityEngine;
 using static SAIN.Editor.SAINLayout;
 
@@ -18,12 +19,107 @@ public static class BotSettingsEditor
 
     // zzap fork (2026-10-18, mockup 5): left panel = search box + group list, right panel = the picked group (or the search hits).
     // Save lives in the header now, so the old top row (name box, search label, red "unsaved" bar, second Save button) is gone.
-    public static void ShowAllSettingsGUI(object settings, out bool wasEdited, string name, string savePath, float height, out bool Saved)
+    public static void ShowAllSettingsGUI(object settings, out bool wasEdited, string name, string savePath, float height, out bool Saved, GlobalScope scope = GlobalScope.All)
     {
         Saved = false;
         ZzapUI.EnsureStyles();
         var container = SettingsContainers.GetContainer(settings.GetType(), name);
-        GroupedView(container, settings, out wasEdited);
+        GroupedView(container, settings, out wasEdited, scope);
+    }
+
+    /// <summary>zzap (user 2026-11-04): the global settings split over three tabs - everything else / ZZAP tactics / simulation
+    /// (sections listed in ZzapTactics). The settings object is the same; only which groups a tab lists differs.</summary>
+    public enum GlobalScope
+    {
+        All,
+        Zzap,
+        Sim,
+    }
+
+    private const string OVERVIEW = "__zzap_overview";
+
+    private static string TabName(GlobalScope scope) => scope switch
+    {
+        GlobalScope.Zzap => ZzapTactics.TabZzap,
+        GlobalScope.Sim => ZzapTactics.TabSim,
+        _ => ZzapTactics.TabAll,
+    };
+
+    private static bool InScope(GroupEntry group, GlobalScope scope)
+    {
+        string field = group.SubField?.Name;
+        bool zzap = field != null && ZzapTactics.IsZzapSection(field);
+        bool sim = field != null && ZzapTactics.IsSimSection(field);
+        return scope switch
+        {
+            GlobalScope.Zzap => zzap,
+            GlobalScope.Sim => sim,
+            _ => !zzap && !sim,
+        };
+    }
+
+    private static readonly Dictionary<GlobalScope, List<GroupEntry>> _scoped = new();
+
+    private static List<GroupEntry> ScopedGroups(SettingsContainer container, GlobalScope scope)
+    {
+        if (_scoped.TryGetValue(scope, out var list))
+        {
+            return list;
+        }
+        list = new List<GroupEntry>();
+        if (scope == GlobalScope.Zzap)
+        {
+            list.Add(new GroupEntry { Key = OVERVIEW, Count = ZzapTactics.All.Length });
+        }
+        foreach (var group in Groups(container))
+        {
+            if (!InScope(group, scope))
+            {
+                continue;
+            }
+            // On their own tab the sections are top-level rows (they sit under "General" in the full list).
+            list.Add(scope == GlobalScope.All ? group : new GroupEntry
+            {
+                Key = group.Key, Category = group.Category, SubField = group.SubField, SubInfo = group.SubInfo, Count = group.Count, Depth = 0,
+            });
+        }
+        _scoped[scope] = list;
+        return list;
+    }
+
+    private static readonly Dictionary<GlobalScope, string> _scopeSearch = new();
+    private static readonly Dictionary<GlobalScope, UnityEngine.Vector2> _scopeScroll = new();
+    private static readonly Dictionary<GlobalScope, string> _selectedByScope = new();
+    private static readonly Dictionary<GlobalScope, UnityEngine.Vector2> _listScrollByScope = new();
+
+    // The ZZAP tab's first page: each main zzap switch as one line (name, plain help, switch, a dot when it differs from the
+    // reference preset picked on the "Compare with" bar).
+    private static void ZzapOverview(SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass settings)
+    {
+        var reference = QuickObjectGUI.Reference()?.GlobalSettings;
+        foreach (var tactic in ZzapTactics.All)
+        {
+            bool on = tactic.Get(settings);
+            GUILayout.BeginHorizontal(ZzapUI.Panel1, GUILayout.Height(52f));
+            GUILayout.BeginVertical();
+            string dot = reference != null && tactic.Get(reference) != on ? " <color=#facc15>●</color>" : string.Empty;
+            GUILayout.Label("<b>" + tactic.Name(EditorText.Korean) + "</b>" + dot, ZzapUI.Name);
+            GUILayout.Label(tactic.Help(EditorText.Korean), ZzapUI.Small);
+            GUILayout.EndVertical();
+            GUILayout.FlexibleSpace();
+            bool next = ZzapUI.Switch(on, 30f, T("켬", "On"), T("끔", "Off"));
+            GUILayout.EndHorizontal();
+            if (next != on)
+            {
+                var captured = tactic;
+                ZzapUI.Defer(() => { captured.Set(settings, next); ConfigEditingTracker.Add(captured.NameEn, next); });
+            }
+            GUILayout.Space(4f);
+        }
+        if (reference != null)
+        {
+            GUILayout.Label(string.Format(T("노란 점 = 비교 기준({0})과 다름", "Yellow dot = differs from the reference ({0})"), QuickObjectGUI.ReferenceLabel), ZzapUI.Small);
+        }
     }
 
     private sealed class GroupEntry
@@ -84,32 +180,41 @@ public static class BotSettingsEditor
 
     private static readonly Dictionary<SettingsContainer, UnityEngine.Vector2> _listScroll = new();
 
-    private static void GroupedView(SettingsContainer container, object settings, out bool wasEdited)
+    private static void GroupedView(SettingsContainer container, object settings, out bool wasEdited, GlobalScope scope)
     {
         wasEdited = false;
-        var groups = Groups(container);
+        var groups = ScopedGroups(container, scope);
         if (groups.Count == 0)
         {
             return;
         }
-        if (!_selectedGroup.TryGetValue(container, out string selectedKey) || groups.All(g => g.Key != selectedKey))
+        if (!_selectedByScope.TryGetValue(scope, out string selectedKey) || groups.All(g => g.Key != selectedKey))
         {
             selectedKey = groups[0].Key;
-            _selectedGroup[container] = selectedKey;
+            _selectedByScope[scope] = selectedKey;
         }
         // What the right panel shows is decided before this frame's clicks/typing (they apply next frame, see ZzapUI.Defer).
-        string search = container.SearchPattern ?? string.Empty;
+        _scopeSearch.TryGetValue(scope, out string search);
+        search ??= string.Empty;
         bool searching = search.Length > 0;
 
         BeginHorizontal();
 
         GUILayout.BeginVertical(ZzapUI.Panel1, Width(ZzapUI.SIDE_WIDTH), Height(ZzapUI.PANEL_HEIGHT));
-        container.SearchPattern = ZzapUI.Search(container.SearchPattern, EditorText.UI("Search settings (Korean or English)"));
+        _scopeSearch[scope] = ZzapUI.Search(search, EditorText.UI("Search settings (Korean or English)"));
         Space(8f);
-        _listScroll.TryGetValue(container, out var listScroll);
-        _listScroll[container] = BeginScrollView(listScroll, GUILayout.ExpandHeight(true));
+        _listScrollByScope.TryGetValue(scope, out var listScroll);
+        _listScrollByScope[scope] = BeginScrollView(listScroll, GUILayout.ExpandHeight(true));
         foreach (var group in groups)
         {
+            if (group.Key == OVERVIEW)
+            {
+                if (ZzapUI.ListItem(T("★ 한눈에 켜고 끄기", "★ At a glance"), group.Count.ToString(), !searching && selectedKey == OVERVIEW, T("zzap 전술을 쉬운 말로 켜고 끄기", "Turn the zzap tactics on or off in plain words"), 0f, 30f))
+                {
+                    ZzapUI.Defer(() => { _selectedByScope[scope] = OVERVIEW; _scopeSearch[scope] = string.Empty; });
+                }
+                continue;
+            }
             if (group.SubInfo != null && group.SubInfo.DoNotShowGUI)
             {
                 continue;
@@ -117,7 +222,7 @@ public static class BotSettingsEditor
             string parentKey = group.Category.CategoryInfo.EnglishName;
             bool expanded = _expandedGroups.Contains(parentKey);
             if (group.Depth > 0 && !searching && !expanded) continue;
-            bool hasChildren = group.Depth == 0 && groups.Any(child => child.Depth > 0 && child.Category == group.Category);
+            bool hasChildren = group.Depth == 0 && group.SubField == null && groups.Any(child => child.Depth > 0 && child.Category == group.Category);
             if (hasChildren)
             {
                 GUILayout.BeginHorizontal();
@@ -135,9 +240,9 @@ public static class BotSettingsEditor
                 string key = group.Key;
                 ZzapUI.Defer(() =>
                 {
-                    _selectedGroup[container] = key;
-                    container.SearchPattern = string.Empty;
-                    container.Scroll = UnityEngine.Vector2.zero;
+                    _selectedByScope[scope] = key;
+                    _scopeSearch[scope] = string.Empty;
+                    _scopeScroll[scope] = UnityEngine.Vector2.zero;
                 });
             }
             if (hasChildren) GUILayout.EndHorizontal();
@@ -148,12 +253,23 @@ public static class BotSettingsEditor
         Space(12f);
 
         GUILayout.BeginVertical(ZzapUI.Panel1, Height(ZzapUI.PANEL_HEIGHT), GUILayout.ExpandWidth(true));
-        if (searching || SettingsFilterGUI.Active)
+        _scopeScroll.TryGetValue(scope, out var scroll);
+        if (!searching && selectedKey == OVERVIEW && !SettingsFilterGUI.Active)
+        {
+            ZzapUI.PanelHeading(T("ZZAP 전술 — 한눈에 켜고 끄기", "ZZAP tactics — at a glance"),
+                T("모든 봇에 적용됩니다. 봇 종류마다 다르게 하려면 '봇 종류별' 탭의 ZZAP 칸에서 바꾸세요. 세부 숫자는 왼쪽 각 묶음에 있습니다.", "Applies to all bots. To differ by bot type use the ZZAP part of the Bot Settings tab. Exact numbers are in each group on the left."));
+            _scopeScroll[scope] = BeginScrollView(scroll, GUILayout.ExpandHeight(true));
+            ZzapOverview((SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass)settings);
+            EndScrollView();
+        }
+        else if (searching || SettingsFilterGUI.Active)
         {
             ZzapUI.PanelHeading(T("전역 설정","Global settings"),T("모든 봇에 공통으로 적용합니다. 노란 점은 원본과 다른 값입니다.","Applies to all bots. A yellow dot marks values that differ from zzap original."));
             SettingsFilterGUI.Filters();
-            container.Scroll = BeginScrollView(container.Scroll, GUILayout.ExpandHeight(true));
-            SettingsFilterGUI.Draw(settings,QuickObjectGUI.Defaults()?.GlobalSettings,search);
+            _scopeScroll[scope] = BeginScrollView(scroll, GUILayout.ExpandHeight(true));
+            // Each tab searches its own sections only.
+            string tab = TabName(scope);
+            SettingsFilterGUI.Draw(settings,QuickObjectGUI.Defaults()?.GlobalSettings,search,path => ZzapTactics.TabOf(path) == tab);
             EndScrollView();
         }
         else
@@ -162,7 +278,7 @@ public static class BotSettingsEditor
             string title = current.SubInfo != null ? $"{current.Category.CategoryInfo.Name} › {current.SubInfo.Name}" : current.Category.CategoryInfo.Name;
             ZzapUI.PanelHeading(title, current.SubInfo?.Description ?? current.Category.CategoryInfo.Description);
             SettingsFilterGUI.Filters();
-            container.Scroll = BeginScrollView(container.Scroll, GUILayout.ExpandHeight(true));
+            _scopeScroll[scope] = BeginScrollView(scroll, GUILayout.ExpandHeight(true));
             object categoryObject = current.Category.GetValue(settings);
             var baseline = QuickObjectGUI.Saved()?.GlobalSettings;
             object savedObject = baseline == null ? null : current.Category.GetValue(baseline);
@@ -185,7 +301,11 @@ public static class BotSettingsEditor
             }
             if (QuickObjectGUI.Advanced(current.Key))
             {
-                if (quickObject != null) SettingsFilterGUI.Draw(quickObject,Select(QuickObjectGUI.Defaults()));
+                // "General" itself lists the zzap / simulation sections inside it - they are on their own tabs now.
+                System.Func<string, bool> keep = current.SubField == null && current.Category.CategoryInfo.MemberInfo.Name == "General"
+                    ? path => ZzapTactics.TabOf("General." + path) == ZzapTactics.TabAll
+                    : null;
+                if (quickObject != null) SettingsFilterGUI.Draw(quickObject,Select(QuickObjectGUI.Defaults()),null,keep);
             }
             EndScrollView();
         }

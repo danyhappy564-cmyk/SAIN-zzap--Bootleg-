@@ -39,11 +39,13 @@
     [Parameter] public bool ShowFilters { get; set; }=true;
     [Parameter] public bool NewOnly { get; set; }
     [Parameter] public bool ChangedOnly { get; set; }
+    /// <summary>zzap (2026-11-04): which rows to list, by path inside Target (the ZZAP / Simulation tabs split).</summary>
+    [Parameter] public Func<string,bool>? Keep { get; set; }
     [CascadingParameter(Name="ShowAdvanced")] public bool ShowAdvanced { get; set; }=true;
     [CascadingParameter(Name="ShowDeveloper")] public bool ShowDeveloper { get; set; }
     private bool _newOnly,_changedOnly;
     private IEnumerable<SettingsObjectField> Rows() => SettingsFieldStatus.Rows(Target!,Baseline!).Where(r=>
-        (!(_newOnly || NewOnly) || r.New) && (!(_changedOnly || ChangedOnly) || r.Changed)
+        (Keep==null || Keep(r.Path)) && (!(_newOnly || NewOnly) || r.New) && (!(_changedOnly || ChangedOnly) || r.Changed)
         && SainReflection.IsVisible(SainMeta.Read(r.Field),ShowAdvanced,ShowDeveloper)
         && (string.IsNullOrWhiteSpace(Search) || (r.Path+" "+Setting(SainMeta.Read(r.Field).Name)+" "+SainMeta.Read(r.Field).Name+" "+Setting(SainMeta.Read(r.Field).Description??"")).Contains(Search,StringComparison.OrdinalIgnoreCase)));
     private async Task Reset(SettingsObjectField row)

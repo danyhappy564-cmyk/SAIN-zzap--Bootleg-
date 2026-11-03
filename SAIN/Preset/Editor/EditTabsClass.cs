@@ -20,6 +20,15 @@ internal class EditTabsClass
                 EEditorTab.Home,
                 new TabClass { Name = "Global Settings (all)", ToolTip = "Every global SAIN setting, one group at a time (pick a group on the left or search)." }
             },
+            // zzap (user 2026-11-04): the zzap tactics and the simulation settings on their own tabs.
+            {
+                EEditorTab.Zzap,
+                new TabClass { Name = "ZZAP (tactics etc.)", ToolTip = "The zzap tactics for all bots: switches in plain words first, exact numbers per group." }
+            },
+            {
+                EEditorTab.Simulation,
+                new TabClass { Name = "Simulation", ToolTip = "Simulation Lab: bot-vs-bot test raids." }
+            },
             {
                 EEditorTab.BotSettings,
                 new TabClass
@@ -176,4 +185,6 @@ public enum EEditorTab
     Personalities,
     EquipmentStealth,
     Advanced,
+    Zzap,
+    Simulation,
 }
