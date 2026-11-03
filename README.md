@@ -16,6 +16,8 @@
 
 ## 변경 이력
 
+- 2026-11-04 — **Remix7.4 릴리즈 준비.** 릴리즈 이름 Remix7.4(`ZzapRelease`). 마지막 GitHub 릴리즈 remix7.3 이후 바뀐 것을 노트 4종(release-notes/RELEASE_NOTES_Remix7.4*)과 한/영 GIF로 정리. 영어 화면 프리셋 이름(파일 이름은 그대로), 비교 기준 쉬움/보통/zzap (어려움)/저장된 값, 내 프리셋 이름 바꾸기, ZZAP (전술 등..)·시뮬레이션 탭(한눈에 켜고 끄기 14개), 봇 설정 탭 5개(빠른 설정·성격·ZZAP·맵별 보정·고급), 봇 종류별 ZZAP 스위치(전역 따름/켬/끔), 봇 종류별 맵 배수(전역 맵별 보정 위에 곱함). 이전 프리셋은 그대로 동작. 게임 F6·웹 검수와 리저브 시험 레이드에서 봇 값 확인. 클라 dll과 서버 모드 둘 다 덮어쓰기.
+
 - 2026-11-03 — **Remix7.3 릴리즈 준비.** 릴리즈 이름 Remix7.3(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remix7.2 이후 바뀐 것(커밋 13개, 봇 설정 개편)을 노트 3종(release-notes/RELEASE_NOTES_Remix7.3*)으로 정리. 봇 여러 종 묶어서 함께 조절, 내 설정 슬롯(3~9칸)과 공유 코드, 새 항목·바뀐 항목만 보기, 3단계 안내, 같이 써도 되는 모드 표. F6·웹 화면을 목업대로 맞추고 게임·크롬에서 한/영 확인. 봇 행동·zzap 프리셋 값은 Remix7.2와 같음. 클라 dll과 서버 모드 둘 다 덮어쓰기.
 
 - 2026-11-02 20:20 — **Remix7.2 릴리즈 준비.** 릴리즈 이름 Remix7.2(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remix7.1 이후 바뀐 것(커밋 1개, 레이드 뒤 메모리 누수 수정)을 노트 3종(release-notes/RELEASE_NOTES_Remix7.2*)으로 정리. Remix7.1 알려진 점(문짝 장치 켜면 멈칫 증가?)을 같은 조건 게임 비교로 확인한 결과도 노트에 — 리저브 20분 켬/끔: SAIN 멈칫 7/5회, 평균 프레임 같음, 차이는 봇이 처음 나온 직후 0.08초 2번뿐이라 기본값 켬 유지. 클라 dll과 서버 모드 덮어쓰기(서버는 버전 이름만 바뀜).
@@ -39,28 +41,31 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 
 변경 이력은 [`changelog/`](changelog/), 릴리즈 노트(깃허브·아카라이브·디스코드)는 [`release-notes/`](release-notes/), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
 
-**최근 변경 (2026-11-03, Remix7.3 릴리즈):** 봇 설정 개편 — F6·웹에서 봇 여러 종을 묶어(동그라미 또는 Ctrl+클릭) 난이도·손잡이·고급 값을 함께 조절, 내 설정 슬롯(3~9칸)에 저장하고 공유 코드로 주고받기, 새 항목만·바뀐 항목만 보기와 항목별 원래대로, 처음 여는 사람용 3단계 안내. README에 같이 써도 되는 모드 표(PBT·Twitch Players 포함). 봇 행동·zzap 값은 Remix7.2와 같음. 상세는 [`Remix7.3 릴리즈 노트`](release-notes/RELEASE_NOTES_Remix7.3.md).
+**최근 변경 (2026-11-04, Remix7.4 릴리즈):** 설정 화면 정리 — 새 탭 'ZZAP (전술 등..)'(전술 14개를 쉬운 말 스위치로)·'시뮬레이션', 봇 설정을 탭 5개(빠른 설정·성격·ZZAP·맵별 보정·고급)로, 봇 종류마다 ZZAP 전술 전역 따름/켬/끔과 맵별 배수(청각·시야·발견 속도 등), 영어 화면 프리셋 이름, 비교 기준 순서, 내 프리셋 이름 바꾸기. 봇 행동·zzap 값은 Remix7.3과 같음. 상세는 [`Remix7.4 릴리즈 노트`](release-notes/RELEASE_NOTES_Remix7.4.md).
 
-**이전 (2026-11-02, Remix7.2 릴리즈):** 레이드가 끝난 뒤 메뉴에서도 지난 레이드 메모리를 붙잡고 있던 것 수정(RAM 클리너 누수 보고의 SAIN, 게임 시뮬에서 사라진 것 확인). 봇 행동·설정·zzap 값은 Remix7.1과 같음. 문짝 장치 켬/끔 멈칫 비교 결과도 노트에. 상세는 [`Remix7.2 릴리즈 노트`](release-notes/RELEASE_NOTES_Remix7.2.md).
+**이전 (2026-11-03, Remix7.3 릴리즈):** 봇 설정 개편 — F6·웹에서 봇 여러 종을 묶어(동그라미 또는 Ctrl+클릭) 난이도·손잡이·고급 값을 함께 조절, 내 설정 슬롯(3~9칸)에 저장하고 공유 코드로 주고받기, 새 항목만·바뀐 항목만 보기와 항목별 원래대로, 처음 여는 사람용 3단계 안내. README에 같이 써도 되는 모드 표(PBT·Twitch Players 포함). 봇 행동·zzap 값은 Remix7.2와 같음. 상세는 [`Remix7.3 릴리즈 노트`](release-notes/RELEASE_NOTES_Remix7.3.md).
 
 
-릴리즈별 변경 요약: [`Remix7.3`](release-notes/RELEASE_NOTES_Remix7.3.md) (Remix7.2 대비) · [`Remix7.2`](release-notes/RELEASE_NOTES_Remix7.2.md) (Remix7.1 대비) · [`Remix7.1`](release-notes/RELEASE_NOTES_Remix7.1.md) (Remake7 대비) · [`Remake7`](release-notes/RELEASE_NOTES_Remake7.md) (Remix6.1 대비, 게시 안 한 Remix6.2 포함) · [`Remix6.2`](release-notes/RELEASE_NOTES_Remix6.2.md) (초안만, 게시 안 함) · [`Remix6.1`](release-notes/RELEASE_NOTES_Remix6.1.md) (remake6 대비) · [`remake6`](release-notes/RELEASE_NOTES_remake6.md) (Remix5.1 대비) · [`Remix5.1`](release-notes/RELEASE_NOTES_Remix5.1.md) (remake5 대비) · [`remake5`](release-notes/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](release-notes/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](release-notes/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](release-notes/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](release-notes/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](release-notes/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](release-notes/RELEASE_NOTES_remake1.md) (fix7 대비).
 
-## 봇 설정 쓰는 법 (Remix7.3)
+릴리즈별 변경 요약: [`Remix7.4`](release-notes/RELEASE_NOTES_Remix7.4.md) (Remix7.3 대비) · [`Remix7.3`](release-notes/RELEASE_NOTES_Remix7.3.md) (Remix7.2 대비) · [`Remix7.2`](release-notes/RELEASE_NOTES_Remix7.2.md) (Remix7.1 대비) · [`Remix7.1`](release-notes/RELEASE_NOTES_Remix7.1.md) (Remake7 대비) · [`Remake7`](release-notes/RELEASE_NOTES_Remake7.md) (Remix6.1 대비, 게시 안 한 Remix6.2 포함) · [`Remix6.2`](release-notes/RELEASE_NOTES_Remix6.2.md) (초안만, 게시 안 함) · [`Remix6.1`](release-notes/RELEASE_NOTES_Remix6.1.md) (remake6 대비) · [`remake6`](release-notes/RELEASE_NOTES_remake6.md) (Remix5.1 대비) · [`Remix5.1`](release-notes/RELEASE_NOTES_Remix5.1.md) (remake5 대비) · [`remake5`](release-notes/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](release-notes/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](release-notes/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](release-notes/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](release-notes/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](release-notes/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](release-notes/RELEASE_NOTES_remake1.md) (fix7 대비).
+
+## 봇 설정 쓰는 법 (Remix7.4)
 
 1. **봇 고르기:** 이름을 누르면 한 봇을 엽니다. 왼쪽 ○ 또는 이름 **Ctrl+클릭**으로 묶음에 넣고 빼며, ●는 선택됨·◐는 팩션 일부 선택입니다. 이름만 클릭하면 묶음을 유지한 채 그 봇을 봅니다. 노란 띠의 **묶음 편집**으로 돌아갑니다.
 2. **난이도·손잡이:** Easy/Normal/Hard/Impossible 중 하나를 고르고 9개 손잡이로 세부 조절합니다. 묶음에서 움직이면 선택한 편집 가능 봇에 같은 표시값을 적용합니다. 고급 목록은 모든 기존 항목을 제공하며 **새 항목만 보기·바뀐 항목만 보기**, NEW, 노란 ●, **원래대로**로 필요한 항목을 찾고 각 봇의 기준값으로 되돌릴 수 있습니다. 전역·고정 바닐라는 일괄 편집에서 건너뜁니다.
 3. **저장·슬롯·공유:** 게임에 쓸 변경은 위 **저장**으로 저장합니다. **＋ 지금 값 저장**은 현재 표시된 봇의 값을 내 설정 슬롯에 보관합니다(처음 3칸, 최대 9칸). 슬롯 ⋯에서 이름 바꾸기·덮어쓰기·삭제·공유 코드 복사를 합니다. 다른 화면에서는 **공유 코드 붙여넣기**로 슬롯을 추가하고, 슬롯 이름을 눌러 현재 봇 또는 선택 묶음에 적용합니다. AI 변경은 게임 재시작 후 적용됩니다. 오른쪽 위 **?**에서 3단계 안내를 다시 열 수 있습니다.
+4. **탭 (Remix7.4):** 봇을 고른 뒤 아래 탭에서 고릅니다 — **빠른 설정**(손잡이), **성격**(이 봇 종류 성격 바로 지정), **ZZAP (전술 등..)**(전술마다 전역 따름/켬/끔), **맵별 보정**(맵을 고르고 청각·시야 등 배수, 1.0 = 그대로, 다음 레이드부터), **고급**(묶음별 숫자). 모든 봇 공통 전술은 맨 위 'ZZAP (전술 등..)' 탭의 '한눈에 켜고 끄기'에서.
 
 - **기본 프리셋은 왜 `[Modified]`로 저장되나요?** 함께 제공되는 zzap 쉬움·보통·zzap·TEST 원본을 보존하기 위해 수정한 값은 `[Modified]` 사본으로 저장됩니다.
 - **‘섞임’이 뭔가요?** 선택한 봇들의 표시값이 서로 다르다는 뜻입니다. 손잡이를 움직이면 같은 표시값이 됩니다. **원래대로**의 기준은 봇마다 다릅니다.
 - **슬롯은 어디 저장되나요?** 서버 모드의 `ClientData/botSettingsSlots.json`에 프리셋과 별도로 저장됩니다. 프리셋을 바꿔도 유지되고 F6와 웹이 같은 파일을 씁니다. 슬롯 저장과 프리셋 저장은 별개입니다. 공유 코드에는 이름·난이도·AI·변경 필드만 들어갑니다.
 
-### English — Bot settings (Remix7.3)
+### English — Bot settings (Remix7.4)
 
 1. **Choose bot types:** Click a name to open one bot. Click ○ or **Ctrl+click a name** to add it to (or remove it from) the selection: ● means selected, ◐ means only part of a faction is selected. A faction's ○ selects the whole faction. Opening one bot keeps your selection; **Edit selection** on the yellow bar takes you back to it.
 2. **Level and knobs:** Choose Easy, Normal, Hard or Impossible, then fine-tune the nine knobs. Moving a knob gives every selected bot the same value. Advanced still lists every setting; **New only** and **Changed only** narrow it down, NEW marks settings added in this release, a yellow ● marks changed ones, and **Reset** puts one setting back to that bot's own original. Bots locked to EFT's own AI (vanilla) are skipped.
 3. **Save, slots and sharing:** Press **Save** to apply changes in game. **＋ Save current** keeps the shown bot's values in a custom slot (3 to start, up to 9). Use ⋯ to **Rename**, **Overwrite**, **Delete** or **Copy share code**. **Paste share code** adds a friend's slot; click a slot to apply it to the open bot or the whole selection. AI changes apply after a game restart. The **?** button at the top right opens the 3-step guide again.
+4. **Tabs (Remix7.4):** after picking bots, use the tabs below - **Quick** (knobs), **Personality** (fix the personality for this bot type), **ZZAP (tactics etc.)** (Global / On / Off per tactic), **Per map** (pick a map, then multipliers such as hearing and vision; 1.0 = unchanged, from the next raid), **Advanced** (numbers by group). Tactics for all bots are on the top 'ZZAP (tactics etc.)' tab, 'At a glance'.
 
 - **Why are my edits saved as a `[Modified]` copy?** So the bundled zzap presets (zzap 쉬움, zzap 보통, zzap, TEST) stay untouched.
 - **What does "mixed" mean?** The selected bots have different values for that setting. Moving the knob gives all of them the same value; **Reset** returns each bot to its own original.

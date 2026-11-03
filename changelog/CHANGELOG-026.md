@@ -1,6 +1,10 @@
-# 변경 이력 026 (2026-11-02 ~ 2026-11-03)
+# 변경 이력 026 (2026-11-02 ~ 2026-11-04)
 
 > 10개씩 나눠 쌓음 — 번호가 클수록 최신, 파일 안에서는 최신이 위. [README](../README.md) · [폴더](./)
+
+- 2026-11-04 — **Remix7.4 릴리즈 준비.** 릴리즈 이름 Remix7.4(`ZzapRelease`). remix7.3 이후 커밋 6개(`15b11e6f`..`52ca2c0a`)를 노트 4종(`release-notes/RELEASE_NOTES_Remix7.4*`)과 한/영 GIF(`release-notes/images/sain-remix7.4-settings-*.gif`, 실제 F6 촬영)로 정리. 게임 F6·크롬 웹 검수(ZZAP 탭 숫자 7·손잡이 개수 고침), 리저브 시험 레이드에서 봇별 ZZAP 끔과 봇 종류별 맵 배수(Usec 0.5·Bear 1) 확인. 회귀 54·웹 스모크 53 통과.
+
+- 2026-11-04 — **Remix7.4 예정: 설정 화면 정리.** 영어 화면 프리셋 표시 이름(`QuickSettings.DisplayName`, 파일 이름 그대로), 비교 기준 `ReferenceOrder` 쉬움/보통/zzap (어려움)/저장된 값, 내 프리셋 이름 바꾸기(F6 버튼·웹 연필, 게임이 새 이름 따라감), 맨 위 탭 ZZAP (전술 등..)·시뮬레이션(`ZzapTactics`, 한눈에 켜고 끄기 14개), 봇 설정 탭 5개(`BotTabsGUI`·`BotZzapPanel`·`BotMapsPanel`), 봇별 `SAINZzapBotSettings`(전역 따름/켬/끔, 게임 확인 13곳), 봇 종류별 `MapModifiers`(바뀐 맵만 저장, 전역 맵별 보정 위에 곱함). 이전 프리셋은 전역 따름·1배.
 
 - 2026-11-03 — **Remix7.3 릴리즈 준비.** 릴리즈 이름 Remix7.3(`ZzapRelease`). 마지막 GitHub 릴리즈 remix7.2 이후 커밋 13개(봇 설정 개편, 같이 써도 되는 모드 표)를 노트 3종(`release-notes/RELEASE_NOTES_Remix7.3*`)으로 정리. 게임·크롬 검수에서 고친 것: 안내 창 버튼이 안 눌림, 슬롯 메뉴가 누르면 닫힘(가운데 창으로), 손잡이 이름 겹침, 게임 글꼴에 없는 ⋯, 웹 버튼 안 정렬, CSS 캐시(파일 해시 버전), NEW 배지 잘림, 번역 모드가 "[Off]"를 바꿈, 영어 1개 복수형, 지운 뒤 빈 슬롯 4칸.
 
