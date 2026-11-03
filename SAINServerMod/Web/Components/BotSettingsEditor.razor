@@ -146,7 +146,34 @@
             </fieldset>
             <BotSettingsSlotsEditor Source="_group" Sources="_selectedView.Sources" OnApply="ApplySlot" MixedSource="@(IsBatch ? BotName : null)" />
             <fieldset disabled="@(!EditableViews().Any())" style="border:0;padding:0;min-width:0" class="@(_selectedView.Ai.UsesVanilla ? "sain-bot-dim" : null)">
-            <div class="sain-step-heading"><span class="sain-step">02</span><strong>@T("손잡이로 세부 조절 9개", "Fine-tune with knobs 9")</strong><small><i class="sain-ref-line"></i> @T("zzap 원본", "zzap original")　<span class="sain-blue">@T("오른쪽일수록 강하게 →", "Stronger to the right →")</span></small></div>
+            @* zzap (user 2026-11-04 "too crowded - tabs; a ZZAP part per bot; personality right there; per-map numbers"): same tabs as F6. *@
+            <div class="sain-refbar sain-bot-tabs">
+                @foreach (var tab in BotTabs)
+                {
+                    var t = tab;
+                    string badge = TabBadge(t);
+                    <button type="button" class="sain-refchip @(_tab == t ? "on" : null)" aria-pressed="@(_tab == t)" @onclick="() => _tab = t">@TabName(t)@if (badge.Length > 0) { <span class="sain-tab-count">@badge</span> }</button>
+                }
+            </div>
+            @if (_tab == "zzap")
+            {
+                <BotZzapPanel Groups="EditGroups()" Global="Bundle.GlobalSettings" OnChanged="NotifyChange" />
+            }
+            else if (_tab == "maps")
+            {
+                <BotMapsPanel Groups="EditGroups()" Global="Bundle.GlobalSettings" OnChanged="NotifyChange" />
+            }
+            else if (_tab != "advanced")
+            {
+            @if (_tab == "personality")
+            {
+                <div class="sain-step-heading"><span class="sain-step">P</span><strong>@T("성격 — 이 봇 종류에 정해 주기", "Personality — fix it for these bot types")</strong><small>@T("지정 안 함 = 성격 확률대로 섞음", "Unassigned = mixed by the personality chances")</small></div>
+                <p class="sain-bot-help">@T("성격마다 하는 행동(누가 다이아몬드 스텝·돌격을 하는지 등)은 '성격' 탭에서 바꿉니다. 난이도 4칸 모두에 적용됩니다.", "What each personality does (who diamond-steps, pushes...) is on the Personalities tab. Applies to all four difficulty slots.")</p>
+            }
+            else
+            {
+                <div class="sain-step-heading"><span class="sain-step">02</span><strong>@T("손잡이로 세부 조절", "Fine-tune with knobs")</strong><small><i class="sain-ref-line"></i> @T("zzap 원본", "zzap original")　<span class="sain-blue">@T("오른쪽일수록 강하게 →", "Stronger to the right →")</span></small></div>
+            }
 
             @if (_settings == null)
             {
@@ -157,10 +184,12 @@
 
                 @foreach (var section in KnobSections)
                 {
+                    var tabKnobs = section.Knobs.Where(k => (_tab == "personality") == (k.Id == "personality")).ToArray();
+                    if (tabKnobs.Length == 0) continue;
                     <div class="sain-quick-head mt-3">
                         <MudText Typo="Typo.subtitle2" Class="spt-title">@KnobSectionName(section.Name)</MudText>
                     </div>
-                    @foreach (var knob in section.Knobs)
+                    @foreach (var knob in tabKnobs)
                     {
                         float current = knob.Get(_settings);
                         var baseSlot = _fieldBaselines.TryGetValue(_botType,out var baseGroup) ? BotLevels.NormalSlot(baseGroup!) : _referenceSettings;
@@ -224,13 +253,20 @@
                     }
                 }
             }
-
-            <button type="button" class="sain-bot-advanced" aria-expanded="@_advancedOpen" @onclick="() => _advancedOpen = !_advancedOpen">
-                <span class="sain-step">03</span> @(_advancedOpen ? "▾" : "▸") @T($"고급 · 숫자로 직접 설정 {_advancedRows.Count}개", $"Advanced · exact numbers {_advancedRows.Count}") <span class="sain-new">NEW @_advancedRows.Count(r=>r.Editor.Meta.New)</span>
-            </button>
-            @if (_advancedOpen)
+            }
+            else
             {
+                <div class="sain-step-heading"><span class="sain-step">03</span><strong>@T($"고급 · 숫자로 직접 설정 {_advancedRows.Count}개", $"Advanced · exact numbers {_advancedRows.Count}")</strong> <span class="sain-new">NEW @_advancedRows.Count(r=>r.Editor.Meta.New)</span></div>
                 <div class="sain-advanced-body">
+                <div class="sain-refbar sain-bot-scope">
+                    <span class="sain-refbar-label">@T("묶음", "Group")</span>
+                    <button type="button" class="sain-refchip @(_advCategory == null ? "on" : null)" @onclick="() => _advCategory = null">@T("전부", "All")</button>
+                    @foreach (var section in _advancedSections)
+                    {
+                        var name = section.Name;
+                        <button type="button" class="sain-refchip @(_advCategory == name ? "on" : null)" @onclick="() => _advCategory = name">@section.Label</button>
+                    }
+                </div>
                 <p class="sain-bot-help">@T("같은 숫자를 편집 대상 전체에 적용합니다. 각 항목의 원래대로는 봇마다 원래 값을 되살립니다.", "Numbers apply to all bots being edited. Reset restores each bot’s original value for that setting.")</p>
                 <div class="sain-setting-filters">
                     <MudSwitch T="bool" @bind-Value="_newOnly" Label="@T("새 항목만 보기","New only")" />
@@ -269,7 +305,7 @@
                 {
                     <MudText Typo="Typo.body2" Class="spt-muted mt-2">@T("이 난이도 칸에는 설정이 없습니다. 다른 칸을 골라 주세요.", "No settings in this difficulty slot. Pick another slot.")</MudText>
                 }
-                @foreach (var section in _advancedSections.Where(s=>s.Rows.Any(VisibleRow)))
+                @foreach (var section in _advancedSections.Where(s=>(_advCategory == null || s.Name == _advCategory) && s.Rows.Any(VisibleRow)))
                 {
                     <MudText Typo="Typo.subtitle2" Class="spt-title mt-3 mb-1">@(section.Label)</MudText>
                     @foreach (var row in section.Rows.Where(VisibleRow))
@@ -431,7 +467,31 @@
     private List<AdvancedRow> _advancedRows = new();
     private List<AdvancedSection> _advancedSections = new();
     private string _query = string.Empty;
-    private bool _advancedOpen;
+    private string? _advCategory;
+    private string _tab = "quick";
+    private static readonly string[] BotTabs = { "quick", "personality", "zzap", "maps", "advanced" };
+
+    private static string TabName(string tab) => tab switch
+    {
+        "quick" => T("빠른 설정", "Quick"),
+        "personality" => T("성격", "Personality"),
+        "zzap" => T("ZZAP (전술 등..)", "ZZAP (tactics etc.)"),
+        "maps" => T("맵별 보정", "Per map"),
+        _ => T("고급 · 숫자로 직접", "Advanced · exact numbers"),
+    };
+
+    private IReadOnlyList<SAINSettingsGroupClass> EditGroups() => EditableViews().Select(v => v.Group).Where(g => g != null).ToList();
+
+    private string TabBadge(string tab)
+    {
+        int n = tab switch
+        {
+            "zzap" => BotZzapSwitches.Changed(EditGroups()),
+            "maps" => EditGroups().SelectMany(BotMapModifiers.ChangedMaps).Distinct().Count(),
+            _ => 0,
+        };
+        return n > 0 ? n.ToString() : string.Empty;
+    }
     private bool _copying;
     private int _advancedChanged;
     private string BotName => _group?.Name ?? _botType.ToString();

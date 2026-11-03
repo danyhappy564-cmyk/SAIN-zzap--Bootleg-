@@ -1,0 +1,61 @@
+@namespace SAINServerMod.Web.Components
+@using SAIN.Preset.Shared.BotSettings.SAINSettings
+
+@* zzap (user 2026-11-04, player feedback "Labs: bots hear less, Reserve: default - per bot type"): the bot settings' per-map tab,
+   same as F6 (BotTabsGUI.MapsPanel). Values multiply the global per-map modifiers; 1.0 = unchanged. *@
+<div class="sain-step-heading"><span class="sain-step">M</span><strong>@T("맵별 보정 — 이 봇 종류만 따로", "Per map — for these bot types only")</strong><small>@T("1.0 = 그대로 · 전역 '맵별 보정' 위에 곱해짐", "1.0 = unchanged · multiplies the global per-map modifiers")</small></div>
+<p class="sain-bot-help">@T("예: 연구소에서만 청각 0.6 → 연구소에서 이 봇들은 소리를 덜 멀리서 듣고, 다른 맵은 그대로입니다. 다음 레이드부터 적용.", "E.g. Labs hearing 0.6 -> on Labs these bots hear from less far, other maps unchanged. From the next raid.")</p>
+<div class="sain-refbar">
+    @foreach (var map in BotMapModifiers.Maps)
+    {
+        var m = map;
+        bool changed = Groups.Any(g => BotMapModifiers.Get(g, m) != null);
+        <button type="button" class="sain-refchip @(_map == m ? "on" : null)" aria-pressed="@(_map == m)" @onclick="() => _map = m">@BotMapModifiers.MapName(m, Korean)@if (changed) { <span class="sain-diff">●</span> }</button>
+    }
+</div>
+@{
+    var globalMap = Global.Location?.LocationSettings != null && Global.Location.LocationSettings.TryGetValue(_map, out var gm) ? gm : null;
+}
+@foreach (var field in BotMapModifiers.Fields)
+{
+    var f = field;
+    var values = Groups.Select(g => BotMapModifiers.Value(g, _map, f)).Distinct().ToList();
+    float value = values.Count == 0 ? 1f : values[0];
+    <div class="sain-bot-advanced-row sain-map-row">
+        <div class="sain-zzap-text">
+            <strong>@f.Name(Korean)
+                @if (globalMap != null && Math.Abs(f.Get(globalMap) - 1f) > 0.001f) { <small class="spt-muted"> · @T($"전역 이 맵 {f.Get(globalMap):0.##}배", $"global on this map {f.Get(globalMap):0.##}x")</small> }
+                @if (values.Count > 1) { <span class="sain-mixed">@T("섞임", "mixed")</span> }
+            </strong>
+            <small>@f.Help(Korean)</small>
+        </div>
+        <MudSlider T="float" Value="value" ValueChanged="@(v => Set(f, v))" Min="BotMapModifiers.MIN" Max="BotMapModifiers.MAX" Step="0.05f" Color="Color.Primary" Class="sain-map-slider" />
+        <span class="@(Math.Abs(value - 1f) < 0.001f ? "spt-muted" : "sain-diff")">@value.ToString("0.00")x</span>
+        <button type="button" class="sain-refchip" @onclick="() => Set(f, 1f)">@T("1배", "1x")</button>
+    </div>
+}
+<div class="sain-refbar mt-2">
+    <button type="button" class="sain-refchip" @onclick="ResetMap">@string.Format(T("{0} 전부 1배로", "Reset {0} to 1x"), BotMapModifiers.MapName(_map, Korean))</button>
+    @{ var changedMaps = Groups.SelectMany(BotMapModifiers.ChangedMaps).Distinct().Select(m => BotMapModifiers.MapName(m, Korean)).ToList(); }
+    <small class="spt-muted">@(changedMaps.Count == 0 ? T("바꾼 맵 없음", "No map changed") : T("바꾼 맵: ", "Changed maps: ") + string.Join(", ", changedMaps))</small>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<SAINSettingsGroupClass> Groups { get; set; } = Array.Empty<SAINSettingsGroupClass>();
+    [Parameter, EditorRequired] public SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass Global { get; set; } = default!;
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private ELocation _map = ELocation.Labs;
+
+    private async Task Set(MapModifierField field, float value)
+    {
+        foreach (var g in Groups) BotMapModifiers.Set(g, _map, field, value);
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task ResetMap()
+    {
+        foreach (var g in Groups) BotMapModifiers.Reset(g, _map);
+        await OnChanged.InvokeAsync();
+    }
+}

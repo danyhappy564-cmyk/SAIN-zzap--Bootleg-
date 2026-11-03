@@ -1018,3 +1018,9 @@
 .sain-zzap-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border: 1px solid var(--spt-border, #27272a); border-radius: 6px; background: var(--spt-panel, #18181b); }
 .sain-zzap-text { display: flex; flex-direction: column; gap: 2px; }
 .sain-zzap-text small { color: var(--spt-text-muted, #a1a1aa); }
+/* zzap 2026-11-04: bot settings tabs, ZZAP switches, per-map multipliers */
+.sain-bot-tabs { margin: 12px 0 8px; }
+.sain-tab-count { margin-left: 6px; color: #facc15; font-weight: 700; }
+.sain-zzap-toggle { margin: 0; flex: none; }
+.sain-map-row { display: grid; grid-template-columns: minmax(220px, 1.2fr) minmax(160px, 2fr) 64px auto; align-items: center; gap: 12px; }
+.sain-map-slider { margin: 0; }

@@ -1,0 +1,52 @@
+@namespace SAINServerMod.Web.Components
+@using SAIN.Preset.Shared.BotSettings.SAINSettings
+@using SAIN.Preset.Shared.BotSettings.SAINSettings.Categories
+
+@* zzap (user 2026-11-04): the bot settings' ZZAP tab - per bot type Global / On / Off for the main zzap tactics, same as F6 (BotTabsGUI). *@
+<div class="sain-step-heading"><span class="sain-step">Z</span><strong>@T("ZZAP (전술 등..) — 이 봇 종류만 따로", "ZZAP (tactics etc.) — for these bot types only")</strong><small>@T("전역 따름 = 'ZZAP (전술 등..)' 탭의 스위치대로", "Global = as on the 'ZZAP (tactics etc.)' tab")</small></div>
+<p class="sain-bot-help">@T("난이도 4칸 모두에 적용됩니다. 켬은 전역 스위치·'스캐브 제외'보다 우선합니다(누가 다이아몬드 스텝을 하는지 같은 성격 규칙은 그대로).", "Applies to all four difficulty slots. On wins over the global switch and Skip Scavs (personality rules such as who diamond-steps stay).")</p>
+<div class="sain-zzap-overview">
+    @foreach (var sw in BotZzapSwitches.All)
+    {
+        var s = sw;
+        var value = BotZzapSwitches.Get(Groups, s);
+        <div class="sain-zzap-row">
+            <div class="sain-zzap-text">
+                <strong>@Setting(s.Name)
+                    @if (BotZzapSwitches.HasGlobalSwitch(s)) { <small class="spt-muted"> · @T("전역", "global") @(s.Global(Global) ? T("켬", "on") : T("끔", "off"))</small> }
+                    @if (value == null) { <span class="sain-mixed">@T("섞임", "mixed")</span> }
+                </strong>
+                <small>@Setting(s.Description)</small>
+            </div>
+            <div class="sain-refbar sain-zzap-toggle">
+                @foreach (var toggle in Toggles)
+                {
+                    var t = toggle;
+                    <button type="button" class="sain-refchip @(value == t ? "on" : null)" aria-pressed="@(value == t)" @onclick="() => Set(s, t)">@ToggleName(t)</button>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<SAINSettingsGroupClass> Groups { get; set; } = Array.Empty<SAINSettingsGroupClass>();
+    [Parameter, EditorRequired] public SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass Global { get; set; } = default!;
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private static readonly EZzapToggle[] Toggles = { EZzapToggle.Global, EZzapToggle.On, EZzapToggle.Off };
+
+    private static string ToggleName(EZzapToggle toggle) => toggle switch
+    {
+        EZzapToggle.On => T("켬", "On"),
+        EZzapToggle.Off => T("끔", "Off"),
+        _ => T("전역 따름", "Global"),
+    };
+
+    private async Task Set(BotZzapSwitch sw, EZzapToggle value)
+    {
+        if (BotZzapSwitches.Get(Groups, sw) == value) return;
+        BotZzapSwitches.Set(Groups, sw, value);
+        await OnChanged.InvokeAsync();
+    }
+}

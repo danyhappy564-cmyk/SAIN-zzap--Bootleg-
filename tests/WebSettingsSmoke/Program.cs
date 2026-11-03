@@ -58,11 +58,24 @@ foreach(var mode in new[]{"sain","perbot","global","fixed"})
     Check(disabled==(mode!="sain"),mode+" effective SAIN edit lock");
     if(mode=="global") Check(html.Contains("바닐라 · 전역 우선"),"global priority explanation");
     if(mode=="fixed") Check(html.Contains("바닐라 · 고정"),"Zryachiy fixed vanilla explanation");
-    if(mode=="perbot") Check(html.Contains("생성할 때 균등 무작위"),"personality selection help remains visible while locked");
+    // 2026-11-04: the personality pick moved to its own tab; the page opens on Quick and lists every tab.
+    Check(html.Contains(">빠른 설정") && html.Contains(">성격") && html.Contains(">ZZAP (전술 등..)") && html.Contains(">맵별 보정") && html.Contains(">고급 · 숫자로 직접"),mode+" bot settings tabs render");
+    Check(!html.Contains("생성할 때 균등 무작위"),mode+" personality pick is on its own tab");
 }
 var globalHtml=await Render<SainSectionEditor>("global",new(){{"Target",easy.GlobalSettings},{"Original",normal.GlobalSettings}});
 Check(globalHtml.Contains("빠른 조절")&&globalHtml.Contains("고급 · 모든 설정"),"global quick and advanced controls render");
 Check(globalHtml.Contains("새 항목만 보기")&&globalHtml.Contains("바뀐 항목만 보기"),"global new and changed filters render above settings");
+// 2026-11-04: ZZAP / Simulation tabs and the per-bot ZZAP and per-map panels.
+var zzapHtml=await Render<SainSectionEditor>("global-zzap",new(){{"Target",easy.GlobalSettings},{"Original",normal.GlobalSettings},{"Scope",ZzapTactics.TabZzap}});
+Check(zzapHtml.Contains("한눈에 켜고 끄기")&&zzapHtml.Contains("QEQE 기울이기 사격")&&zzapHtml.Contains("다이아몬드 스텝"),"ZZAP tab starts with the plain switches");
+Check(!globalHtml.Contains("문 전술 (zzap)")&&zzapHtml.Contains("문 전술 (zzap)"),"zzap sections moved from global to the ZZAP tab");
+var simHtml=await Render<SainSectionEditor>("global-sim",new(){{"Target",easy.GlobalSettings},{"Original",normal.GlobalSettings},{"Scope",ZzapTactics.TabSim}});
+Check(simHtml.Contains("시뮬레이션 랩")&&!simHtml.Contains("문 전술 (zzap)"),"Simulation tab lists only the simulation lab");
+var botGroups=easy.BotSettings.Values.Take(2).ToList();
+var botZzapHtml=await Render<BotZzapPanel>("bot-zzap",new(){{"Groups",botGroups},{"Global",easy.GlobalSettings}});
+Check(botZzapHtml.Contains("전역 따름")&&botZzapHtml.Contains("근접전 zzap 행동 전체"),"per-bot ZZAP switches render");
+var botMapsHtml=await Render<BotMapsPanel>("bot-maps",new(){{"Groups",botGroups},{"Global",easy.GlobalSettings}});
+Check(botMapsHtml.Contains("연구소")&&botMapsHtml.Contains("청각 거리")&&botMapsHtml.Contains("바꾼 맵 없음"),"per-map panel renders");
 var guideHtml=await Render<BotSettingsGuide>("guide-ko",new());
 Check(guideHtml.Contains("처음이라면 여기부터")&&guideHtml.Contains("알겠어요")&&guideHtml.Contains("3단계 안내"),"page-level guide includes first-use text, dismiss and help actions");
 var personalityHtml=await Render<PersonalityEditor>("personality",new(){{"Bundle",easy},{"Original",normal}});

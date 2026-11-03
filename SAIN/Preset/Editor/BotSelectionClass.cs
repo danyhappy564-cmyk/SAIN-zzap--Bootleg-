@@ -986,23 +986,60 @@ public static class BotSelectionClass
             GUILayout.Label("<color=#facc15>" + _view.AdjustedLine + "</color>", _wrapSmall);
         }
         SlotsRow();
-        KnobHeading();
-        foreach (string knobGroup in KnobGroups)
-        {
-            GUILayout.Space(8f);
-            GUILayout.Label(GroupName(knobGroup), ZzapUI.Section);
-            foreach (var knob in _view.Knobs)
-            {
-                if (knob.Knob.Group == knobGroup)
-                {
-                    KnobRow(knob);
-                }
-            }
-        }
-
-        GUILayout.Space(10f);
-        Advanced();
+        TabbedContent();
         GUI.color = old;
+    }
+
+    // zzap (user 2026-11-04 "too many settings in one place - tabs, a ZZAP part per bot, personality right there"): quick knobs,
+    // personality, ZZAP switches, per-map multipliers and the advanced numbers each on their own tab (one bot or a selection).
+    private static void TabbedContent()
+    {
+        var groups = EditGroups().Where(g => g != null).ToList();
+        BotTabsGUI.TabBar(Write, TabBadge);
+        switch (BotTabsGUI.Current)
+        {
+            case BotTabsGUI.Tab.Quick:
+                KnobHeading();
+                foreach (string knobGroup in KnobGroups)
+                {
+                    var knobs = _view.Knobs.Where(k => k.Knob.Group == knobGroup && k.Knob.Id != PERSONALITY).ToList();
+                    if (knobs.Count == 0) continue;
+                    GUILayout.Space(8f);
+                    GUILayout.Label(GroupName(knobGroup), ZzapUI.Section);
+                    foreach (var knob in knobs) KnobRow(knob);
+                }
+                break;
+            case BotTabsGUI.Tab.Personality:
+                ZzapUI.StepHeading("P", T("성격 — 이 봇 종류에 정해 주기", "Personality — fix it for these bot types"),
+                    T("지정 안 함 = 성격 확률대로 섞음", "Unassigned = mixed by the personality chances"));
+                foreach (var knob in _view.Knobs.Where(k => k.Knob.Id == PERSONALITY)) KnobRow(knob);
+                GUILayout.Label(T("성격마다 하는 행동(누가 다이아몬드 스텝·돌격을 하는지 등)은 '성격' 탭에서 바꿉니다. 난이도 4칸 모두에 적용됩니다.",
+                    "What each personality does (who diamond-steps, pushes...) is on the Personalities tab. Applies to all four difficulty slots."), _wrapSmall);
+                break;
+            case BotTabsGUI.Tab.Zzap:
+                BotTabsGUI.ZzapPanel(groups, Write, ConfigEditingTracker.Add);
+                break;
+            case BotTabsGUI.Tab.Maps:
+                BotTabsGUI.MapsPanel(groups, Write, ConfigEditingTracker.Add);
+                break;
+            default:
+                Advanced(false);
+                break;
+        }
+    }
+
+    private const string PERSONALITY = "personality";
+
+    private static string TabBadge(BotTabsGUI.Tab tab)
+    {
+        var groups = EditGroups().Where(g => g != null).ToList();
+        int n = tab switch
+        {
+            BotTabsGUI.Tab.Zzap => BotZzapSwitches.Changed(groups),
+            BotTabsGUI.Tab.Maps => groups.SelectMany(BotMapModifiers.ChangedMaps).Distinct().Count(),
+            _ => 0,
+        };
+        return n > 0 ? n.ToString() : null;
     }
 
     private static void KnobRow(KnobView view)
@@ -1125,15 +1162,24 @@ public static class BotSelectionClass
 
     // ---------------------------------------------------------------- advanced: every number, per-difficulty editing
 
-    private static void Advanced()
+    private static string _advCategory; // null = every category (advanced tab: one category at a time is easier to read)
+
+    private static void Advanced(bool foldable = true)
     {
-        if (ZzapUI.FoldHeading("03", _view.AdvancedTitle, _view.NewCount, _advancedOpen))
+        if (foldable)
         {
-            Write(() => _advancedOpen = !_advancedOpen);
+            if (ZzapUI.FoldHeading("03", _view.AdvancedTitle, _view.NewCount, _advancedOpen))
+            {
+                Write(() => _advancedOpen = !_advancedOpen);
+            }
+            if (!_advancedOpen)
+            {
+                return;
+            }
         }
-        if (!_advancedOpen)
+        else
         {
-            return;
+            ZzapUI.StepHeading("03", _view.AdvancedTitle, _view.NewCount);
         }
         GUILayout.BeginVertical(ZzapUI.Frame);
         GUILayout.Label(T("같은 숫자를 편집 대상 전체에 적용합니다. 각 항목의 원래대로는 봇마다 원래 값을 되살립니다.", "Numbers apply to all bots being edited. Reset restores each bot’s original value for that setting."), _wrapSmall);
@@ -1163,9 +1209,34 @@ public static class BotSelectionClass
             GUILayout.Label(_view.SlotsLine, _wrapSmall);
         }
 
+        GUILayout.BeginHorizontal();
+        GUILayout.Label(T("묶음", "Group"), ZzapUI.Small, GUILayout.Width(60f), GUILayout.Height(28f));
+        int chips = 0;
+        foreach (var head in _view.Rows.Where(r => r.Heading != null).Select(r => (r.Row.Group, r.Heading)).Prepend((null, T("전부", "All"))))
+        {
+            if (GUILayout.Button(head.Heading, _advCategory == head.Group ? ZzapUI.Pill : ZzapUI.Button, GUILayout.Height(26f), GUILayout.ExpandWidth(false)))
+            {
+                string picked = head.Group;
+                Write(() => _advCategory = picked);
+            }
+            if (++chips % 8 == 0)
+            {
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                GUILayout.Space(64f);
+            }
+        }
+        GUILayout.FlexibleSpace();
+        GUILayout.EndHorizontal();
+
         _entryConfig ??= new GUIEntryConfig();
         foreach (var view in _view.Rows)
         {
+            if (_advCategory != null && view.Row.Group != _advCategory)
+            {
+                continue;
+            }
             if (view.Heading != null)
             {
                 GUILayout.Space(6f);
@@ -1295,15 +1366,9 @@ public static class BotSelectionClass
             _view.AllBadgesStale = true;
         });
         SlotsRow();
-        KnobHeading();
         if(EditBots().Any())
         {
-            foreach(string knobGroup in KnobGroups)
-            {
-                GUILayout.Label(GroupName(knobGroup),ZzapUI.Section);
-                foreach(var knob in _view.Knobs.Where(k=>k.Knob.Group==knobGroup)) KnobRow(knob);
-            }
-            Advanced();
+            TabbedContent();
         }
 
     }
