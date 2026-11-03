@@ -110,4 +110,4 @@
   - 테스트 1(탈출): 게임 기본 탈출 상태 0회, 죽지 않고 사라진 봇 0명(레이드 끝 생존 6명).
   - 테스트 2(가까이 접근 시 목표 변경): 측면 적으로 목표 변경 36회(플레이어 발소리 4m 포함). 목표 왕복 15회/56분·판단 4,092개(이전 20분당 7회 수준).
   - 그 외: 55분 동안 멈춤 없음(68fps), 예외는 ORBIT 루팅 1건(ORBIT 쪽), 서 있는 시체 0. 장전 실패 재시도(예비 탄 없는 봇) 975회는 30분 이후 증가 없음.
-  - [`RELEASE_NOTES_remake4.md`](RELEASE_NOTES_remake4.md) 작성(remake3 대비, 한/영).
+  - [`RELEASE_NOTES_remake4.md`](../release-notes/RELEASE_NOTES_remake4.md) 작성(remake3 대비, 한/영).

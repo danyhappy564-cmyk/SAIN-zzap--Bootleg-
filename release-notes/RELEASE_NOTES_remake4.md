@@ -1,7 +1,7 @@
 # SAIN-zzap--Bootleg- remake4 릴리즈 노트 (remake3 대비)
 
 > remake3 이후 변경분입니다. 아래 "꼭 읽어주세요" 공지 글은 이전 릴리즈와 동일하게 붙이면 됩니다.
-> remake2의 안내 사항(램 사용량, 스터터링, 렉·버그 제보 방법 등)은 그대로 유효합니다 — `changelog/RELEASE_NOTES_remake2.md` 참고.
+> remake2의 안내 사항(램 사용량, 스터터링, 렉·버그 제보 방법 등)은 그대로 유효합니다 — `release-notes/RELEASE_NOTES_remake2.md` 참고.
 
 **<설치>**
 
@@ -63,7 +63,7 @@
 
 # SAIN-zzap--Bootleg- remake4 release notes (vs remake3)
 
-> Changes since remake3. The notes from remake2 (RAM usage, stuttering, how to report lag/bugs, ...) still apply — see `changelog/RELEASE_NOTES_remake2.md`.
+> Changes since remake3. The notes from remake2 (RAM usage, stuttering, how to report lag/bugs, ...) still apply — see `release-notes/RELEASE_NOTES_remake2.md`.
 
 **Install**
 

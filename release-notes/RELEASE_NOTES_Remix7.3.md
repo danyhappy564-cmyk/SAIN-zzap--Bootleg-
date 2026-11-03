@@ -35,7 +35,7 @@
 
 **<변경점>**
 
-![Remix7.3 봇 설정 (한국어)](https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/raw/master/changelog/images/sain-remix7.3-bot-settings-ko.gif)
+![Remix7.3 봇 설정 (한국어)](https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/raw/master/release-notes/images/sain-remix7.3-bot-settings-ko.gif)
 
 **1. 봇 여러 종을 묶어서 한꺼번에 설정 (F6·웹)**
 - 전에는 봇 종류를 하나씩 열어 같은 값을 여러 번 바꿔야 했습니다.
@@ -81,7 +81,7 @@
 
 **<Changes (English)>**
 
-![Remix7.3 bot settings (English)](https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/raw/master/changelog/images/sain-remix7.3-bot-settings-en.gif)
+![Remix7.3 bot settings (English)](https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/raw/master/release-notes/images/sain-remix7.3-bot-settings-en.gif)
 
 **Previous release:** Remix7.2 (`remix7.2`, published 11/02, 13 commits since) → **this: Remix7.3**, a bot settings screen overhaul for F6 and the web page. Bot behaviour and zzap preset values are the same as Remix7.2, and saving works as before (the bundled zzap presets save to a `[Modified]` copy).
 

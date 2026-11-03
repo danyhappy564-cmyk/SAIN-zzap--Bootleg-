@@ -16,9 +16,9 @@
 
 ## 변경 이력
 
-- 2026-11-03 — **Remix7.3 릴리즈 준비.** 릴리즈 이름 Remix7.3(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remix7.2 이후 바뀐 것(커밋 13개, 봇 설정 개편)을 노트 3종(changelog/RELEASE_NOTES_Remix7.3*)으로 정리. 봇 여러 종 묶어서 함께 조절, 내 설정 슬롯(3~9칸)과 공유 코드, 새 항목·바뀐 항목만 보기, 3단계 안내, 같이 써도 되는 모드 표. F6·웹 화면을 목업대로 맞추고 게임·크롬에서 한/영 확인. 봇 행동·zzap 프리셋 값은 Remix7.2와 같음. 클라 dll과 서버 모드 둘 다 덮어쓰기.
+- 2026-11-03 — **Remix7.3 릴리즈 준비.** 릴리즈 이름 Remix7.3(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remix7.2 이후 바뀐 것(커밋 13개, 봇 설정 개편)을 노트 3종(release-notes/RELEASE_NOTES_Remix7.3*)으로 정리. 봇 여러 종 묶어서 함께 조절, 내 설정 슬롯(3~9칸)과 공유 코드, 새 항목·바뀐 항목만 보기, 3단계 안내, 같이 써도 되는 모드 표. F6·웹 화면을 목업대로 맞추고 게임·크롬에서 한/영 확인. 봇 행동·zzap 프리셋 값은 Remix7.2와 같음. 클라 dll과 서버 모드 둘 다 덮어쓰기.
 
-- 2026-11-02 20:20 — **Remix7.2 릴리즈 준비.** 릴리즈 이름 Remix7.2(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remix7.1 이후 바뀐 것(커밋 1개, 레이드 뒤 메모리 누수 수정)을 노트 3종(changelog/RELEASE_NOTES_Remix7.2*)으로 정리. Remix7.1 알려진 점(문짝 장치 켜면 멈칫 증가?)을 같은 조건 게임 비교로 확인한 결과도 노트에 — 리저브 20분 켬/끔: SAIN 멈칫 7/5회, 평균 프레임 같음, 차이는 봇이 처음 나온 직후 0.08초 2번뿐이라 기본값 켬 유지. 클라 dll과 서버 모드 덮어쓰기(서버는 버전 이름만 바뀜).
+- 2026-11-02 20:20 — **Remix7.2 릴리즈 준비.** 릴리즈 이름 Remix7.2(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remix7.1 이후 바뀐 것(커밋 1개, 레이드 뒤 메모리 누수 수정)을 노트 3종(release-notes/RELEASE_NOTES_Remix7.2*)으로 정리. Remix7.1 알려진 점(문짝 장치 켜면 멈칫 증가?)을 같은 조건 게임 비교로 확인한 결과도 노트에 — 리저브 20분 켬/끔: SAIN 멈칫 7/5회, 평균 프레임 같음, 차이는 봇이 처음 나온 직후 0.08초 2번뿐이라 기본값 켬 유지. 클라 dll과 서버 모드 덮어쓰기(서버는 버전 이름만 바뀜).
 
 전체 변경 이력 253개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-026.md`](changelog/CHANGELOG-026.md)).
 
@@ -37,14 +37,14 @@
 SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포크는 ① **봇이 문 앞에서 낑기는 버그**를 고치고,
 ② 실제 고인물 플레이를 흉내 낸 **전술 행동**을 SAIN 전투 레이어 안에 추가하고, ③ 바로 쓸 수 있는 **zzap 프리셋**을 같이 넣었습니다.
 
-변경 이력은 [`changelog/`](changelog/), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
+변경 이력은 [`changelog/`](changelog/), 릴리즈 노트(깃허브·아카라이브·디스코드)는 [`release-notes/`](release-notes/), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
 
-**최근 변경 (2026-11-03, Remix7.3 릴리즈):** 봇 설정 개편 — F6·웹에서 봇 여러 종을 묶어(동그라미 또는 Ctrl+클릭) 난이도·손잡이·고급 값을 함께 조절, 내 설정 슬롯(3~9칸)에 저장하고 공유 코드로 주고받기, 새 항목만·바뀐 항목만 보기와 항목별 원래대로, 처음 여는 사람용 3단계 안내. README에 같이 써도 되는 모드 표(PBT·Twitch Players 포함). 봇 행동·zzap 값은 Remix7.2와 같음. 상세는 [`Remix7.3 릴리즈 노트`](changelog/RELEASE_NOTES_Remix7.3.md).
+**최근 변경 (2026-11-03, Remix7.3 릴리즈):** 봇 설정 개편 — F6·웹에서 봇 여러 종을 묶어(동그라미 또는 Ctrl+클릭) 난이도·손잡이·고급 값을 함께 조절, 내 설정 슬롯(3~9칸)에 저장하고 공유 코드로 주고받기, 새 항목만·바뀐 항목만 보기와 항목별 원래대로, 처음 여는 사람용 3단계 안내. README에 같이 써도 되는 모드 표(PBT·Twitch Players 포함). 봇 행동·zzap 값은 Remix7.2와 같음. 상세는 [`Remix7.3 릴리즈 노트`](release-notes/RELEASE_NOTES_Remix7.3.md).
 
-**이전 (2026-11-02, Remix7.2 릴리즈):** 레이드가 끝난 뒤 메뉴에서도 지난 레이드 메모리를 붙잡고 있던 것 수정(RAM 클리너 누수 보고의 SAIN, 게임 시뮬에서 사라진 것 확인). 봇 행동·설정·zzap 값은 Remix7.1과 같음. 문짝 장치 켬/끔 멈칫 비교 결과도 노트에. 상세는 [`Remix7.2 릴리즈 노트`](changelog/RELEASE_NOTES_Remix7.2.md).
+**이전 (2026-11-02, Remix7.2 릴리즈):** 레이드가 끝난 뒤 메뉴에서도 지난 레이드 메모리를 붙잡고 있던 것 수정(RAM 클리너 누수 보고의 SAIN, 게임 시뮬에서 사라진 것 확인). 봇 행동·설정·zzap 값은 Remix7.1과 같음. 문짝 장치 켬/끔 멈칫 비교 결과도 노트에. 상세는 [`Remix7.2 릴리즈 노트`](release-notes/RELEASE_NOTES_Remix7.2.md).
 
 
-릴리즈별 변경 요약: [`Remix7.3`](changelog/RELEASE_NOTES_Remix7.3.md) (Remix7.2 대비) · [`Remix7.2`](changelog/RELEASE_NOTES_Remix7.2.md) (Remix7.1 대비) · [`Remix7.1`](changelog/RELEASE_NOTES_Remix7.1.md) (Remake7 대비) · [`Remake7`](changelog/RELEASE_NOTES_Remake7.md) (Remix6.1 대비, 게시 안 한 Remix6.2 포함) · [`Remix6.2`](changelog/RELEASE_NOTES_Remix6.2.md) (초안만, 게시 안 함) · [`Remix6.1`](changelog/RELEASE_NOTES_Remix6.1.md) (remake6 대비) · [`remake6`](changelog/RELEASE_NOTES_remake6.md) (Remix5.1 대비) · [`Remix5.1`](changelog/RELEASE_NOTES_Remix5.1.md) (remake5 대비) · [`remake5`](changelog/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](changelog/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](changelog/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
+릴리즈별 변경 요약: [`Remix7.3`](release-notes/RELEASE_NOTES_Remix7.3.md) (Remix7.2 대비) · [`Remix7.2`](release-notes/RELEASE_NOTES_Remix7.2.md) (Remix7.1 대비) · [`Remix7.1`](release-notes/RELEASE_NOTES_Remix7.1.md) (Remake7 대비) · [`Remake7`](release-notes/RELEASE_NOTES_Remake7.md) (Remix6.1 대비, 게시 안 한 Remix6.2 포함) · [`Remix6.2`](release-notes/RELEASE_NOTES_Remix6.2.md) (초안만, 게시 안 함) · [`Remix6.1`](release-notes/RELEASE_NOTES_Remix6.1.md) (remake6 대비) · [`remake6`](release-notes/RELEASE_NOTES_remake6.md) (Remix5.1 대비) · [`Remix5.1`](release-notes/RELEASE_NOTES_Remix5.1.md) (remake5 대비) · [`remake5`](release-notes/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](release-notes/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](release-notes/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](release-notes/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](release-notes/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](release-notes/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](release-notes/RELEASE_NOTES_remake1.md) (fix7 대비).
 
 ## 봇 설정 쓰는 법 (Remix7.3)
 
@@ -201,7 +201,7 @@ doordash와 다른 점: 봇은 코너를 조준하며 달리는 일이 많아 "�
 |---|---|
 | 문 낑김 | 문 감지 범위, 스턱 체크, 대기모드 진입 시 문 상호작용 멈춤, 문 상태 워치독(1.2초) 등 — 상세는 [`changelog/FIXES.md`](changelog/FIXES.md) |
 | 위층 적에게 벽·천장 사격 (10/13) | 위층(높이 차 2.3m 이상)에 있어 보이지도 않는 적을 소리만 듣고 제압 사격·블라인드 파이어·프리파이어로 벽·천장에 쏘던 것 → 안 보이는 적에게 쏠 때 총구에서 목표까지 막혀 있으면, 다른 층이거나 총구 2.5m 앞이 바로 벽인 경우 쏘지 않음 (블라인드 파이어는 엄폐물 위로 총을 드는 동작이라 '코앞 벽'은 예외). SUMMARY `shoot.blocked.*` (게임 미검증) |
-| 열린 문짝에 박고 서 있음 (10/31, Remix7.1) | 열린 문짝 자리가 봇 길에서 빠져 있지 않아 문짝을 향해 걷다 박고 서던 것 → 열린 문짝 자리를 길에서 뺌(EFT가 문마다 갖고 있지만 꺼 두는 장치를 켬, 문이 닫히면 끔). `Door Tactics (zzap) > Bots Walk Around Open Door Leaves`(봇이 열린 문짝을 돌아서 지나감, 기본 켬). 문틀·문짝은 엄폐로도 안 씀. 그림: [`remix7.1-open-door-leaf.png`](changelog/images/remix7.1-open-door-leaf.png) |
+| 열린 문짝에 박고 서 있음 (10/31, Remix7.1) | 열린 문짝 자리가 봇 길에서 빠져 있지 않아 문짝을 향해 걷다 박고 서던 것 → 열린 문짝 자리를 길에서 뺌(EFT가 문마다 갖고 있지만 꺼 두는 장치를 켬, 문이 닫히면 끔). `Door Tactics (zzap) > Bots Walk Around Open Door Leaves`(봇이 열린 문짝을 돌아서 지나감, 기본 켬). 문틀·문짝은 엄폐로도 안 씀. 그림: [`remix7.1-open-door-leaf.png`](release-notes/images/remix7.1-open-door-leaf.png) |
 | 열린 문짝 뒤 틈에 낑김 (10/13) | 적을 조준하며 움직일 때(근접 난전 뒷걸음, 다이아몬드 스텝 옆걸음) 열린 문짝과 벽 사이 틈으로 들어가 낑기던 것 → 그 두 동작이 열린 문짝을 벽처럼 피함 (게임 미검증) |
 | DMR·저격 장거리 명중률 (10/13) | 총을 쏜 뒤 남는 반동 조준 흔들림이 약 2초에 걸쳐 천천히 풀리는데, 반동 큰 DMR·저격총은 장거리에서 다음 한 발까지 그게 덜 풀린 채 쏴서 돌격소총보다 빗나감 → DMR·저격총은 3배 빨리 다시 조준을 잡음 (게임 미검증) |
 | 사라진 사수에게 맞은 오류 (10/13) | 이미 지워진 플레이어 몸이 준 피해를 받으면 EFT가 그 위치를 읽다 오류(NRE)를 내던 것 → 그 경우 "누구한테 맞았다" 반응만 건너뜀 |

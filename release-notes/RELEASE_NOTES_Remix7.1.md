@@ -22,7 +22,7 @@
 > 봇이 **열린 문짝에 박고 서 있던 것**, **바닥 끝 밖에 서서 길을 못 찾고 몇 분씩 서 있던 것**, **분대 수색 때 분대가 통째로 서 있던 것**을 고친 판입니다.
 > 설정 화면과 zzap 프리셋 값은 Remake7과 같고, 새 설정은 '봇이 열린 문짝을 돌아서 지나감'(기본 켬) 하나입니다.
 > 2번(바닥 끝)은 게임 4맵 시뮬로 전/후를 확인했고, 1·3·4·5번은 게임 시뮬에서 작동과 오류 없음을 확인했습니다.
-> 그림: `changelog/images/remix7.1-open-door-leaf.png` (열린 문짝 전/후, 릴리즈에 첨부)
+> 그림: `release-notes/images/remix7.1-open-door-leaf.png` (열린 문짝 전/후, 릴리즈에 첨부)
 
 ---
 
@@ -76,7 +76,7 @@
 
 **<Changes (English)>**
 
-**Previous release:** Remake7 (`remake7`, published 10/24, 11 commits since) → **this: Remix7.1**. Bot pathing and cover fixes plus open door leaves. Settings screens and zzap preset values are the same as Remake7; the one new setting is `Bots Walk Around Open Door Leaves` (default on). Item 2 was checked before/after in a 4-map in-game sim; items 1, 3, 4 and 5 were seen working without errors in in-game sims. Picture: `changelog/images/remix7.1-open-door-leaf.png` (attached to the release).
+**Previous release:** Remake7 (`remake7`, published 10/24, 11 commits since) → **this: Remix7.1**. Bot pathing and cover fixes plus open door leaves. Settings screens and zzap preset values are the same as Remake7; the one new setting is `Bots Walk Around Open Door Leaves` (default on). Item 2 was checked before/after in a 4-map in-game sim; items 1, 3, 4 and 5 were seen working without errors in in-game sims. Picture: `release-notes/images/remix7.1-open-door-leaf.png` (attached to the release).
 
 **Install / update:** overwrite the client (`SAIN.dll`, `SAIN.Preset.Shared.dll`) **and** the server mod - the server mod carries `SAIN.Preset.Shared.dll` too, so the web UI shows the new setting only with both. Preset values did not change; the server fills the new setting (on) into existing presets. On a clean install, keep your `[Modified]` and own preset files.
 

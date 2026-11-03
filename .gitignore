@@ -372,3 +372,6 @@ ServerMod/dist
 # Build files
 Build/release/
 Build/
+
+# Claude Code session files stay local (2026-11-03)
+.claude/
