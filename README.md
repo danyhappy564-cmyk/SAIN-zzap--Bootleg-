@@ -16,11 +16,11 @@
 
 ## 변경 이력
 
-- 2026-11-03 — **Remix7.3 예정: 봇 설정 선택 묶음·내 설정 슬롯.** ○/●·Ctrl+클릭으로 고른 봇을 함께 조절하고, F6·웹 공용 슬롯과 공유 코드, NEW·변경 필터, 3단계 안내를 추가했습니다.
+- 2026-11-03 — **Remix7.3 릴리즈 준비.** 릴리즈 이름 Remix7.3(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remix7.2 이후 바뀐 것(커밋 13개, 봇 설정 개편)을 노트 3종(changelog/RELEASE_NOTES_Remix7.3*)으로 정리. 봇 여러 종 묶어서 함께 조절, 내 설정 슬롯(3~9칸)과 공유 코드, 새 항목·바뀐 항목만 보기, 3단계 안내, 같이 써도 되는 모드 표. F6·웹 화면을 목업대로 맞추고 게임·크롬에서 한/영 확인. 봇 행동·zzap 프리셋 값은 Remix7.2와 같음. 클라 dll과 서버 모드 둘 다 덮어쓰기.
 
 - 2026-11-02 20:20 — **Remix7.2 릴리즈 준비.** 릴리즈 이름 Remix7.2(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remix7.1 이후 바뀐 것(커밋 1개, 레이드 뒤 메모리 누수 수정)을 노트 3종(changelog/RELEASE_NOTES_Remix7.2*)으로 정리. Remix7.1 알려진 점(문짝 장치 켜면 멈칫 증가?)을 같은 조건 게임 비교로 확인한 결과도 노트에 — 리저브 20분 켬/끔: SAIN 멈칫 7/5회, 평균 프레임 같음, 차이는 봇이 처음 나온 직후 0.08초 2번뿐이라 기본값 켬 유지. 클라 dll과 서버 모드 덮어쓰기(서버는 버전 이름만 바뀜).
 
-전체 변경 이력 252개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-026.md`](changelog/CHANGELOG-026.md)).
+전체 변경 이력 253개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-026.md`](changelog/CHANGELOG-026.md)).
 
 # SAIN (zzap fork)
 
@@ -39,11 +39,12 @@ SAIN은 EFT 봇 AI를 통째로 갈아끼우는 대형 모드입니다. 이 포�
 
 변경 이력은 [`changelog/`](changelog/), 문 끼임 수정 상세는 [`changelog/FIXES.md`](changelog/FIXES.md)에 있습니다.
 
-**최근 변경 (2026-11-02, Remix7.2 릴리즈):** 레이드가 끝난 뒤 메뉴에서도 지난 레이드 메모리를 붙잡고 있던 것 수정(RAM 클리너 누수 보고의 SAIN, 게임 시뮬에서 사라진 것 확인). 봇 행동·설정·zzap 값은 Remix7.1과 같음. 문짝 장치 켬/끔 멈칫 비교 결과도 노트에. 상세는 [`Remix7.2 릴리즈 노트`](changelog/RELEASE_NOTES_Remix7.2.md).
+**최근 변경 (2026-11-03, Remix7.3 릴리즈):** 봇 설정 개편 — F6·웹에서 봇 여러 종을 묶어(동그라미 또는 Ctrl+클릭) 난이도·손잡이·고급 값을 함께 조절, 내 설정 슬롯(3~9칸)에 저장하고 공유 코드로 주고받기, 새 항목만·바뀐 항목만 보기와 항목별 원래대로, 처음 여는 사람용 3단계 안내. README에 같이 써도 되는 모드 표(PBT·Twitch Players 포함). 봇 행동·zzap 값은 Remix7.2와 같음. 상세는 [`Remix7.3 릴리즈 노트`](changelog/RELEASE_NOTES_Remix7.3.md).
 
-**이전 (2026-10-31, Remix7.1 릴리즈):** 봇이 열린 문짝을 박지 않고 돌아서 지나감(새 설정 '봇이 열린 문짝을 돌아서 지나감', 기본 켬), 바닥 끝 밖에 선 봇이 길을 못 찾아 몇 분씩 서 있던 것 수정(게임 4맵 확인), 분대 수색 때 분대가 통째로 서 있던 것 수정, 엄폐도 길도 없으면 각 잡고 대기, 문틀·문짝은 엄폐로 안 씀. 상세는 [`Remix7.1 릴리즈 노트`](changelog/RELEASE_NOTES_Remix7.1.md).
+**이전 (2026-11-02, Remix7.2 릴리즈):** 레이드가 끝난 뒤 메뉴에서도 지난 레이드 메모리를 붙잡고 있던 것 수정(RAM 클리너 누수 보고의 SAIN, 게임 시뮬에서 사라진 것 확인). 봇 행동·설정·zzap 값은 Remix7.1과 같음. 문짝 장치 켬/끔 멈칫 비교 결과도 노트에. 상세는 [`Remix7.2 릴리즈 노트`](changelog/RELEASE_NOTES_Remix7.2.md).
 
-릴리즈별 변경 요약: [`Remix7.2`](changelog/RELEASE_NOTES_Remix7.2.md) (Remix7.1 대비) · [`Remix7.1`](changelog/RELEASE_NOTES_Remix7.1.md) (Remake7 대비) · [`Remake7`](changelog/RELEASE_NOTES_Remake7.md) (Remix6.1 대비, 게시 안 한 Remix6.2 포함) · [`Remix6.2`](changelog/RELEASE_NOTES_Remix6.2.md) (초안만, 게시 안 함) · [`Remix6.1`](changelog/RELEASE_NOTES_Remix6.1.md) (remake6 대비) · [`remake6`](changelog/RELEASE_NOTES_remake6.md) (Remix5.1 대비) · [`Remix5.1`](changelog/RELEASE_NOTES_Remix5.1.md) (remake5 대비) · [`remake5`](changelog/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](changelog/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](changelog/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
+
+릴리즈별 변경 요약: [`Remix7.3`](changelog/RELEASE_NOTES_Remix7.3.md) (Remix7.2 대비) · [`Remix7.2`](changelog/RELEASE_NOTES_Remix7.2.md) (Remix7.1 대비) · [`Remix7.1`](changelog/RELEASE_NOTES_Remix7.1.md) (Remake7 대비) · [`Remake7`](changelog/RELEASE_NOTES_Remake7.md) (Remix6.1 대비, 게시 안 한 Remix6.2 포함) · [`Remix6.2`](changelog/RELEASE_NOTES_Remix6.2.md) (초안만, 게시 안 함) · [`Remix6.1`](changelog/RELEASE_NOTES_Remix6.1.md) (remake6 대비) · [`remake6`](changelog/RELEASE_NOTES_remake6.md) (Remix5.1 대비) · [`Remix5.1`](changelog/RELEASE_NOTES_Remix5.1.md) (remake5 대비) · [`remake5`](changelog/RELEASE_NOTES_remake5.md) (Remix4.2 대비) · [`Remix4.2`](changelog/RELEASE_NOTES_Remix4.2.md) (Remix4.1 대비) · [`Remix4.1`](changelog/RELEASE_NOTES_Remix4.1.md) (remake4 대비) · [`remake4`](changelog/RELEASE_NOTES_remake4.md) (remake3 대비) · [`remake3`](changelog/RELEASE_NOTES_remake3.md) (remake2 대비) · [`remake2`](changelog/RELEASE_NOTES_remake2.md) (remake1 대비) · [`remake1`](changelog/RELEASE_NOTES_remake1.md) (fix7 대비).
 
 ## 봇 설정 쓰는 법 (Remix7.3)
 
