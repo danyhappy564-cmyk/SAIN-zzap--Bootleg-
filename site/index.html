@@ -45,6 +45,7 @@
       <a href="#settings"><span lang="ko">설정 화면</span><span lang="en">Settings</span></a>
       <a href="#presets"><span lang="ko">프리셋</span><span lang="en">Presets</span></a>
       <a href="#perf"><span lang="ko">최적화·안전</span><span lang="en">Perf &amp; safety</span></a>
+      <a href="#verify"><span lang="ko">검증</span><span lang="en">Testing</span></a>
       <a href="#install"><span lang="ko">설치</span><span lang="en">Install</span></a>
       <a href="#compat"><span lang="ko">호환</span><span lang="en">Compat</span></a>
       <a href="#report"><span lang="ko">제보</span><span lang="en">Report</span></a>
@@ -527,7 +528,7 @@
       <div class="sec-no"><b>07</b><span lang="ko">최적화·안전</span><span lang="en">Perf &amp; safety</span></div>
       <div>
         <h2><span lang="ko">기능보다 오래 걸린 일 — 가볍게, 안 무너지게</span><span lang="en">What took longer than the features — light and hard to break</span></h2>
-        <p><span lang="ko">전술을 더하는 것보다 <b>오래 돌려도 안 무너지게</b> 만드는 데 시간을 더 썼습니다. 봇끼리 수백 판을 돌리고, 레이드가 끝날 때마다 누수 검사기로 메모리를 확인하고, 켬·끔을 같은 조건으로 재 가며 고쳤습니다. 아래 숫자는 모두 릴리즈 노트에 적은 측정값입니다.</span><span lang="en">More time went into making it <b>hold up over long sessions</b> than into adding tactics: hundreds of bot-vs-bot raids, a leak check after every raid, and on/off runs under the same conditions. Every number below is a measurement from the release notes.</span></p>
+        <p><span lang="ko">전술을 더하는 것보다 <b>오래 돌려도 안 무너지게</b> 만드는 데 시간을 더 썼습니다. 봇끼리 수백 판을 돌리고, 레이드가 끝날 때마다 누수 검사기로 메모리를 확인하고, 켬·끔을 같은 조건으로 재 가며 고쳤습니다. 아래 숫자는 모두 릴리즈 노트에 적은 측정값입니다. 어떻게 시험했는지는 <a href="#verify">다음 절</a>에 있습니다.</span><span lang="en">More time went into making it <b>hold up over long sessions</b> than into adding tactics: hundreds of bot-vs-bot raids, a leak check after every raid, and on/off runs under the same conditions. Every number below is a measurement from the release notes. How it was tested is in <a href="#verify">the next section</a>.</span></p>
       </div>
     </div>
     <div class="stats rv">
@@ -582,10 +583,95 @@
   </div>
 </section>
 
+<section id="verify">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-no"><b>08</b><span lang="ko">검증</span><span lang="en">Testing</span></div>
+      <div>
+        <h2><span lang="ko">게임 밖에서 수천 판, 게임 안에서 다시</span><span lang="en">Thousands of raids outside the game, then again inside it</span></h2>
+        <p><span lang="ko">고칠 때마다 두 단계로 돌려 봅니다. <b>1차</b>는 게임 없이 진짜 SAIN 코드를 11개 맵 전부에서 수천 판 돌려 이상한 움직임을 자동으로 찾고, <b>2차</b>는 실제 게임에서 봇끼리 싸우게 두고 녹화·분석해 사람이 확인합니다. 1차에서 나온 것은 후보일 뿐이고, 2차에서 확인한 것만 고칩니다.</span><span lang="en">Every change goes through two stages. <b>Stage 1</b> runs the real SAIN code, without the game, for thousands of raids on all 11 maps and flags odd movement automatically. <b>Stage 2</b> lets bots fight in the real game, records and analyses it, and a person checks it. Stage 1 only nominates; only what stage 2 confirms gets fixed.</span></p>
+      </div>
+    </div>
+    <div class="stats rv">
+      <div class="stat"><b>11</b><span lang="ko">맵 전부 — SPT 기본 맵 11개</span><span lang="en">maps — all 11 SPT main maps</span></div>
+      <div class="stat"><b>2,420</b><span lang="ko">판 — 한 번 돌릴 때(맵마다 전투 100 + 문 120)</span><span lang="en">raids per full pass (100 combat + 120 door per map)</span></div>
+      <div class="stat"><b>~92시간</b><span lang="ko">게임 시간 분량의 전투(1,100판 × 5분)</span><span lang="en">of in-game combat time (1,100 × 5 min)</span></div>
+      <div class="stat"><b>~50분</b><span lang="ko">실제로 걸리는 시간(창 4개 동시)</span><span lang="en">wall-clock time (4 windows in parallel)</span></div>
+    </div>
+    <div class="stats rv" style="margin-top:22px">
+      <div class="stat"><b style="font-size:17px"><span lang="ko">① 정적 검사</span><span lang="en">① Static check</span></b><span lang="ko">고친 줄에서 과거 사고 패턴(끝없는 반복, 맞아도 안 풀리는 매복 등)을 1~4초에 찾음</span><span lang="en">Scans changed lines for past incident patterns (unbounded loops, ambushes that hits don't break) in 1–4 s</span></div>
+      <div class="stat"><b style="font-size:17px"><span lang="ko">② 1차 오프라인</span><span lang="en">② Stage 1 offline</span></b><span lang="ko">게임 없이 진짜 SAIN 코드로 11맵 수천 판, 이상 동작 자동 판정</span><span lang="en">Real SAIN code, no game, thousands of raids on 11 maps, odd behaviour flagged automatically</span></div>
+      <div class="stat"><b style="font-size:17px"><span lang="ko">③ 2차 인게임</span><span lang="en">③ Stage 2 in game</span></b><span lang="ko">실제 게임에서 봇끼리 싸우게 두고 녹화·분석, 사람이 확인</span><span lang="en">Bots fight each other in the real game, recorded and analysed, checked by a person</span></div>
+      <div class="stat"><b style="font-size:17px"><span lang="ko">④ 게임 확인 → 릴리즈</span><span lang="en">④ Play test → release</span></b><span lang="ko">게임 로그·오류 로그까지 확인한 뒤에만 릴리즈, 못 본 것은 "미검증"</span><span lang="en">Release only after reading the game and error logs; anything not seen is marked "untested"</span></div>
+    </div>
+    <div class="clips-head rv"><h3><span lang="ko">1차 — 오프라인 하네스 (게임 없이)</span><span lang="en">Stage 1 — offline harness (no game)</span></h3></div>
+    <div class="cards two">
+        <div class="card rv"><h3><span lang="ko">무엇을 돌리나</span><span lang="en">What it runs</span></h3>
+          <ul style="margin:0 0 12px;padding-left:18px;color:var(--muted);font-size:15px">
+            <li><span lang="ko"><b>진짜 SAIN 판단·이동·문 코드를 고치지 않고 그대로</b> 게임 밖에서 컴파일해 돌립니다. 게임 쪽만 가짜로 채웁니다.</span><span lang="en"><b>The real SAIN decision, movement and door code, unmodified</b>, compiled and run outside the game; only the game side is faked.</span></li>
+            <li><span lang="ko">판단 관리자, 레이어 4개(섬광·위협 회피·분대·개인), 분대 전술, 문 전술, 다이아몬드 스텝·코너 추격, 수류탄(EFT 궤적 이식)까지 연결.</span><span lang="en">Decision manager, the four layers (flash, threat avoidance, squad, solo), squad tactics, door tactics, diamond step and corner chase, grenades (EFT trajectory ported).</span></li>
+            <li><span lang="ko">자체 검사 145개가 모두 통과해야 결과를 믿습니다.</span><span lang="en">Its 145 self-tests must all pass before results are trusted.</span></li>
+          </ul>
+          <div class="meta"><span class="tag">offline sim</span></div></div>
+        <div class="card rv"><h3><span lang="ko">어디서 — 진짜 맵</span><span lang="en">Where — the real maps</span></h3>
+          <ul style="margin:0 0 12px;padding-left:18px;color:var(--muted);font-size:15px">
+            <li><span lang="ko">게임 파일에서 맵 11개의 길찾기 지도(NavMesh)·벽·문을 읽기 전용으로 뽑아 씁니다. 공장 하나에 330MB.</span><span lang="en">NavMesh, walls and doors of all 11 maps are extracted read-only from the game files — 330 MB for Factory alone.</span></li>
+            <li><span lang="ko">문은 디컴파일한 EFT 규칙대로 열리고 닫힙니다(밀기·당기기·박치기).</span><span lang="en">Doors open and close by the decompiled EFT rules (push, pull, ram).</span></li>
+            <li><span lang="ko">한 판 = 봇 8명(4 대 4)이 5분 동안 싸움. 같은 seed면 같은 결과라 고치기 전·후를 똑같이 비교합니다.</span><span lang="en">One raid = 8 bots (4v4) fighting for 5 minutes. Same seed, same result, so before and after are compared exactly.</span></li>
+          </ul>
+          <div class="meta"><span class="tag">11 maps</span></div></div>
+        <div class="card rv"><h3><span lang="ko">얼마나</span><span lang="en">How much</span></h3>
+          <ul style="margin:0 0 12px;padding-left:18px;color:var(--muted);font-size:15px">
+            <li><span lang="ko">맵마다 전투 100판 + 문 검사 120판. 11맵 한 바퀴 2,420판을 창 4개로 약 50분.</span><span lang="en">Per map 100 combat raids + 120 door raids — one 11-map pass is 2,420 raids, about 50 minutes on 4 windows.</span></li>
+            <li><span lang="ko">처음엔 맵당 500판, 그다음 200판(11맵 약 1시간 30분)이었고, 고칠 때마다 너무 오래 걸려 100판으로 줄였습니다. 고친 뒤엔 문제가 나온 맵만 다시 돌립니다.</span><span lang="en">It started at 500 per map, then 200 (about 1.5 h for 11 maps); 100 now, because every fix round took too long. After a fix only the maps that showed the problem are rerun.</span></li>
+            <li><span lang="ko">빠른 점검 20판은 약 25초, 문 검사 120판은 약 21초.</span><span lang="en">A 20-raid smoke check takes ~25 s, the 120-raid door suite ~21 s.</span></li>
+          </ul>
+          <div class="meta"><span class="tag">100 / map</span></div></div>
+        <div class="card rv"><h3><span lang="ko">무엇을 잡나</span><span lang="en">What it catches</span></h3>
+          <ul style="margin:0 0 12px;padding-left:18px;color:var(--muted);font-size:15px">
+            <li><span lang="ko">튕김(예외), 맞는 중 매복, 판단 왕복, 안 보이는 적에게 서서 쏘기.</span><span lang="en">Crashes (exceptions), ambushing while being hit, decision flip-flops, standing to shoot at an unseen enemy.</span></li>
+            <li><span lang="ko">이동 6종: 제자리 걸음·문 끼임·뒷걸음·벽 보고 서 있기·몸 겹침·맞는 중 느린 걸음 — <b>2차와 같은 감지기·같은 기준값</b>.</span><span lang="en">Six movement checks: stalled, door-stuck, walking backwards, staring at walls, bunching, slow under fire — <b>the same detectors and thresholds as stage 2</b>.</span></li>
+            <li><span lang="ko">문 3종: 박친 문이 봇 쪽으로 열림, 열린 문짝에 막힘, 박치기 시작 조건 오류. 이미 고친 옛 문 버그를 고치기 전 코드로 다시 잡는지도 봅니다.</span><span lang="en">Three door checks: rammed door swinging toward the bot, blocked by an open leaf, bad ram start. It also replays old, already-fixed door bugs on the pre-fix code to see it still catches them.</span></li>
+          </ul>
+          <div class="meta"><span class="tag">detectors</span></div></div>
+    </div>
+    <div class="clips-head rv"><h3><span lang="ko">2차 — 인게임 시뮬레이션 랩</span><span lang="en">Stage 2 — in-game Simulation Lab</span></h3></div>
+    <div class="cards two">
+        <div class="card rv"><h3><span lang="ko">무엇을 하나</span><span lang="en">What it does</span></h3>
+          <ul style="margin:0 0 12px;padding-left:18px;color:var(--muted);font-size:15px">
+            <li><span lang="ko">실제 게임 레이드에서 봇끼리 싸우게 두고 프리캠으로 지켜봅니다(<code>zzap TEST [시뮬 전용]</code> 프리셋).</span><span lang="en">Bots fight each other in a real game raid, watched in free cam (<code>zzap TEST [sim only]</code> preset).</span></li>
+            <li><span lang="ko">웹 <code>/sain/sim</code>에서 시작하면 맵을 돌며 봇을 일정 간격으로 스폰하고, 판이 끝나면 문제·오류·프레임·봇 사망·판단별 킬/사망을 md 한 장으로 정리합니다.</span><span lang="en">Started from the web page <code>/sain/sim</code>: it cycles maps, spawns bots at intervals, and writes one md per raid with problems, errors, frames, bot deaths and kills/deaths per decision.</span></li>
+            <li><span lang="ko">서버·게임 켜고 끄기까지 도구로 자동이라 사람이 없어도 여러 판을 이어서 돌립니다.</span><span lang="en">Starting and stopping the server and game is scripted too, so raids run back to back unattended.</span></li>
+          </ul>
+          <div class="meta"><span class="tag">SimLab</span></div></div>
+        <div class="card rv"><h3><span lang="ko">얼마나</span><span lang="en">How much</span></h3>
+          <ul style="margin:0 0 12px;padding-left:18px;color:var(--muted);font-size:15px">
+            <li><span lang="ko">공장 57.6분 한 판(Remix4.1), 공장·세관 30분씩, 리저브 20분 여러 판, 공장·세관·리저브·연구소 15분 순회 같은 판을 릴리즈마다 돌립니다.</span><span lang="en">Per release: e.g. a 57.6-minute Factory raid (Remix4.1), 30 min each on Factory and Customs, several 20-minute Reserve raids, a 15-minute rotation over Factory, Customs, Reserve and Labs.</span></li>
+            <li><span lang="ko">켬/끔 비교는 같은 맵·같은 시간·같은 설정으로 나란히 돌립니다. 시뮬 도구가 설정을 몰래 덮어써서 "끔"이 켜진 채 돈 적이 있어, 그 뒤로는 값이 실제로 들어갔는지까지 확인합니다.</span><span lang="en">On/off comparisons run side by side on the same map, length and settings. Once the sim tool silently overrode a setting so the "off" run was actually on — since then the applied values are checked too.</span></li>
+          </ul>
+          <div class="meta"><span class="tag">in game</span></div></div>
+        <div class="card rv"><h3><span lang="ko">무엇을 보나</span><span lang="en">What gets checked</span></h3>
+          <ul style="margin:0 0 12px;padding-left:18px;color:var(--muted);font-size:15px">
+            <li><span lang="ko">분석 md + 게임 로그(<code>LogOutput.log</code>)와 오류 로그(<code>errors.log</code>)까지.</span><span lang="en">The analysis md plus the game log (<code>LogOutput.log</code>) and the error log (<code>errors.log</code>).</span></li>
+            <li><span lang="ko">이상한 장면은 F8로 표시해 봇 상태(레이어·판단·이유·속도·가는 방향·문)를 기록하고 스크린샷과 맞춰 봅니다. 공장·세관·리저브·연구소 순회에서는 약 90장면을 찍어 봤습니다.</span><span lang="en">Odd moments are marked with F8 (layer, decision, reason, speed, heading, doors) and matched to screenshots — about 90 scenes on the Factory/Customs/Reserve/Labs rotation.</span></li>
+            <li><span lang="ko">RAM 클리너 누수 목록으로 레이드 뒤 메모리를 붙잡은 모드를 확인합니다.</span><span lang="en">The RAM Cleaner leak list shows which mods still hold memory after the raid.</span></li>
+          </ul>
+          <div class="meta"><span class="tag">logs</span><span class="tag">F8</span></div></div>
+        <div class="card rv"><h3><span lang="ko">두 단계를 맞춰 봄</span><span lang="en">Calibrating the two stages</span></h3>
+          <ul style="margin:0 0 12px;padding-left:18px;color:var(--muted);font-size:15px">
+            <li><span lang="ko">같은 SAIN 코드로 1차와 2차를 둘 다 돌려 숫자를 비교했습니다. 1차가 제자리 걸음을 12배 많이 세는 등 과장된 부분은 <b>도구를 고쳤지 SAIN을 고치지 않았습니다.</b></span><span lang="en">Stage 1 and 2 were run on the same SAIN code and compared. Where stage 1 over-counted (e.g. 12x more "stalled") <b>the tool was fixed, not SAIN.</b></span></li>
+            <li><span lang="ko">그래서 규칙: <b>1차 결과는 후보일 뿐</b>, 2차 게임에서 확인한 것만 고칩니다. 1차만 보고 고쳤다가 되돌린 일이 있어 생긴 규칙입니다.</span><span lang="en">Hence the rule: <b>stage 1 only nominates</b>; only what stage 2 confirms gets fixed. It exists because a fix made from stage 1 alone once had to be reverted.</span></li>
+          </ul>
+          <div class="meta"><span class="tag">P16</span></div></div>
+    </div>
+    <div class="note rv" style="margin-top:18px"><span lang="ko"><b>솔직한 한계:</b> 1차는 시야·사격을 단순하게 흉내 내고 게임 물리가 없어서 "좋아졌나"는 판단하지 않습니다(이상 동작 찾기 전용). 2차도 봇끼리 싸움이라 사람 플레이어 상대는 직접 플레이와 제보로 확인합니다. 제보는 <code>LogOutput.log</code>와 함께 부탁드립니다.</span><span lang="en"><b>Honest limits:</b> stage 1 approximates vision and shooting and has no game physics, so it never judges "better or worse" — it only finds odd behaviour. Stage 2 is bots against bots, so behaviour against a human is checked by playing and by reports. Please include <code>LogOutput.log</code> when reporting.</span></div>
+  </div>
+</section>
+
 <section id="install">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-no"><b>08</b><span lang="ko">설치</span><span lang="en">Install</span></div>
+      <div class="sec-no"><b>09</b><span lang="ko">설치</span><span lang="en">Install</span></div>
       <div>
         <h2><span lang="ko">설치 · 업데이트</span><span lang="en">Install · update</span></h2>
         <p><span lang="ko">릴리즈의 <code>SAIN.REMIX.&lt;버전&gt;.7z</code> 하나에 클라 모드(<code>BepInEx</code>)와 서버 모드(<code>SPT_Runtime</code>)가 같이 들어 있습니다. 필수 모드: BigBrain, Waypoints.</span><span lang="en">Each release has one <code>SAIN.REMIX.&lt;version&gt;.7z</code> holding the client mod (<code>BepInEx</code>) and the server mod (<code>SPT_Runtime</code>). Requires BigBrain and Waypoints.</span></p>
@@ -621,7 +707,7 @@
 <section id="compat">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-no"><b>09</b><span lang="ko">호환</span><span lang="en">Compat</span></div>
+      <div class="sec-no"><b>10</b><span lang="ko">호환</span><span lang="en">Compat</span></div>
       <div>
         <h2><span lang="ko">같이 써도 되는 모드</span><span lang="en">Mods that work alongside</span></h2>
         <p><span lang="ko">직접 확인한 것만 적었습니다. <span class="ok game">게임</span> = 같이 깔고 레이드를 돌려 오류 없음, <span class="ok code">코드</span> = 두 모드 코드를 맞대어 겹치는 곳 없음. 여기 없다고 안 되는 것은 아닙니다.</span><span lang="en">Only what was actually checked. <span class="ok game">Game</span> = raided together with no errors, <span class="ok code">Code</span> = both mods' code compared with nothing overlapping. Missing from the list doesn't mean broken.</span></p>
@@ -650,7 +736,7 @@
 <section id="report">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-no"><b>10</b><span lang="ko">제보</span><span lang="en">Report</span></div>
+      <div class="sec-no"><b>11</b><span lang="ko">제보</span><span lang="en">Report</span></div>
       <div>
         <h2><span lang="ko">이상한 봇을 봤다면</span><span lang="en">Saw a bot do something odd?</span></h2>
         <p><span lang="ko">"렉이 걸린다", "봇이 이상하다" 제보에는 로그가 꼭 필요합니다. <a href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/issues">GitHub 이슈</a>에 올려 주세요.</span><span lang="en">Reports like "it lags" or "a bot acted weird" need logs. Please open a <a href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/issues">GitHub issue</a>.</span></p>
@@ -671,7 +757,7 @@
 <section id="credits">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-no"><b>11</b><span lang="ko">만든 사람들</span><span lang="en">Credits</span></div>
+      <div class="sec-no"><b>12</b><span lang="ko">만든 사람들</span><span lang="en">Credits</span></div>
       <div>
         <h2><span lang="ko">원작자와 출처</span><span lang="en">Original authors and sources</span></h2>
         <p><span lang="ko">이 포크는 아래 분들의 작업 위에 있습니다. 응원과 후원은 원작자의 페이지로 부탁드립니다.</span><span lang="en">This fork stands on the work below. Please send kind words and tips to the original authors.</span></p>
