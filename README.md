@@ -42,9 +42,11 @@
 **원작자 · 원본 (저작권 표시)**
 - **Solarint** — SAIN (Solarint's AI Modifications) · https://github.com/Solarint/SAIN
 - 4.x 유지보수: **ArchangelWTF** · https://github.com/ArchangelWTF/SAIN
-- 이식한 코드(봇 몸통박치기):
+- 가져오거나 참고한 것:
   - **bmpq (tarkin)** — doordash · https://github.com/bmpq/spt-doordash (라이선스 파일 없음)
   - **maschine34675** — DualSideDoorBreach 2.0.2 · https://github.com/maschine34675/DualSideDoorBreach (MIT, Copyright (c) 2026 maschine34675)
+  - **Chazu** — ORBIT · https://github.com/Chazut/ORBIT (MIT, Copyright (c) 2026 Chazu) — 문 끼임 대응 3가지(문 상태 3초 워치독, 문 근처 감속 0.25배, 수평 위치로 정지 감지)를 ORBIT 코드를 보고 옮김. zzap 프리셋의 성격 분포·탈출 설정은 ORBIT 권장값
+  - **harmonyzt** — TwitchPlayers · https://github.com/harmonyzt/TwitchPlayers (라이선스 파일 없음) — zzap 프리셋의 사격·조준·반응 값은 TwitchPlayers(하드코어) 프리셋 값
 
 SAIN(EFT 봇 AI를 통째로 바꾸는 모드)의 비공식 포크입니다. ① 봇이 **문 앞에서 끼는 버그**를 고치고, ② 고인물 플레이를 흉내 낸 **전술 행동**을 더하고, ③ 바로 쓰는 **zzap 프리셋**을 넣었습니다.
 
@@ -78,4 +80,6 @@ SAIN(EFT 봇 AI를 통째로 바꾸는 모드)의 비공식 포크입니다. ①
 ## 라이선스
 
 원작 Solarint의 라이선스를 따릅니다.
-봇 몸통박치기(`SAIN/Classes/Bot/Doors/BotDoorBreacher.cs`)에는 doordash(bmpq)와 DualSideDoorBreach(maschine34675, MIT — Copyright (c) 2026 maschine34675, 허가 문구 전문은 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md))의 코드가 들어 있습니다.
+봇 몸통박치기(`SAIN/Classes/Bot/Doors/BotDoorBreacher.cs`)에는 doordash(bmpq)와 DualSideDoorBreach(maschine34675, MIT — Copyright (c) 2026 maschine34675)의 코드가,
+문 처리(`DoorOpener.cs`·`BotPathData.cs`)에는 ORBIT(Chazu, MIT — Copyright (c) 2026 Chazu)을 본뜬 코드가, zzap 프리셋에는 TwitchPlayers(harmonyzt)의 값이 들어 있습니다.
+허가 문구 전문과 출처는 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)에 있습니다.

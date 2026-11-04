@@ -31,3 +31,39 @@ SOFTWARE.
 ## doordash (bmpq / tarkin) — https://github.com/bmpq/spt-doordash
 
 Used in `SAIN/Classes/Bot/Doors/BotDoorBreacher.cs` (sprint ram breach, door swing check, rammer damage). The original repository has no license file; credited here and in README. Will be removed on the author's request.
+
+## ORBIT (Chazu) — https://github.com/Chazut/ORBIT
+
+Used in `SAIN/Classes/Bot/Doors/DoorOpener.cs` and `SAIN/Classes/Bot/Mover/BotPathData.cs` (2026-09-20, details in `changelog/FIXES.md` section 11):
+door-state finalize watchdog (after ORBIT's `DoorWatch`), sprint off + 0.25x speed near doors (ORBIT `MovementSystem.HandleDoors`),
+horizontal-only stillness check (ORBIT `SoftStuckRemediation`). The bundled zzap presets also use ORBIT's recommended personality mix
+and extraction settings. ORBIT's own license also credits Phobos (SleepingPills, MIT) for its dispatch foundation; that part is not used here.
+
+```
+MIT License
+
+Copyright (c) 2026 Chazu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## TwitchPlayers (harmonyzt) — https://github.com/harmonyzt/TwitchPlayers
+
+The bundled zzap presets (`SAINServerMod/Presets/`) use the shooting, aiming and reaction values of the TwitchPlayers (hardcore) preset.
+The original repository has no license file; credited here and in README. Will be removed on the author's request.
