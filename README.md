@@ -14,6 +14,8 @@
 
 ---
 
+**소개 사이트 (한국어 / English):** https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/ — 전술·문 수정·설정 화면·설치를 GIF와 함께 한 페이지에 정리했습니다.
+
 ## 변경 이력
 
 - 2026-11-04 — **Remix7.4 릴리즈 준비.** 릴리즈 이름 Remix7.4(`ZzapRelease`). 마지막 GitHub 릴리즈 remix7.3 이후 바뀐 것을 릴리즈 노트([GitHub 릴리즈 페이지](https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/releases/tag/remix7.4))과 한/영 GIF로 정리. 영어 화면 프리셋 이름(파일 이름은 그대로), 비교 기준 쉬움/보통/zzap (어려움)/저장된 값, 내 프리셋 이름 바꾸기, ZZAP (전술 등..)·시뮬레이션 탭(한눈에 켜고 끄기 14개), 봇 설정 탭 5개(빠른 설정·성격·ZZAP·맵별 보정·고급), 봇 종류별 ZZAP 스위치(전역 따름/켬/끔), 봇 종류별 맵 배수(전역 맵별 보정 위에 곱함). 이전 프리셋은 그대로 동작. 게임 F6·웹 검수와 리저브 시험 레이드에서 봇 값 확인. 클라 dll과 서버 모드 둘 다 덮어쓰기.
