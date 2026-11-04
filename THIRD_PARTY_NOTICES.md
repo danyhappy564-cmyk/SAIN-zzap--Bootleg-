@@ -32,7 +32,7 @@ SOFTWARE.
 
 Used in `SAIN/Classes/Bot/Doors/BotDoorBreacher.cs` (sprint ram breach, door swing check, rammer damage). The original repository has no license file; credited here and in README. Will be removed on the author's request.
 
-## ORBIT (Chazu) — https://github.com/Chazut/ORBIT
+## ORBIT (Chazut) — https://github.com/Chazut/ORBIT
 
 Used in `SAIN/Classes/Bot/Doors/DoorOpener.cs` and `SAIN/Classes/Bot/Mover/BotPathData.cs` (2026-09-20, details in `changelog/FIXES.md` section 11):
 door-state finalize watchdog (after ORBIT's `DoorWatch`), sprint off + 0.25x speed near doors (ORBIT `MovementSystem.HandleDoors`),
@@ -63,7 +63,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## TwitchPlayers (harmonyzt) — https://github.com/harmonyzt/TwitchPlayers
+## TwitchPlayers (harmony) — https://github.com/harmonyzt/TwitchPlayers
 
 The bundled zzap presets (`SAINServerMod/Presets/`) use the shooting, aiming and reaction values of the TwitchPlayers (hardcore) preset.
 The original repository has no license file; credited here and in README. Will be removed on the author's request.
