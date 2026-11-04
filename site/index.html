@@ -44,6 +44,7 @@
       <a href="#doors"><span lang="ko">문·버그 수정</span><span lang="en">Doors &amp; fixes</span></a>
       <a href="#settings"><span lang="ko">설정 화면</span><span lang="en">Settings</span></a>
       <a href="#presets"><span lang="ko">프리셋</span><span lang="en">Presets</span></a>
+      <a href="#perf"><span lang="ko">최적화·안전</span><span lang="en">Perf &amp; safety</span></a>
       <a href="#install"><span lang="ko">설치</span><span lang="en">Install</span></a>
       <a href="#compat"><span lang="ko">호환</span><span lang="en">Compat</span></a>
       <a href="#report"><span lang="ko">제보</span><span lang="en">Report</span></a>
@@ -520,10 +521,71 @@
 </section>
 
 <!-- ═══ INSTALL ═══ -->
+<section id="perf">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-no"><b>07</b><span lang="ko">최적화·안전</span><span lang="en">Perf &amp; safety</span></div>
+      <div>
+        <h2><span lang="ko">기능보다 오래 걸린 일 — 가볍게, 안 무너지게</span><span lang="en">What took longer than the features — light and hard to break</span></h2>
+        <p><span lang="ko">전술을 더하는 것보다 <b>오래 돌려도 안 무너지게</b> 만드는 데 시간을 더 썼습니다. 봇끼리 수백 판을 돌리고, 레이드가 끝날 때마다 누수 검사기로 메모리를 확인하고, 켬·끔을 같은 조건으로 재 가며 고쳤습니다. 아래 숫자는 모두 릴리즈 노트에 적은 측정값입니다.</span><span lang="en">More time went into making it <b>hold up over long sessions</b> than into adding tactics: hundreds of bot-vs-bot raids, a leak check after every raid, and on/off runs under the same conditions. Every number below is a measurement from the release notes.</span></p>
+      </div>
+    </div>
+    <div class="stats rv">
+      <div class="stat"><b>0</b><span lang="ko">SAIN 오류 — 리저브 20분 게임 시뮬 3판</span><span lang="en">SAIN errors — 3 in-game Reserve sims, 20 min</span></div>
+      <div class="stat"><b>14.8ms</b><span lang="ko">평균 프레임(약 67fps), 문짝 장치 켬·끔 같음</span><span lang="en">avg frame (~67 fps), carver on = off</span></div>
+      <div class="stat"><b>294→75</b><span lang="ko">공장 문짝 앞 정체(1차 시뮬 30판)</span><span lang="en">Factory door-leaf jams (30 first-stage sims)</span></div>
+      <div class="stat"><b>3308→78</b><span lang="ko">공장 '엄폐도 길도 없음' 대기(15분)</span><span lang="en">Factory "no cover, no path" waits (15 min)</span></div>
+    </div>
+    <div class="clips-head rv"><h3><span lang="ko">최적화</span><span lang="en">Performance</span></h3></div>
+    <div class="cards">
+        <div class="card rv"><h3><span lang="ko">레이드 뒤 메모리 누수 두 번 잡음</span><span lang="en">Two post-raid memory leaks fixed</span></h3>
+          <p><span lang="ko">두 번째 판부터 <b>지난 판 전체(플레이어·장비·아이템)가 다음 판 내내 램에 남던 것</b>, 메뉴로 나와도 <b>지난 판 맵·봇 데이터를 붙잡고 있던 것</b>을 고쳤습니다. 지금은 RAM 클리너 누수 목록에 SAIN이 나오지 않습니다.</span><span lang="en">From the second raid on, <b>the whole previous raid (players, gear, items) stayed in RAM through the next one</b>, and SAIN <b>held the last raid's map and bot data even in the menu</b>. Both fixed — SAIN no longer shows up in the RAM Cleaner leak list.</span></p>
+          <div class="meta"><span class="tag">remake2</span><span class="tag">Remix7.2</span></div></div>
+        <div class="card rv"><h3><span lang="ko">시체 피 자국 텍스처 비우기</span><span lang="en">Freeing corpse wound decals</span></h3>
+          <p><span lang="ko">EFT는 맞은 부위마다 자국 텍스처(개당 약 4MB)를 만들고 <b>시체 것까지</b> 레이드 끝까지 들고 있어, 사망이 많을수록 램·VRAM이 수 GB 늘었습니다. 죽은 지 30초 뒤 비우고 다음 피격에 다시 씁니다(F6 성능 메뉴에서 끌 수 있음).</span><span lang="en">EFT makes a wound texture (~4 MB each) per hit and keeps <b>corpses' too</b> until raid end, so RAM/VRAM grew by GBs with deaths. They are cleared 30 s after death and reused for the next hit (can be turned off in F6 Performance).</span></p>
+          <div class="meta"><span class="tag">remake2</span></div></div>
+        <div class="card rv"><h3><span lang="ko">안 쓸 글자는 아예 만들지 않음</span><span lang="en">No text nobody reads</span></h3>
+          <p><span lang="ko">EFT는 레이드 중 메모리 정리를 꺼 두기 때문에 버린 글자도 끝까지 쌓입니다. 로그·진단을 꺼 두면 로그 문장 자체를 만들지 않고, 판단 이유 글은 일지를 켰을 때만 만듭니다 — 판단 쪽 메모리 쓰레기 4% 감소, 판단 결과는 같습니다.</span><span lang="en">EFT turns garbage collection off during raids, so even discarded strings pile up. With logs and diagnostics off no log line is built at all, and the "why" text for decisions is only built with the journal on — 4% less decision garbage, same decisions.</span></p>
+          <div class="meta"><span class="tag">remake2</span><span class="tag">Remix7.1</span></div></div>
+        <div class="card rv"><h3><span lang="ko">무거운 연동은 넣지 않음</span><span lang="en">Heavy integrations left out</span></h3>
+          <p><span lang="ko">Door Overhaul 연동(문 너머 사격·수류탄 문 폭파)은 그 모드가 분당 600MB 안팎을 써서 뺐습니다. 몸통박치기는 doordash·DualSideDoorBreach 코드를 봇 전용으로 직접 옮겨 와 두 모드 없이 돌아갑니다.</span><span lang="en">The Door Overhaul bridge (shooting and grenades through doors) was dropped because that mod used ~600 MB per minute. The sprint ram ports doordash and DualSideDoorBreach code for bots only, so neither mod is needed.</span></p>
+          <div class="meta"><span class="tag">remake6</span></div></div>
+        <div class="card rv"><h3><span lang="ko">켬/끔 같은 조건으로 재봄</span><span lang="en">Measured on and off, same conditions</span></h3>
+          <p><span lang="ko">열린 문짝을 길에서 빼는 장치를 켠 판과 끈 판을 리저브 20분 같은 조건으로 비교했습니다. 평균 프레임은 <b>둘 다 14.8ms(약 67fps)</b>, 차이는 봇이 처음 나온 뒤 15초 동안 0.08초 멈칫 2번뿐입니다.</span><span lang="en">Raids with the open-leaf carver on and off were compared on Reserve, 20 min, same conditions. Average frame time <b>14.8 ms (~67 fps) both</b>; the only difference was two 0.08 s hitches in the first 15 s after bots spawn.</span></p>
+          <div class="meta"><span class="tag">Remix7.2</span></div></div>
+        <div class="card rv"><h3><span lang="ko">오류 난 봇을 매 프레임 다시 보지 않음</span><span lang="en">No per-frame retries on a failing bot</span></h3>
+          <p><span lang="ko">재장전 확인에서 오류가 나는 봇을 1초에 수백 번 다시 검사하느라 프레임이 무너지던 것을 고쳤습니다. 오류가 난 봇은 10초 동안 그 검사를 쉽니다.</span><span lang="en">A bot whose reload check threw was re-checked hundreds of times a second and tanked the frame rate. A failing bot now skips that check for 10 s.</span></p>
+          <div class="meta"><span class="tag">fix</span></div></div>
+    </div>
+    <div class="clips-head rv"><h3><span lang="ko">안전</span><span lang="en">Safety</span></h3></div>
+    <div class="cards">
+        <div class="card rv"><h3><span lang="ko">봇 하나의 오류가 전체를 세우지 않음</span><span lang="en">One bot's error can't freeze the rest</span></h3>
+          <p><span lang="ko">봇 하나(Black Division 같은 커스텀 봇)에서 오류가 나면 뒤 순번 봇 전체의 AI가 멈추던 것을 봇마다 따로 격리했습니다. 죽음 처리도 하나씩 따로 실행하고, 체력 0인데 1.5초 넘게 시체가 안 생기면 직접 쓰러뜨립니다.</span><span lang="en">An error in one bot (a custom one like Black Division) used to stop the AI of every bot after it; each bot is now isolated. Death handlers run one by one, and a bot at 0 HP with no corpse after 1.5 s is put down directly.</span></p>
+          <div class="meta"><span class="tag">fix</span><span class="tag">remake2</span></div></div>
+        <div class="card rv"><h3><span lang="ko">매 프레임 코드엔 끝나는 조건부터</span><span lang="en">Every per-frame loop has an exit</span></h3>
+          <p><span lang="ko">실제로 게임이 멈춘 일이 있은 뒤로, 매 프레임·매 봇 도는 코드에 새 반복을 넣을 때는 <b>끝나는 조건 + 최대 횟수 + 모의 실행 확인</b>을 꼭 거칩니다. 문이 안 열리면 최대 4초만 기다리고 돌아가는 식으로 모든 대기에 상한이 있습니다.</span><span lang="en">After a real game freeze, any new loop in per-frame or per-bot code must have <b>an exit condition, a hard cap and a dry run</b>. Every wait has a ceiling — a door that won't open is waited on for at most 4 s before the bot reroutes.</span></p>
+          <div class="meta"><span class="tag">always</span></div></div>
+        <div class="card rv"><h3><span lang="ko">업데이트해도 내 설정은 그대로</span><span lang="en">Updates don't touch your settings</span></h3>
+          <p><span lang="ko">기본 프리셋을 고치면 원본 대신 <code>[Modified]</code> 사본으로 저장되고, 내 설정 슬롯은 따로 파일에 둡니다. 새로 생긴 칸은 모두 '전역 따름'·'1배'로 시작해서 <b>업데이트만 해서는 아무것도 달라지지 않습니다.</b> 이전 판으로 돌아가려면 이전 7z를 덮어쓰면 됩니다.</span><span lang="en">Edits to bundled presets are saved as a <code>[Modified]</code> copy and custom slots live in their own file. New settings start at "follow global" / 1x, so <b>updating alone changes nothing.</b> To roll back, extract the previous 7z over it.</span></p>
+          <div class="meta"><span class="tag">Remix7.3</span><span class="tag">Remix7.4</span></div></div>
+        <div class="card rv"><h3><span lang="ko">시뮬 기능은 시뮬에서만</span><span lang="en">Sim features stay in the sim</span></h3>
+          <p><span lang="ko">봇끼리 싸우게 하는 시뮬레이션 랩, 시체 실제 삭제, 봇 부품별 메모리 측정은 <code>zzap TEST [시뮬 전용]</code> 프리셋에서만 돕니다. 실제 플레이용 프리셋에는 아무 부담이 없습니다.</span><span lang="en">The Simulation Lab, real corpse deletion and per-part bot memory probes only run with the <code>zzap TEST [sim only]</code> preset. Presets for real play carry none of it.</span></p>
+          <div class="meta"><span class="tag">SimLab</span></div></div>
+        <div class="card rv"><h3><span lang="ko">다른 모드가 기대는 이름은 안 바꿈</span><span lang="en">Names other mods rely on are kept</span></h3>
+          <p><span lang="ko">ISB·Scourge가 실행 중에 이름으로 찾는 SAIN 코드, TwitchPlayers가 직접 부르는 서버 DLL 이름·폴더·버전(4.5.1)·API는 원본 그대로 둡니다. 같이 써도 되는 모드는 게임이나 코드로 확인한 것만 표에 올립니다.</span><span lang="en">SAIN code that ISB and Scourge look up by name at runtime, and the server DLL name, folder, version (4.5.1) and API that TwitchPlayers calls, are left exactly as upstream. The compatibility table lists only mods checked in game or in code.</span></p>
+          <div class="meta"><span class="tag">compat</span></div></div>
+        <div class="card rv"><h3><span lang="ko">확인한 것만 확인했다고 씀</span><span lang="en">Only what was checked is called checked</span></h3>
+          <p><span lang="ko">봇끼리 시뮬 1차 100판, 게임 안 시뮬 레이드, F8 장면 기록, 별도 AI(Codex) 코드 검토까지 거친 뒤에도, 직접 확인하지 못한 항목은 릴리즈 노트에 <b>미검증</b>이라고 적습니다. 빌드 성공을 게임 동작으로 치지 않습니다.</span><span lang="en">100-raid first-stage bot sims, in-game sim raids, F8 scene marks and independent AI (Codex) code reviews — and anything still not seen working is marked <b>untested</b> in the release notes. A clean build is never counted as working in game.</span></p>
+          <div class="meta"><span class="tag">process</span></div></div>
+    </div>
+    <p class="rv" style="color:var(--dim);font-size:14px;margin-top:18px"><span lang="ko">측정 조건: 사용자 PC(RAM 64GB), 숫자 옆에 적은 맵·시간·판 수 기준. zzap 프리셋은 원본 SAIN 기본 프리셋보다 전투 쪽에 무게를 둬서 프레임이 약간 낮을 수 있습니다. 각 항목의 자세한 내용은 릴리즈 노트에 있습니다.</span><span lang="en">Measured on the author's PC (64 GB RAM), on the map, length and raid count given next to each number. The zzap presets lean toward combat over performance, so frame rate can be a little lower than with upstream SAIN's default preset. Details for each item are in the release notes.</span></p>
+  </div>
+</section>
+
 <section id="install">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-no"><b>07</b><span lang="ko">설치</span><span lang="en">Install</span></div>
+      <div class="sec-no"><b>08</b><span lang="ko">설치</span><span lang="en">Install</span></div>
       <div>
         <h2><span lang="ko">설치 · 업데이트</span><span lang="en">Install · update</span></h2>
         <p><span lang="ko">릴리즈의 <code>SAIN.REMIX.&lt;버전&gt;.7z</code> 하나에 클라 모드(<code>BepInEx</code>)와 서버 모드(<code>SPT_Runtime</code>)가 같이 들어 있습니다. 필수 모드: BigBrain, Waypoints.</span><span lang="en">Each release has one <code>SAIN.REMIX.&lt;version&gt;.7z</code> holding the client mod (<code>BepInEx</code>) and the server mod (<code>SPT_Runtime</code>). Requires BigBrain and Waypoints.</span></p>
@@ -559,7 +621,7 @@
 <section id="compat">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-no"><b>08</b><span lang="ko">호환</span><span lang="en">Compat</span></div>
+      <div class="sec-no"><b>09</b><span lang="ko">호환</span><span lang="en">Compat</span></div>
       <div>
         <h2><span lang="ko">같이 써도 되는 모드</span><span lang="en">Mods that work alongside</span></h2>
         <p><span lang="ko">직접 확인한 것만 적었습니다. <span class="ok game">게임</span> = 같이 깔고 레이드를 돌려 오류 없음, <span class="ok code">코드</span> = 두 모드 코드를 맞대어 겹치는 곳 없음. 여기 없다고 안 되는 것은 아닙니다.</span><span lang="en">Only what was actually checked. <span class="ok game">Game</span> = raided together with no errors, <span class="ok code">Code</span> = both mods' code compared with nothing overlapping. Missing from the list doesn't mean broken.</span></p>
@@ -588,7 +650,7 @@
 <section id="report">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-no"><b>09</b><span lang="ko">제보</span><span lang="en">Report</span></div>
+      <div class="sec-no"><b>10</b><span lang="ko">제보</span><span lang="en">Report</span></div>
       <div>
         <h2><span lang="ko">이상한 봇을 봤다면</span><span lang="en">Saw a bot do something odd?</span></h2>
         <p><span lang="ko">"렉이 걸린다", "봇이 이상하다" 제보에는 로그가 꼭 필요합니다. <a href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/issues">GitHub 이슈</a>에 올려 주세요.</span><span lang="en">Reports like "it lags" or "a bot acted weird" need logs. Please open a <a href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/issues">GitHub issue</a>.</span></p>
@@ -609,7 +671,7 @@
 <section id="credits">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-no"><b>10</b><span lang="ko">만든 사람들</span><span lang="en">Credits</span></div>
+      <div class="sec-no"><b>11</b><span lang="ko">만든 사람들</span><span lang="en">Credits</span></div>
       <div>
         <h2><span lang="ko">원작자와 출처</span><span lang="en">Original authors and sources</span></h2>
         <p><span lang="ko">이 포크는 아래 분들의 작업 위에 있습니다. 응원과 후원은 원작자의 페이지로 부탁드립니다.</span><span lang="en">This fork stands on the work below. Please send kind words and tips to the original authors.</span></p>
