@@ -43,10 +43,10 @@ The full changelog (258 entries) is in the [`changelog/`](changelog/) folder, 10
 - **Solarint** — SAIN (Solarint's AI Modifications) · https://github.com/Solarint/SAIN
 - 4.x maintenance: **ArchangelWTF** · https://github.com/ArchangelWTF/SAIN
 - Code and values taken from or modelled on:
-  - **bmpq (tarkin)** — doordash · https://github.com/bmpq/spt-doordash (MIT — as stated on its SPT Forge page; the repository has no license file)
+  - **bmpq (tarkin)** — doordash · https://github.com/bmpq/spt-doordash · Forge https://sp-mod.com/mod/2214/doordash (MIT — as stated on its Forge page; the repository has no license file)
   - **maschine34675** — DualSideDoorBreach 2.0.2 · https://github.com/maschine34675/DualSideDoorBreach (MIT, Copyright (c) 2026 maschine34675)
   - **Chazut** — ORBIT · https://github.com/Chazut/ORBIT (MIT) — three door-stuck fixes (door-state watchdog, 0.25x slow-down near doors, horizontal-only stillness check) modelled on ORBIT's code, rewritten for SAIN's own door handling and adjusted since then from in-game problems (1.2 s watchdog for every door on the map, urgent moves slow only for shut doors from 1.5 m, and more — full history and current state in [`changelog/FIXES.md` section 16](changelog/FIXES.md) (Korean)). The zzap presets use ORBIT's recommended personality mix and extraction settings
-  - **harmony** — TwitchPlayers · https://github.com/harmonyzt/TwitchPlayers (MIT — as stated on its SPT Forge page; the repository has no license file) — the zzap presets' shooting, aiming and reaction values come from the TwitchPlayers (hardcore) preset
+  - **harmony** — TwitchPlayers · https://github.com/harmonyzt/TwitchPlayers · Forge https://sp-mod.com/mod/1895/sain-twitch-players (MIT — as stated on its Forge page; the repository has no license file) — the zzap presets' shooting, aiming and reaction values come from the TwitchPlayers (hardcore) preset
 
 An unofficial fork of SAIN (the mod that replaces EFT's bot AI). It ① fixes **bots getting stuck at doors**, ② adds **tactics modelled on veteran play**, and ③ ships ready-to-use **zzap presets**.
 

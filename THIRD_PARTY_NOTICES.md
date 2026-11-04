@@ -30,7 +30,7 @@ SOFTWARE.
 
 ## doordash (bmpq / tarkin) — https://github.com/bmpq/spt-doordash
 
-Used in `SAIN/Classes/Bot/Doors/BotDoorBreacher.cs` (sprint ram breach, door swing check, rammer damage). License: MIT, as stated on its SPT Forge mod page (the GitHub repository has no license file). Credited here and in README. Will be removed on the author's request.
+Used in `SAIN/Classes/Bot/Doors/BotDoorBreacher.cs` (sprint ram breach, door swing check, rammer damage). License: MIT, as stated on its Forge mod page https://sp-mod.com/mod/2214/doordash (the GitHub repository has no license file). Credited here and in README. Will be removed on the author's request.
 
 ## ORBIT (Chazut) — https://github.com/Chazut/ORBIT
 
@@ -77,4 +77,4 @@ SOFTWARE.
 ## TwitchPlayers (harmony) — https://github.com/harmonyzt/TwitchPlayers
 
 The bundled zzap presets (`SAINServerMod/Presets/`) use the shooting, aiming and reaction values of the TwitchPlayers (hardcore) preset.
-License: MIT, as stated on its SPT Forge mod page (the GitHub repository has no license file). Credited here and in README. Will be removed on the author's request.
+License: MIT, as stated on its Forge mod page https://sp-mod.com/mod/1895/sain-twitch-players (the GitHub repository has no license file). Credited here and in README. Will be removed on the author's request.
