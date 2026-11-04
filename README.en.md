@@ -39,15 +39,12 @@ The full changelog (258 entries) is in the [`changelog/`](changelog/) folder, 10
 
 ## SAIN zzap
 
-> **Original author · Original project**
-> **Solarint** — https://github.com/Solarint/SAIN · SAIN(Solarint's AI Modifications)
-> 4.x maintenance: **ArchangelWTF** — https://github.com/ArchangelWTF/SAIN
->
-> Forked from upstream **v4.5.1** (SPT 4.1).
->
-> **Ported code (bot door ramming)** — attribution
-> 1. **bmpq (tarkin)** — doordash — https://github.com/bmpq/spt-doordash (no license file)
-> 2. **maschine34675** — DualSideDoorBreach 2.0.2 — https://github.com/maschine34675/DualSideDoorBreach (MIT, Copyright (c) 2026 maschine34675)
+**Original author · Original project (credits)**
+- **Solarint** — SAIN (Solarint's AI Modifications) · https://github.com/Solarint/SAIN
+- 4.x maintenance: **ArchangelWTF** · https://github.com/ArchangelWTF/SAIN
+- Ported code (bot door ramming):
+  - **bmpq (tarkin)** — doordash · https://github.com/bmpq/spt-doordash (no license file)
+  - **maschine34675** — DualSideDoorBreach 2.0.2 · https://github.com/maschine34675/DualSideDoorBreach (MIT, Copyright (c) 2026 maschine34675)
 
 An unofficial fork of SAIN (the mod that replaces EFT's bot AI). It ① fixes **bots getting stuck at doors**, ② adds **tactics modelled on veteran play**, and ③ ships ready-to-use **zzap presets**.
 

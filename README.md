@@ -39,15 +39,12 @@
 
 ## SAIN zzap
 
-> **원작자 · 원본**
-> **Solarint** — https://github.com/Solarint/SAIN · SAIN(Solarint's AI Modifications)
-> 4.x 유지보수: **ArchangelWTF** — https://github.com/ArchangelWTF/SAIN
->
-> 상류 **v4.5.1**(SPT 4.1) 기준 포크입니다.
->
-> **이식한 코드(봇 몸통박치기)** — 참고 표기
-> 1. **bmpq (tarkin)** — doordash — https://github.com/bmpq/spt-doordash (라이선스 파일 없음)
-> 2. **maschine34675** — DualSideDoorBreach 2.0.2 — https://github.com/maschine34675/DualSideDoorBreach (MIT, Copyright (c) 2026 maschine34675)
+**원작자 · 원본 (저작권 표시)**
+- **Solarint** — SAIN (Solarint's AI Modifications) · https://github.com/Solarint/SAIN
+- 4.x 유지보수: **ArchangelWTF** · https://github.com/ArchangelWTF/SAIN
+- 이식한 코드(봇 몸통박치기):
+  - **bmpq (tarkin)** — doordash · https://github.com/bmpq/spt-doordash (라이선스 파일 없음)
+  - **maschine34675** — DualSideDoorBreach 2.0.2 · https://github.com/maschine34675/DualSideDoorBreach (MIT, Copyright (c) 2026 maschine34675)
 
 SAIN(EFT 봇 AI를 통째로 바꾸는 모드)의 비공식 포크입니다. ① 봇이 **문 앞에서 끼는 버그**를 고치고, ② 고인물 플레이를 흉내 낸 **전술 행동**을 더하고, ③ 바로 쓰는 **zzap 프리셋**을 넣었습니다.
 
