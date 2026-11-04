@@ -43,10 +43,10 @@
 - **Solarint** — SAIN (Solarint's AI Modifications) · https://github.com/Solarint/SAIN
 - 4.x 유지보수: **ArchangelWTF** · https://github.com/ArchangelWTF/SAIN
 - 가져오거나 참고한 것:
-  - **bmpq (tarkin)** — doordash · https://github.com/bmpq/spt-doordash (라이선스 파일 없음)
+  - **bmpq (tarkin)** — doordash · https://github.com/bmpq/spt-doordash (MIT — SPT Forge 모드 페이지 표기, 저장소에는 라이선스 파일 없음)
   - **maschine34675** — DualSideDoorBreach 2.0.2 · https://github.com/maschine34675/DualSideDoorBreach (MIT, Copyright (c) 2026 maschine34675)
-  - **Chazut** — ORBIT · https://github.com/Chazut/ORBIT (MIT) — 문 끼임 대응 3가지(문 상태 3초 워치독, 문 근처 감속 0.25배, 수평 위치로 정지 감지)를 ORBIT 코드를 보고 옮김. zzap 프리셋의 성격 분포·탈출 설정은 ORBIT 권장값
-  - **harmony** — TwitchPlayers · https://github.com/harmonyzt/TwitchPlayers (라이선스 파일 없음) — zzap 프리셋의 사격·조준·반응 값은 TwitchPlayers(하드코어) 프리셋 값
+  - **Chazut** — ORBIT · https://github.com/Chazut/ORBIT (MIT) — 문 끼임 대응 3가지(문 상태 워치독, 문 근처 감속 0.25배, 수평 위치로 정지 감지)를 ORBIT 코드를 보고 SAIN 구조에 맞게 다시 짜서 넣었고, 그 뒤 게임에서 나온 문제에 맞춰 고쳐 씀(워치독 1.2초·맵 전체 문 감시, 급한 이동은 닫힌 문만 1.5m부터 감속 등 — 자세한 경과와 지금 상태는 [`changelog/FIXES.md` 16번](changelog/FIXES.md)). zzap 프리셋의 성격 분포·탈출 설정은 ORBIT 권장값
+  - **harmony** — TwitchPlayers · https://github.com/harmonyzt/TwitchPlayers (MIT — SPT Forge 모드 페이지 표기, 저장소에는 라이선스 파일 없음) — zzap 프리셋의 사격·조준·반응 값은 TwitchPlayers(하드코어) 프리셋 값
 
 SAIN(EFT 봇 AI를 통째로 바꾸는 모드)의 비공식 포크입니다. ① 봇이 **문 앞에서 끼는 버그**를 고치고, ② 고인물 플레이를 흉내 낸 **전술 행동**을 더하고, ③ 바로 쓰는 **zzap 프리셋**을 넣었습니다.
 
@@ -80,6 +80,6 @@ SAIN(EFT 봇 AI를 통째로 바꾸는 모드)의 비공식 포크입니다. ①
 ## 라이선스
 
 원작 Solarint의 라이선스를 따릅니다.
-봇 몸통박치기(`SAIN/Classes/Bot/Doors/BotDoorBreacher.cs`)에는 doordash(bmpq)와 DualSideDoorBreach(maschine34675, MIT — Copyright (c) 2026 maschine34675)의 코드가,
-문 처리(`DoorOpener.cs`·`BotPathData.cs`)에는 ORBIT(Chazut, MIT)을 본뜬 코드가, zzap 프리셋에는 TwitchPlayers(harmony)의 값이 들어 있습니다.
+봇 몸통박치기(`SAIN/Classes/Bot/Doors/BotDoorBreacher.cs`)에는 doordash(bmpq, MIT)와 DualSideDoorBreach(maschine34675, MIT — Copyright (c) 2026 maschine34675)의 코드가,
+문 처리(`DoorOpener.cs`·`BotPathData.cs`)에는 ORBIT(Chazut, MIT)을 본뜬 코드가, zzap 프리셋에는 TwitchPlayers(harmony, MIT)의 값이 들어 있습니다.
 허가 문구 전문과 출처는 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)에 있습니다.

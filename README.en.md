@@ -43,10 +43,10 @@ The full changelog (258 entries) is in the [`changelog/`](changelog/) folder, 10
 - **Solarint** — SAIN (Solarint's AI Modifications) · https://github.com/Solarint/SAIN
 - 4.x maintenance: **ArchangelWTF** · https://github.com/ArchangelWTF/SAIN
 - Code and values taken from or modelled on:
-  - **bmpq (tarkin)** — doordash · https://github.com/bmpq/spt-doordash (no license file)
+  - **bmpq (tarkin)** — doordash · https://github.com/bmpq/spt-doordash (MIT — as stated on its SPT Forge page; the repository has no license file)
   - **maschine34675** — DualSideDoorBreach 2.0.2 · https://github.com/maschine34675/DualSideDoorBreach (MIT, Copyright (c) 2026 maschine34675)
-  - **Chazut** — ORBIT · https://github.com/Chazut/ORBIT (MIT) — three door-stuck fixes (3 s door-state watchdog, 0.25x slow-down near doors, horizontal-only stillness check) modelled on ORBIT's code. The zzap presets use ORBIT's recommended personality mix and extraction settings
-  - **harmony** — TwitchPlayers · https://github.com/harmonyzt/TwitchPlayers (no license file) — the zzap presets' shooting, aiming and reaction values come from the TwitchPlayers (hardcore) preset
+  - **Chazut** — ORBIT · https://github.com/Chazut/ORBIT (MIT) — three door-stuck fixes (door-state watchdog, 0.25x slow-down near doors, horizontal-only stillness check) modelled on ORBIT's code, rewritten for SAIN's own door handling and adjusted since then from in-game problems (1.2 s watchdog for every door on the map, urgent moves slow only for shut doors from 1.5 m, and more — full history and current state in [`changelog/FIXES.md` section 16](changelog/FIXES.md) (Korean)). The zzap presets use ORBIT's recommended personality mix and extraction settings
+  - **harmony** — TwitchPlayers · https://github.com/harmonyzt/TwitchPlayers (MIT — as stated on its SPT Forge page; the repository has no license file) — the zzap presets' shooting, aiming and reaction values come from the TwitchPlayers (hardcore) preset
 
 An unofficial fork of SAIN (the mod that replaces EFT's bot AI). It ① fixes **bots getting stuck at doors**, ② adds **tactics modelled on veteran play**, and ③ ships ready-to-use **zzap presets**.
 
@@ -80,6 +80,6 @@ Always include `BepInEx/LogOutput.log`. How to turn on the raid journal, diagnos
 ## License
 
 Follows the original license by Solarint.
-The bot door ramming code (`SAIN/Classes/Bot/Doors/BotDoorBreacher.cs`) contains code from doordash (bmpq) and DualSideDoorBreach (maschine34675, MIT — Copyright (c) 2026 maschine34675);
-the door handling (`DoorOpener.cs`, `BotPathData.cs`) contains code modelled on ORBIT (Chazut, MIT); the zzap presets contain values from TwitchPlayers (harmony).
+The bot door ramming code (`SAIN/Classes/Bot/Doors/BotDoorBreacher.cs`) contains code from doordash (bmpq, MIT) and DualSideDoorBreach (maschine34675, MIT — Copyright (c) 2026 maschine34675);
+the door handling (`DoorOpener.cs`, `BotPathData.cs`) contains code modelled on ORBIT (Chazut, MIT); the zzap presets contain values from TwitchPlayers (harmony, MIT).
 Full permission notices and sources are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

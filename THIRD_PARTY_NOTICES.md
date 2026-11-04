@@ -30,14 +30,25 @@ SOFTWARE.
 
 ## doordash (bmpq / tarkin) — https://github.com/bmpq/spt-doordash
 
-Used in `SAIN/Classes/Bot/Doors/BotDoorBreacher.cs` (sprint ram breach, door swing check, rammer damage). The original repository has no license file; credited here and in README. Will be removed on the author's request.
+Used in `SAIN/Classes/Bot/Doors/BotDoorBreacher.cs` (sprint ram breach, door swing check, rammer damage). License: MIT, as stated on its SPT Forge mod page (the GitHub repository has no license file). Credited here and in README. Will be removed on the author's request.
 
 ## ORBIT (Chazut) — https://github.com/Chazut/ORBIT
 
-Used in `SAIN/Classes/Bot/Doors/DoorOpener.cs` and `SAIN/Classes/Bot/Mover/BotPathData.cs` (2026-09-20, details in `changelog/FIXES.md` section 11):
-door-state finalize watchdog (after ORBIT's `DoorWatch`), sprint off + 0.25x speed near doors (ORBIT `MovementSystem.HandleDoors`),
-horizontal-only stillness check (ORBIT `SoftStuckRemediation`). The bundled zzap presets also use ORBIT's recommended personality mix
-and extraction settings. ORBIT's own license also credits Phobos (SleepingPills, MIT) for its dispatch foundation; that part is not used here.
+Not copied verbatim: the approach was re-implemented on SAIN's own door classes on 2026-09-20 and adjusted since from in-game problems.
+Current state (full history in Korean: `changelog/FIXES.md` section 16):
+
+1. Door-state finalize watchdog (after ORBIT's `DoorWatch` / `DoorSystem`) — now in `SAIN/Classes/PlayerManager/Doors/DoorHandler.cs`.
+   Every door on the map is watched through `OnDoorStateChanged` (whoever opened it, as ORBIT's `DoorSystem` does). A door stuck in
+   `Interacting` is finalized after 1.2 s (was 3 s), waits while a player or bot is still in its own door animation (10 s / 4 s),
+   only opens a locked door when a kick really landed, and re-syncs BSG's interaction record so the door keeps working.
+2. Sprint off + 0.25x speed near doors (ORBIT `MovementSystem.HandleDoors`, same factor) — `SAIN/Classes/Bot/Mover/BotPathData.cs`.
+   Normal moves: any door within 3 m, as in ORBIT. Urgent combat moves (cover, retreat, grenade, rush while under fire or with
+   the enemy seen in the last 3 s): shut doors only, slow-down only in the last 1.5 m. Sprint-ram moves: no slow-down.
+3. Horizontal-only stillness check (ORBIT `SoftStuckRemediation`) — `BotPathData.CheckStuck`. A fixed 0.05 m threshold instead
+   of ORBIT's speed-scaled one (not verified for SAIN's speed units). Unchanged since 2026-09-20.
+
+The bundled zzap presets also use ORBIT's recommended personality mix and extraction settings. ORBIT's own license also credits
+Phobos (SleepingPills, MIT) for its dispatch foundation; that part is not used here.
 
 ```
 MIT License
@@ -66,4 +77,4 @@ SOFTWARE.
 ## TwitchPlayers (harmony) — https://github.com/harmonyzt/TwitchPlayers
 
 The bundled zzap presets (`SAINServerMod/Presets/`) use the shooting, aiming and reaction values of the TwitchPlayers (hardcore) preset.
-The original repository has no license file; credited here and in README. Will be removed on the author's request.
+License: MIT, as stated on its SPT Forge mod page (the GitHub repository has no license file). Credited here and in README. Will be removed on the author's request.
