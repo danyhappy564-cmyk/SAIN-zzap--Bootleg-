@@ -280,6 +280,13 @@ details.gif .inner { padding: 0 18px 18px; }
 .howto li::before { content: counter(h); position: absolute; left: 14px; top: 14px; width: 28px; height: 28px; display: grid; place-items: center; font: 800 14px/1 var(--mono); color: var(--tape-ink); background: var(--tape); border-radius: 4px; }
 .howto li b { color: var(--text); }
 
+/* in-game clips */
+.clips-head { margin: 56px 0 18px; max-width: 46em; }
+.clips-head h3 { font-size: 22px; }
+.clips-head p { margin: 0; color: var(--muted); }
+.clips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 760px) { .clips { grid-template-columns: 1fr; } }
+
 /* presets */
 .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 @media (max-width: 960px) { .presets { grid-template-columns: repeat(2, 1fr); } }
