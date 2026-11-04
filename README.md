@@ -72,7 +72,7 @@ SAIN(EFT 봇 AI를 통째로 바꾸는 모드)의 비공식 포크입니다. ①
 
 ## 더 보기
 
-- [소개 사이트](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/) — [전술](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#tactics) · [문 수정](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#doors) · [설정 화면](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#settings) · [프리셋](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#presets) · [같이 쓰는 모드](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#compat) · [최적화·안전](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#perf)
+- [소개 사이트](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/) — [전술](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#tactics) · [문 수정](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#doors) · [설정 화면](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#settings) · [프리셋](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#presets) · [같이 쓰는 모드](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#compat) · [최적화·안전](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#perf) · [검증 방식](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/#verify)
 - [릴리즈 노트](../../releases) — 버전별 바뀐 점
 - [상세 문서](docs/DETAILS.md) — 기능 표·시뮬레이션 랩·빌드 방법 등 예전 README 전체
 - [문 끼임 수정 상세](changelog/FIXES.md)

@@ -72,7 +72,7 @@ Always include `BepInEx/LogOutput.log`. How to turn on the raid journal, diagnos
 
 ## More
 
-- [Project site](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en) — [tactics](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#tactics) · [door fixes](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#doors) · [settings](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#settings) · [presets](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#presets) · [compatible mods](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#compat) · [performance & safety](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#perf)
+- [Project site](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en) — [tactics](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#tactics) · [door fixes](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#doors) · [settings](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#settings) · [presets](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#presets) · [compatible mods](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#compat) · [performance & safety](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#perf) · [how it is tested](https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/?lang=en#verify)
 - [Release notes](../../releases) — what changed in each version
 - [Detailed notes](docs/DETAILS.en.md) — feature tables, simulation lab, how to build: the full previous README
 - [Door fix details](changelog/FIXES.md)
