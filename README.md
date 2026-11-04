@@ -1,3 +1,8 @@
+<p align="center">
+  <a href="README.md"><img alt="한국어 (현재 문서)" src="https://img.shields.io/badge/%ED%95%9C%EA%B5%AD%EC%96%B4-%ED%98%84%EC%9E%AC%20%EB%AC%B8%EC%84%9C-1f6feb?style=for-the-badge"></a>
+  <a href="README.en.md"><img alt="English" src="https://img.shields.io/badge/English-Read%20in%20English-6e7681?style=for-the-badge"></a>
+</p>
+
 ### ⚠️ IMPORTANT NOTICE / DISCLAIMER
 
 - **Original Author:** Solarint
@@ -18,13 +23,7 @@
 
 ## 변경 이력
 
-- 2026-11-04 — **Remix7.4 릴리즈 준비.** 릴리즈 이름 Remix7.4(`ZzapRelease`). 마지막 GitHub 릴리즈 remix7.3 이후 바뀐 것을 릴리즈 노트([GitHub 릴리즈 페이지](https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/releases/tag/remix7.4))과 한/영 GIF로 정리. 영어 화면 프리셋 이름(파일 이름은 그대로), 비교 기준 쉬움/보통/zzap (어려움)/저장된 값, 내 프리셋 이름 바꾸기, ZZAP (전술 등..)·시뮬레이션 탭(한눈에 켜고 끄기 14개), 봇 설정 탭 5개(빠른 설정·성격·ZZAP·맵별 보정·고급), 봇 종류별 ZZAP 스위치(전역 따름/켬/끔), 봇 종류별 맵 배수(전역 맵별 보정 위에 곱함). 이전 프리셋은 그대로 동작. 게임 F6·웹 검수와 리저브 시험 레이드에서 봇 값 확인. 클라 dll과 서버 모드 둘 다 덮어쓰기.
-
-- 2026-11-03 — **Remix7.3 릴리즈 준비.** 릴리즈 이름 Remix7.3(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remix7.2 이후 바뀐 것(커밋 13개, 봇 설정 개편)을 릴리즈 노트([GitHub 릴리즈 페이지](https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/releases/tag/remix7.3))으로 정리. 봇 여러 종 묶어서 함께 조절, 내 설정 슬롯(3~9칸)과 공유 코드, 새 항목·바뀐 항목만 보기, 3단계 안내, 같이 써도 되는 모드 표. F6·웹 화면을 목업대로 맞추고 게임·크롬에서 한/영 확인. 봇 행동·zzap 프리셋 값은 Remix7.2와 같음. 클라 dll과 서버 모드 둘 다 덮어쓰기.
-
-- 2026-11-02 20:20 — **Remix7.2 릴리즈 준비.** 릴리즈 이름 Remix7.2(F6 왼쪽 위·BepInEx 로그·웹 업데이트 페이지). 마지막 GitHub 릴리즈 remix7.1 이후 바뀐 것(커밋 1개, 레이드 뒤 메모리 누수 수정)을 릴리즈 노트([GitHub 릴리즈 페이지](https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/releases/tag/remix7.2))으로 정리. Remix7.1 알려진 점(문짝 장치 켜면 멈칫 증가?)을 같은 조건 게임 비교로 확인한 결과도 노트에 — 리저브 20분 켬/끔: SAIN 멈칫 7/5회, 평균 프레임 같음, 차이는 봇이 처음 나온 직후 0.08초 2번뿐이라 기본값 켬 유지. 클라 dll과 서버 모드 덮어쓰기(서버는 버전 이름만 바뀜).
-
-전체 변경 이력 253개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 지금 마지막 파일: [`CHANGELOG-026.md`](changelog/CHANGELOG-026.md)).
+전체 변경 이력 258개는 [`changelog/`](changelog/) 폴더에 10개씩 나눠 있습니다 (번호가 클수록 최신, 최신 파일: [`CHANGELOG-026.md`](changelog/CHANGELOG-026.md)). 릴리즈별 요약은 [Releases](../../releases).
 
 # SAIN (zzap fork)
 
