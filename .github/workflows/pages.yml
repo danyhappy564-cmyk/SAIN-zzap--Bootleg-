@@ -1,0 +1,48 @@
+name: Pages
+
+# Project site: site/ plus the release GIFs and pictures from release-notes/images/
+# (copied at build time so the big GIFs are not stored twice in the repo).
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'site/**'
+      - 'release-notes/images/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp -r site/. _site/
+          mkdir -p _site/img
+          cp release-notes/images/*.gif release-notes/images/*.png _site/img/
+          ls -la _site _site/img
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

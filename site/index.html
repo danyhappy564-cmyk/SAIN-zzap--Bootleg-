@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="ko" data-lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAIN zzap — 문 앞에서 멈추지 않고 고인물처럼 싸우는 봇</title>
+<meta name="description" content="SPT 4.1용 SAIN 포크. 문 끼임 수정, 실제 고인물 플레이를 흉내 낸 전술 행동, 바로 쓰는 zzap 프리셋.">
+<meta name="theme-color" content="#0c0e0b">
+<meta property="og:type" content="website">
+<meta property="og:title" content="SAIN zzap">
+<meta property="og:description" content="SAIN fork for SPT 4.1 — door fixes, veteran-style bot tactics, zzap presets. 한국어 / English.">
+<meta property="og:image" content="https://danyhappy564-cmyk.github.io/SAIN-zzap--Bootleg-/img/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f2c230'/%3E%3Cpath d='M9 9h14L11 23h12' fill='none' stroke='%231a1500' stroke-width='3.4' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E">
+<script>
+  // pick language before first paint: ?lang= → saved choice → browser language
+  (function () {
+    var l = null;
+    try { l = new URLSearchParams(location.search).get("lang"); } catch (e) {}
+    if (l !== "ko" && l !== "en") { try { l = localStorage.getItem("sainzzap.lang"); } catch (e) {} }
+    if (l !== "ko" && l !== "en") l = /^ko\b/i.test(navigator.language || "") ? "ko" : "en";
+    var r = document.documentElement;
+    r.setAttribute("data-lang", l); r.lang = l; r.classList.add("js");
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#f2c230"/><path d="M9 9h14L11 23h12" fill="none" stroke="#1a1500" stroke-width="3.4"/></svg>
+      <span>SAIN zzap <small>SPT 4.1</small></span>
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#core"><span lang="ko">핵심</span><span lang="en">Core</span></a>
+      <a href="#tactics"><span lang="ko">전술</span><span lang="en">Tactics</span></a>
+      <a href="#adapt"><span lang="ko">적응·학습</span><span lang="en">Adapts</span></a>
+      <a href="#doors"><span lang="ko">문·버그 수정</span><span lang="en">Doors &amp; fixes</span></a>
+      <a href="#settings"><span lang="ko">설정 화면</span><span lang="en">Settings</span></a>
+      <a href="#presets"><span lang="ko">프리셋</span><span lang="en">Presets</span></a>
+      <a href="#install"><span lang="ko">설치</span><span lang="en">Install</span></a>
+      <a href="#compat"><span lang="ko">호환</span><span lang="en">Compat</span></a>
+      <a href="#report"><span lang="ko">제보</span><span lang="en">Report</span></a>
+    </nav>
+    <div class="top-actions">
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-set="ko" aria-pressed="true">한</button>
+        <button type="button" data-set="en" aria-pressed="false">EN</button>
+      </div>
+      <a class="gh" href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-" aria-label="GitHub">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- ═══ HERO ═══ -->
+<div class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <span class="kicker"><span class="dot"></span><span lang="ko">최신 Remix7.4 · 2026-11-04</span><span lang="en">Latest Remix7.4 · 2026-11-04</span></span>
+        <h1>
+          <span lang="ko">문 앞에서 멈추지 않고,<br><span class="z">고인물처럼</span> 싸우는 봇</span>
+          <span lang="en">Bots that don't freeze at doors, and fight like <span class="z">veterans</span></span>
+        </h1>
+        <p class="lede">
+          <span lang="ko">SAIN zzap은 Solarint의 봇 AI 모드 <b>SAIN</b>(v4.5.1, SPT 4.1)을 고친 포크입니다. 봇이 문 앞에서 낑기는 버그를 고치고, 실제 고인물 플레이를 흉내 낸 전술을 넣고, 바로 쓰는 프리셋을 같이 담았습니다.</span>
+          <span lang="en">SAIN zzap is a fork of Solarint's bot AI mod <b>SAIN</b> (v4.5.1, SPT 4.1). It fixes bots getting stuck at doors, adds tactics modelled on how veteran players actually fight, and ships presets you can use right away.</span>
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/releases/latest">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 21h16"/></svg>
+            <span lang="ko">최신 릴리즈 받기</span><span lang="en">Download latest</span>
+          </a>
+          <a class="btn" href="#install"><span lang="ko">설치 방법</span><span lang="en">How to install</span></a>
+          <a class="btn" href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/releases"><span lang="ko">릴리즈 노트</span><span lang="en">Release notes</span></a>
+        </div>
+        <div class="chips">
+          <span class="chip">SPT <b>4.1.5</b></span>
+          <span class="chip">SAIN <b>v4.5.1</b> <span lang="ko">기반</span><span lang="en">base</span></span>
+          <span class="chip">ORBIT <b><span lang="ko">호환</span><span lang="en">compatible</span></b></span>
+          <span class="chip">F6 · Web <b>KO / EN</b></span>
+        </div>
+      </div>
+      <div class="screen rv">
+        <div class="bar"><i></i><i></i><i></i><span>F6 · SAIN Editor · Remix7.4</span></div>
+        <img src="img/sain-remix7.4-settings-ko.gif" data-ko="img/sain-remix7.4-settings-ko.gif" data-en="img/sain-remix7.4-settings-en.gif"
+             data-altko="Remix7.4 F6 설정 화면을 한 바퀴 도는 화면 녹화" data-alten="Screen recording touring the Remix7.4 F6 settings"
+             alt="Remix7.4 F6 설정 화면을 한 바퀴 도는 화면 녹화" width="1120" height="630" fetchpriority="high">
+      </div>
+    </div>
+
+    <div class="stats rv">
+      <div class="stat"><b>56</b><span lang="ko">추가한 기능 (README 기능 표)</span><span lang="en">added features (README feature table)</span></div>
+      <div class="stat"><b>24</b><span lang="ko">고친 버그 (원본 SAIN·EFT 포함)</span><span lang="en">bugs fixed (incl. upstream SAIN and EFT)</span></div>
+      <div class="stat"><b>4</b><span lang="ko">zzap 프리셋 (쉬움 · 보통 · zzap · 시뮬)</span><span lang="en">zzap presets (Easy · Normal · zzap · sim)</span></div>
+      <div class="stat"><b>11</b><span lang="ko">같이 써 본 모드 묶음</span><span lang="en">mod groups checked alongside</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CORE ═══ -->
+<section id="core">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-no"><b>01</b><span lang="ko">핵심</span><span lang="en">Core</span></div>
+      <div>
+        <h2><span lang="ko">이 포크가 하는 세 가지</span><span lang="en">Three things this fork does</span></h2>
+        <p><span lang="ko">원본 SAIN 위에 고친 것과 더한 것을 크게 셋으로 나눴습니다. 전술은 전부 SAIN 전투 레이어 안의 판단이라 ORBIT과 수정 없이 같이 돌아갑니다.</span><span lang="en">Everything on top of upstream SAIN falls into three groups. All tactics are decisions inside SAIN's own combat layer, so ORBIT works with them unchanged.</span></p>
+      </div>
+    </div>
+    <div class="pillars">
+      <div class="pillar brk rv">
+        <span class="ix">FIX</span>
+        <h3><span lang="ko">문 앞에서 낑기지 않게</span><span lang="en">No more stuck at doors</span></h3>
+        <p><span lang="ko">문 감지 범위, 끼임 확인, 대기 상태의 문 조작, 문 상태 감시까지 원본에 남아 있던 문 버그 4개를 고쳤습니다. 열린 문짝은 돌아서 지나가고, 벽에 계속 박는 봇은 단계별로 빼냅니다.</span><span lang="en">Four door bugs still in upstream are fixed: detection range, stuck check, door use while idle, and a door-state watchdog. Bots walk around open door leaves, and a staged watchdog frees bots that keep walking into walls.</span></p>
+        <a class="more" href="#doors"><span lang="ko">수정 목록 →</span><span lang="en">See the fixes →</span></a>
+      </div>
+      <div class="pillar brk rv">
+        <span class="ix">TACTICS</span>
+        <h3><span lang="ko">고인물 플레이를 흉내 낸 전술</span><span lang="en">Tactics from veteran play</span></h3>
+        <p><span lang="ko">점프 피킹, 페이크 수류탄, 다이아몬드 스텝, QEQE 기울이기 사격, 코너 추격, 분대 뒷문 협공. 상황마다 행동을 "기대 이득" 점수로 고르고, 성격마다 고르는 방식이 다릅니다.</span><span lang="en">Jump peeks, fake grenades, diamond stepping, QEQE lean shooting, corner chases, squad back-door pincers. Each choice is scored by expected gain, and every personality picks differently.</span></p>
+        <a class="more" href="#tactics"><span lang="ko">전술 보기 →</span><span lang="en">See the tactics →</span></a>
+      </div>
+      <div class="pillar brk rv">
+        <span class="ix">PRESETS</span>
+        <h3><span lang="ko">바로 쓰는 zzap 프리셋</span><span lang="en">Ready-made zzap presets</span></h3>
+        <p><span lang="ko">쉬움·보통·zzap 세 난이도와 시뮬 전용 하나. 전부 ORBIT 권장 설정이 들어 있고, 고치면 원본 대신 <code>[Modified]</code> 사본으로 저장됩니다. F6와 웹 설정 화면은 한국어·영어를 모두 지원합니다.</span><span lang="en">Easy, Normal and zzap, plus one for simulations. All four carry ORBIT's recommended settings, and edits are saved as a <code>[Modified]</code> copy so the originals stay intact. The F6 and web settings speak Korean and English.</span></p>
+        <a class="more" href="#presets"><span lang="ko">프리셋 비교 →</span><span lang="en">Compare presets →</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ TACTICS ═══ -->
+<section id="tactics">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-no"><b>02</b><span lang="ko">전술</span><span lang="en">Tactics</span></div>
+      <div>
+        <h2><span lang="ko">봇이 하는 일</span><span lang="en">What the bots do</span></h2>
+        <p><span lang="ko">대표 전술을 다섯 묶음으로 골랐습니다. 카드 아래 초록 표시는 그 행동을 하는 성격, 회색은 F6 설정 위치입니다. 전체 목록은 README 기능 표에 있습니다.</span><span lang="en">A selection in five groups. The green tag on each card is who does it, the grey one is where to find it in F6. The full list is the feature table in the README.</span></p>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Tactic groups">
+      <button role="tab" id="t-door" aria-controls="p-door" aria-selected="true"><span lang="ko">문 전술</span><span lang="en">Doors</span><span class="n">6</span></button>
+      <button role="tab" id="t-cqb" aria-controls="p-cqb" aria-selected="false" tabindex="-1"><span lang="ko">근접전</span><span lang="en">Close combat</span><span class="n">6</span></button>
+      <button role="tab" id="t-brain" aria-controls="p-brain" aria-selected="false" tabindex="-1"><span lang="ko">판단</span><span lang="en">Decisions</span><span class="n">6</span></button>
+      <button role="tab" id="t-squad" aria-controls="p-squad" aria-selected="false" tabindex="-1"><span lang="ko">분대</span><span lang="en">Squad</span><span class="n">6</span></button>
+      <button role="tab" id="t-sound" aria-controls="p-sound" aria-selected="false" tabindex="-1"><span lang="ko">소리·빛</span><span lang="en">Sound &amp; light</span><span class="n">6</span></button>
+    </div>
+
+    <div class="tab-panel" role="tabpanel" id="p-door" aria-labelledby="t-door">
+      <div class="cards">
+        <div class="card"><h3><span lang="ko">점프 피킹</span><span lang="en">Jump peek</span></h3>
+          <p><span lang="ko">복도에서 문 앞으로 점프해 방 안을 보고 바로 점프해서 복귀합니다. 닫힌 문은 문틀 옆에서 먼저 엽니다.</span><span lang="en">Jumps across the doorway to see into the room and jumps straight back. Closed doors get opened first, from beside the frame.</span></p>
+          <div class="meta"><span class="tag who">GigaChad · Chad</span><span class="tag">Door Tactics (zzap)</span></div></div>
+        <div class="card"><h3><span lang="ko">런바이 피킹</span><span lang="en">Run-by peek</span></h3>
+          <p><span lang="ko">낮은 천장·계단처럼 점프가 위험하면 문 앞을 달려 지나가며 보고, 총을 든 채 한 번 더 지나간 뒤 문에서 2~3m 각을 벌린 자리에서 지킵니다.</span><span lang="en">Where jumping is risky (low ceiling, stairs) it sprints past the door, walks past again gun up, then holds the door from 2–3 m off the frame.</span></p>
+          <div class="meta"><span class="tag who">GigaChad · Chad</span><span class="tag">Run-By Peek Chance</span></div></div>
+        <div class="card"><h3><span lang="ko">페이크 수류탄·치료</span><span lang="en">Fake grenade &amp; heal</span></h3>
+          <p><span lang="ko">수류탄 꺼내는 소리나 치료 소리만 내고 바로 집어넣습니다. 진짜 엄폐 뒤에 있을 때만, 뛰는 소리가 들리면 취소합니다.</span><span lang="en">Makes the sound of drawing a grenade or healing, then puts it away. Only from real cover, and cancelled if it hears running.</span></p>
+          <div class="meta"><span class="tag who">GigaChad · Chad</span><span class="tag">Fake Grenade / Fake Heal</span></div></div>
+        <div class="card"><h3><span lang="ko">방 진입</span><span lang="en">Room clear</span></h3>
+          <p><span lang="ko">문틀 옆에 붙어 문을 열고, 페이크를 0~2번 섞은 뒤 진짜 수류탄을 던지고 <b>폭발을 확인한 다음</b> 돌입합니다. 수류탄 없이 짧고 강하게 대시하기도 합니다.</span><span lang="en">Opens the door from the side, mixes in 0–2 fakes, throws a real grenade and enters <b>after the blast actually happens</b>. Sometimes a short, hard dash instead.</span></p>
+          <div class="meta"><span class="tag who">GigaChad · Chad · Wreckless · Normal</span><span class="tag">Room Clear</span></div></div>
+        <div class="card"><h3><span lang="ko">방 가두기·문 옆 매복</span><span lang="en">Room trap &amp; door ambush</span></h3>
+          <p><span lang="ko">거북이는 문 옆에 붙어 길게 지키고, 쥐는 낮은 자세로 조용히 기다립니다. "지키기"를 골랐고 적이 가까운 문 너머에 있으면 아무 데서나 멈추지 않고 그 문 옆에 붙습니다.</span><span lang="en">Turtles hug the frame and hold for a long time; rats wait low and quiet. When "hold" is chosen and the enemy is past a nearby door, the bot holds that door instead of stopping anywhere.</span></p>
+          <div class="meta"><span class="tag who">SnappingTurtle · Rat</span><span class="tag">Room Trap</span></div></div>
+        <div class="card"><h3><span lang="ko">몸통박치기</span><span lang="en">Sprint ram</span></h3>
+          <p><span lang="ko">방 진입·도망·돌격·수색 중 닫힌 문을 달려와 박차 열고 그대로 지나갑니다. doordash·DualSideDoorBreach 코드를 봇 전용으로 옮겨 와서 두 모드가 없어도 됩니다.</span><span lang="en">Bursts through closed doors at a sprint while clearing, escaping, rushing or searching. Code ported bot-only from doordash and DualSideDoorBreach, so neither mod is needed.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">전원</span><span lang="en">All</span></span><span class="tag">Bot Sprint Ram</span></div></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" role="tabpanel" id="p-cqb" aria-labelledby="t-cqb" hidden>
+      <div class="cards">
+        <div class="card"><h3><span lang="ko">다이아몬드 스텝</span><span lang="en">Diamond step</span></h3>
+          <p><span lang="ko">쏘는 중에 WASD를 와다다 누르듯 0.13초씩 끊어 움직입니다(좌우 60%·앞뒤 40%). 누르려는 쪽이 벽이면 열린 쪽으로 틉니다.</span><span lang="en">While shooting it taps WASD in 0.13 s bursts (60% sideways, 40% forward/back). If that way is a wall it turns toward open space.</span></p>
+          <div class="meta"><span class="tag who">GigaChad · Chad · Wreckless · Normal</span><span class="tag">Close Combat (zzap)</span></div></div>
+        <div class="card"><h3><span lang="ko">QEQE 기울이기 사격</span><span lang="en">QEQE lean shooting</span></h3>
+          <p><span lang="ko">적이 움직이는 쪽으로 0.35~1초 기울이고, 반대로 틀면 따라 바꿉니다. 중간중간 Q/E 연타를 섞습니다(7m 안 45%).</span><span lang="en">Leans toward the side the enemy moves to for 0.35–1 s and switches when they do. Q/E spam is mixed in (45% within 7 m).</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">다이아몬드 스텝 대상</span><span lang="en">Diamond-steppers</span></span><span class="tag">Close Combat (zzap)</span></div></div>
+        <div class="card"><h3><span lang="ko">코너 흔들기 피킹</span><span lang="en">Corner jiggle peek</span></h3>
+          <p><span lang="ko">A↔D를 빠르게 번갈아 눌러 벽 뒤로 0.18~0.32초 숨었다가 0.25~0.45초 드러나며 쏩니다. 실제로 가려지는 쪽이 있을 때만 합니다.</span><span lang="en">Swaps A↔D fast: hidden 0.18–0.32 s, exposed 0.25–0.45 s while firing. Only when one side really gives cover.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">다이아몬드 스텝 대상</span><span lang="en">Diamond-steppers</span></span><span class="tag">Corner Jiggle Peek</span></div></div>
+        <div class="card"><h3><span lang="ko">코너 추격</span><span lang="en">Corner chase</span></h3>
+          <p><span lang="ko">적이 코너 뒤로 빠지면 기울인 채 진입, 넓게 돌기, 점프샷, 프리파이어 중 하나로 쫓습니다. 프리파이어는 탄이 충분할 때만 합니다.</span><span lang="en">When the enemy breaks behind a corner it follows with a lean-in, a wide pie, a jump shot or a prefire — prefire only with enough ammo left.</span></p>
+          <div class="meta"><span class="tag who">GigaChad 90% · Wreckless 85% · Chad 75%</span><span class="tag">Corner Chase</span></div></div>
+        <div class="card"><h3><span lang="ko">코너 선조준</span><span lang="en">Corner pre-aim</span></h3>
+          <p><span lang="ko">적이 나올 코너 6m 안에서는 달리기를 멈추고, 벽 모서리가 아니라 <b>코너 너머 적이 나올 자리</b>를 먼저 조준합니다.</span><span lang="en">Within 6 m of the corner it stops sprinting and pre-aims <b>where the enemy will appear</b>, not the wall edge.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">전원</span><span lang="en">All</span></span><span class="tag">Corner Pre-Aim</span></div></div>
+        <div class="card"><h3><span lang="ko">붙으면 엄폐 대신 싸움</span><span lang="en">Fight close, don't run</span></h3>
+          <p><span lang="ko">8m 안의 적이면 엄폐로 걸어가지 않고 계속 싸웁니다. 맞는데 가까운 엄폐물이 없으면 개활지를 등 보이며 뛰지 않고 그 자리에서 교전합니다.</span><span lang="en">Within 8 m it keeps fighting instead of walking to cover. Taking fire with no cover nearby, it fights where it stands instead of sprinting across open ground with its back turned.</span></p>
+          <div class="meta"><span class="tag who">PMC</span><span class="tag">Close Combat (zzap)</span></div></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" role="tabpanel" id="p-brain" aria-labelledby="t-brain" hidden>
+      <div class="cards">
+        <div class="card"><h3><span lang="ko">안 보이는 적 판단</span><span lang="en">Hidden-enemy decision</span></h3>
+          <p><span lang="ko">위치는 아는데 안 보이는 적에게 밀기·수류탄·지키기·우회·수색·후퇴를 "기대 이득"으로 점수 매기고, 점수로 가중치 준 주사위로 고릅니다. 아래 예시에서 직접 굴려 볼 수 있습니다.</span><span lang="en">For an enemy it knows about but can't see, it scores push, grenade, hold, flank, search and retreat by expected gain and picks with a score-weighted roll. Try it in the demo below.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">전원</span><span lang="en">All</span></span><span class="tag">[Utility]</span></div></div>
+        <div class="card"><h3><span lang="ko">보이는 적 판단</span><span lang="en">Enemy-in-sight decision</span></h3>
+          <p><span lang="ko">계속 쏘기·엄폐로 빠지기·밀어붙이기를 노출 시간, 체력·탄창, 가까운 엄폐 거리, 총과 거리 궁합으로 고릅니다. SAIN의 "N초 버티고 엄폐" 고정 규칙을 대신합니다.</span><span lang="en">Keep shooting, fall back to cover or push — weighed by exposure time, health and ammo, distance to cover and how the gun suits the range. Replaces SAIN's fixed "hold N seconds, then cover" rule.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">전원</span><span lang="en">All</span></span><span class="tag">[UtilityV]</span></div></div>
+        <div class="card"><h3><span lang="ko">재장전·치료 타이밍</span><span lang="en">Reload &amp; heal timing</span></h3>
+          <p><span lang="ko">적이 나를 보는 중이면 참고 쏘고, 틈이 나면 장전합니다. 엄폐 중이고 위협이 멀면 치료하고, 수술은 정말 안전할 때만 합니다.</span><span lang="en">If the enemy is watching, it keeps firing and reloads in the gap. It heals in cover when the threat is old or far, and only does surgery when truly safe.</span></p>
+          <div class="meta"><span class="tag who">PMC · <span lang="ko">전원</span><span lang="en">All</span></span><span class="tag">[Reload] [Heal]</span></div></div>
+        <div class="card"><h3><span lang="ko">장비에 맞는 교전</span><span lang="en">Gear-aware fighting</span></h3>
+          <p><span lang="ko">든 총으로 선호 거리를 계산합니다. 저격총은 거리를 유지하고, SMG·샷건은 붙어서 싸웁니다. 수류탄·치료템 개수도 판단에 들어갑니다.</span><span lang="en">The weapon in hand sets the preferred range: snipers keep distance, SMGs and shotguns close in. Grenade and med counts feed the scores too.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">전원</span><span lang="en">All</span></span><span class="tag">auto</span></div></div>
+        <div class="card"><h3><span lang="ko">두려움·사람 같은 실수</span><span lang="en">Fear &amp; human mistakes</span></h3>
+          <p><span lang="ko">동료가 죽거나 연속 킬을 당하면 두려움이 올라 후퇴·지키기를 더 고르고, 0.75를 넘으면 패닉합니다. 가끔 최선 대신 2·3순위를 고릅니다(Timmy 12% ~ GigaChad 2%).</span><span lang="en">Losing teammates or facing a killing streak raises fear, so retreat and hold get picked more; above 0.75 it panics. Now and then it picks the 2nd or 3rd best (Timmy 12% down to GigaChad 2%).</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">성격마다 다름</span><span lang="en">Per personality</span></span><span class="tag">Fear · Utility Mistakes</span></div></div>
+        <div class="card"><h3><span lang="ko">위협 기준 목표 선택</span><span lang="en">Threat-based targeting</span></h3>
+          <p><span lang="ko">지금 나를 쏘는 적이 원래 목표보다 위험하면 안 보여도 그쪽으로 바꿉니다. PMC끼리 싸우다 스캐브가 나오면 둘 다 스캐브만 쏘던 "티밍"을 막습니다.</span><span lang="en">If someone shooting at it is a bigger threat than its current target, it switches — even if unseen. Stops two PMCs from both turning on a scav mid-fight.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">전원</span><span lang="en">All</span></span><span class="tag">Threat Targeting</span></div></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" role="tabpanel" id="p-squad" aria-labelledby="t-squad" hidden>
+      <div class="cards">
+        <div class="card"><h3><span lang="ko">분대 역할</span><span lang="en">Squad roles</span></h3>
+          <p><span lang="ko">한 명이 문 전술을 하면 동료는 오버워치(교차 각)나 후방 경계를 맡습니다. 벽이 조준선을 막으면 조준선이 열리는 자리로 옮깁니다.</span><span lang="en">When one bot runs a door tactic, the others take overwatch (crossing angle) or rear guard, shifting until they have a clear line.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">분대</span><span lang="en">Squads</span></span><span class="tag">Squad Roles</span></div></div>
+        <div class="card"><h3><span lang="ko">뒷문 협공</span><span lang="en">Back-door pincer</span></h3>
+          <p><span lang="ko">실내면 적이 있는 방의 다른 입구를 먼저 막고, 15초 동안 안 나오면 뒷문으로 치고 들어가 앞뒤로 협공합니다.</span><span lang="en">Indoors it first covers the room's other entrance; if nobody comes out within 15 s it storms through the back door for a front-and-back pincer.</span></p>
+          <div class="meta"><span class="tag who">Chad · GigaChad · Wreckless</span><span class="tag">Squad Combat (zzap)</span></div></div>
+        <div class="card"><h3><span lang="ko">약한 적 일제 돌격</span><span lang="en">Storm the weak</span></h3>
+          <p><span lang="ko">20초마다 적을 평가해 방탄 없음·부상·장전이나 치료 중·혼자 같은 약한 적이면 분대가 다 같이 뛰어가 진압합니다.</span><span lang="en">Every 20 s the squad rates the enemy; no armour, wounded, reloading or healing, alone — then they all rush together.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">분대</span><span lang="en">Squads</span></span><span class="tag">Squad Storm Weak Enemy</span></div></div>
+        <div class="card"><h3><span lang="ko">보복</span><span lang="en">Trade the kill</span></h3>
+          <p><span lang="ko">동료를 <b>실제로 죽인 적</b>을 추적해 다른 판단보다 먼저 보복합니다. 공격형은 그 자리로 밀고, 신중형은 각을 잡습니다.</span><span lang="en">Tracks <b>whoever actually killed</b> a teammate and trades first. Aggressive bots push the spot, careful ones hold the angle.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">분대</span><span lang="en">Squads</span></span><span class="tag">Squad Combat (zzap)</span></div></div>
+        <div class="card"><h3><span lang="ko">아군 사선 회피</span><span lang="en">Fire-lane guard</span></h3>
+          <p><span lang="ko">동료가 쏘는 사선 안으로 걸어 들어가지 않고, 이미 들어가 있으면 옆으로 빠집니다. 쏘는 쪽도 0.3초 뒤 동료 위치를 예측해 멈춥니다.</span><span lang="en">Won't walk into a teammate's line of fire and steps out if already in it. The shooter also predicts where teammates will be 0.3 s ahead and holds fire.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">분대</span><span lang="en">Squads</span></span><span class="tag">Fire Lane Guard</span></div></div>
+        <div class="card"><h3><span lang="ko">전투 후 정리</span><span lang="en">Post-combat tidy-up</span></h3>
+          <p><span lang="ko">싸움이 끝나면 엄폐로 이동해 장전·치료·경계를 하고, 성격 확률로 킬 자리를 확인하러 갑니다. ORBIT에 넘기기 전 15초 동안 바닐라 행동으로 떨어지던 빈틈을 메웁니다.</span><span lang="en">After a fight it moves to cover, reloads, heals and watches, then — by personality — checks the kill spot. Fills the 15 s gap where bots used to fall back to vanilla before ORBIT took over.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">전원</span><span lang="en">All</span></span><span class="tag">Post-Combat Tidy-Up</span></div></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" role="tabpanel" id="p-sound" aria-labelledby="t-sound" hidden>
+      <div class="cards">
+        <div class="card"><h3><span lang="ko">발소리 관리</span><span lang="en">Footstep discipline</span></h3>
+          <p><span lang="ko">안 보이는 적에게 다가갈 때 30m 안에선 걷고, 12m 안에선 숙여 걷습니다. 루팅 중인 적에게는 항상 조용히 갑니다.</span><span lang="en">Approaching an unseen enemy it walks inside 30 m and crouch-walks inside 12 m — always quietly toward someone looting.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">성격마다 다름</span><span lang="en">Per personality</span></span><span class="tag">auto</span></div></div>
+        <div class="card"><h3><span lang="ko">취약한 순간 돌격</span><span lang="en">Punish the reload</span></h3>
+          <p><span lang="ko">장전·치료·수술·루팅 소리를 들으면 그 시간 안에 닿을 수 있을 때만 돌격합니다. 수류탄 꺼내는 소리에는 오히려 물러납니다.</span><span lang="en">Hearing a reload, heal, surgery or looting, it rushes only if it can get there in time. A grenade being drawn makes it back off instead.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">돌격형 성격</span><span lang="en">Rushers</span></span><span class="tag">auto</span></div></div>
+        <div class="card"><h3><span lang="ko">먼 총소리 3단계</span><span lang="en">Distant gunfire tiers</span></h3>
+          <p><span lang="ko">100m 안은 그 자리 수색, 100~250m는 고개만 돌리고, 250m 밖은 무시합니다. 나를 향해 쏜 사람에게는 거리와 상관없이 반응합니다.</span><span lang="en">Within 100 m it searches, 100–250 m it only looks, beyond 250 m it ignores. Being shot at always gets a reaction, at any range.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">전원</span><span lang="en">All</span></span><span class="tag">auto</span></div></div>
+        <div class="card"><h3><span lang="ko">층 차이 소리</span><span lang="en">Floor-aware hearing</span></h3>
+          <p><span lang="ko">실내에서 한 층 위아래 발소리는 절반, 총소리는 조금 작게 들립니다. 문 전술 중에도 다른 층 발소리에는 흔들리지 않습니다.</span><span lang="en">Indoors, footsteps one floor away sound half as loud and gunfire a bit quieter. Door tactics aren't broken off by footsteps on another floor.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">전원</span><span lang="en">All</span></span><span class="tag">auto</span></div></div>
+        <div class="card"><h3><span lang="ko">빛 관리</span><span lang="en">Light discipline</span></h3>
+          <p><span lang="ko">안 보이는 적에게 각을 잡을 때는 플래시·레이저를 끄고, 적이 보이는 순간 켜서 눈뽕을 줍니다.</span><span lang="en">Holding an angle on an unseen enemy it kills the flashlight and laser, then lights you up the moment you appear.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">전원</span><span lang="en">All</span></span><span class="tag">Light Discipline</span></div></div>
+        <div class="card"><h3><span lang="ko">수류탄 판단</span><span lang="en">Grenade judgment</span></h3>
+          <p><span lang="ko">던질 궤적이 실제로 있는지 먼저 확인합니다(적 위치 → 경로상의 코너 → 열린 문 안쪽으로 굴려 넣기). 자기 폭발에 닿을 자리면 던지지 않습니다.</span><span lang="en">Checks a real throw arc exists first (enemy spot → corner on the path → rolled through an open door). Never throws where its own blast could reach it.</span></p>
+          <div class="meta"><span class="tag who"><span lang="ko">전원</span><span lang="en">All</span></span><span class="tag">[Nade]</span></div></div>
+      </div>
+    </div>
+
+    <div class="split" style="margin-top:28px">
+      <div class="panel rv" id="udemo">
+        <div class="panel-title"><span lang="ko">예시 · 안 보이는 적 판단</span><span lang="en">Demo · hidden-enemy decision</span><span class="mono" style="color:var(--teal)">[Utility]</span></div>
+        <div class="scen">
+          <button type="button" data-s="camp" aria-pressed="true"><span lang="ko">적이 존버 중</span><span lang="en">Enemy camping</span></button>
+          <button type="button" data-s="reload" aria-pressed="false"><span lang="ko">장전 소리 들림</span><span lang="en">Heard a reload</span></button>
+          <button type="button" data-s="hurt" aria-pressed="false"><span lang="ko">내가 중상</span><span lang="en">Badly hurt</span></button>
+        </div>
+        <div class="u-row" data-k="push"><span class="u-name"><span lang="ko">밀기</span><span lang="en">Push</span></span><div class="u-track"><div class="u-fill"></div></div><span class="u-val"></span></div>
+        <div class="u-row" data-k="nade"><span class="u-name"><span lang="ko">수류탄</span><span lang="en">Grenade</span></span><div class="u-track"><div class="u-fill"></div></div><span class="u-val"></span></div>
+        <div class="u-row" data-k="hold"><span class="u-name"><span lang="ko">지키기</span><span lang="en">Hold</span></span><div class="u-track"><div class="u-fill"></div></div><span class="u-val"></span></div>
+        <div class="u-row" data-k="flank"><span class="u-name"><span lang="ko">우회</span><span lang="en">Flank</span></span><div class="u-track"><div class="u-fill"></div></div><span class="u-val"></span></div>
+        <div class="u-row" data-k="search"><span class="u-name"><span lang="ko">수색</span><span lang="en">Search</span></span><div class="u-track"><div class="u-fill"></div></div><span class="u-val"></span></div>
+        <div class="u-row" data-k="retreat"><span class="u-name"><span lang="ko">후퇴</span><span lang="en">Retreat</span></span><div class="u-track"><div class="u-fill"></div></div><span class="u-val"></span></div>
+        <div class="u-foot">
+          <span class="why"><span lang="ko"></span><span lang="en"></span></span>
+          <button type="button" class="u-btn"><span lang="ko">주사위 굴리기</span><span lang="en">Roll the dice</span></button>
+        </div>
+      </div>
+      <div class="rv">
+        <h3><span lang="ko">점수는 이렇게 매깁니다</span><span lang="en">How the score is built</span></h3>
+        <ul class="ticks">
+          <li><span lang="ko">정보가 얼마나 신선한지, 적이 각을 잡는 중인지 다가오는 중인지</span><span lang="en">How fresh the info is, and whether the enemy is holding an angle or closing in</span></li>
+          <li><span lang="ko">내 체력·탄·수류탄, 수적 우위, 적 장비와 장전·치료 여부</span><span lang="en">My health, ammo and grenades, numbers, the enemy's gear and whether they're reloading or healing</span></li>
+          <li><span lang="ko">적이 조용한 시간 — 시간은 존버하는 쪽 편입니다</span><span lang="en">How long the enemy has been quiet — time favours whoever is camping</span></li>
+          <li><span lang="ko">성격: 렉리스는 느슨하게, 쥐·겁쟁이는 거의 최고점만 고릅니다</span><span lang="en">Personality: Wreckless rolls loosely, Rat and Coward almost always take the top score</span></li>
+          <li><span lang="ko">맞는 중이면 제자리 "지키기"는 건너뜁니다</span><span lang="en">While being hit, standing still to "hold" is skipped</span></li>
+        </ul>
+        <p style="color:var(--dim);font-size:14px;margin-top:14px"><span lang="ko">왼쪽 숫자는 이해를 돕는 예시입니다. 실제 점수와 이유는 게임 로그의 <code>[Utility]</code> 줄에 남습니다.</span><span lang="en">The numbers on the left are illustrative. Real scores and reasons are written to the game log as <code>[Utility]</code> lines.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ ADAPT ═══ -->
+<section id="adapt">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-no"><b>03</b><span lang="ko">적응·학습</span><span lang="en">Adapts</span></div>
+      <div>
+        <h2><span lang="ko">판을 거듭하며 내 버릇을 배웁니다</span><span lang="en">It learns your habits, raid after raid</span></h2>
+        <p><span lang="ko">기본으로 켜져 있습니다. 사람 플레이어를 상대할 때만 작동하고 봇끼리 싸울 때는 영향이 없습니다.</span><span lang="en">On by default. It only applies against human players, never bot-vs-bot.</span></p>
+      </div>
+    </div>
+    <div class="steps rv">
+      <div class="step"><div class="no">01</div>
+        <h3><span lang="ko">스타일 기록</span><span lang="en">Record your style</span></h3>
+        <p><span lang="ko">레이드마다 움직이는 시간, 움직이며 쏜 비율, 점프, 기울이기 피킹, 수류탄, 한자리 존버 시간, 킬·사망 거리를 숫자로 남깁니다.</span><span lang="en">Each raid stores numbers: time moving, shots on the move, jumps, lean peeks, grenades, time camping, kill and death distances.</span></p></div>
+      <div class="step"><div class="no">02</div>
+        <h3><span lang="ko">스타일에 맞춰 대응</span><span lang="en">Adapt to it</span></h3>
+        <ul>
+          <li><span lang="ko">뛰어다니며 공격적 → 코너에서 기다렸다 붙어서 싸움</span><span lang="en">Aggressive runner → waits at corners and fights close</span></li>
+          <li><span lang="ko">버니합이 많음 → 다가올 코너를 지킴</span><span lang="en">Lots of bunny hops → holds the corner you'll come round</span></li>
+          <li><span lang="ko">기울이기 피킹이 많음 → 기울이기로 맞받아침</span><span lang="en">Lots of lean peeks → leans back at you</span></li>
+          <li><span lang="ko">수류탄을 많이 씀 → 봇끼리 간격을 벌림</span><span lang="en">Heavy grenade use → bots spread out</span></li>
+        </ul></div>
+      <div class="step"><div class="no">03</div>
+        <h3><span lang="ko">결과로 학습</span><span lang="en">Learn from results</span></h3>
+        <p><span lang="ko">봇이 나에게 한 대응마다 결과를 채점합니다. 나를 맞히면 성공, 나에게 죽으면 실패. 판을 넘어 쌓여서 잘 통한 대응은 더 자주, 실패한 대응은 덜 고릅니다.</span><span lang="en">Every response a bot tries on you is scored: hit you = success, died to you = failure. Scores carry across raids, so what works gets picked more and what fails gets picked less.</span></p></div>
+    </div>
+    <div class="note rv"><span lang="ko"><b>치트가 아닙니다.</b> 봇이 레이드 중에 나를 "보는" 게 아니라 끝난 판의 통계만 씁니다. 장비로는 판단하지 않고(데브툴·치트 장비일 수 있어서), 기록이 10분 이상 쌓여야 켜지고 60분쯤에 최대 강도가 됩니다. 끄기: F6 → <code>General › Player Style Recorder (zzap)</code>.</span><span lang="en"><b>No cheating.</b> Bots never "see" you during a raid; only stats from finished raids are used. Your gear is ignored (it could be dev-tool gear). It starts after 10 minutes of recorded play and reaches full strength around 60 minutes. Turn off in F6 → <code>General › Player Style Recorder (zzap)</code>.</span></div>
+  </div>
+</section>
+
+<!-- ═══ DOORS & FIXES ═══ -->
+<section id="doors">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-no"><b>04</b><span lang="ko">문·버그 수정</span><span lang="en">Doors &amp; fixes</span></div>
+      <div>
+        <h2><span lang="ko">문 앞 끼임부터 걷는 시체까지</span><span lang="en">From door jams to walking corpses</span></h2>
+        <p><span lang="ko">이 포크가 시작된 이유는 문이었습니다. 원본 v4.5.1에도 그대로 남아 있는 문 버그를 고치고, 오래 돌려 보며 찾은 버그를 계속 고쳤습니다.</span><span lang="en">This fork started with doors. The door bugs still present in upstream v4.5.1 are fixed here, along with everything long test runs turned up since.</span></p>
+      </div>
+    </div>
+    <div class="split">
+      <figure class="diagram rv">
+        <div class="scroll">
+        <svg viewBox="0 0 680 560" role="img" aria-label="Open door leaf: before and after" font-family="Pretendard Variable, Malgun Gothic, sans-serif">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+            <pattern id="ht" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#ef6a5a" stroke-width="1.5"/></pattern>
+          </defs>
+          <g font-size="15" fill="#e8eadf" font-weight="700">
+            <text x="60" y="34" lang="ko">수정 전 — 위에서 본 모습</text><text x="60" y="34" lang="en">Before — seen from above</text>
+            <text x="60" y="290" lang="ko">수정 후 — 같은 자리</text><text x="60" y="290" lang="en">After — same spot</text>
+          </g>
+          <rect x="60" y="50" width="560" height="22" fill="#3a4432"/><rect x="290" y="50" width="50" height="22" fill="#0c0e0b"/>
+          <rect x="60" y="72" width="560" height="90" fill="#1d2219" stroke="#3a4432"/>
+          <line x1="292" y1="72" x2="292" y2="150" stroke="#d08b2a" stroke-width="6" stroke-linecap="round"/>
+          <line x1="110" y1="112" x2="600" y2="112" stroke="#ef6a5a" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#ar)"/>
+          <circle cx="270" cy="112" r="11" fill="#1c2a36" stroke="#6aa8f0"/>
+          <line x1="256" y1="90" x2="284" y2="134" stroke="#ef6a5a" stroke-width="2.2"/><line x1="284" y1="90" x2="256" y2="134" stroke="#ef6a5a" stroke-width="2.2"/>
+          <circle cx="110" cy="112" r="5" fill="#6aa8f0"/>
+          <line x1="300" y1="140" x2="420" y2="190" stroke="#737b67" stroke-width=".7" stroke-dasharray="3 3"/>
+          <line x1="256" y1="125" x2="160" y2="190" stroke="#737b67" stroke-width=".7" stroke-dasharray="3 3"/>
+          <rect x="60" y="306" width="560" height="22" fill="#3a4432"/><rect x="290" y="306" width="50" height="22" fill="#0c0e0b"/>
+          <rect x="60" y="328" width="560" height="90" fill="#1d2219" stroke="#3a4432"/>
+          <rect x="278" y="328" width="28" height="86" fill="url(#ht)" stroke="#ef6a5a" stroke-width=".6" opacity=".85"/>
+          <line x1="292" y1="328" x2="292" y2="406" stroke="#d08b2a" stroke-width="6" stroke-linecap="round"/>
+          <path d="M110 368 L230 368 Q262 368 266 400 Q272 440 292 440 Q312 440 318 400 Q322 368 354 368 L600 368" fill="none" stroke="#3fc7a4" stroke-width="2.2" marker-end="url(#ar)"/>
+          <circle cx="110" cy="368" r="5" fill="#6aa8f0"/>
+          <circle cx="292" cy="440" r="11" fill="#1c2a36" stroke="#6aa8f0"/>
+          <line x1="306" y1="350" x2="420" y2="300" stroke="#737b67" stroke-width=".7" stroke-dasharray="3 3"/>
+          <line x1="306" y1="446" x2="420" y2="470" stroke="#737b67" stroke-width=".7" stroke-dasharray="3 3"/>
+          <g font-size="13" fill="#a3aa96">
+            <text x="80" y="66" lang="ko">건물 벽</text><text x="80" y="66" lang="en">Building wall</text>
+            <text x="80" y="152" lang="ko">보도 (걷는 길)</text><text x="80" y="152" lang="en">Pavement (walkway)</text>
+            <text x="426" y="196" lang="ko">열린 문짝 (보도 위로 튀어나옴)</text><text x="426" y="196" lang="en">Open door leaf (sticks out)</text>
+            <text x="60" y="212" lang="ko">봇의 길이 문짝을 관통 → 박고 멈춤</text><text x="60" y="212" lang="en">Path goes through the leaf → bot walks into it</text>
+            <text x="80" y="322" lang="ko">건물 벽</text><text x="80" y="322" lang="en">Building wall</text>
+            <text x="80" y="408" lang="ko">보도 (걷는 길)</text><text x="80" y="408" lang="en">Pavement (walkway)</text>
+            <text x="426" y="296" lang="ko">빗금 = 길에서 뺀 문짝 자리</text><text x="426" y="296" lang="en">Hatched = leaf cut out of the path</text>
+            <text x="426" y="476" lang="ko">문짝 끝을 돌아서 지나감</text><text x="426" y="476" lang="en">Walks around the leaf's end</text>
+            <line x1="60" y1="520" x2="84" y2="520" stroke="#ef6a5a" stroke-width="1.6" stroke-dasharray="6 5"/>
+            <text x="92" y="524" lang="ko">수정 전 봇의 길</text><text x="92" y="524" lang="en">Path before</text>
+            <line x1="230" y1="520" x2="254" y2="520" stroke="#3fc7a4" stroke-width="2.2"/>
+            <text x="262" y="524" lang="ko">수정 후 봇의 길</text><text x="262" y="524" lang="en">Path after</text>
+            <circle cx="406" cy="520" r="7" fill="#1c2a36" stroke="#6aa8f0"/>
+            <text x="420" y="524" lang="ko">봇</text><text x="420" y="524" lang="en">Bot</text>
+            <line x1="460" y1="520" x2="484" y2="520" stroke="#d08b2a" stroke-width="6" stroke-linecap="round"/>
+            <text x="492" y="524" lang="ko">문짝</text><text x="492" y="524" lang="en">Door leaf</text>
+          </g>
+        </svg>
+        </div>
+        <figcaption><span lang="ko"><b>Remix7.1 열린 문짝 돌아가기.</b> EFT가 문마다 갖고 있지만 꺼 두는 장치를 켜서 열린 문짝 자리를 길에서 뺍니다. 문이 닫히면 다시 끕니다.</span><span lang="en"><b>Remix7.1: walk around open door leaves.</b> EFT has a carve-out on every door but leaves it off; it is switched on while the door is open and off when it closes.</span></figcaption>
+      </figure>
+      <div class="fixes">
+        <div class="fix rv"><span class="was"><span lang="ko">원본 SAIN</span><span lang="en">Upstream SAIN</span></span><h3><span lang="ko">문 앞 낑김</span><span lang="en">Stuck at doors</span></h3><p><span lang="ko">문 감지 범위, 끼임 확인, 대기 상태의 문 조작, 1.2초 문 상태 감시를 고쳤습니다.</span><span lang="en">Door detection range, stuck check, door use while idle, and a 1.2 s door-state watchdog.</span></p></div>
+        <div class="fix rv"><span class="was"><span lang="ko">원본 SAIN</span><span lang="en">Upstream SAIN</span></span><h3><span lang="ko">벽에 계속 박기</span><span lang="en">Walking into walls</span></h3><p><span lang="ko">원본의 끼임 해제가 통째로 꺼져 있었습니다. 3초 경로 재계산 → 5초 점프 → 8초 다음 지점 → 14초 초기화로 빼냅니다.</span><span lang="en">Upstream's unstick was switched off entirely. Now: re-path at 3 s, jump at 5 s, next waypoint at 8 s, reset at 14 s.</span></p></div>
+        <div class="fix rv"><span class="was">EFT</span><h3><span lang="ko">무기 핑퐁</span><span lang="en">Weapon ping-pong</span></h3><p><span lang="ko">주무기↔보조무기↔권총을 1~2초마다 왕복하던 것. 이제 탄이 있는 총으로만 바꿉니다.</span><span lang="en">Bots swapped primary ↔ secondary ↔ pistol every 1–2 s. They now only swap to a gun that has ammo.</span></p></div>
+        <div class="fix rv"><span class="was">EFT</span><h3><span lang="ko">걸어 다니는 시체</span><span lang="en">Walking corpses</span></h3><p><span lang="ko">사망 처리 중 다른 모드가 오류를 내면 래그돌이 안 생겨 몸이 미끄러지던 것. 1.5초 넘게 시체가 없으면 직접 처리합니다.</span><span lang="en">If any mod threw during death handling, no ragdoll spawned and the body slid around. After 1.5 s without a corpse it is handled directly.</span></p></div>
+        <div class="fix rv"><span class="was">EFT</span><h3><span lang="ko">피 자국 메모리 누적</span><span lang="en">Blood-decal memory</span></h3><p><span lang="ko">시체의 피·총알 자국 텍스처를 레이드 끝까지 들고 있어 20분에 약 3GB가 쌓였습니다. 죽은 지 30초 뒤 반납합니다.</span><span lang="en">Corpse blood and bullet-hole textures were kept all raid — about 3 GB in 20 minutes. They're returned 30 s after death.</span></p></div>
+        <div class="fix rv"><span class="was"><span lang="ko">원본 SAIN</span><span lang="en">Upstream SAIN</span></span><h3><span lang="ko">프리셋 섞임</span><span lang="en">Preset mix-up</span></h3><p><span lang="ko">목록을 불러올 때 마지막으로 읽은 프리셋의 전역 설정이 적용되던 것. 고른 프리셋으로 고정합니다.</span><span lang="en">Loading the list applied the global settings of whichever preset was read last. The chosen preset now sticks.</span></p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ SETTINGS ═══ -->
+<section id="settings">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-no"><b>05</b><span lang="ko">설정 화면</span><span lang="en">Settings</span></div>
+      <div>
+        <h2><span lang="ko">F6와 웹, 같은 화면 · 한국어와 영어</span><span lang="en">F6 and web, same screens · Korean and English</span></h2>
+        <p><span lang="ko">게임 안 F6와 서버 웹 페이지(<code>127.0.0.1:6969/sain</code>)가 같은 설정을 씁니다. 아래 그림은 실제 화면을 녹화한 것이고, 위쪽 한/EN 버튼을 누르면 그 언어 화면으로 바뀝니다.</span><span lang="en">The in-game F6 editor and the server web page (<code>127.0.0.1:6969/sain</code>) share the same settings. These are recordings of the real screens; the 한/EN switch at the top swaps them to that language.</span></p>
+      </div>
+    </div>
+
+    <div class="gallery">
+      <figure class="rv"><div class="screen"><img loading="lazy" src="img/zzap-glance-ko.webp" data-ko="img/zzap-glance-ko.webp" data-en="img/zzap-glance-en.webp" alt="ZZAP tab, at a glance switches" width="1120" height="630"></div>
+        <figcaption><span lang="ko"><b>ZZAP (전술 등..) 탭 · 한눈에 켜고 끄기.</b> 전술 14개를 쉬운 설명과 스위치로 켜고 끕니다. 세부 숫자는 왼쪽 묶음에 그대로 있습니다.</span><span lang="en"><b>ZZAP (tactics etc.) tab · At a glance.</b> 14 tactics, each with a plain description and an on/off switch. Exact numbers stay in the groups on the left.</span></figcaption></figure>
+      <figure class="rv"><div class="screen"><img loading="lazy" src="img/bot-tabs-ko.webp" data-ko="img/bot-tabs-ko.webp" data-en="img/bot-tabs-en.webp" alt="Bot settings tabs" width="1120" height="630"></div>
+        <figcaption><span lang="ko"><b>봇 설정 탭 5개.</b> 빠른 설정 · 성격 · ZZAP · 맵별 보정 · 고급. 성격 탭에서 그 봇 종류의 성격을 바로 정합니다.</span><span lang="en"><b>Five bot settings tabs.</b> Quick · Personality · ZZAP · Per map · Advanced. Personality sets the personality for that bot type right there.</span></figcaption></figure>
+      <figure class="rv"><div class="screen"><img loading="lazy" src="img/per-bot-zzap-ko.webp" data-ko="img/per-bot-zzap-ko.webp" data-en="img/per-bot-zzap-en.webp" alt="Per bot type ZZAP switches" width="1120" height="630"></div>
+        <figcaption><span lang="ko"><b>봇 종류마다 전술 따로.</b> 전역 따름 / 켬 / 끔. 예: PMC만 QEQE 기울이기 사격 끄기, 스캐브도 다이아몬드 스텝 켜기.</span><span lang="en"><b>Tactics per bot type.</b> Global / On / Off — e.g. no QEQE for PMCs only, or let scavs diamond-step too.</span></figcaption></figure>
+      <figure class="rv"><div class="screen"><img loading="lazy" src="img/per-map-ko.webp" data-ko="img/per-map-ko.webp" data-en="img/per-map-en.webp" alt="Per map multipliers" width="1120" height="630"></div>
+        <figcaption><span lang="ko"><b>맵별 보정.</b> 봇 종류마다, 맵마다 청각·시야·발견 속도 등을 배수로 줍니다. 예: 연구소에서만 청각 0.55배.</span><span lang="en"><b>Per map.</b> Hearing, vision, spotting speed and more as multipliers per bot type and per map — e.g. hearing 0.55x on Labs only.</span></figcaption></figure>
+      <figure class="rv"><div class="screen"><img loading="lazy" src="img/group-edit-ko.webp" data-ko="img/group-edit-ko.webp" data-en="img/group-edit-en.webp" alt="Editing several bot types together" width="1120" height="700"></div>
+        <figcaption><span lang="ko"><b>여러 봇을 한 번에.</b> ○ 또는 이름 Ctrl+클릭으로 묶고 난이도·손잡이·고급 값을 함께 바꿉니다.</span><span lang="en"><b>Several bots at once.</b> Select with ○ or Ctrl+click, then change level, knobs and advanced values together.</span></figcaption></figure>
+      <figure class="rv"><div class="screen"><img loading="lazy" src="img/share-code-ko.webp" data-ko="img/share-code-ko.webp" data-en="img/share-code-en.webp" alt="Custom slots and share code" width="1120" height="700"></div>
+        <figcaption><span lang="ko"><b>내 설정 슬롯과 공유 코드.</b> 지금 값을 슬롯(3~9칸)에 저장하고, 공유 코드로 디스코드 등에 붙여 넣어 주고받습니다.</span><span lang="en"><b>Custom slots and share codes.</b> Keep current values in a slot (3–9), then pass them around as a share code on Discord or anywhere.</span></figcaption></figure>
+    </div>
+
+    <details class="gif rv">
+      <summary><span lang="ko">Remix7.3 봇 설정 전체 녹화 보기 (GIF, 약 5.6MB)</span><span lang="en">Watch the full Remix7.3 bot settings recording (GIF, ~5.6 MB)</span></summary>
+      <div class="inner"><div class="screen"><img data-deferred="1" data-ko="img/sain-remix7.3-bot-settings-ko.gif" data-en="img/sain-remix7.3-bot-settings-en.gif" alt="Remix7.3 bot settings recording" width="1120" height="700"></div></div>
+    </details>
+
+    <ol class="howto">
+      <li><span lang="ko"><b>봇 고르기.</b> 이름을 누르면 한 봇을 엽니다. ○ 또는 이름 Ctrl+클릭으로 묶음에 넣고 뺍니다(●선택, ◐팩션 일부).</span><span lang="en"><b>Pick bots.</b> Click a name to open one bot. ○ or Ctrl+click adds or removes it from the selection (● selected, ◐ part of a faction).</span></li>
+      <li><span lang="ko"><b>난이도·손잡이.</b> Easy~Impossible 중 하나를 고르고 손잡이 9개로 세부 조절합니다. 새 항목만·바뀐 항목만 보기, 항목별 원래대로가 있습니다.</span><span lang="en"><b>Level and knobs.</b> Pick Easy to Impossible, fine-tune with nine knobs. New only, Changed only and per-setting Reset help you find things.</span></li>
+      <li><span lang="ko"><b>저장.</b> 위 <b>저장</b>을 눌러야 게임에 적용됩니다. AI 변경은 게임을 다시 켠 뒤 적용되고, 맵별 보정은 다음 레이드부터입니다.</span><span lang="en"><b>Save.</b> Press <b>Save</b> at the top to apply in game. AI changes apply after a game restart; per-map values from the next raid.</span></li>
+      <li><span lang="ko"><b>처음이라면.</b> 오른쪽 위 <b>?</b>를 누르면 3단계 안내가 다시 열립니다.</span><span lang="en"><b>New here?</b> The <b>?</b> at the top right reopens the 3-step guide.</span></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ═══ PRESETS ═══ -->
+<section id="presets">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-no"><b>06</b><span lang="ko">프리셋</span><span lang="en">Presets</span></div>
+      <div>
+        <h2><span lang="ko">zzap 프리셋 네 개</span><span lang="en">Four zzap presets</span></h2>
+        <p><span lang="ko">전술 종류는 모두 같고, 나오는 빈도와 사격·시야 보정이 다릅니다. 처음 실행하면 한 번만 자동으로 <code>zzap</code>이 선택됩니다.</span><span lang="en">All carry the same tactics; how often they fire and the aim and vision tuning differ. On first launch <code>zzap</code> is picked for you once.</span></p>
+      </div>
+    </div>
+    <div class="presets">
+      <div class="preset rv"><div class="pn"><span lang="ko">zzap 쉬움</span><span lang="en">zzap Easy</span></div><div class="pips"><i class="on"></i><i></i><i></i></div>
+        <p><span lang="ko">전술 빈도를 크게 줄임(문 전술 ×0.5). 원본 SAIN "쉬움" 보정 — 반동 크고, 시야 거리 절반, 늦게 발견, 조준 최소 2초, 실수 2배.</span><span lang="en">Tactics much rarer (door tactics ×0.5). Upstream "easy" tuning: heavy recoil, half sight range, slower spotting, 2 s minimum aim, twice the mistakes.</span></p></div>
+      <div class="preset rv"><div class="pn"><span lang="ko">zzap 보통</span><span lang="en">zzap Normal</span></div><div class="pips"><i class="on"></i><i class="on"></i><i></i></div>
+        <p><span lang="ko">쉬움과 zzap의 진짜 중간. 문 전술 ×0.75, 반동 0.8, 시야 거리 1.4배, 시야각 160°, 연사는 zzap의 75%.</span><span lang="en">A true middle between Easy and zzap: door tactics ×0.75, recoil 0.8, 1.4× sight range, 160° view, 75% of zzap's fire rate.</span></p></div>
+      <div class="preset main rv"><div class="pn">zzap</div><div class="pips"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        <p><span lang="ko">기본 프리셋. 사격·조준·반응은 원본 TwitchPlayers(하드코어) 값, 행동은 이 포크의 전술 전부.</span><span lang="en">The default. Shooting, aim and reactions from the original TwitchPlayers (hardcore) values; behaviour is this fork's full tactic set.</span></p>
+        <span class="badge"><span lang="ko">기본</span><span lang="en">Default</span></span></div>
+      <div class="preset rv"><div class="pn">zzap TEST <span lang="ko">[시뮬 전용]</span><span lang="en">[sim only]</span></div><div class="pips sim"><i></i><i></i><i></i></div>
+        <p><span lang="ko">실제 플레이용이 아닙니다. 봇끼리 싸우는 걸 프리캠으로 보는 시뮬레이션용 — 모든 PMC 문 전술 100%, 레이드 일지 켬.</span><span lang="en">Not for real play. For watching bots fight each other in free cam: every PMC runs door tactics, raid journal on.</span></p>
+        <span class="badge sim"><span lang="ko">시뮬레이션 랩</span><span lang="en">Simulation Lab</span></span></div>
+    </div>
+    <div class="note rv"><span lang="ko"><b>ORBIT과 같이 쓰도록 맞춰 두었습니다.</b> 네 프리셋 모두 ORBIT 권장 성격 분포가 들어 있고, 탈출은 ORBIT이 맡도록 SAIN 탈출 행동을 꺼 두었습니다. 기본 프리셋을 고치면 <code>이름 [Modified]</code> 사본으로 저장되어 업데이트해도 남습니다.</span><span lang="en"><b>Tuned to run with ORBIT.</b> All four use ORBIT's recommended personality mix and leave extraction to ORBIT. Editing a bundled preset saves a <code>Name [Modified]</code> copy that survives updates.</span></div>
+  </div>
+</section>
+
+<!-- ═══ INSTALL ═══ -->
+<section id="install">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-no"><b>07</b><span lang="ko">설치</span><span lang="en">Install</span></div>
+      <div>
+        <h2><span lang="ko">설치 · 업데이트</span><span lang="en">Install · update</span></h2>
+        <p><span lang="ko">릴리즈의 <code>SAIN.REMIX.&lt;버전&gt;.7z</code> 하나에 클라 모드(<code>BepInEx</code>)와 서버 모드(<code>SPT_Runtime</code>)가 같이 들어 있습니다. 필수 모드: BigBrain, Waypoints.</span><span lang="en">Each release has one <code>SAIN.REMIX.&lt;version&gt;.7z</code> holding the client mod (<code>BepInEx</code>) and the server mod (<code>SPT_Runtime</code>). Requires BigBrain and Waypoints.</span></p>
+      </div>
+    </div>
+    <div class="install">
+      <div class="panel rv">
+        <div class="panel-title"><span lang="ko">새로 설치 (권장)</span><span lang="en">Clean install (recommended)</span></div>
+        <ol class="num">
+          <li><span lang="ko">직접 만든 프리셋이 있으면 그 파일만 따로 복사해 둡니다. 이름에 <code>[Modified]</code>가 붙은 파일과 내 설정 슬롯 <code>ClientData/botSettingsSlots.json</code>도 챙깁니다.</span><span lang="en">If you made presets, copy just those files somewhere safe — including any with <code>[Modified]</code> in the name and your slots file <code>ClientData/botSettingsSlots.json</code>.</span>
+            <span class="path">SPT_Runtime/user/mods/Solarint-SAIN-ServerMod/Presets/</span></li>
+          <li><span lang="ko">이전 SAIN(원본이든 이 포크든) 두 폴더를 통째로 지웁니다.</span><span lang="en">Delete both folders of any previous SAIN (upstream or this fork).</span>
+            <span class="path">BepInEx/plugins/SAIN/</span><span class="path">SPT_Runtime/user/mods/Solarint-SAIN-ServerMod/</span></li>
+          <li><span lang="ko"><b>이 폴더는 지우지 마세요.</b> 플레이어 적응·학습 기록이 들어 있습니다.</span><span lang="en"><b>Keep this folder.</b> It holds the player adaptation and learning data.</span>
+            <span class="path">BepInEx/config/SAIN-zzap/</span></li>
+          <li><span lang="ko">새 7z를 SPT 폴더(<code>EscapeFromTarkov.exe</code>가 있는 곳)에 풀고, 1번에서 챙긴 프리셋을 <code>Presets/</code>에 다시 넣습니다.</span><span lang="en">Extract the new 7z into your SPT folder (where <code>EscapeFromTarkov.exe</code> is) and put the presets from step 1 back into <code>Presets/</code>.</span></li>
+          <li><span lang="ko">처음 실행하면 <code>zzap</code> 프리셋이 한 번 자동으로 선택됩니다. 그다음부터는 F6에서 고른 프리셋이 유지됩니다.</span><span lang="en">The first launch selects the <code>zzap</code> preset once. After that, whatever you pick in F6 sticks.</span></li>
+        </ol>
+      </div>
+      <div class="rv">
+        <div class="panel">
+          <div class="panel-title"><span lang="ko">바로 전 판에서 올리기</span><span lang="en">Updating from the previous release</span></div>
+          <p style="margin:0;color:#cfd3c3"><span lang="ko">새 7z를 SPT 폴더에 <b>덮어쓰기</b>만 하면 됩니다. 설정·프리셋·내 설정 슬롯은 그대로입니다. 더 예전 판이면 그 사이 릴리즈 노트의 설치 순서를 따르세요.</span><span lang="en">Just extract the new 7z <b>over</b> your SPT folder. Settings, presets and slots are kept. From older releases, follow the install steps in the release notes in between.</span></p>
+        </div>
+        <div class="note warn"><span lang="ko"><b>공식 판이 아닙니다.</b> 이 포크는 AI 도움으로 만든 비공식 판입니다. 다른 곳에 다시 올리지 말아 주시고, 이 포크의 문제는 원작자(Solarint · ArchangelWTF)에게 제보하지 마세요.</span><span lang="en"><b>Unofficial.</b> This is an unofficial, AI-assisted port. Please don't re-upload it elsewhere, and never report this fork's issues to the original authors (Solarint · ArchangelWTF).</span></div>
+        <div class="note"><span lang="ko"><b>시뮬레이션 랩</b>은 <code>zzap TEST [시뮬 전용]</code> 프리셋에서만 작동합니다. 웹 <code>/sain/sim</code>에서 시작하면 맵을 돌며 봇끼리 싸우게 하고 결과를 분석합니다. 다른 프리셋에서는 아무 부담이 없습니다.</span><span lang="en"><b>The Simulation Lab</b> only runs with the <code>zzap TEST [sim only]</code> preset. Start it from <code>/sain/sim</code> on the web page to cycle maps, let bots fight and analyse the results. Other presets carry no cost from it.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ COMPAT ═══ -->
+<section id="compat">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-no"><b>08</b><span lang="ko">호환</span><span lang="en">Compat</span></div>
+      <div>
+        <h2><span lang="ko">같이 써도 되는 모드</span><span lang="en">Mods that work alongside</span></h2>
+        <p><span lang="ko">직접 확인한 것만 적었습니다. <span class="ok game">게임</span> = 같이 깔고 레이드를 돌려 오류 없음, <span class="ok code">코드</span> = 두 모드 코드를 맞대어 겹치는 곳 없음. 여기 없다고 안 되는 것은 아닙니다.</span><span lang="en">Only what was actually checked. <span class="ok game">Game</span> = raided together with no errors, <span class="ok code">Code</span> = both mods' code compared with nothing overlapping. Missing from the list doesn't mean broken.</span></p>
+      </div>
+    </div>
+    <table class="tbl rv">
+      <thead><tr><th><span lang="ko">모드 (확인한 버전)</span><span lang="en">Mod (version checked)</span></th><th><span lang="ko">확인</span><span lang="en">Checked</span></th><th><span lang="ko">메모</span><span lang="en">Notes</span></th></tr></thead>
+      <tbody>
+        <tr><td>ORBIT 3.1.0</td><td><span class="ok game">GAME</span> <span class="ok code">CODE</span></td><td class="m"><span lang="ko">zzap 프리셋 넷 모두 ORBIT 권장 설정 포함(탈출은 ORBIT)</span><span lang="en">All four zzap presets include ORBIT's recommended settings (ORBIT handles extraction)</span></td></tr>
+        <tr><td>Black Division 1.3.1 · RUAF Come Home 1.2.1 (MoreBotsAPI 2.1.1)</td><td><span class="ok game">GAME</span></td><td class="m"><span lang="ko">SAIN이 이 봇들에 전투 레이어를 붙입니다. 블랙 디비전은 원본 모드 그대로</span><span lang="en">SAIN adds its combat layers to these bots; use Black Division as released</span></td></tr>
+        <tr><td>ABPS 2.1.0 · APBS 2.4.1</td><td><span class="ok game">GAME</span></td><td class="m"><span lang="ko">시뮬 판에서만 zzap이 스폰을 맡고, 보통 판은 그대로</span><span lang="en">zzap takes over spawning only in sim raids; normal raids are unchanged</span></td></tr>
+        <tr><td>BigBrain 1.5.0 · Waypoints 1.9.0</td><td><span class="ok game">GAME</span></td><td class="m"><span lang="ko">SAIN 필수 모드</span><span lang="en">Required by SAIN</span></td></tr>
+        <tr><td>Bot Callsigns 2.0.5</td><td><span class="ok game">GAME</span> <span class="ok code">CODE</span></td><td class="m"><span lang="ko">PMC 이름만 늘리고 SAIN은 건드리지 않음</span><span lang="en">Only adds PMC names; doesn't touch SAIN</span></td></tr>
+        <tr><td>Twitch Players 3.1.2</td><td><span class="ok code">CODE</span></td><td class="m"><span lang="ko">방송인 이름 봇 성격이 그대로 들어가고, 같이 오는 프리셋도 zzap에서 열림</span><span lang="en">Streamer-named bots keep their personalities; its bundled preset opens in zzap</span></td></tr>
+        <tr><td>Harmony Profiles (PBT) 1.0.0</td><td><span class="ok code">CODE</span></td><td class="m"><span lang="ko">PMC 이름·레벨·장비·전적만 다루고 봇 AI는 안 건드림</span><span lang="en">Names, levels, gear and stats only — not bot AI</span></td></tr>
+        <tr><td>Blackout 4.1.1</td><td><span class="ok game">GAME</span></td><td class="m"><span lang="ko">시뮬 판에서만 정전이 일어나지 않음</span><span lang="en">No blackouts in sim raids only</span></td></tr>
+        <tr><td>Manimal CS Gas 2.0.0</td><td><span class="ok game">GAME</span></td><td class="m"><span lang="ko">Black Division 봇은 가스에 면역</span><span lang="en">Black Division bots are immune to the gas</span></td></tr>
+        <tr><td>MapVariants 1.0.3 (FactoryClassic 1.0.2)</td><td><span class="ok game">GAME</span></td><td class="m">—</td></tr>
+        <tr><td>TYR DeClutter 2.1.1 · CompoundingPerf 2.3.0 · RAM Cleaner Interval 2.15.0</td><td><span class="ok game">GAME</span> <span class="ok code">CODE</span></td><td class="m"><span lang="ko">겹치는 패치 없음</span><span lang="en">No overlapping patches</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══ REPORT ═══ -->
+<section id="report">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-no"><b>09</b><span lang="ko">제보</span><span lang="en">Report</span></div>
+      <div>
+        <h2><span lang="ko">이상한 봇을 봤다면</span><span lang="en">Saw a bot do something odd?</span></h2>
+        <p><span lang="ko">"렉이 걸린다", "봇이 이상하다" 제보에는 로그가 꼭 필요합니다. <a href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/issues">GitHub 이슈</a>에 올려 주세요.</span><span lang="en">Reports like "it lags" or "a bot acted weird" need logs. Please open a <a href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/issues">GitHub issue</a>.</span></p>
+      </div>
+    </div>
+    <div class="report">
+      <div class="card rv"><h3><span lang="ko">1 · 로그 파일</span><span lang="en">1 · Log file</span></h3>
+        <p><span lang="ko">무엇이든 <code>BepInEx/LogOutput.log</code>를 같이 보내 주세요.</span><span lang="en">Always attach <code>BepInEx/LogOutput.log</code>.</span></p></div>
+      <div class="card rv"><h3><span lang="ko">2 · 레이드 일지</span><span lang="en">2 · Raid journal</span></h3>
+        <p><span lang="ko">F6 → General → <code>Raid Journal</code>을 켜면 판마다 봇의 판단과 이유가 <code>BepInEx/config/SAIN-zzap/Journal/</code>에 남습니다. 제보가 끝나면 다시 꺼 주세요.</span><span lang="en">Turn on F6 → General → <code>Raid Journal</code> and each raid writes every bot decision and reason to <code>BepInEx/config/SAIN-zzap/Journal/</code>. Turn it off again afterwards.</span></p></div>
+      <div class="card rv"><h3><span lang="ko">3 · 장면 표시</span><span lang="en">3 · Mark the scene</span></h3>
+        <p><span lang="ko">이상한 순간에 <span class="kbd">F8</span>을 누르면 화면 가운데 봇(최대 4명)의 상태가 일지에 <code>[Mark] #번호</code>로 남습니다. 스크린샷과 같이 보내 주세요.</span><span lang="en">Press <span class="kbd">F8</span> at the moment it happens: the state of up to 4 bots near the centre of the screen is logged as <code>[Mark] #n</code>. Send it with a screenshot.</span></p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CREDITS ═══ -->
+<section id="credits">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-no"><b>10</b><span lang="ko">만든 사람들</span><span lang="en">Credits</span></div>
+      <div>
+        <h2><span lang="ko">원작자와 출처</span><span lang="en">Original authors and sources</span></h2>
+        <p><span lang="ko">이 포크는 아래 분들의 작업 위에 있습니다. 응원과 후원은 원작자의 페이지로 부탁드립니다.</span><span lang="en">This fork stands on the work below. Please send kind words and tips to the original authors.</span></p>
+      </div>
+    </div>
+    <div class="credits">
+      <div class="credit rv"><b>Solarint</b><span lang="ko">SAIN 원작자</span><span lang="en">SAIN author</span><a href="https://github.com/Solarint/SAIN">github.com/Solarint/SAIN</a></div>
+      <div class="credit rv"><b>ArchangelWTF</b><span lang="ko">SAIN 4.x 유지보수 (이 포크의 기준 v4.5.1)</span><span lang="en">SAIN 4.x maintainer (this fork's v4.5.1 base)</span><a href="https://github.com/ArchangelWTF/SAIN">github.com/ArchangelWTF/SAIN</a></div>
+      <div class="credit rv"><b>bmpq (tarkin)</b><span lang="ko">doordash — 봇 몸통박치기 코드 이식</span><span lang="en">doordash — sprint-ram code ported for bots</span><a href="https://github.com/bmpq/spt-doordash">github.com/bmpq/spt-doordash</a></div>
+      <div class="credit rv"><b>maschine34675</b><span lang="ko">DualSideDoorBreach 2.0.2 (MIT) — 문 양쪽 박치기 방식</span><span lang="en">DualSideDoorBreach 2.0.2 (MIT) — both-sides breach</span><a href="https://github.com/maschine34675/DualSideDoorBreach">github.com/maschine34675/DualSideDoorBreach</a></div>
+    </div>
+    <div class="disclaimer rv">
+      <span lang="ko"><b>안내</b> — 이 포크는 R_F(danyhappy564-cmyk)가 AI의 도움을 받아 만든 비공식 판이며, 원작자와 관계가 없고 원작자의 승인을 받지 않았습니다.
+        <ol>
+          <li>원작자가 요청하면 바로 파일을 지웁니다.</li>
+          <li>검증되지 않은 임시 수정판입니다. 다른 곳에 다시 올리거나 퍼뜨리지 말아 주세요.</li>
+          <li>이 포크의 문제로 원작자에게 연락하지 말아 주세요.</li>
+          <li>원작자를 항상 표기하고, 원작자의 결정을 가장 먼저 따릅니다.</li>
+          <li>원작자의 Forge 페이지에 응원과 후원을 남겨 주세요.</li>
+        </ol></span>
+      <span lang="en"><b>Notice</b> — this is an unofficial, AI-assisted port by R_F (danyhappy564-cmyk), not affiliated with or endorsed by the original author.
+        <ol>
+          <li>Files will be deleted immediately if the original authors ask.</li>
+          <li>These are unverified, temporary fixes. Please don't re-upload or share them elsewhere.</li>
+          <li>Never report this fork's issues to the original modders.</li>
+          <li>Original creators are always credited, and their decisions come first.</li>
+          <li>Please leave kind words or tips on the original authors' Forge pages.</li>
+        </ol></span>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><span lang="ko">라이선스는 원작 SAIN을 따릅니다. 이식한 코드의 고지는</span><span lang="en">Licensed as upstream SAIN. Notices for ported code:</span> <a href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/blob/master/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES.md</a></span>
+    <span><a href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-">GitHub</a> · <a href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/tree/master/changelog"><span lang="ko">변경 이력</span><span lang="en">Changelog</span></a> · <a href="https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/releases"><span lang="ko">릴리즈</span><span lang="en">Releases</span></a></span>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
