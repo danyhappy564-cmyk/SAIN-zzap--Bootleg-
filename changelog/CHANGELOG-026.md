@@ -1,7 +1,8 @@
-# 변경 이력 (Changelog) 026 (2026-11-02 ~ 2026-11-04)
+# 변경 이력 (Changelog) 026 (2026-11-02 ~ 2026-11-07)
 
 > 10개씩 나눠 쌓음 — 번호가 클수록 최신, 파일 안에서는 최신이 위. [README](../README.md) · [폴더](./)
 
+- 2026-11-07 07:59 — 스머글러(Bloodhound)가 총을 맞아도 반격하지 않던 문제 수정: PMC 뇌에 SAIN 전투 레이어를 넣음. 좀비가 붙어도 때리지 않던 문제 수정: SAIN을 쓰지 않는 봇은 게임 원본 근접 공격을 실행(dada1728의 수정이 45b4e9b0에서 사라진 회귀). 좀비 태길라의 바닐라 전투 레이어 복원. 봇 종류별 설정에 좀비 5종을 바닐라 고정으로 표시
 - 2026-11-04 — **Remix7.4 릴리즈 준비.** 릴리즈 이름 Remix7.4(`ZzapRelease`). 마지막 GitHub 릴리즈 remix7.3 이후 바뀐 것을 릴리즈 노트([GitHub 릴리즈 페이지](https://github.com/danyhappy564-cmyk/SAIN-zzap--Bootleg-/releases/tag/remix7.4))과 한/영 GIF로 정리. 영어 화면 프리셋 이름(파일 이름은 그대로), 비교 기준 쉬움/보통/zzap (어려움)/저장된 값, 내 프리셋 이름 바꾸기, ZZAP (전술 등..)·시뮬레이션 탭(한눈에 켜고 끄기 14개), 봇 설정 탭 5개(빠른 설정·성격·ZZAP·맵별 보정·고급), 봇 종류별 ZZAP 스위치(전역 따름/켬/끔), 봇 종류별 맵 배수(전역 맵별 보정 위에 곱함). 이전 프리셋은 그대로 동작. 게임 F6·웹 검수와 리저브 시험 레이드에서 봇 값 확인. 클라 dll과 서버 모드 둘 다 덮어쓰기.
 - 2026-11-04 — **Remix7.4 릴리즈 준비.** 릴리즈 이름 Remix7.4(`ZzapRelease`). remix7.3 이후 커밋 6개(`15b11e6f`..`52ca2c0a`)를 노트 4종(`release-notes/RELEASE_NOTES_Remix7.4*`)과 한/영 GIF(`release-notes/images/sain-remix7.4-settings-*.gif`, 실제 F6 촬영)로 정리. 게임 F6·크롬 웹 검수(ZZAP 탭 숫자 7·손잡이 개수 고침), 리저브 시험 레이드에서 봇별 ZZAP 끔과 봇 종류별 맵 배수(Usec 0.5·Bear 1) 확인. 회귀 54·웹 스모크 53 통과.
 - 2026-11-04 — **Remix7.4 예정: 설정 화면 정리.** 영어 화면 프리셋 표시 이름(`QuickSettings.DisplayName`, 파일 이름 그대로), 비교 기준 `ReferenceOrder` 쉬움/보통/zzap (어려움)/저장된 값, 내 프리셋 이름 바꾸기(F6 버튼·웹 연필, 게임이 새 이름 따라감), 맨 위 탭 ZZAP (전술 등..)·시뮬레이션(`ZzapTactics`, 한눈에 켜고 끄기 14개), 봇 설정 탭 5개(`BotTabsGUI`·`BotZzapPanel`·`BotMapsPanel`), 봇별 `SAINZzapBotSettings`(전역 따름/켬/끔, 게임 확인 13곳), 봇 종류별 `MapModifiers`(바뀐 맵만 저장, 전역 맵별 보정 위에 곱함). 이전 프리셋은 전역 따름·1배.

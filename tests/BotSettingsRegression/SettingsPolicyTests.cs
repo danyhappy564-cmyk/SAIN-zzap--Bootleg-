@@ -227,12 +227,18 @@ partial class Program
         });
         Test("Zryachiy guards and ordinary snipers stay vanilla even if stored choice says SAIN", () =>
         {
-            foreach(var role in new[]{ESainWildSpawnType.bossZryachiy,ESainWildSpawnType.followerZryachiy,ESainWildSpawnType.peacefullZryachiyEvent,ESainWildSpawnType.ravangeZryachiyEvent,ESainWildSpawnType.marksman})
+            foreach(var role in new[]{ESainWildSpawnType.bossZryachiy,ESainWildSpawnType.followerZryachiy,ESainWildSpawnType.peacefullZryachiyEvent,ESainWildSpawnType.ravangeZryachiyEvent,ESainWildSpawnType.marksman,ESainWildSpawnType.infectedAssault,ESainWildSpawnType.infectedPmc,ESainWildSpawnType.infectedCivil,ESainWildSpawnType.infectedLaborant,ESainWildSpawnType.infectedTagilla})
             {
                 var state=Call("BotAiPolicy","Resolve",role,new VanillaBotSettings(),Group(Fixture()),false);
                 Check(Member(state,"Mode").ToString()=="AlwaysVanilla", role+" not protected");
                 Check(!(bool)Member(state,"CanChooseAI"),role+" may be changed to SAIN");
             }
+        });
+        Test("Smugglers are an ordinary SAIN type, not fixed vanilla", () =>
+        {
+            var state=Call("BotAiPolicy","Resolve",ESainWildSpawnType.arenaFighterEvent,new VanillaBotSettings(),Group(Fixture()),false);
+            Check(Member(state,"Mode").ToString()=="Sain", "smuggler is not SAIN by default");
+            Check((bool)Member(state,"CanEditSain"), "smuggler settings not editable");
         });
         Test("Black Division default pool is Chad and GigaChad while Wedge is GigaChad", () =>
         {

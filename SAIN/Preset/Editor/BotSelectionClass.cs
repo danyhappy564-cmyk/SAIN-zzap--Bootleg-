@@ -598,7 +598,9 @@ public static class BotSelectionClass
             Badges[_bot] = Badge = BadgeText(Group, Src);
             Ai = BotSelectionClass.Ai(_bot);
             Vanilla = Ai.UsesVanilla;
-            VanillaLock = Ai.CanChooseAI ? null : T("바닐라 우선 적용: ", "Vanilla override: ") + Ai.Reason;
+            VanillaLock = Ai.CanChooseAI ? null
+                : Ai.Mode == BotAiMode.AlwaysVanilla ? T("바닐라 고정: 이 봇은 SAIN을 쓰지 않습니다", "Fixed vanilla: this bot never runs SAIN")
+                : T("바닐라 우선 적용: ", "Vanilla override: ") + Ai.Reason;
             if (Ai.UsesVanilla) Badges[_bot] = Badge = AiLabel(Ai);
             CanRevert = _saved.ContainsKey(_bot);
             var shownLevel = Group.DifficultyLevel == EBotLevel.None ? (Src.BaselineLevel == EBotLevel.None ? EBotLevel.Hard : Src.BaselineLevel) : Group.DifficultyLevel;
@@ -965,6 +967,11 @@ public static class BotSelectionClass
         });
         if (!_view.Ai.CanEditSain)
         {
+            if (_view.Ai.Mode == BotAiMode.AlwaysVanilla)
+            {
+                GUILayout.Label(T("현재 적용: ", "Effective AI: ") + AiLabel(_view.Ai), _wrapSmall);
+                return;
+            }
             SlotsRow();
             GUILayout.Label(T("현재 적용: ", "Effective AI: ") + AiLabel(_view.Ai), _wrapSmall);
             GUILayout.Label(T("보관 중인 봇별 선택: ", "Stored per-bot choice: ") + (group.UseVanillaAI ? T("바닐라", "Vanilla") : "SAIN"), _wrapSmall);

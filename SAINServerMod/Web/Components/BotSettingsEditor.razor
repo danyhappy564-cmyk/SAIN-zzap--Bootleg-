@@ -122,8 +122,11 @@
             </div>
             @if (_selectedView.Ai.UsesVanilla) {
             <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">@T("현재 적용: ", "Effective: ") @AiText(_selectedView.Ai)
+                @if (_selectedView.Ai.Mode == BotAiMode.AlwaysVanilla) { <span> · @T("이 봇은 SAIN을 쓰지 않습니다.", "This bot never runs SAIN.")</span> }
+                else {
                 @T(" · 보관 중인 봇별 선택: ", " · Stored per-bot choice: ") @(_group.UseVanillaAI ? T("바닐라", "Vanilla") : "SAIN")
-                @if (_selectedView.Ai.UsesVanilla) { <span> · @T("SAIN 값은 보관됩니다. 바닐라를 끄면 다시 적용됩니다.", "Stored SAIN values resume when vanilla is disabled.")</span> }
+                <span> · @T("SAIN 값은 보관됩니다. 바닐라를 끄면 다시 적용됩니다.", "Stored SAIN values resume when vanilla is disabled.")</span>
+                }
             </MudAlert>
             }
             <fieldset disabled="@(!EditableViews().Any())" style="border:0;padding:0;min-width:0" class="@(_selectedView.Ai.UsesVanilla ? "sain-bot-dim" : null)">

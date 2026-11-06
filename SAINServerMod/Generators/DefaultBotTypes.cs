@@ -90,8 +90,23 @@ public static class DefaultBotTypes
             new("Partisan", ESainWildSpawnType.bossPartisan, 0.75f, "Bosses", "A scav legend.. who scavs hate"),
             new("BTR", ESainWildSpawnType.shooterBTR, 0.5f, "Other", "Zoom. Zoom. Bang. Bang."),
             new("Santa Claus", ESainWildSpawnType.gifter, 1f, "Bosses", "Event boss, he will jingle your bells if you try to kill him"),
+            new("Zombie Scav", ESainWildSpawnType.infectedAssault, 0.5f, "Other", "Infection event. Always runs EFT's own AI"),
+            new("Zombie PMC", ESainWildSpawnType.infectedPmc, 0.5f, "Other", "Infection event. Always runs EFT's own AI"),
+            new("Zombie Civilian", ESainWildSpawnType.infectedCivil, 0.5f, "Other", "Infection event. Always runs EFT's own AI"),
+            new("Zombie Laborant", ESainWildSpawnType.infectedLaborant, 0.5f, "Other", "Infection event. Always runs EFT's own AI"),
+            new("Zombie Tagilla", ESainWildSpawnType.infectedTagilla, 0.75f, "Other", "Infection event. Always runs EFT's own AI"),
         ];
     }
+
+    /// <summary>zzap (2026-11-07): excluded from SAIN like the rest of the list, but listed in F6 as "vanilla · fixed".</summary>
+    public static List<ESainWildSpawnType> ListedFixedVanilla { get; } =
+    [
+        ESainWildSpawnType.infectedAssault,
+        ESainWildSpawnType.infectedPmc,
+        ESainWildSpawnType.infectedCivil,
+        ESainWildSpawnType.infectedLaborant,
+        ESainWildSpawnType.infectedTagilla,
+    ];
 
     public static List<ESainWildSpawnType> StrictExclusionList { get; } =
     [

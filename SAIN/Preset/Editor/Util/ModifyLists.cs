@@ -13,6 +13,10 @@ namespace SAIN.Editor.Util;
 
 public static class ModifyLists
 {
+    // zzap (2026-11-07): zombies are listed on the bot settings page as "vanilla · fixed" only; a pick list here would do nothing.
+    private static bool IsFixedVanilla(BotType botType) =>
+        System.Array.IndexOf(SAIN.Preset.Shared.Preset.BotAiPolicy.AlwaysVanillaRoles, (ESainWildSpawnType)(int)botType.WildSpawnType) >= 0;
+
     public static void EditDictionary(Dictionary<ELocation, float> dictionary, out bool wasEdited)
     {
         wasEdited = false;
@@ -30,6 +34,10 @@ public static class ModifyLists
             int i = StartListEdit(optionsPerLine, out var options);
             foreach (var botType in BotTypeDefinitions.BotTypes.Values)
             {
+                if (IsFixedVanilla(botType))
+                {
+                    continue;
+                }
                 AddOrRemove(botType.WildSpawnType, list, out bool newEdit, botType.Name, botType.Description, options);
                 if (newEdit)
                 {
@@ -144,6 +152,10 @@ public static class ModifyLists
         for (int b = 0; b < botList.Count; b++)
         {
             BotType bot = botList[b];
+            if (IsFixedVanilla(bot))
+            {
+                continue;
+            }
             AddOrRemove(bot, list, out bool newEdit, bot.Name, bot.Description, options);
             if (newEdit)
             {
@@ -178,7 +190,7 @@ public static class ModifyLists
     {
         foreach (var botType in BotTypeDefinitions.BotTypes.Values)
         {
-            if (botType.Section == section)
+            if (botType.Section == section && !IsFixedVanilla(botType))
             {
                 AddOrRemove(botType, list, out bool newEdit, botType.Name, botType.Description, Height(height), Width(width));
             }

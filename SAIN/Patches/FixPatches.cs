@@ -20,7 +20,8 @@ internal class RunToEnemyUpdatePatch : ModulePatch
     [PatchPrefix]
     public static bool Patch(BotMeleeWeaponData __instance)
     {
-        if (SAINEnableClass.GetSAIN(__instance._owner.ProfileId, out BotComponent bot) && bot.SAINLayersActive)
+        bool hasSain = SAINEnableClass.GetSAIN(__instance._owner.ProfileId, out BotComponent bot);
+        if (hasSain && bot.SAINLayersActive)
         {
             Enemy enemy = bot.GoalEnemy;
             if (enemy == null)
@@ -119,7 +120,9 @@ internal class RunToEnemyUpdatePatch : ModulePatch
             }
             return false;
         }
-        return false;
+        // zzap (2026-11-07): a bot SAIN doesn't run (zombies, vanilla types) has no component and keeps EFT's own melee.
+        // Skipping it left zombies standing next to the player without swinging. Same regression as dada1728, lost in 45b4e9b0.
+        return !hasSain;
     }
 }
 

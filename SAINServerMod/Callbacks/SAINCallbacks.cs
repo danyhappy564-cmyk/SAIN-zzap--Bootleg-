@@ -62,7 +62,10 @@ public sealed class SAINCallbacks(
 
     public ValueTask<StreamedJsonBody> GetBotTypes(string url, EmptyRequestData info, string sessionID)
     {
-        var enabled = presetGeneration.AllBotTypes().Where(t => !DefaultBotTypes.StrictExclusionList.Contains(t.WildSpawnType)).ToList();
+        var enabled = presetGeneration
+            .AllBotTypes()
+            .Where(t => !DefaultBotTypes.StrictExclusionList.Contains(t.WildSpawnType) || DefaultBotTypes.ListedFixedVanilla.Contains(t.WildSpawnType))
+            .ToList();
         return new ValueTask<StreamedJsonBody>(SAINJsonUtil.StreamRaw(SAINJsonUtil.Serialize(enabled)));
     }
 
