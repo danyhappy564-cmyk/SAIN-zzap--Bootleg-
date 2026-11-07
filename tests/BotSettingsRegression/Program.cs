@@ -97,6 +97,24 @@ partial class Program
             foreach (var name in ZzapTactics.ZzapSections.Concat(ZzapTactics.SimSections)) Check(general.GetField(name) != null, "missing section " + name);
             foreach (var t in ZzapTactics.All) { bool v = t.Get(g); t.Set(g, !v); Check(t.Get(g) == !v, "switch " + t.Id); t.Set(g, v); }
         });
+        Test("Sound switches: defaults keep bots talking, the fix on, and each group has a heading", () =>
+        {
+            var g = new SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass();
+            Check(g.Talk.ApplyTalkSettings && g.Talk.AllBotsTalk && g.Talk.AllBotsTaunt, "talk switches default on");
+            Check(g.SquadTalk.NonPmcSquadCallouts && g.SquadTalk.SquadCalloutAmount == 100f, "squad defaults");
+            foreach (string id in new[] { "talkfix", "allvoice", "taunts", "pmcsquad", "othersquad", "pain", "vanillavoice", "footsteps", "bait" })
+            {
+                Check(ZzapTactics.All.Any(t => t.Id == id && t.Group == ZzapTactics.GroupSound), "sound switch " + id);
+            }
+            int firstSound = System.Array.FindIndex(ZzapTactics.All, t => t.Group == ZzapTactics.GroupSound);
+            Check(ZzapTactics.All.Skip(firstSound).All(t => t.Group == ZzapTactics.GroupSound), "sound switches stay together");
+            Check(ZzapTactics.GroupName(ZzapTactics.GroupSound, true) != ZzapTactics.GroupName(ZzapTactics.GroupTactics, true), "two headings");
+            var talkQuick = SettingsQuickFields.For(g.Talk).Select(f => f.Field.Name).ToList();
+            Check(talkQuick.Take(3).SequenceEqual(new[] { "AllBotsTalk", "AllBotsTaunt", "ApplyTalkSettings" }), "talk page starts with the main switches");
+            Check(!talkQuick.Any(n => n.StartsWith("Friendly")), "friendly response numbers are under Advanced");
+            var squadQuick = SettingsQuickFields.For(g.SquadTalk).Select(f => f.Field.Name).ToList();
+            Check(squadQuick.SequenceEqual(new[] { "NonPmcSquadCallouts", "SquadCalloutAmount" }), "squad page shows two plain rows, got " + string.Join(",", squadQuick));
+        });
         Test("English preset names keep the stored key", () =>
         {
             Check(QuickSettings.DisplayName("zzap 쉬움", false) == "zzap Easy", "easy");

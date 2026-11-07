@@ -70,14 +70,20 @@ public class SAINMindSettings : SAINSettingsBase<SAINMindSettings>, ISAINSetting
 
     [DataMember]
     [Category("Talk")]
+    [Name("Can Talk")]
+    [Description("Off: this bot type says nothing. Breathing, and pain or death sounds stay.")]
     public bool CanTalk = true;
 
     [DataMember]
     [Category("Talk")]
+    [Name("Bot Taunts")]
+    [Description("Off: this bot type doesn't taunt or yell back. On: its personality's taunt settings decide.")]
     public bool BotTaunts = true;
 
     [DataMember]
     [Category("Talk")]
+    [Name("Squad Talk")]
+    [Description("Off: this bot type doesn't call out to its squad.")]
     public bool SquadTalk = true;
 
     [DataMember]

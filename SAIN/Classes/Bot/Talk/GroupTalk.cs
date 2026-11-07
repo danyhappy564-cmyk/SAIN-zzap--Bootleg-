@@ -43,6 +43,21 @@ public class GroupTalk : BotBase
         }
     }
 
+    public override void Init()
+    {
+        UpdatePresetSettings(SAINPlugin.LoadedPreset);
+        base.Init();
+    }
+
+    // zzap fix (11/07): nothing called updateConfigSettings, the F6 / web "Squad Talk" numbers never reached the bots.
+    protected override void UpdatePresetSettings(SAINPresetClass preset)
+    {
+        if (preset?.GlobalSettings?.Talk?.ApplyTalkSettings == true)
+        {
+            updateConfigSettings(preset);
+        }
+    }
+
     public override void ManualUpdate()
     {
         base.ManualUpdate();
@@ -1060,41 +1075,42 @@ public class GroupTalk : BotBase
         return Vector3.Dot(enemyDirectionNormalized, direction) > threshold;
     }
 
-    public void updateConfigSettings(SAINPresetClass preset)
+    private void updateConfigSettings(SAINPresetClass preset)
     {
-        var squadTalk = SAINPlugin.LoadedPreset?.GlobalSettings?.SquadTalk;
+        var squadTalk = preset?.GlobalSettings?.SquadTalk;
         if (squadTalk != null)
         {
-            _reportReloadingChance = squadTalk._reportReloadingChance;
+            float amount = Mathf.Max(0f, squadTalk.SquadCalloutAmount) / 100f;
+            _reportReloadingChance = squadTalk._reportReloadingChance * amount;
             _reportReloadingFreq = squadTalk._reportReloadingFreq;
-            _reportLostVisualChance = squadTalk._reportLostVisualChance;
-            _reportRatChance = squadTalk._reportRatChance;
+            _reportLostVisualChance = squadTalk._reportLostVisualChance * amount;
+            _reportRatChance = squadTalk._reportRatChance * amount;
             _reportRatTimeSinceSeen = squadTalk._reportRatTimeSinceSeen;
-            _reportEnemyConversationChance = squadTalk._reportEnemyConversationChance;
+            _reportEnemyConversationChance = squadTalk._reportEnemyConversationChance * amount;
             _reportEnemyMaxDist = squadTalk._reportEnemyMaxDist;
-            _reportEnemyHealthChance = squadTalk._reportEnemyHealthChance;
+            _reportEnemyHealthChance = squadTalk._reportEnemyHealthChance * amount;
             _reportEnemyHealthFreq = squadTalk._reportEnemyHealthFreq;
-            _reportEnemyKilledChance = squadTalk._reportEnemyKilledChance;
-            _reportEnemyKilledSquadLeadChance = squadTalk._reportEnemyKilledSquadLeadChance;
+            _reportEnemyKilledChance = squadTalk._reportEnemyKilledChance * amount;
+            _reportEnemyKilledSquadLeadChance = squadTalk._reportEnemyKilledSquadLeadChance * amount;
             _reportEnemyKilledToxicSquadLeader = squadTalk._reportEnemyKilledToxicSquadLeader;
             _friendCloseDist = squadTalk._friendCloseDist;
-            _reportFriendKilledChance = squadTalk._reportFriendKilledChance;
-            _talkRetreatChance = squadTalk._talkRetreatChance;
+            _reportFriendKilledChance = squadTalk._reportFriendKilledChance * amount;
+            _talkRetreatChance = squadTalk._talkRetreatChance * amount;
             _talkRetreatFreq = squadTalk._talkRetreatFreq;
             _talkRetreatTrigger = squadTalk._talkRetreatTrigger.ToEft();
             _talkRetreatMask = squadTalk._talkRetreatMask.ToEft();
             _talkRetreatGroupDelay = squadTalk._talkRetreatGroupDelay;
-            _underFireNeedHelpChance = squadTalk._underFireNeedHelpChance;
+            _underFireNeedHelpChance = squadTalk._underFireNeedHelpChance * amount;
             _underFireNeedHelpTrigger = squadTalk._underFireNeedHelpTrigger.ToEft();
             _underFireNeedHelpMask = squadTalk._underFireNeedHelpMask.ToEft();
             _underFireNeedHelpGroupDelay = squadTalk._underFireNeedHelpGroupDelay;
             _underFireNeedHelpFreq = squadTalk._underFireNeedHelpFreq;
-            _hearNoiseChance = squadTalk._hearNoiseChance;
+            _hearNoiseChance = squadTalk._hearNoiseChance * amount;
             _hearNoiseMaxDist = squadTalk._hearNoiseMaxDist;
             _hearNoiseFreq = squadTalk._hearNoiseFreq;
-            _enemyLocationTalkChance = squadTalk._enemyLocationTalkChance;
+            _enemyLocationTalkChance = squadTalk._enemyLocationTalkChance * amount;
             _enemyLocationTalkTimeSinceSeen = squadTalk._enemyLocationTalkTimeSinceSeen;
-            _enemyNeedHelpChance = squadTalk._enemyNeedHelpChance;
+            _enemyNeedHelpChance = squadTalk._enemyNeedHelpChance * amount;
             _enemyLocationTalkFreq = squadTalk._enemyLocationTalkFreq;
             _enemyLocationBehindAngle = squadTalk._enemyLocationBehindAngle;
             _enemyLocationSideAngle = squadTalk._enemyLocationSideAngle;

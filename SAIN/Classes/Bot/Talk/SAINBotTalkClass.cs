@@ -18,7 +18,13 @@ public class SAINBotTalkClass : BotComponentClassBase
 
     public bool CanTalk
     {
-        get { return Bot.Info.FileSettings.Mind.CanTalk && _timeCanTalk < Time.time && PlayerInEarshot; }
+        get
+        {
+            return Bot.Info.FileSettings.Mind.CanTalk
+                && SAINPlugin.LoadedPreset?.GlobalSettings?.Talk?.AllBotsTalk != false
+                && _timeCanTalk < Time.time
+                && PlayerInEarshot;
+        }
     }
 
     public bool PlayerInEarshot
@@ -252,14 +258,20 @@ public class SAINBotTalkClass : BotComponentClassBase
     }
 
     /// <summary>
-    /// zzap: PMC squad callouts muted unless F6 General > Squad Combat (zzap) > PMC Squad Voice Callouts is on.
+    /// zzap: PMC squad callouts muted unless F6 General > Squad Combat (zzap) > PMC Squad Voice Callouts is on; the same for
+    /// everyone else with Squad Talk > Scav and Boss Squad Callouts, and for a bot type with Squad Talk off.
     /// </summary>
     public bool SquadCalloutsMuted
     {
         get
         {
-            var settings = GlobalSettingsClass.Instance?.General?.SquadCombat;
-            return settings != null && !settings.PmcSquadVoiceCallouts && Bot.Info.Profile.IsPMC;
+            var global = GlobalSettingsClass.Instance;
+            if (global == null)
+            {
+                return false;
+            }
+            bool groupOn = Bot.Info.Profile.IsPMC ? global.General?.SquadCombat?.PmcSquadVoiceCallouts != false : global.SquadTalk?.NonPmcSquadCallouts != false;
+            return !groupOn || (global.Talk?.ApplyTalkSettings == true && !Bot.Info.FileSettings.Mind.SquadTalk);
         }
     }
 

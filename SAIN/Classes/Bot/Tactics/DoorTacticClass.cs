@@ -1119,9 +1119,11 @@ public partial class DoorTacticClass : BotComponentClassBase
         var health = Bot.Memory.Health.HealthStatus;
         bool healthy = health == ETagStatus.Healthy;
         var why = new System.Text.StringBuilder();
+        // zzap (11/07): 0% now means no real grenade at all - the situation bonuses below used to be added on top, so a
+        // 0 setting still threw one in about half the clears where he had gone quiet or sat deep in the room.
         float wNade = haveNade ? Settings.RoomClearGrenadeChance / 55f : 0f;
         float wDash = 1f;
-        if (haveNade)
+        if (haveNade && Settings.RoomClearGrenadeChance > 0f)
         {
             if (camping)
             {

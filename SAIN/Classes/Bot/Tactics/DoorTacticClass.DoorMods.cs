@@ -38,9 +38,18 @@ public partial class DoorTacticClass
         {
             return;
         }
-        if (s.Plan != EPlan.Clear || door.DoorState != EDoorState.Shut)
+        if (s.Plan != EPlan.Clear)
         {
             return;
+        }
+        if (door.DoorState != EDoorState.Shut)
+        {
+            TacticDiagnostics.Count("doormod.ram.skip.doorNotShut");
+            return;
+        }
+        if (s.ClearReal)
+        {
+            TacticDiagnostics.Count("doormod.ram.skip.grenadePlan");
         }
 
         if (!s.ClearReal && Settings.DoorModRam && BotDoorBreacher.Active)

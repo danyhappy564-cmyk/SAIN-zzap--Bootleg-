@@ -7,6 +7,8 @@ namespace SAIN.Preset.Shared.Preset;
 public sealed class ZzapTactic
 {
     public string Id;
+    /// <summary>Which heading the switch sits under on the "at a glance" page (ZzapTactics.GroupTactics / GroupSound).</summary>
+    public string Group = ZzapTactics.GroupTactics;
     public string NameKo;
     public string NameEn;
     public string HelpKo;
@@ -35,6 +37,13 @@ public static class ZzapTactics
     public static bool IsZzapSection(string field) => Array.IndexOf(ZzapSections, field) >= 0;
 
     public static bool IsSimSection(string field) => Array.IndexOf(SimSections, field) >= 0;
+
+    public const string GroupTactics = "tactics";
+    public const string GroupSound = "sound";
+
+    public static string GroupName(string group, bool korean) => group == GroupSound
+        ? (korean ? "소리·대사 고침" : "Sound and voice fixes")
+        : (korean ? "전술" : "Tactics");
 
     public const string TabAll = "all";
     public const string TabZzap = "zzap";
@@ -138,6 +147,78 @@ public static class ZzapTactics
             Id = "skipscavs", NameKo = "스캐브는 근접전 zzap 제외", NameEn = "Scavs skip close-combat zzap",
             HelpKo = "켜면 스캐브는 위 근접전 행동 대신 기본 행동 (봇 종류별로 따로 바꿀 수 있음)", HelpEn = "On: scavs keep the default behaviour instead of the close-combat moves (can be changed per bot type)",
             Get = g => g.General.CloseCombat.PmcOnly, Set = (g, v) => g.General.CloseCombat.PmcOnly = v,
+        },
+        new()
+        {
+            Id = "talkfix", Group = GroupSound, NameKo = "대사 설정 적용 (고침)", NameEn = "Apply talk settings (fix)",
+            HelpKo = "켜면 봇이 도발·분대 대사 설정을 따름. 끄면 원본처럼 모든 성격이 같게 도발 (새로 나오는 봇부터 적용)", HelpEn = "On: bots follow their taunt and squad talk settings. Off: as in original SAIN, every personality taunts alike (bots spawned after the change)",
+            Get = g => g.Talk.ApplyTalkSettings, Set = (g, v) => g.Talk.ApplyTalkSettings = v,
+        },
+        new()
+        {
+            Id = "allvoice", Group = GroupSound, NameKo = "봇 말하기", NameEn = "Bots can talk",
+            HelpKo = "끄면 어떤 봇도 말하지 않음 (숨소리·신음·사망 소리는 남음)", HelpEn = "Off: no bot says anything (breathing, pain and death sounds stay)",
+            Get = g => g.Talk.AllBotsTalk, Set = (g, v) => g.Talk.AllBotsTalk = v,
+        },
+        new()
+        {
+            Id = "taunts", Group = GroupSound, NameKo = "도발·되받아치기", NameEn = "Taunts and yelling back",
+            HelpKo = "끄면 적에게 소리치지 않음. 켜면 성격별 설정을 따름", HelpEn = "Off: bots don't yell at enemies. On: each personality's settings decide",
+            Get = g => g.Talk.AllBotsTaunt, Set = (g, v) => g.Talk.AllBotsTaunt = v,
+        },
+        new()
+        {
+            Id = "pmcsquad", Group = GroupSound, NameKo = "PMC 분대 대사", NameEn = "PMC squad callouts",
+            HelpKo = "PMC끼리 \"적이다!\" \"장전 중!\" 같은 콜아웃", HelpEn = "PMC squadmates calling out contact, reloading and so on",
+            Get = g => g.General.SquadCombat.PmcSquadVoiceCallouts, Set = (g, v) => g.General.SquadCombat.PmcSquadVoiceCallouts = v,
+        },
+        new()
+        {
+            Id = "othersquad", Group = GroupSound, NameKo = "스캐브·보스 분대 대사", NameEn = "Scav and boss squad callouts",
+            HelpKo = "스캐브·레이더·로그·보스·호위병끼리 하는 콜아웃", HelpEn = "Scavs, raiders, rogues, bosses and guards calling out to each other",
+            Get = g => g.SquadTalk.NonPmcSquadCallouts, Set = (g, v) => g.SquadTalk.NonPmcSquadCallouts = v,
+        },
+        new()
+        {
+            Id = "pmcchat", Group = GroupSound, NameKo = "PMC 평상시 잡담", NameEn = "PMC idle chatter",
+            HelpKo = "싸움이 없을 때 PMC끼리 떠듦 (위치가 드러남)", HelpEn = "PMCs chat when not fighting (gives away their position)",
+            Get = g => g.Talk.TalkativePMCs, Set = (g, v) => g.Talk.TalkativePMCs = v,
+        },
+        new()
+        {
+            Id = "scavchat", Group = GroupSound, NameKo = "스캐브 평상시 잡담", NameEn = "Scav idle chatter",
+            HelpKo = "싸움이 없을 때 스캐브끼리 떠듦 (위치가 드러남)", HelpEn = "Scavs chat when not fighting (gives away their position)",
+            Get = g => g.Talk.TalkativeScavs, Set = (g, v) => g.Talk.TalkativeScavs = v,
+        },
+        new()
+        {
+            Id = "pain", Group = GroupSound, NameKo = "맞을 때 신음", NameEn = "Pain voice when hit",
+            HelpKo = "맞을 때마다 신음·\"맞았다!\" (사망 소리는 항상 남)", HelpEn = "A groan or \"I'm hit\" on every hit (death sounds always stay)",
+            Get = g => g.Talk.BotPainVoiceOnHit, Set = (g, v) => g.Talk.BotPainVoiceOnHit = v,
+        },
+        new()
+        {
+            Id = "fakedeath", Group = GroupSound, NameKo = "죽은 척 비명", NameEn = "Fake death scream",
+            HelpKo = "많이 다친 봇(다칠 때마다 한 번 확률)이나 수류탄 근처 봇이 죽은 척 비명을 지름 (성격 설정을 따름). 끄면 진짜 사망 때만 남", HelpEn = "A badly hurt bot (one chance per wound) or one near a grenade blast may fake a death scream (by personality). Off: only real deaths",
+            Get = g => g.Talk.FakeDeathVoice, Set = (g, v) => g.Talk.FakeDeathVoice = v,
+        },
+        new()
+        {
+            Id = "vanillavoice", Group = GroupSound, NameKo = "게임 원래 대사로 되돌리기", NameEn = "Back to the game's own voice lines",
+            HelpKo = "켜면 위 대사 설정이 모두 무시되고 게임 대사가 전부 나와 더 시끄러움", HelpEn = "On: the talk settings above stop applying and all the game's lines come back, so bots get louder",
+            Get = g => g.Talk.DisableBotTalkPatching, Set = (g, v) => g.Talk.DisableBotTalkPatching = v,
+        },
+        new()
+        {
+            Id = "footsteps", Group = GroupSound, NameKo = "봇끼리 발소리 듣기", NameEn = "Bots hear bots' footsteps",
+            HelpKo = "끄면 원본처럼 봇의 움직임 소리를 다른 봇이 듣지 못함", HelpEn = "Off: as in original SAIN, bots don't hear other bots move",
+            Get = g => g.Hearing.BotsHearBotFootsteps, Set = (g, v) => g.Hearing.BotsHearBotFootsteps = v,
+        },
+        new()
+        {
+            Id = "bait", Group = GroupSound, NameKo = "봇끼리 미끼 소리에 낚임", NameEn = "Bots take bots' sound bait",
+            HelpKo = "다른 봇의 장전·치료·수류탄 소리를 빈틈으로 보고 돌진. 끄면 사람 소리만 해당", HelpEn = "Another bot's reload, heal or grenade sound counts as a moment to rush. Off: only a human's sounds count",
+            Get = g => g.Hearing.BotsTakeBotBait, Set = (g, v) => g.Hearing.BotsTakeBotBait = v,
         },
     };
 }

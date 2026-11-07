@@ -1015,6 +1015,7 @@
 .sain-tab-new{margin-inline-start:8px;padding:1px 6px;border-radius:9px;font-size:10px;font-weight:700;line-height:1.5;letter-spacing:.03em;color:#4ade80;background:#193b2b;border:1px solid #2f6b4a}
 /* zzap 2026-11-04: ZZAP tab "at a glance" switches */
 .sain-zzap-overview { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 8px; margin: 8px 0; }
+.sain-zzap-group { grid-column: 1 / -1; margin: 10px 0 0; font-size: 14px; font-weight: 600; }
 .sain-zzap-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border: 1px solid var(--spt-border, #27272a); border-radius: 6px; background: var(--spt-panel, #18181b); }
 .sain-zzap-text { display: flex; flex-direction: column; gap: 2px; }
 .sain-zzap-text small { color: var(--spt-text-muted, #a1a1aa); }

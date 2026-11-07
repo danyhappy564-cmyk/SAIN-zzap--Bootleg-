@@ -7,9 +7,15 @@
           "Applies to all bots. To differ by bot type use the ZZAP part of the Bot settings tab. Exact numbers are in each section on the left.")</p>
 </div>
 <div class="sain-zzap-overview">
+    @{ string? lastGroup = null; }
     @foreach (var tactic in ZzapTactics.All)
     {
         var t = tactic;
+        if (t.Group != lastGroup)
+        {
+            lastGroup = t.Group;
+            <h4 class="sain-zzap-group">@ZzapTactics.GroupName(t.Group, Korean)</h4>
+        }
         bool on = t.Get(Target);
         var reference = Reference();
         bool differs = reference != null && t.Get(reference) != on;

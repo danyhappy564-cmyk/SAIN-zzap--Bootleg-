@@ -30,12 +30,19 @@ public class EnemyTalk : BotBase
         }
         BotManagerComponent.Instance.BotHearing.PlayerTalk += playerTalked;
         Bot.EnemyController.Events.OnEnemyKilled += enemyKilled;
+        // zzap fix (11/07, field report + in-game test): OnPresetUpdated only fires when a preset changes, so a new bot kept the
+        // field defaults below - every personality taunted with "Bot Taunts" off. Same in SAIN adec976f.
+        var preset = SAINPlugin.LoadedPreset;
+        if (preset?.GlobalSettings?.Talk?.ApplyTalkSettings == true)
+        {
+            UpdatePresetSettings(preset);
+        }
         base.Init();
     }
 
     private void enemyKilled(Player player)
     {
-        if (Bot.Talk.CanTalk && CanTaunt && EFTMath.RandomBool(70))
+        if (Bot.Talk.CanTalk && TauntsOn && EFTMath.RandomBool(70))
         {
             EPhraseTrigger trigger;
             if (EFTMath.RandomBool(15) || (Bot.Memory.Health.HealthStatus == ETagStatus.Healthy && EFTMath.RandomBool(50)))
@@ -72,7 +79,7 @@ public class EnemyTalk : BotBase
                     _nextCheckTime = time + 15f;
                     return;
                 }
-                if (CanTaunt && _tauntTimer < time)
+                if (TauntsOn && _tauntTimer < time)
                 {
                     float freq = TauntFreq * Random.Range(0.5f, 1.5f);
                     _tauntTimer = time;
@@ -133,7 +140,8 @@ public class EnemyTalk : BotBase
             CanTaunt = PersonalitySettings.CanTaunt && FileSettings.Mind.BotTaunts;
             TauntDist = PersonalitySettings.TauntMaxDistance * _randomizationFactor;
             TauntFreq = PersonalitySettings.TauntFrequency * _randomizationFactor;
-            _canRespondToEnemy = PersonalitySettings.CanRespondToEnemyVoice;
+            // A yell back is a taunt too (in-game 11/07: most of what was left with "Bot Taunts" off).
+            _canRespondToEnemy = PersonalitySettings.CanRespondToEnemyVoice && FileSettings.Mind.BotTaunts;
         }
         else
         {
@@ -150,6 +158,13 @@ public class EnemyTalk : BotBase
         _friendlyResponseMaxRandom = talkSettings.FriendlyResponseMaxRandomDelay;
     }
 
+    private static bool AllTauntsOn => SAINPlugin.LoadedPreset?.GlobalSettings?.Talk?.AllBotsTaunt != false;
+
+    private bool TauntsOn => CanTaunt && AllTauntsOn;
+
+    // zzap: Say(OnDeath) skips the CanTalk check (a real death must always sound), so a faked one has to ask here.
+    private bool FakeDeathOn => CanFakeDeath && Bot.Talk.CanTalk && SAINPlugin.LoadedPreset?.GlobalSettings?.Talk?.FakeDeathVoice != false;
+
     private bool CanTaunt = true;
     private bool CanFakeDeath = false;
     private bool CanBegForLife = false;
@@ -159,18 +174,33 @@ public class EnemyTalk : BotBase
 
     private bool ShallFakeDeath()
     {
+        // zzap (user 11/07 "less often"): the chance used to be rolled every 0.1s check, so a badly hurt lone bot faked
+        // its death within seconds and again every 30s. Now one roll per wound: the next only after it got better again.
+        bool badlyHurt = Bot.Memory.Health.HealthStatus == ETagStatus.Dying || Bot.Memory.Health.HealthStatus == ETagStatus.BadlyInjured;
+        if (!badlyHurt)
+        {
+            _fakeDeathRolledThisWound = false;
+            return false;
+        }
         if (
-            CanFakeDeath
-            && EFTMath.RandomBool(FakeDeathChance)
+            !_fakeDeathRolledThisWound
+            && FakeDeathOn
             && Bot.GoalEnemy != null
             && !Bot.Squad.BotInGroup
             && _fakeDeathTimer < Time.time
-            && (Bot.Memory.Health.HealthStatus == ETagStatus.Dying || Bot.Memory.Health.HealthStatus == ETagStatus.BadlyInjured)
             && (Bot.GoalEnemy.EnemyPosition - BotOwner.Position).sqrMagnitude < 70f * 70f
         )
         {
+            _fakeDeathRolledThisWound = true;
+            bool hit = EFTMath.RandomBool(FakeDeathChance);
+            Tactics.TacticDiagnostics.CountRoll("fakeDeath.wound", FakeDeathChance, hit);
+            if (!hit)
+            {
+                return false;
+            }
             _fakeDeathTimer = Time.time + 30f;
             Bot.Talk.Say(EPhraseTrigger.OnDeath);
+            logFakeDeath("wound");
             return true;
         }
         return false;
@@ -186,7 +216,7 @@ public class EnemyTalk : BotBase
     )
     {
         if (
-            CanFakeDeath
+            FakeDeathOn
             && EFTMath.RandomBool(FakeDeathChance)
             && !isSmoke
             && Bot.GoalEnemy != null
@@ -197,6 +227,19 @@ public class EnemyTalk : BotBase
         {
             _fakeDeathTimer = Time.time + 30f;
             Bot.Talk.Say(EPhraseTrigger.OnDeath);
+            Tactics.TacticDiagnostics.Count("fakeDeath.grenade.say");
+            logFakeDeath("grenade");
+        }
+    }
+
+    // [FakeDeath] journal line (and LogOutput with diagnostic logs on), so a raid shows which path made the scream.
+    private void logFakeDeath(string path)
+    {
+        if (Tactics.TacticDiagnostics.LogOn)
+        {
+            Tactics.TacticDiagnostics.LogCloseCombat(
+                $"[FakeDeath] {BotOwner.Profile?.Nickname} ({BotOwner.name}) path:{path} health:{Bot.Memory.Health.HealthStatus} t:{Time.time:0.0}"
+            );
         }
     }
 
@@ -427,7 +470,7 @@ public class EnemyTalk : BotBase
 
     public void SetEnemyTalk(Enemy enemy)
     {
-        if (_canRespondToEnemy && _nextResponseTime < Time.time)
+        if (_canRespondToEnemy && AllTauntsOn && _nextResponseTime < Time.time)
         {
             if (!EFTMath.RandomBool(60))
             {
@@ -603,6 +646,8 @@ public class EnemyTalk : BotBase
                 || Bot.Squad.SquadInfo.SquadPersonality != ESquadPersonality.Elite
             )
             && (Bot.Info.Personality == EPersonality.GigaChad || Bot.Info.Personality == EPersonality.Chad)
+            // zzap fix: "Silence!" is a squad callout, it passed the squad talk switches.
+            && !(SAINPlugin.LoadedPreset?.GlobalSettings?.Talk?.ApplyTalkSettings == true && Bot.Talk.SquadCalloutsMuted)
         )
         {
             if (_saySilenceTime < Time.time)
@@ -628,6 +673,7 @@ public class EnemyTalk : BotBase
     private float _beggingTimer;
     private bool _isBegging;
     private float _fakeDeathTimer = 0f;
+    private bool _fakeDeathRolledThisWound;
     private float _begTimer = 0f;
 
     private static readonly EPhraseTrigger[] BegPhrases = [EPhraseTrigger.Stop, EPhraseTrigger.HoldFire, EPhraseTrigger.GetBack];

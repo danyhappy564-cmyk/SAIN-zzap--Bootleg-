@@ -97,8 +97,16 @@ public static class BotSettingsEditor
     private static void ZzapOverview(SAIN.Preset.Shared.GlobalSettings.GlobalSettingsClass settings)
     {
         var reference = QuickObjectGUI.Reference()?.GlobalSettings;
+        string lastGroup = null;
         foreach (var tactic in ZzapTactics.All)
         {
+            if (tactic.Group != lastGroup)
+            {
+                if (lastGroup != null) GUILayout.Space(10f);
+                lastGroup = tactic.Group;
+                GUILayout.Label(ZzapTactics.GroupName(tactic.Group, EditorText.Korean), ZzapUI.Section);
+                GUILayout.Space(2f);
+            }
             bool on = tactic.Get(settings);
             GUILayout.BeginHorizontal(ZzapUI.Panel1, GUILayout.Height(52f));
             GUILayout.BeginVertical();

@@ -175,7 +175,7 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
 
     [DataMember]
     [Name("Room Clear Real Grenade Chance")]
-    [Description("Percent, when the bot has a grenade. Otherwise (or when unsafe) it dashes in without one - possibly after a fake.")]
+    [Description("Percent, when the bot has a grenade; the situation (he went quiet, sits deep in the room) raises it, 0 means never. Otherwise (or when unsafe) it dashes in without one - possibly after a fake.")]
     [MinMax(0f, 100f, 1f)]
     public float RoomClearGrenadeChance = 55f;
 
@@ -273,6 +273,14 @@ public class DoorTacticSettings : SAINSettingsBase<DoorTacticSettings>, ISAINSet
     [Name("TEST MODE: All PMCs Use GigaChad Tactics")]
     [Description("For testing only. Every PMC plans door tactics as a GigaChad (peek / trap / fakes) and the start chance is 100%. Turn it off for normal play.")]
     public bool TestModeAllPmcGigaChad = false;
+
+    // zzap (11/07, user "check the room clear ram"): 34 of 50 sim room clears met a door that was already open, so the
+    // room clear ram never got its chance. This shuts every open door once when the raid's doors have loaded.
+    [DataMember]
+    [NewIn("Remix7.6")]
+    [Name("TEST MODE: Shut Open Doors At Raid Start")]
+    [Description("For testing only. When the raid's doors have loaded, every door that starts open is shut once (so room clears meet shut doors). Turn it off for normal play.")]
+    public bool TestModeShutDoorsAtStart = false;
 
     [DataMember]
     [Name("Diagnostic Logs")]

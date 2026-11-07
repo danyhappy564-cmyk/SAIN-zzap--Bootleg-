@@ -44,9 +44,27 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
     public GrenadeThrowDecider(BotGrenadeManager ThrowWeap)
         : base(ThrowWeap) { }
 
+    // zzap (11/07, same gap as EnemyTalk/GroupTalk): BotBase.Init only subscribes to F6 preset changes, so a newly
+    // spawned bot kept the field defaults below and never read its bot type's grenade settings (can throw, frequency,
+    // enemy/friend distance, throw while sprinting/at a visible enemy) until the preset was saved in a raid.
+    public override void Init()
+    {
+        var general = SAINPlugin.LoadedPreset?.GlobalSettings?.General;
+        if (general != null && Bot.Info?.FileSettings != null)
+        {
+            applySettings(general.BotsUseGrenades);
+        }
+        base.Init();
+    }
+
     protected override void UpdatePresetSettings(SAINPresetClass preset)
     {
-        _grenadesEnabled = preset.GlobalSettings.General.BotsUseGrenades;
+        applySettings(preset.GlobalSettings.General.BotsUseGrenades);
+    }
+
+    private void applySettings(bool botsUseGrenades)
+    {
+        _grenadesEnabled = botsUseGrenades;
 
         var sainSettings = Bot.Info.FileSettings;
         _canThrowGrenades = sainSettings.Core.CanGrenade;
@@ -57,7 +75,10 @@ public class GrenadeThrowDecider : BotSubClass<BotGrenadeManager>, IBotDecisionC
         _minFriendlyDistToThrow_SQR = _minFriendlyDistToThrow * _minFriendlyDistToThrow;
         _throwGrenadeFreq = sainSettings.Grenade.ThrowGrenadeFrequency;
         _throwGrenadeFreqMax = sainSettings.Grenade.ThrowGrenadeFrequency_MAX;
-        _minThrowDistPercent = 0.66f;
+        // Was 0.66 here, but this method never ran for new bots, so every raid so far used 0 (the arc check below
+        // accepts any throw that reaches the target). Kept at 0 so applying the settings does not also cut the
+        // upward indoor lobs the zzap grenade tuning was done with (0.66 drops a 15-degree throw ~1m up at 10m).
+        _minThrowDistPercent = 0f;
 
         _blindCornerDistToThrow = 5f;
         _blindCornerDistToLastKnown_Max_SQR = _blindCornerDistToThrow * _blindCornerDistToThrow;

@@ -282,6 +282,32 @@ public class DoorHandler : GameWorldBase, IGameWorldClass
             }
         }
         Logger.LogDebug($"[DoorHandler] Watching {_watchedDoors.Length} doors for stuck EDoorState.Interacting.");
+        if (GlobalSettingsClass.Instance?.General?.DoorTactics?.TestModeShutDoorsAtStart == true)
+        {
+            shutOpenDoorsForTest();
+        }
+    }
+
+    // TEST MODE (11/07): every operable door that starts open is shut once, instantly (force: no swing), after the
+    // watchdog subscribed so the navmesh links / carvers see the change like any other door state change.
+    private void shutOpenDoorsForTest()
+    {
+        int shut = 0;
+        foreach (Door door in _watchedDoors)
+        {
+            if (door != null && door.enabled && door.Operatable && door.DoorState == EDoorState.Open
+                && door.gameObject.layer == LayersMaskController.InteractiveLayer)
+            {
+                door.SetDoorState(EDoorState.Shut, true);
+                if (door.DoorState == EDoorState.Shut)
+                {
+                    shut++;
+                }
+            }
+        }
+        string line = $"[DoorTactic] TEST MODE: shut {shut} open doors at raid start ({_watchedDoors.Length} doors)";
+        Logger.LogWarning(line);
+        SAIN.SAINComponent.Classes.Tactics.RaidJournal.Line(line);
     }
 
     private void DisposeDoorFinalizeWatchdog()

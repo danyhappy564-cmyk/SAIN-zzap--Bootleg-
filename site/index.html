@@ -68,7 +68,7 @@
   <div class="wrap">
     <div class="hero-grid">
       <div>
-        <span class="kicker"><span class="dot"></span><span lang="ko">최신 Remix7.5 · 2026-11-07</span><span lang="en">Latest Remix7.5 · 2026-11-07</span></span>
+        <span class="kicker"><span class="dot"></span><span lang="ko">최신 Remix7.6 · 2026-11-07</span><span lang="en">Latest Remix7.6 · 2026-11-07</span></span>
         <h1>
           <span lang="ko">문 앞에서 멈추지 않고,<br><span class="z">고인물처럼</span> 싸우는 봇</span>
           <span lang="en">Bots that don't freeze at doors, and fight like <span class="z">veterans</span></span>
@@ -453,6 +453,8 @@
     <div class="gallery">
       <figure class="rv"><div class="screen"><img loading="lazy" src="img/zzap-glance-ko.webp" data-ko="img/zzap-glance-ko.webp" data-en="img/zzap-glance-en.webp" alt="ZZAP tab, at a glance switches" width="1120" height="630"></div>
         <figcaption><span lang="ko"><b>ZZAP (전술 등..) 탭 · 한눈에 켜고 끄기.</b> 전술 14개를 쉬운 설명과 스위치로 켜고 끕니다. 세부 숫자는 왼쪽 묶음에 그대로 있습니다.</span><span lang="en"><b>ZZAP (tactics etc.) tab · At a glance.</b> 14 tactics, each with a plain description and an on/off switch. Exact numbers stay in the groups on the left.</span></figcaption></figure>
+      <figure class="rv"><div class="screen"><img loading="lazy" src="img/zzap-sound-ko.webp" data-ko="img/zzap-sound-ko.webp" data-en="img/zzap-sound-en.webp" alt="ZZAP tab, sound and voice fixes" width="1120" height="630"></div>
+        <figcaption><span lang="ko"><b>소리·대사 고침 (Remix7.6).</b> 같은 탭 아래 묶음 12개. 대사 설정이 실제로 적용되게 고쳤고, 봇 말하기·도발·분대 대사·잡담·신음·죽은 척 비명·봇끼리 발소리를 한곳에서 켜고 끕니다. 봇 종류마다 따로 하려면 봇 설정의 Mind.</span><span lang="en"><b>Sound and voice fixes (Remix7.6).</b> Twelve switches under the same tab. Talk settings now really apply; bot talk, taunts, squad callouts, idle chatter, pain voice, fake death screams and bot footsteps are switched in one place. Per bot type: Mind in bot settings.</span></figcaption></figure>
       <figure class="rv"><div class="screen"><img loading="lazy" src="img/bot-tabs-ko.webp" data-ko="img/bot-tabs-ko.webp" data-en="img/bot-tabs-en.webp" alt="Bot settings tabs" width="1120" height="630"></div>
         <figcaption><span lang="ko"><b>봇 설정 탭 5개.</b> 빠른 설정 · 성격 · ZZAP · 맵별 보정 · 고급. 성격 탭에서 그 봇 종류의 성격을 바로 정합니다.</span><span lang="en"><b>Five bot settings tabs.</b> Quick · Personality · ZZAP · Per map · Advanced. Personality sets the personality for that bot type right there.</span></figcaption></figure>
       <figure class="rv"><div class="screen"><img loading="lazy" src="img/per-bot-zzap-ko.webp" data-ko="img/per-bot-zzap-ko.webp" data-en="img/per-bot-zzap-en.webp" alt="Per bot type ZZAP switches" width="1120" height="630"></div>
@@ -586,6 +588,9 @@
         <div class="card rv"><h3><span lang="ko">다른 모드가 기대는 이름은 안 바꿈</span><span lang="en">Names other mods rely on are kept</span></h3>
           <p><span lang="ko">ISB·Scourge가 실행 중에 이름으로 찾는 SAIN 코드, TwitchPlayers가 직접 부르는 서버 DLL 이름·폴더·버전(4.5.1)·API는 원본 그대로 둡니다. 같이 써도 되는 모드는 게임이나 코드로 확인한 것만 표에 올립니다.</span><span lang="en">SAIN code that ISB and Scourge look up by name at runtime, and the server DLL name, folder, version (4.5.1) and API that TwitchPlayers calls, are left exactly as upstream. The compatibility table lists only mods checked in game or in code.</span></p>
           <div class="meta"><span class="tag">compat</span></div></div>
+        <div class="card rv"><h3><span lang="ko">설정한 값이 정말 먹는지 셈</span><span lang="en">Settings are counted, not assumed</span></h3>
+          <p><span lang="ko">원본 SAIN부터 봇이 생길 때 대사·수류탄 설정을 읽지 않아, 도발을 끄거나 확률을 0으로 해도 소리가 나고 수류탄을 던졌습니다. 봇이 생길 때 적용되게 고친 뒤 게임에서 대사 줄과 수류탄 판단 횟수를 세어 확인했습니다(제보 조건 8분 37줄 → 0줄). <b>0은 정말 0</b>이 되도록 방 정리 수류탄 확률도 고쳤습니다.</span><span lang="en">Since original SAIN, a newly spawned bot never read its talk and grenade settings, so taunts switched off or chances set to 0 still made noise and threw grenades. They now apply at spawn, checked in game by counting voice lines and grenade decisions (reported case: 37 lines in 8 min → 0). Room clear grenade chance <b>0 now means 0</b> too.</span></p>
+          <div class="meta"><span class="tag">Remix7.6</span></div></div>
         <div class="card rv"><h3><span lang="ko">확인한 것만 확인했다고 씀</span><span lang="en">Only what was checked is called checked</span></h3>
           <p><span lang="ko">봇끼리 시뮬 1차 100판, 게임 안 시뮬 레이드, F8 장면 기록, 별도 AI(Codex) 코드 검토까지 거친 뒤에도, 직접 확인하지 못한 항목은 릴리즈 노트에 <b>미검증</b>이라고 적습니다. 빌드 성공을 게임 동작으로 치지 않습니다.</span><span lang="en">100-raid first-stage bot sims, in-game sim raids, F8 scene marks and independent AI (Codex) code reviews — and anything still not seen working is marked <b>untested</b> in the release notes. A clean build is never counted as working in game.</span></p>
           <div class="meta"><span class="tag">process</span></div></div>

@@ -35,7 +35,7 @@
 
 ## Changelog
 
-The full changelog (261 entries) is in the [`changelog/`](changelog/) folder, 10 per file (higher number = newer, latest: [`CHANGELOG-027.md`](changelog/CHANGELOG-027.md)). Per-release summaries: [Releases](../../releases).
+The full changelog (266 entries) is in the [`changelog/`](changelog/) folder, 10 per file (higher number = newer, latest: [`CHANGELOG-027.md`](changelog/CHANGELOG-027.md)). Per-release summaries: [Releases](../../releases).
 
 ## SAIN zzap
 
