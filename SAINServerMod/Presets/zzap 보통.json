@@ -933,7 +933,7 @@
       "_reportEnemyHealthChance": 0,
       "_reportEnemyHealthFreq": 8,
       "_reportEnemyKilledChance": 0,
-      "_reportEnemyKilledSquadLeadChance": 60,
+      "_reportEnemyKilledSquadLeadChance": 0,
       "_reportEnemyKilledToxicSquadLeader": true,
       "_friendCloseDist": 40,
       "_reportFriendKilledChance": 0,
