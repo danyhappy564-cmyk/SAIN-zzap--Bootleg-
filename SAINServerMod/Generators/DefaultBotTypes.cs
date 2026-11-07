@@ -66,6 +66,7 @@ public static class DefaultBotTypes
             new("Shturman", ESainWildSpawnType.bossKojaniy, 0.75f, "Bosses", "Woods Boss"),
             new("Shturman Guard", ESainWildSpawnType.followerKojaniy, 0.55f, "Followers", "Woods Boss Follower"),
             new("Tagilla", ESainWildSpawnType.bossTagilla, 0.75f, "Bosses", "He Smash"),
+            new("Zombie Tagilla", ESainWildSpawnType.infectedTagilla, 0.75f, "Bosses", "Infection event. Fights like Tagilla: gun first, hammer up close"),
             new("Tagilla Guard", ESainWildSpawnType.followerTagilla, 0.55f, "Followers", "They Smash Too?"),
             new("Shadow of Tagilla", ESainWildSpawnType.bossTagillaAgro, 0.5f, "Bosses", "He Smash"),
             new("Vengeful Killa", ESainWildSpawnType.bossKillaAgro, 0.75f, "Bosses", "He no Smash"),
@@ -94,7 +95,6 @@ public static class DefaultBotTypes
             new("Zombie PMC", ESainWildSpawnType.infectedPmc, 0.5f, "Other", "Infection event. Always runs EFT's own AI"),
             new("Zombie Civilian", ESainWildSpawnType.infectedCivil, 0.5f, "Other", "Infection event. Always runs EFT's own AI"),
             new("Zombie Laborant", ESainWildSpawnType.infectedLaborant, 0.5f, "Other", "Infection event. Always runs EFT's own AI"),
-            new("Zombie Tagilla", ESainWildSpawnType.infectedTagilla, 0.75f, "Other", "Infection event. Always runs EFT's own AI"),
         ];
     }
 
@@ -105,7 +105,6 @@ public static class DefaultBotTypes
         ESainWildSpawnType.infectedPmc,
         ESainWildSpawnType.infectedCivil,
         ESainWildSpawnType.infectedLaborant,
-        ESainWildSpawnType.infectedTagilla,
     ];
 
     public static List<ESainWildSpawnType> StrictExclusionList { get; } =
@@ -120,6 +119,5 @@ public static class DefaultBotTypes
         ESainWildSpawnType.infectedCivil,
         ESainWildSpawnType.infectedLaborant,
         ESainWildSpawnType.infectedPmc,
-        ESainWildSpawnType.infectedTagilla,
     ];
 }

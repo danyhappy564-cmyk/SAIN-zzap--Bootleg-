@@ -63,7 +63,6 @@ public class BotSpawnController : BotManagerBase
         ESainWildSpawnType.infectedCivil,
         ESainWildSpawnType.infectedLaborant,
         ESainWildSpawnType.infectedPmc,
-        ESainWildSpawnType.infectedTagilla,
     ];
 
     public static void LoadExclusionList()

@@ -89,6 +89,7 @@ internal static class EnumValues
             WildSpawnType.bossKojaniy,
             WildSpawnType.bossSanitar,
             WildSpawnType.bossTagilla,
+            WildSpawnType.infectedTagilla,
             WildSpawnType.bossTest,
             WildSpawnType.bossKilla,
             WildSpawnType.bossBoar,

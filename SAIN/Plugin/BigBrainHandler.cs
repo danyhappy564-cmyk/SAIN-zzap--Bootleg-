@@ -155,8 +155,6 @@ public static class BigBrainHandler
         /// </summary>
         public static void ApplyPerBotVanilla()
         {
-            ApplyFixedVanillaOnSharedBrain();
-
             var all = SAINPlugin.LoadedPreset?.BotSettings?.SAINSettings;
             if (all == null)
             {
@@ -197,19 +195,6 @@ public static class BigBrainHandler
                     Logger.LogInfo($"[SAIN BotTypes] {botType.Name} ({role}) uses EFT's own AI (bot type setting)");
                 }
             }
-        }
-
-        /// <summary>
-        /// zzap (2026-11-07): the zombie Tagilla shares the Tagilla brain with the real boss, so the brain-wide boss toggle
-        /// also took its combat layers away, while SAIN never runs it (BotAiPolicy.AlwaysVanillaRoles). It gets them back.
-        /// </summary>
-        private static void ApplyFixedVanillaOnSharedBrain()
-        {
-            var layers = new HashSet<string>(_toggledLayers) { "Exfiltration" };
-            List<string> brains = [nameof(EBrain.Tagilla)];
-            List<WildSpawnType> roles = [WildSpawnType.infectedTagilla];
-            BrainManager.RemoveLayers(SAINLayerNames, brains, roles);
-            BrainManager.RestoreLayers([.. layers], brains, roles);
         }
 
         /// <summary>A global "Vanilla ..." group toggle already makes this role vanilla (the bot type page can't change it).</summary>

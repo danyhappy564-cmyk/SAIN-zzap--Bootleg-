@@ -27,7 +27,7 @@ public static class BotAiPolicy
         ESainWildSpawnType.peacefullZryachiyEvent, ESainWildSpawnType.ravangeZryachiyEvent,
         ESainWildSpawnType.shooterBTR, ESainWildSpawnType.marksman,
         ESainWildSpawnType.infectedAssault, ESainWildSpawnType.infectedCivil,
-        ESainWildSpawnType.infectedLaborant, ESainWildSpawnType.infectedPmc, ESainWildSpawnType.infectedTagilla,
+        ESainWildSpawnType.infectedLaborant, ESainWildSpawnType.infectedPmc,
     ];
     private static readonly ESainWildSpawnType[] Scavs =
     [
@@ -50,6 +50,7 @@ public static class BotAiPolicy
         ESainWildSpawnType.bossKojaniy,
         ESainWildSpawnType.bossSanitar,
         ESainWildSpawnType.bossTagilla,
+        ESainWildSpawnType.infectedTagilla,
         ESainWildSpawnType.bossTest,
         ESainWildSpawnType.bossKilla,
         ESainWildSpawnType.bossBoar,

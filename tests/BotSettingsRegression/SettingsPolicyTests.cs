@@ -225,9 +225,16 @@ partial class Program
             Check(Member(state,"Mode").ToString()=="Sain", "global removal did not restore stored choice");
             Check(Group(Fixture()).DifficultyModifier==group.DifficultyModifier, "policy mutated stored setting");
         });
+        Test("Zombie Tagilla runs SAIN like Tagilla and follows the boss toggle; ordinary zombies stay fixed", () =>
+        {
+            var sain=Call("BotAiPolicy","Resolve",ESainWildSpawnType.infectedTagilla,new VanillaBotSettings(),Group(Fixture()),false);
+            Check(Member(sain,"Mode").ToString()=="Sain","zombie Tagilla should be on SAIN");
+            var boss=Call("BotAiPolicy","Resolve",ESainWildSpawnType.infectedTagilla,new VanillaBotSettings{VanillaBosses=true},Group(Fixture()),false);
+            Check(Member(boss,"Mode").ToString()=="GlobalVanilla","Vanilla Bosses should also cover the zombie Tagilla");
+        });
         Test("Zryachiy guards and ordinary snipers stay vanilla even if stored choice says SAIN", () =>
         {
-            foreach(var role in new[]{ESainWildSpawnType.bossZryachiy,ESainWildSpawnType.followerZryachiy,ESainWildSpawnType.peacefullZryachiyEvent,ESainWildSpawnType.ravangeZryachiyEvent,ESainWildSpawnType.marksman,ESainWildSpawnType.infectedAssault,ESainWildSpawnType.infectedPmc,ESainWildSpawnType.infectedCivil,ESainWildSpawnType.infectedLaborant,ESainWildSpawnType.infectedTagilla})
+            foreach(var role in new[]{ESainWildSpawnType.bossZryachiy,ESainWildSpawnType.followerZryachiy,ESainWildSpawnType.peacefullZryachiyEvent,ESainWildSpawnType.ravangeZryachiyEvent,ESainWildSpawnType.marksman,ESainWildSpawnType.infectedAssault,ESainWildSpawnType.infectedPmc,ESainWildSpawnType.infectedCivil,ESainWildSpawnType.infectedLaborant})
             {
                 var state=Call("BotAiPolicy","Resolve",role,new VanillaBotSettings(),Group(Fixture()),false);
                 Check(Member(state,"Mode").ToString()=="AlwaysVanilla", role+" not protected");

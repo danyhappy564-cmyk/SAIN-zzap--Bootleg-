@@ -464,7 +464,7 @@ public class SAINEnemyController : BotComponentClassBase
     private bool PrefersMelee()
     {
         return BotOwner.WeaponManager?.IsMelee == true
-            || Bot.Info.Profile.WildSpawnType is WildSpawnType.bossTagilla or WildSpawnType.bossTagillaAgro;
+            || Bot.Info.Profile.WildSpawnType is WildSpawnType.bossTagilla or WildSpawnType.bossTagillaAgro or WildSpawnType.infectedTagilla;
     }
 
     private Enemy SelectMeleeEnemy()

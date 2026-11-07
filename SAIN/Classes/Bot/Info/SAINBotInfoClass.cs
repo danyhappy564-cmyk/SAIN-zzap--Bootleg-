@@ -135,6 +135,7 @@ public class SAINBotInfoClass : BotComponentClassBase
                 or WildSpawnType.bossKillaAgro
                 or WildSpawnType.bossTagilla
                 or WildSpawnType.bossTagillaAgro
+                or WildSpawnType.infectedTagilla
         )
         {
             searchTime = 0.1f;

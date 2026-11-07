@@ -45,6 +45,7 @@ public class MindSettings : SAINSettingsBase<MindSettings>, ISAINSettings
         { ESainWildSpawnType.bossKillaAgro, EPersonality.Wreckless },
         { ESainWildSpawnType.bossTagilla, EPersonality.Wreckless },
         { ESainWildSpawnType.bossTagillaAgro, EPersonality.Wreckless },
+        { ESainWildSpawnType.infectedTagilla, EPersonality.Wreckless },
         { ESainWildSpawnType.bossKolontay, EPersonality.Wreckless },
         { ESainWildSpawnType.bossKnight, EPersonality.GigaChad },
         { ESainWildSpawnType.followerBigPipe, EPersonality.GigaChad },

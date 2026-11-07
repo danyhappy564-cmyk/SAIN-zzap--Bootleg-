@@ -218,6 +218,7 @@ public static class PresetTunerExtensions
     [
         ESainWildSpawnType.bossTagilla,
         ESainWildSpawnType.bossTagillaAgro,
+        ESainWildSpawnType.infectedTagilla,
         ESainWildSpawnType.bossKilla,
         ESainWildSpawnType.bossKillaAgro,
     ];
@@ -403,6 +404,7 @@ public static class PresetTunerExtensions
                 case ESainWildSpawnType.bossKillaAgro:
                 case ESainWildSpawnType.bossTagilla:
                 case ESainWildSpawnType.bossTagillaAgro:
+                case ESainWildSpawnType.infectedTagilla:
                 case ESainWildSpawnType.bossKolontay:
 
                     easy.Shoot.FireratMulti = 2f;
@@ -512,7 +514,6 @@ public static class PresetTunerExtensions
                 case ESainWildSpawnType.infectedPmc:
                 case ESainWildSpawnType.infectedCivil:
                 case ESainWildSpawnType.infectedLaborant:
-                case ESainWildSpawnType.infectedTagilla:
                     break;
 
                 default:
