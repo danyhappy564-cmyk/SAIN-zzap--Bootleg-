@@ -924,6 +924,7 @@
       "BotPainVoiceOnHit": false
     },
     "SquadTalk": {
+      "NonPmcSquadCallouts": false,
       "_reportReloadingChance": 33.0,
       "_reportReloadingFreq": 2.2,
       "_reportLostVisualChance": 40.0,

@@ -31,8 +31,12 @@ internal static class BotSlotsGUI
             _source=source; _sources=sources; _canSave=canSave;
             if(_slots!=null && (!ReferenceEquals(_labelsFor,_slots) || _labelsKorean!=EditorText.Korean)) {
                 _labelsFor=_slots; _labelsKorean=EditorText.Korean;
-                _labels=_slots.Slots.Select((slot,i)=>slot?.Name??T($"내 설정 {i+1}",$"Custom {i+1}")).ToArray();
-                _contents=_labels.Select(label=>new GUIContent(label.Length>12?label.Substring(0,12)+"…":label,label)).ToArray();
+                // 11/07 user report: empty slots were drawn as "내 설정 1" just like a saved slot named "내 설정 3", so nobody could
+                // tell saved from empty (a deleted slot looked like it stayed). Empty ones now read "＋ 빈 칸 N", dimmed.
+                _labels=_slots.Slots.Select((slot,i)=>slot?.Name??T($"＋ 빈 칸 {i+1}",$"＋ Empty {i+1}")).ToArray();
+                _contents=_labels.Select((label,i)=>new GUIContent(label.Length>12?label.Substring(0,12)+"…":label,
+                    _slots.Slots[i]==null?T("비어 있음 — 누르면 지금 값을 이 칸에 저장","Empty — click to save the current values here")
+                        :T($"{label} — 누르면 편집 중인 봇에 적용(값 {_slots.Slots[i].Fields.Count}개)",$"{label} — click to apply to the bots being edited ({_slots.Slots[i].Fields.Count} values)"))).ToArray();
             }
         }
         GUILayout.Space(10f);
@@ -45,9 +49,17 @@ internal static class BotSlotsGUI
             for(int i=0;i<_slots.Slots.Count;i++) {
                 if(i>0 && i%3==0 && RectLayout.MainWindow.width<1500f) { GUILayout.EndHorizontal(); GUILayout.BeginHorizontal(); }
                 int index=i; var slot=_slots.Slots[i];
-                if(GUILayout.Button(_contents[i],ZzapUI.Button,GUILayout.Height(28f),GUILayout.MaxWidth(124f),GUILayout.ExpandWidth(false)))
-                    ZzapUI.Defer(()=> { if(slot==null) _message=T("비어 있음 — ＋로 저장","Empty — use ＋ to save"); else apply(slot); });
-                if(GUILayout.Button("...",ZzapUI.Button,GUILayout.Width(36f),GUILayout.Height(28f)))
+                if(i>=_contents.Length) break; // labels are rebuilt on the next Layout after a save
+                if(GUILayout.Button(_contents[i],slot==null?ZzapUI.Quiet:ZzapUI.Button,GUILayout.Height(28f),GUILayout.MaxWidth(124f),GUILayout.ExpandWidth(false)))
+                {
+                    if(slot==null)
+                    {
+                        if(canSave && source!=null) Save(next=>next.Slots[index]=BotSettingsSlots.Capture(T($"내 설정 {index+1}",$"Custom {index+1}"),source,sources));
+                        else ZzapUI.Defer(()=>_message=T("여기서는 저장할 수 없습니다. 봇 종류 하나를 고른 뒤 저장하세요.","Can't save here. Pick one bot type first."));
+                    }
+                    else ZzapUI.Defer(()=> { Sounds.PlaySound(EFT.UI.EUISoundType.ButtonClick); _message=null; apply(slot); });
+                }
+                if(slot!=null && GUILayout.Button("...",ZzapUI.Button,GUILayout.Width(36f),GUILayout.Height(28f)))
                     ZzapUI.Defer(()=> { _menu=_menu==index?-1:index; _name=_labels[index]; _rename=false; _message=null; });
             }
             GUI.enabled=canSave && source!=null && (_slots.Slots.Any(s=>s==null)||_slots.Slots.Count<BotSettingsSlots.MaxSlots);
@@ -127,8 +139,16 @@ internal static class BotSlotsGUI
     {
         try {
             var next=BotSettingsSlots.Deserialize(_slots.Serialize()); change(next);
-            ServerDataClient.Save(BotSettingsSlots.DataKey,next.Serialize()); _slots=next; Close(); _code="";
-            _message=T("내 설정을 저장했습니다.","Custom slots saved."); return true;
+            ServerDataClient.Save(BotSettingsSlots.DataKey,next.Serialize());
+            // Say what changed (11/07: "saved with no sound, can't tell if it was saved").
+            int before=_slots.Slots.Count(s=>s!=null), after=next.Slots.Count(s=>s!=null);
+            string changed=next.Slots.FirstOrDefault(s=>s!=null && !_slots.Slots.Any(o=>o!=null && o.CreatedUtc==s.CreatedUtc))?.Name;
+            _slots=next; Close(); _code="";
+            _message=after<before?T("내 설정 칸을 비웠습니다.","Custom slot cleared.")
+                :changed!=null?T($"'{changed}' 칸에 저장했습니다. 저장 시각 {DateTime.Now:HH:mm:ss}",$"Saved to '{changed}' at {DateTime.Now:HH:mm:ss}")
+                :T($"내 설정을 저장했습니다. {DateTime.Now:HH:mm:ss}",$"Custom slots saved at {DateTime.Now:HH:mm:ss}");
+            Sounds.PlaySound(EFT.UI.EUISoundType.ButtonClick);
+            return true;
         } catch { _message=T("저장하지 못했습니다. 이름과 슬롯 수(최대 9칸)를 확인하세요.","Could not save. Check the name, or the 9-slot limit."); return false; }
     }
     public static void Reopen() { _loaded=false; _slots=null; _labelsFor=null; Close(); _code=""; }

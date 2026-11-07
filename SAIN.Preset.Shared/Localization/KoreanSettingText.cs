@@ -1498,7 +1498,7 @@ public static class KoreanSettingText
         { "On = this bot sees all around itself, behind it too. A cheat - for testing.", "켜면 이 봇이 뒤까지 360도를 다 봅니다. 치트라 시험용입니다." },
         { "Seconds a squad member waits between voice lines. Higher = talks less often.", "분대원이 말(음성)을 한 번 하고 다음 말까지 기다리는 초. 클수록 말이 적습니다." },
         { "Seconds the squad leader waits between voice lines. Higher = talks less often.", "분대장이 말(음성)을 한 번 하고 다음 말까지 기다리는 초. 클수록 말이 적습니다." },
-        { "On = this bot type may head for an extract late in the raid (the raid percentage limits below).", "켜면 이 봇 종류가 레이드 후반에 탈출구로 갑니다(아래 레이드 진행률 범위 안에서)." },
+        { "On = this bot type may head for an extract late in the raid (the raid percentage limits below). Only while the global SAIN Extract Behavior is on - it is off in the zzap presets, so ORBIT or nobody handles extracts.", "켜면 이 봇 종류가 레이드 후반에 탈출구로 갑니다(아래 레이드 진행률 범위 안에서). 전역 'SAIN 탈출 행동'이 켜졌을 때만 작동하며, zzap 프리셋은 그 스위치가 꺼져 있어 탈출은 ORBIT이 맡거나 아무도 하지 않습니다." },
         { "How much more the bullets spread in full auto. Higher = wider spread.", "연사할 때 탄이 얼마나 더 퍼지는지. 클수록 많이 퍼집니다." },
         { "EFT's own value: how much more the bullets spread while this bot moves.", "게임 원래 값: 이 봇이 움직이면서 쏠 때 탄이 얼마나 더 퍼지는지." },
         { "EFT's own value: when this bot is hit, its aim is thrown off for at least this many seconds.", "게임 원래 값: 이 봇이 맞으면 조준이 흐트러지는 최소 시간(초)." },

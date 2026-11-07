@@ -1025,3 +1025,6 @@
 .sain-zzap-toggle { margin: 0; flex: none; }
 .sain-map-row { display: grid; grid-template-columns: minmax(220px, 1.2fr) minmax(160px, 2fr) 64px auto; align-items: center; gap: 12px; }
 .sain-map-slider { margin: 0; }
+
+/* 11/07: empty custom slot = dashed, dimmed ("＋ 빈 칸 N") so it never looks like a saved one */
+.sain-custom-slots .sain-slot-empty { border-style: dashed !important; opacity: .65; font-style: italic; }

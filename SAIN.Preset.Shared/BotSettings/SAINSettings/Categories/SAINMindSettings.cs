@@ -103,7 +103,7 @@ public class SAINMindSettings : SAINSettingsBase<SAINMindSettings>, ISAINSetting
     [DataMember]
     [Category("Extract")]
     [Name("Enable Extracts")]
-    [Description("On = this bot type may head for an extract late in the raid (the raid percentage limits below).")]
+    [Description("On = this bot type may head for an extract late in the raid (the raid percentage limits below). Only while the global SAIN Extract Behavior is on - it is off in the zzap presets, so ORBIT or nobody handles extracts.")]
     public bool EnableExtracts = true;
 
     [DataMember]

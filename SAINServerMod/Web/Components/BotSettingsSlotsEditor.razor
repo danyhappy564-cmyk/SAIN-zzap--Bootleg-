@@ -12,7 +12,11 @@
         @for(int i=0;i<_slots.Slots.Count;i++) {
             int index=i; var slot=_slots.Slots[i];
             <div class="sain-slot">
-                <button type="button" class="@(slot==null?"sain-slot-empty":null)" @onclick="() => Apply(slot)">@(slot?.Name??T($"내 설정 {i+1}",$"Custom {i+1}"))</button>
+                @* 11/07: empty slots read "＋ 빈 칸 N" (they looked like a saved "내 설정 N") and clicking one saves the current values there *@
+                <button type="button" class="@(slot==null?"sain-slot-empty":null)" disabled="@(slot==null && Source==null)"
+                        title="@(slot==null?T("비어 있음 — 누르면 지금 값을 이 칸에 저장","Empty — click to save the current values here"):T($"누르면 적용(값 {slot.Fields.Count}개)",$"Click to apply ({slot.Fields.Count} values)"))"
+                        @onclick="() => slot==null ? SaveAt(index) : Apply(slot)">@(slot?.Name??T($"＋ 빈 칸 {i+1}",$"＋ Empty {i+1}"))</button>
+                @if(slot!=null) {
                 <button type="button" class="sain-slot-more" aria-label="@T("내 설정 관리","Manage custom slot")" aria-expanded="@(_menu==index)" @onclick="() => Open(index)">⋯</button>
                 @if(_menu==index && !_rename && !_import && _code.Length==0) {
                     <div class="sain-slot-menu" role="menu">
@@ -21,6 +25,7 @@
                         <button type="button" role="menuitem" disabled="@(slot==null)" @onclick="() => Save(s=>s.Delete(index))">@T("삭제","Delete")</button>
                         <button type="button" role="menuitem" disabled="@(slot==null)" @onclick="Copy">@T("공유 코드 복사","Copy share code")</button>
                     </div>
+                }
                 }
             </div>
         }
@@ -81,11 +86,17 @@
         try
         {
             var next=BotSettingsSlots.Deserialize(_slots!.Serialize()); change(next);
-            await ClientData.SaveAsync(BotSettingsSlots.DataKey,next.Serialize()); _slots=next; Close();
-            _message=T("내 설정을 저장했습니다.","Custom slots saved.");
+            await ClientData.SaveAsync(BotSettingsSlots.DataKey,next.Serialize());
+            int before=_slots.Slots.Count(s=>s!=null), after=next.Slots.Count(s=>s!=null);
+            string? changed=next.Slots.FirstOrDefault(s=>s!=null && !_slots.Slots.Any(o=>o!=null && o.CreatedUtc==s.CreatedUtc))?.Name;
+            _slots=next; Close();
+            _message=after<before?T("내 설정 칸을 비웠습니다.","Custom slot cleared.")
+                :changed!=null?T($"'{changed}' 칸에 저장했습니다. {DateTime.Now:HH:mm:ss}",$"Saved to '{changed}' at {DateTime.Now:HH:mm:ss}")
+                :T($"내 설정을 저장했습니다. {DateTime.Now:HH:mm:ss}",$"Custom slots saved at {DateTime.Now:HH:mm:ss}");
         }
         catch { _message=T("저장하지 못했습니다. 이름과 슬롯 수(최대 9칸)를 확인하세요.","Could not save. Check the name, or the 9-slot limit."); }
     }
+    private Task SaveAt(int index) => Save(s=>s.Slots[index]=BotSettingsSlots.Capture(T($"내 설정 {index+1}",$"Custom {index+1}"),Source!,Sources!));
     private Task SaveCurrent() => Save(s=>
     {
         int index=s.Slots.FindIndex(slot=>slot==null); if(index<0) index=s.Slots.Count;

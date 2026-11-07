@@ -190,7 +190,9 @@ public static class BotSelectionClass
             if(targets.Length==0) { _slotMessage=T("편집 가능한 봇이 없습니다. 전역·고정 바닐라는 건너뜁니다.","No editable bots here. Bots locked to EFT's own AI (vanilla) are skipped."); return; }
             foreach(var bot in targets) skipped+=BotSettingsSlots.Apply(slot,Group(bot),Sources(bot));
             ConfigEditingTracker.Add(T("내 설정","Custom"),slot.Name);
-            _slotMessage=T($"없는 필드·난이도 칸 {skipped}개를 건너뛰었습니다.",$"Skipped {skipped} setting(s) this bot doesn't have.");
+            // 11/07 user report "clicking a saved slot does nothing": say it was applied and that Save is still needed.
+            _slotMessage=T($"'{slot.Name}'을(를) 적용했습니다(값 {slot.Fields.Count}개{(skipped>0?$", 이 봇에 없는 {skipped}개 건너뜀":"")}). 위 [저장]을 눌러야 게임에 반영됩니다.",
+                $"Applied '{slot.Name}' ({slot.Fields.Count} values{(skipped>0?$", {skipped} this bot doesn't have skipped":"")}). Press Save at the top to use it in game.");
         }), note: _view.SlotNote);
         if(_slotMessage!=null) GUILayout.Label(_slotMessage,_wrapSmall);
     }
