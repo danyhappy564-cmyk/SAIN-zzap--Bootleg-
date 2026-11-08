@@ -9,6 +9,7 @@ on:
       - 'site/**'
       - 'release-notes/images/**'
       - '.github/workflows/pages.yml'
+      - '.github/scripts/make_arca.py'
   workflow_dispatch:
 
 permissions:
@@ -31,6 +32,8 @@ jobs:
           cp -r site/. _site/
           mkdir -p _site/img
           cp release-notes/images/*.gif release-notes/images/*.png _site/img/
+          mkdir -p _site/arca
+          python3 .github/scripts/make_arca.py site/index.html _site/arca/index.html
           ls -la _site _site/img
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
